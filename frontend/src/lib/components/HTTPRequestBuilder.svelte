@@ -71,7 +71,7 @@
 
     const requestOptions: main.RequestOptions = {
       body: requestBody,
-      headers: headers.reduce((acc, {key, value}) => ({...acc, [key]: value}), {}),
+      headers: headers.filter(h => h.enabled).reduce((acc, {key, value}) => ({...acc, [key]: value}), {}),
       method,
       url
     }
