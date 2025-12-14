@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "./base/Button.svelte";
 
-  export let title = "Postman Alternative";
+  export let title = "Yapla";
 </script>
 
 <div class="app-container">
