@@ -1,5 +1,3 @@
-// themeStore.ts
-// Place in frontend/src/lib/stores/themeStore.ts
 import { writable, derived } from 'svelte/store';
 import { GetActiveTheme, GetThemeByName, SetActiveTheme } from '../../../wailsjs/go/main/App';
 

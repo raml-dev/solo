@@ -1,5 +1,3 @@
-<!-- ThemeSelector.svelte -->
-<!-- Place in frontend/src/lib/components/ThemeSelector.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { currentTheme, changeTheme } from '../stores/themeStore';
