@@ -1,0 +1,62 @@
+/* colors.css */
+/* Place in frontend/src/assets/colors.css */
+
+:root {
+  /* Brand Colors */
+  --primary: #2563eb;
+  --primary-dark: #1e40af;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #06b6d4;
+  
+  /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  
+  /* Border Colors */
+  --border: #e5e7eb;
+  --border-dark: #d1d5db;
+  
+  /* Text Colors */
+  --text: #111827;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
+  
+  /* Status Colors (HTTP Status Codes) */
+  --status-success-bg: #d1fae5;
+  --status-success-text: #065f46;
+  --status-warning-bg: #fef3c7;
+  --status-warning-text: #92400e;
+  --status-danger-bg: #fee2e2;
+  --status-danger-text: #991b1b;
+  --status-info-bg: #dbeafe;
+  --status-info-text: #1e40af;
+  
+  /* HTTP Method Colors */
+  --method-get-bg: #dbeafe;
+  --method-get-text: #1e40af;
+  --method-post-bg: #d1fae5;
+  --method-post-text: #065f46;
+  --method-put-bg: #fef3c7;
+  --method-put-text: #92400e;
+  --method-delete-bg: #fee2e2;
+  --method-delete-text: #991b1b;
+  --method-patch-bg: #e0e7ff;
+  --method-patch-text: #3730a3;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+    --border: #374151;
+    --border-dark: #4b5563;
+    --text: #f9fafb;
+    --text-muted: #d1d5db;
+    --text-light: #9ca3af;
+  }
+}
