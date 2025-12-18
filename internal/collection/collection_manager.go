@@ -31,7 +31,9 @@ func (cm *CollectionManager) CreateCollection(collectionName string) error {
 	// check if a collection with name already exists
 	exists, err := cm.collectionExists(collectionName)
 	if err != nil {
-		return err
+		if _, ok := err.(*os.PathError); !ok {
+			return err
+		}
 	}
 
 	if exists {
@@ -46,7 +48,11 @@ func (cm *CollectionManager) CreateCollection(collectionName string) error {
 		return err
 	}
 
-	err = os.WriteFile(cm.buildCollectionFileName(collectionName), bytes, 0666)
+	if err := os.MkdirAll(cm.path, 0700); err != nil {
+		return err
+	}
+
+	err = os.WriteFile(cm.buildCollectionFileName(collectionName), bytes, 0600)
 
 	if err != nil {
 		return err
