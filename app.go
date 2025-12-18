@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
+	"yapla/internal/collection"
 	"yapla/internal/requester"
 	"yapla/internal/theme"
 )
 
 // App struct
 type App struct {
-	ctx     context.Context
-	service *requester.Service
-	themeManager *theme.ThemeManager
+	ctx               context.Context
+	service           *requester.Service
+	themeManager      *theme.ThemeManager
+	collectionManager *collection.CollectionManager
 }
 
 type RequestOptions struct {
@@ -22,16 +23,11 @@ type RequestOptions struct {
 	Body    string         `json:"body"`
 }
 
-type ResponseData struct {
-	StatusCode int               `json:"statusCode"`
-	Headers    map[string]string `json:"headers"`
-	Body       string            `json:"body"`
-	Duration   int64             `json:"duration"`
-}
-
 // NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{service: requester.NewService(nil)}
+	return &App{
+		service:           requester.NewService(nil),
+		collectionManager: collection.NewCollectionManager()}
 }
 
 // startup is called when the app starts. The context is saved
@@ -48,38 +44,15 @@ func (a *App) startup(ctx context.Context) {
 	a.themeManager = tm
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Execute(options RequestOptions) (ResponseData, error) {
-	result := ResponseData{}
-
-	resp, err := a.service.Execute(options.Method, options.URL, options.Body, options.Headers, nil)
-
-	if err != nil {
-		return ResponseData{}, err
-	}
-
-	defer resp.Body.Close()
-
-	result.StatusCode = resp.StatusCode
-
-	// 6. Lettura della Risposta
-	bodyBytes, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		return result, err
-	}
-
-	result.Body = string(bodyBytes)
-
-	respHeaders := make(map[string]string, len(resp.Header))
-
-	for k, v := range resp.Header {
-		respHeaders[k] = v[0]
-	}
-
-	result.Headers = respHeaders
-
-	return result, nil
+// Execute actually performs the action of calling the server
+func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
+	return a.service.ExecuteRequest(
+		options.Method,
+		options.URL,
+		options.Body,
+		options.Headers,
+		nil,
+	)
 }
 
 // Theme Management Methods
@@ -145,13 +118,53 @@ func (a *App) GetThemeByName(themeName string) (*theme.Theme, error) {
 	if a.themeManager == nil {
 		return nil, fmt.Errorf("theme manager not initialized")
 	}
-	
+
 	allThemes := a.themeManager.GetAllThemes()
 	for _, theme := range allThemes {
 		if theme.Name == themeName {
 			return &theme, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("theme not found: %s", themeName)
+}
+
+// Collection Management Methods
+
+func (a *App) CreateCollection(collectionName string) error {
+	return a.collectionManager.CreateCollection(collectionName)
+}
+
+func (a *App) LoadCollections() (*[]string, error) {
+	return a.collectionManager.LoadCollections()
+}
+
+func (a *App) LoadCollection(collectionName string) (*collection.Collection, error) {
+	return a.collectionManager.LoadCollection(collectionName)
+}
+
+func (a *App) UpdateCollection(updated collection.Collection) error {
+	return a.collectionManager.UpdateCollection(updated)
+}
+
+func (a *App) DeleteCollection(collectionName string) error {
+	return a.collectionManager.DeleteCollection(collectionName)
+}
+
+// Request Management Methods
+
+func (a *App) GetRequests(collectionName string) (*[]collection.Request, error) {
+	return a.collectionManager.GetRequests(collectionName)
+}
+
+func (a *App) AddRequest(collectionName string, request collection.Request) error {
+	return a.collectionManager.AddRequest(collectionName, request)
+}
+
+func (a *App) RemoveRequest(collectionName string, requestId string) error {
+	return a.collectionManager.RemoveRequest(collectionName, requestId)
+}
+
+func (a *App) UpdateRequest(collectionName string, updated collection.Request) error {
+	return a.collectionManager.UpdateRequest(collectionName, updated)
 }
