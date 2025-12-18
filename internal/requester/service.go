@@ -3,6 +3,7 @@ package requester
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"yapla/internal/configuration"
 )
@@ -50,4 +51,38 @@ func (s *Service) Execute(method, url string, body string, headers map[string]an
 
 	return s.httpClient.Do(request)
 
+}
+
+type ResponseData struct {
+	StatusCode int               `json:"statusCode"`
+	Headers    map[string]string `json:"headers"`
+	Body       string            `json:"body"`
+	Duration   int64             `json:"duration"`
+}
+
+func (s *Service) ExecuteRequest(method, url, body string, headers map[string]any, cookies map[string]any) (*ResponseData, error) {
+	resp, err := s.Execute(method, url, body, headers, cookies)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Lettura della risposta
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Conversione headers
+	respHeaders := make(map[string]string, len(resp.Header))
+	for k, v := range resp.Header {
+		respHeaders[k] = v[0]
+	}
+
+	return &ResponseData{
+		StatusCode: resp.StatusCode,
+		Headers:    respHeaders,
+		Body:       string(bodyBytes),
+		Duration:   0, // TODO: time tracking
+	}, nil
 }

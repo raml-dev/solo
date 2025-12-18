@@ -1,4 +1,4 @@
-package collections
+package collection
 
 import (
 	"errors"
@@ -6,40 +6,40 @@ import (
 	"reflect"
 	"slices"
 	"time"
-	"yapla/internal/configuration"
 
 	"github.com/google/uuid"
 )
 
+// Collection represents a group of HTTP requests.
+// NOTE: This type is not safe for concurrent use.
+// If concurrent access is needed in the future, add sync.RWMutex.
 type Collection struct {
-	creationTimestamp   time.Time
-	lastUpdateTimestamp time.Time
-	Requests            []Request
-	Name                string
-	Id                  string
-	fsPath              string
+	CreationTimestamp   time.Time `json:"creationTimestamp"`
+	LastUpdateTimestamp time.Time `json:"lastUpdateTimestamp"`
+	Requests            []Request `json:"requests"`
+	Name                string    `json:"name"`
+	Id                  string    `json:"id"`
 }
 
 type Request struct {
-	Name                string
-	Url                 string
-	Verb                string
-	Body                string
-	Id                  string
-	Headers             map[string]any
-	Cookies             map[string]any
-	creationTimestamp   time.Time
-	lastUpdateTimestamp time.Time
+	Name                string         `json:"name"`
+	Url                 string         `json:"url"`
+	Verb                string         `json:"verb"`
+	Body                string         `json:"body"`
+	Id                  string         `json:"id"`
+	Headers             map[string]any `json:"headers"`
+	Cookies             map[string]any `json:"cookies"`
+	CreationTimestamp   time.Time      `json:"creationTimestamp"`
+	LastUpdateTimestamp time.Time      `json:"lastUpdateTimestamp"`
 }
 
-func NewCollection(config *configuration.Configuration, name string) *Collection {
+func NewCollection(name string) Collection {
 	tsp := time.Now()
-	return &Collection{
+	return Collection{
 		Id:                  uuid.NewString(),
-		creationTimestamp:   tsp,
-		lastUpdateTimestamp: tsp,
+		CreationTimestamp:   tsp,
+		LastUpdateTimestamp: tsp,
 		Name:                name,
-		fsPath:              config.Collection.Path,
 	}
 }
 
@@ -63,8 +63,8 @@ func (c *Collection) AddRequest(request Request) error {
 
 	now := time.Now()
 
-	request.creationTimestamp = now
-	request.lastUpdateTimestamp = now
+	request.CreationTimestamp = now
+	request.LastUpdateTimestamp = now
 
 	exists := c.exists(request.Id)
 
@@ -93,12 +93,12 @@ func (c *Collection) RemoveRequest(id string) error {
 	}
 
 	c.Requests = requests
-	c.lastUpdateTimestamp = time.Now()
+	c.LastUpdateTimestamp = time.Now()
 
 	return nil
 }
 
-func (c *Collection) UpdateRequest(updated Request) error {
+func (c Collection) UpdateRequest(updated Request) error {
 	if updated.Id == "" {
 		return errors.New("missing identifier for request")
 	}
@@ -116,8 +116,8 @@ func (c *Collection) UpdateRequest(updated Request) error {
 		fieldName := vUpdated.Type().Field(i).Name
 
 		if fieldName == "Id" ||
-			fieldName == "creationTimestamp" ||
-			fieldName == "lastUpdateTimestamp" {
+			fieldName == "CreationTimestamp" ||
+			fieldName == "LastUpdateTimestamp" {
 			continue
 		}
 
@@ -134,27 +134,10 @@ func (c *Collection) UpdateRequest(updated Request) error {
 	}
 
 	now := time.Now()
-	r.lastUpdateTimestamp = now
-	c.lastUpdateTimestamp = now
+	r.LastUpdateTimestamp = now
+	c.LastUpdateTimestamp = now
 
 	c.Requests[idx] = *r
 
 	return nil
-}
-
-// Utilities
-func (c *Collection) exists(id string) bool {
-	return slices.ContainsFunc(c.Requests,
-		func(r Request) bool {
-			return r.Id == id
-		})
-}
-
-func (c *Collection) get(id string) (int, *Request) {
-	for i, r := range c.Requests {
-		if r.Id == id {
-			return i, &c.Requests[i]
-		}
-	}
-	return -1, nil
 }
