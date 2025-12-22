@@ -1,8 +1,10 @@
 <script lang="ts">
-  import {Execute} from '../../../wailsjs/go/main/App';
-  import {main} from '../../../wailsjs/go/models';
-  import Button from './base/Button.svelte';
-  import Dropdown from './base/Dropdown.svelte';
+  import { Execute } from "../../../wailsjs/go/main/App";
+  import { main } from "../../../wailsjs/go/models";
+  import Button from "./base/Button.svelte";
+  import Dropdown from "./base/Dropdown.svelte";
+  import { collectionStore, selectedRequest } from "../stores/collectionStore";
+  import { onMount } from "svelte";
 
   interface Header {
     id: string;
@@ -24,13 +26,39 @@
   let activeTab = "headers";
   let requestBody = "";
   let headers: Header[] = [
-    { id: '1', key: 'Content-Type', value: 'application/json', enabled: true },
-    { id: '2', key: 'test', value: 'test', enabled: true },
+    { id: "1", key: "Content-Type", value: "application/json", enabled: true },
+    { id: "2", key: "test", value: "test", enabled: true },
   ];
-  
+
   let response: HTTPResponse | null = null;
   let loading = false;
   let responseTab = "body";
+  let showSaveDialog = false;
+  let requestName = "";
+
+  // Load request from collection when selected
+  $: if ($selectedRequest) {
+    loadRequestData($selectedRequest);
+  }
+
+  function loadRequestData(request: any) {
+    method = request.verb || "GET";
+    url = request.url || "";
+    requestBody = request.body || "";
+    requestName = request.name || "";
+
+    // Convert headers object to array
+    if (request.headers && typeof request.headers === "object") {
+      headers = Object.entries(request.headers).map(([key, value], index) => ({
+        id: `header-${index}`,
+        key,
+        value: String(value),
+        enabled: true,
+      }));
+    } else {
+      headers = [];
+    }
+  }
 
   const methodOptions = [
     { value: "GET", label: "GET" },
@@ -49,20 +77,20 @@
   function addHeader() {
     const newHeader: Header = {
       id: Date.now().toString(),
-      key: '',
-      value: '',
-      enabled: true
+      key: "",
+      value: "",
+      enabled: true,
     };
     headers = [...headers, newHeader];
   }
 
   function removeHeader(id: string) {
-    headers = headers.filter(h => h.id !== id);
+    headers = headers.filter((h) => h.id !== id);
   }
 
   function toggleHeader(id: string) {
-    headers = headers.map(h => 
-      h.id === id ? { ...h, enabled: !h.enabled } : h
+    headers = headers.map((h) =>
+      h.id === id ? { ...h, enabled: !h.enabled } : h,
     );
   }
 
@@ -71,35 +99,85 @@
 
     const requestOptions: main.RequestOptions = {
       body: requestBody,
-      headers: headers.filter(h => h.enabled).reduce((acc, {key, value}) => ({...acc, [key]: value}), {}),
+      headers: headers
+        .filter((h) => h.enabled)
+        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {}),
       method,
-      url
-    }
+      url,
+    };
 
     try {
       // Simulate API call - replace with actual Wails backend call
-      const responseData = await Execute(requestOptions)
-      
+      const responseData = await Execute(requestOptions);
+
       response = {
         status: responseData.statusCode,
         statusText: "TBD",
-        
+
         time: responseData.duration,
         headers: responseData.headers,
-        body: responseData.body
+        body: responseData.body,
       };
     } catch (error) {
-      console.error('Request failed:', error);
+      console.error("Request failed:", error);
     } finally {
       loading = false;
     }
   }
 
+  async function handleSaveToCollection() {
+    if (!$collectionStore.selectedCollectionName) {
+      alert("Please select a collection first");
+      return;
+    }
+
+    try {
+      const headersObj = headers
+        .filter((h) => h.enabled && h.key)
+        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+
+      // Check if we're updating an existing request or creating a new one
+      if ($selectedRequest && $selectedRequest.id) {
+        // Update existing request
+        await collectionStore.updateRequest(
+          $collectionStore.selectedCollectionName,
+          {
+            ...$selectedRequest,
+            name: requestName || $selectedRequest.name,
+            url,
+            verb: method,
+            body: requestBody,
+            headers: headersObj,
+            lastUpdateTimestamp: new Date().toISOString(),
+          },
+        );
+      } else {
+        // Create new request
+        await collectionStore.addRequest(
+          $collectionStore.selectedCollectionName,
+          {
+            name: requestName || "Untitled Request",
+            url,
+            verb: method,
+            body: requestBody,
+            headers: headersObj,
+          },
+        );
+      }
+
+      showSaveDialog = false;
+      requestName = "";
+    } catch (err) {
+      console.error("Error saving request:", err);
+      alert("Failed to save request");
+    }
+  }
+
   function getStatusClass(status: number): string {
-    if (status >= 200 && status < 300) return 'status-success';
-    if (status >= 300 && status < 400) return 'status-info';
-    if (status >= 400 && status < 500) return 'status-warning';
-    return 'status-error';
+    if (status >= 200 && status < 300) return "status-success";
+    if (status >= 300 && status < 400) return "status-info";
+    if (status >= 400 && status < 500) return "status-warning";
+    return "status-error";
   }
 </script>
 
@@ -107,32 +185,47 @@
   <!-- Request Line -->
   <div class="request-line">
     <div class="method-dropdown">
-      <Dropdown 
+      <Dropdown
         bind:value={method}
         options={methodOptions}
         on:change={handleMethodChange}
       />
     </div>
-    <input 
-      type="text" 
-      class="input url-input" 
+    <input
+      type="text"
+      class="input url-input"
       placeholder="Enter request URL"
       bind:value={url}
     />
-    <Button 
+    <Button
+      variant="secondary"
+      on:click={() => (showSaveDialog = true)}
+      style="min-width: 80px;"
+      >{$selectedRequest && $selectedRequest.id ? "UPDATE" : "SAVE"}</Button
+    >
+    <Button
       variant="primary"
       on:click={sendRequest}
       disabled={loading}
       style="min-width: 100px;font-weight: var(--font-weight-semibold);"
-      >{loading ? 'SENDING...' : 'SEND'}</Button>
+      >{loading ? "SENDING..." : "SEND"}</Button
+    >
   </div>
 
   <!-- Request Tabs -->
   <div class="tabs">
-    <button class="tab" class:active={activeTab === "headers"} on:click={() => activeTab = "headers"}>
+    <button
+      class="tab"
+      class:active={activeTab === "headers"}
+      on:click={() => (activeTab = "headers")}
+    >
       Headers
     </button>
-    <button class="tab" class:active={activeTab === "body"} on:click={() => activeTab = "body"}>
+    <button
+      class="tab"
+      class:active={activeTab === "body"}
+      on:click={() => (activeTab = "body")}
+    >
       Body
     </button>
   </div>
@@ -143,27 +236,27 @@
       <div class="headers-editor">
         {#each headers as header (header.id)}
           <div class="header-row">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               class="header-checkbox"
               checked={header.enabled}
               on:change={() => toggleHeader(header.id)}
             />
-            <input 
-              type="text" 
+            <input
+              type="text"
               class="input header-input"
               placeholder="Header name"
               bind:value={header.key}
               disabled={!header.enabled}
             />
-            <input 
-              type="text" 
+            <input
+              type="text"
               class="input header-input"
               placeholder="Value"
               bind:value={header.value}
               disabled={!header.enabled}
             />
-            <button 
+            <button
               class="btn-icon btn-remove"
               on:click={() => removeHeader(header.id)}
               title="Remove header"
@@ -178,9 +271,9 @@
       </div>
     {:else if activeTab === "body"}
       <div class="body-editor">
-        <textarea 
-          class="input code-input" 
-          rows="12" 
+        <textarea
+          class="input code-input"
+          rows="12"
           placeholder="Request body (JSON, XML, etc.)"
           bind:value={requestBody}
         ></textarea>
@@ -205,10 +298,18 @@
     {#if response}
       <!-- Response Tabs -->
       <div class="tabs response-tabs">
-        <button class="tab" class:active={responseTab === "body"} on:click={() => responseTab = "body"}>
+        <button
+          class="tab"
+          class:active={responseTab === "body"}
+          on:click={() => (responseTab = "body")}
+        >
           Body
         </button>
-        <button class="tab" class:active={responseTab === "headers"} on:click={() => responseTab = "headers"}>
+        <button
+          class="tab"
+          class:active={responseTab === "headers"}
+          on:click={() => (responseTab = "headers")}
+        >
           Headers
         </button>
       </div>
@@ -235,6 +336,67 @@
     {/if}
   </div>
 </div>
+
+{#if showSaveDialog}
+  <div class="dialog-overlay" on:click={() => (showSaveDialog = false)}>
+    <div class="dialog" on:click={(e) => e.stopPropagation()}>
+      {#if $selectedRequest && $selectedRequest.id}
+        <!-- Update existing request -->
+        <h3>Update Request</h3>
+        {#if !$collectionStore.selectedCollectionName}
+          <p class="warning">
+            Please select a collection from the sidebar first!
+          </p>
+        {:else}
+          <p class="info">
+            Do you want to update <strong>{$selectedRequest.name}</strong> in
+            <strong>{$collectionStore.selectedCollectionName}</strong>?
+          </p>
+        {/if}
+        <div class="dialog-actions">
+          <Button variant="secondary" on:click={() => (showSaveDialog = false)}>
+            Cancel
+          </Button>
+          {#if $collectionStore.selectedCollectionName}
+            <Button variant="primary" on:click={handleSaveToCollection}>
+              Update
+            </Button>
+          {/if}
+        </div>
+      {:else}
+        <!-- Create new request -->
+        <h3>Save Request to Collection</h3>
+        {#if !$collectionStore.selectedCollectionName}
+          <p class="warning">
+            Please select a collection from the sidebar first!
+          </p>
+        {:else}
+          <p class="info">
+            Saving to: <strong>{$collectionStore.selectedCollectionName}</strong
+            >
+          </p>
+          <input
+            type="text"
+            bind:value={requestName}
+            placeholder="Request name"
+            on:keydown={(e) => e.key === "Enter" && handleSaveToCollection()}
+            autofocus
+          />
+        {/if}
+        <div class="dialog-actions">
+          <Button variant="secondary" on:click={() => (showSaveDialog = false)}>
+            Cancel
+          </Button>
+          {#if $collectionStore.selectedCollectionName}
+            <Button variant="primary" on:click={handleSaveToCollection}>
+              Save
+            </Button>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 
 <style>
   .request-builder {
@@ -421,6 +583,64 @@
     overflow-x: auto;
     background: var(--bg-tertiary);
     max-width: 100%;
+  }
+
+  .dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .dialog {
+    background: var(--color-bg);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-lg);
+    min-width: 400px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .dialog h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: var(--font-size-xl);
+  }
+
+  .dialog .warning {
+    color: var(--color-warning);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .dialog .info {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .dialog input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    font-size: var(--font-size-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .dialog input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+
+  .dialog-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
   }
 
   .response-body {
