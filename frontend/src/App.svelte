@@ -1,34 +1,27 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import MainLayout from './lib/components/MainLayout.svelte';
-  import Sidebar from './lib/components/Sidebar.svelte';
-  import HTTPRequestBuilder from './lib/components/HTTPRequestBuilder.svelte';
-  import ThemeSelector from './lib/components/ThemeSelector.svelte';
-  import { initTheme } from './lib/stores/themeStore';
-  import Button from './lib/components/base/Button.svelte';
+  import { onMount } from "svelte";
+  import MainLayout from "./lib/components/MainLayout.svelte";
+  import CollectionList from "./lib/components/CollectionList.svelte";
+  import RequestEditor from "./lib/components/RequestEditor.svelte";
+  import HTTPRequestBuilder from "./lib/components/HTTPRequestBuilder.svelte";
+  import ThemeSelector from "./lib/components/ThemeSelector.svelte";
+  import { initTheme } from "./lib/stores/themeStore";
+  import {
+    collectionStore,
+    selectedRequest,
+  } from "./lib/stores/collectionStore";
+  import Button from "./lib/components/base/Button.svelte";
 
-  // Sample data
-  const collections = [
-    { id: '1', name: 'Users API', method: 'GET' },
-    { id: '2', name: 'Create User', method: 'POST' },
-    { id: '3', name: 'Update User', method: 'PUT' },
-    { id: '4', name: 'Delete User', method: 'DELETE' },
-    { id: '5', name: 'Get Posts', method: 'GET' },
-    { id: '6', name: 'Create Post', method: 'POST' },
-  ];
-
-  let selectedId: string | null = '1';
   let showThemeSelector = false;
+  let activeView: "builder" | "editor" = "builder";
 
   onMount(async () => {
     // Initialize theme on app start
     await initTheme();
-  });
 
-  function handleSelect(id: string) {
-    selectedId = id;
-    console.log('Selected:', id);
-  }
+    // Load collections
+    await collectionStore.loadCollections();
+  });
 
   function toggleThemeSelector() {
     showThemeSelector = !showThemeSelector;
@@ -37,15 +30,21 @@
 
 <MainLayout title="yapla">
   <svelte:fragment slot="navbar-actions">
-    <Button variant="secondary" on:click={toggleThemeSelector}>🎨 Theme</Button>
+    <div class="nav-actions">
+      <div class="view-switcher">
+        <Button variant="primary" size="small">Request Builder</Button>
+      </div>
+      <Button variant="secondary" on:click={toggleThemeSelector}
+        >🎨 Theme</Button
+      >
+    </div>
   </svelte:fragment>
 
-  <Sidebar 
-    items={collections} 
-    {selectedId}
-    onSelect={handleSelect}
-  />
-  <HTTPRequestBuilder />
+  <CollectionList />
+
+  {#if activeView === "builder"}
+    <HTTPRequestBuilder />
+  {/if}
 </MainLayout>
 
 {#if showThemeSelector}
@@ -53,7 +52,8 @@
     <div class="modal-panel" on:click|stopPropagation>
       <ThemeSelector />
       <div class="modal-footer">
-        <Button variant="secondary" on:click={toggleThemeSelector}>Close</Button>
+        <Button variant="secondary" on:click={toggleThemeSelector}>Close</Button
+        >
       </div>
     </div>
   </div>
@@ -63,6 +63,17 @@
   :global(body) {
     margin: 0;
     padding: 0;
+  }
+
+  .nav-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+  }
+
+  .view-switcher {
+    display: flex;
+    gap: var(--spacing-xs);
   }
 
   .modal-overlay {

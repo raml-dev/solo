@@ -42,6 +42,21 @@
   --method-delete-text: #991b1b;
   --method-patch-bg: #e0e7ff;
   --method-patch-text: #3730a3;
+
+  /* Legacy alias variables */
+  --color-primary: var(--primary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-bg: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-hover: var(--bg-tertiary);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-muted);
+  --color-primary-bg: var(--bg-tertiary);
+  --color-danger-bg: var(--status-danger-bg);
 }
 
 /* Dark Mode Support */

@@ -14,6 +14,7 @@
   type BtnSize = 
     | "sm"
     | "lg"
+    | "small"
   const dispatch = createEventDispatcher();
 
   const handleClick = () => dispatch('click')
@@ -81,7 +82,8 @@
   opacity: 0.9; 
 }
 
-.btn-sm {
+.btn-sm,
+.btn-small {
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--font-size-xs);
 }
