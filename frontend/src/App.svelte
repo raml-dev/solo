@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import MainLayout from "./lib/components/MainLayout.svelte";
   import CollectionList from "./lib/components/CollectionList.svelte";
+  import EnvironmentManager from "./lib/components/EnvironmentManager.svelte";
   import RequestEditor from "./lib/components/RequestEditor.svelte";
   import HTTPRequestBuilder from "./lib/components/HTTPRequestBuilder.svelte";
   import ThemeSelector from "./lib/components/ThemeSelector.svelte";
@@ -10,21 +11,28 @@
     collectionStore,
     selectedRequest,
   } from "./lib/stores/collectionStore";
+  import { environmentStore } from "./lib/stores/environmentStore";
   import Button from "./lib/components/base/Button.svelte";
 
   let showThemeSelector = false;
+  let showEnvironmentManager = false;
   let activeView: "builder" | "editor" = "builder";
 
   onMount(async () => {
     // Initialize theme on app start
     await initTheme();
 
-    // Load collections
+    // Load collections and environments
     await collectionStore.loadCollections();
+    await environmentStore.loadEnvironments();
   });
 
   function toggleThemeSelector() {
     showThemeSelector = !showThemeSelector;
+  }
+
+  function toggleEnvironmentManager() {
+    showEnvironmentManager = !showEnvironmentManager;
   }
 </script>
 
@@ -34,6 +42,9 @@
       <div class="view-switcher">
         <Button variant="primary" size="small">Request Builder</Button>
       </div>
+      <Button variant="secondary" on:click={toggleEnvironmentManager}
+        >🌍 Environments</Button
+      >
       <Button variant="secondary" on:click={toggleThemeSelector}
         >🎨 Theme</Button
       >
@@ -57,6 +68,10 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if showEnvironmentManager}
+  <EnvironmentManager onClose={toggleEnvironmentManager} />
 {/if}
 
 <style>

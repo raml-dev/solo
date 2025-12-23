@@ -6,8 +6,16 @@ export function AddRequest(arg1, arg2) {
   return window['go']['main']['App']['AddRequest'](arg1, arg2);
 }
 
+export function AddValue(arg1, arg2, arg3) {
+  return window['go']['main']['App']['AddValue'](arg1, arg2, arg3);
+}
+
 export function CreateCollection(arg1) {
   return window['go']['main']['App']['CreateCollection'](arg1);
+}
+
+export function CreateEnvironment(arg1) {
+  return window['go']['main']['App']['CreateEnvironment'](arg1);
 }
 
 export function DeleteCollection(arg1) {
@@ -16,6 +24,10 @@ export function DeleteCollection(arg1) {
 
 export function DeleteCustomTheme(arg1) {
   return window['go']['main']['App']['DeleteCustomTheme'](arg1);
+}
+
+export function DeleteEnvironment(arg1) {
+  return window['go']['main']['App']['DeleteEnvironment'](arg1);
 }
 
 export function Execute(arg1) {
@@ -46,6 +58,10 @@ export function GetThemeByName(arg1) {
   return window['go']['main']['App']['GetThemeByName'](arg1);
 }
 
+export function GetValues(arg1) {
+  return window['go']['main']['App']['GetValues'](arg1);
+}
+
 export function LoadCollection(arg1) {
   return window['go']['main']['App']['LoadCollection'](arg1);
 }
@@ -54,8 +70,20 @@ export function LoadCollections() {
   return window['go']['main']['App']['LoadCollections']();
 }
 
+export function LoadEnvironment(arg1) {
+  return window['go']['main']['App']['LoadEnvironment'](arg1);
+}
+
+export function LoadEnvironments() {
+  return window['go']['main']['App']['LoadEnvironments']();
+}
+
 export function RemoveRequest(arg1, arg2) {
   return window['go']['main']['App']['RemoveRequest'](arg1, arg2);
+}
+
+export function RemoveValue(arg1, arg2) {
+  return window['go']['main']['App']['RemoveValue'](arg1, arg2);
 }
 
 export function SaveCustomTheme(arg1) {
@@ -70,6 +98,14 @@ export function UpdateCollection(arg1) {
   return window['go']['main']['App']['UpdateCollection'](arg1);
 }
 
+export function UpdateEnvironment(arg1) {
+  return window['go']['main']['App']['UpdateEnvironment'](arg1);
+}
+
 export function UpdateRequest(arg1, arg2) {
   return window['go']['main']['App']['UpdateRequest'](arg1, arg2);
+}
+
+export function UpdateValue(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateValue'](arg1, arg2, arg3);
 }
