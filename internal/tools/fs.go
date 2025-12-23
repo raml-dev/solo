@@ -5,12 +5,6 @@ import (
 	"path/filepath"
 )
 
-const (
-	MAIN_DIR              = "yapla"
-	CONFIG_JSON_FILENAME  = "config.json"
-	CONFIG_COLLECTION_DIR = "collections"
-)
-
 func GetOrCreateConfigDir() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {

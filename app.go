@@ -4,16 +4,18 @@ import (
 	"context"
 	"fmt"
 	"yapla/internal/collection"
+	"yapla/internal/environment"
 	"yapla/internal/requester"
 	"yapla/internal/theme"
 )
 
 // App struct
 type App struct {
-	ctx               context.Context
-	service           *requester.Service
-	themeManager      *theme.ThemeManager
-	collectionManager *collection.CollectionManager
+	ctx                context.Context
+	service            *requester.Service
+	themeManager       *theme.ThemeManager
+	collectionManager  *collection.CollectionManager
+	environmentManager *environment.EnvironmentManager
 }
 
 type RequestOptions struct {
@@ -26,8 +28,9 @@ type RequestOptions struct {
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
-		service:           requester.NewService(nil),
-		collectionManager: collection.NewCollectionManager()}
+		service:            requester.NewService(nil),
+		collectionManager:  collection.NewCollectionManager(),
+		environmentManager: environment.NewEnvironmentManager()}
 }
 
 // startup is called when the app starts. The context is saved
@@ -167,4 +170,44 @@ func (a *App) RemoveRequest(collectionName string, requestId string) error {
 
 func (a *App) UpdateRequest(collectionName string, updated collection.Request) error {
 	return a.collectionManager.UpdateRequest(collectionName, updated)
+}
+
+// Environment Management Methods
+
+func (a *App) CreateEnvironment(name string) error {
+	return a.environmentManager.CreateEnvironment(name)
+}
+
+func (a *App) LoadEnvironments() (*[]string, error) {
+	return a.environmentManager.LoadEnvironments()
+}
+
+func (a *App) LoadEnvironment(name string) (*environment.Environment, error) {
+	return a.environmentManager.LoadEnvironment(name)
+}
+
+func (a *App) UpdateEnvironment(updated environment.Environment) error {
+	return a.environmentManager.UpdateEnvironment(&updated)
+}
+
+func (a *App) DeleteEnvironment(name string) error {
+	return a.environmentManager.DeleteEnvironment(name)
+}
+
+// Environment Value Management Methods
+
+func (a *App) GetValues(environmentName string) (*map[string]environment.ValueType, error) {
+	return a.environmentManager.GetValues(environmentName)
+}
+
+func (a *App) AddValue(environmentName string, valueName string, value environment.ValueType) error {
+	return a.environmentManager.AddValue(environmentName, valueName, value)
+}
+
+func (a *App) RemoveValue(environmentName string, valueName string) error {
+	return a.environmentManager.RemoveValue(environmentName, valueName)
+}
+
+func (a *App) UpdateValue(environmentName string, valueName string, updated environment.ValueType) error {
+	return a.environmentManager.UpdateValue(environmentName, valueName, updated)
 }
