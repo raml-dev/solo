@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { collectionStore } from "../stores/collectionStore";
   import type { Collection, Request } from "../stores/collectionStore";
   import Button from "./base/Button.svelte";
@@ -18,6 +19,7 @@
   let expandedCollections: Set<string> = new Set();
   let searchQuery = "";
   let activeMenu: string | null = null;
+  let isCollapsed = false;
 
   $: collections = $collectionStore.collections;
   $: selectedCollectionName = $collectionStore.selectedCollectionName;
@@ -25,7 +27,7 @@
   $: normalizedQuery = searchQuery.trim().toLowerCase();
   $: isSearching = normalizedQuery.length > 0;
   $: filteredCollections = collections.filter((collection) =>
-    shouldShowCollection(collection, normalizedQuery),
+    shouldShowCollection(collection, normalizedQuery)
   );
 
   function normalize(value: string | undefined | null): string {
@@ -34,10 +36,7 @@
 
   function requestMatches(request: Request, query: string): boolean {
     if (!query) return true;
-    return (
-      normalize(request.name).includes(query) ||
-      normalize(request.url).includes(query)
-    );
+    return normalize(request.name).includes(query) || normalize(request.url).includes(query);
   }
 
   function collectionMatches(collection: Collection, query: string): boolean {
@@ -45,19 +44,13 @@
     return normalize(collection.name).includes(query);
   }
 
-  function getVisibleRequests(
-    collection: Collection,
-    query: string,
-  ): Request[] {
+  function getVisibleRequests(collection: Collection, query: string): Request[] {
     const requests = collection.requests || [];
     if (!query) return requests;
     return requests.filter((request) => requestMatches(request, query));
   }
 
-  function shouldShowCollection(
-    collection: Collection,
-    query: string,
-  ): boolean {
+  function shouldShowCollection(collection: Collection, query: string): boolean {
     if (!query) return true;
     if (collectionMatches(collection, query)) return true;
     return getVisibleRequests(collection, query).length > 0;
@@ -113,7 +106,7 @@
     }
 
     const exists = collections.some(
-      (collection) => collection.name.toLowerCase() === trimmed.toLowerCase(),
+      (collection) => collection.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) {
       alert(`Collection "${trimmed}" already exists.`);
@@ -138,7 +131,7 @@
     }
 
     const exists = collections.some(
-      (collection) => collection.name.toLowerCase() === trimmed.toLowerCase(),
+      (collection) => collection.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) {
       alert(`Collection "${trimmed}" already exists.`);
@@ -190,7 +183,7 @@
       await collectionStore.addRequest(collectionName, {
         name: "New Request",
         url: "https://api.example.com",
-        verb: "GET",
+        verb: "GET"
       });
 
       expandedCollections.add(collectionName);
@@ -201,10 +194,7 @@
     }
   }
 
-  async function handleDeleteRequest(
-    collectionName: string,
-    requestId: string,
-  ) {
+  async function handleDeleteRequest(collectionName: string, requestId: string) {
     deleteRequestCollectionName = collectionName;
     deleteRequestTarget = requestId;
     showDeleteRequestConfirmDialog = true;
@@ -216,10 +206,7 @@
     try {
       console.log("collectionName: " + deleteRequestCollectionName);
       console.log("requestId: " + deleteRequestTarget);
-      await collectionStore.removeRequest(
-        deleteRequestCollectionName,
-        deleteRequestTarget,
-      );
+      await collectionStore.removeRequest(deleteRequestCollectionName, deleteRequestTarget);
       closeDeleteRequestConfirmDialog();
     } catch (err) {
       console.error("Error deleting request:", err);
@@ -246,176 +233,184 @@
       activeMenu = null;
     }
   }
+
+  function toggleCollapse() {
+    isCollapsed = !isCollapsed;
+    localStorage.setItem("sidebar_collapsed", String(isCollapsed));
+  }
+
+  onMount(() => {
+    const stored = localStorage.getItem("sidebar_collapsed");
+    if (stored !== null) {
+      isCollapsed = stored === "true";
+    }
+  });
 </script>
 
-<div class="collection-list" on:click={clearMenu}>
+<div class="collection-list" class:collapsed={isCollapsed} on:click={clearMenu}>
   <div class="header">
     <div class="header-title">
-      <h3>Collections</h3>
-      <Button
-        variant="primary"
-        size="small"
-        on:click={() => (showNewCollectionDialog = true)}
-      >
-        New
-      </Button>
+      {#if !isCollapsed}
+        <h3>Collections</h3>
+      {/if}
+      <div class="header-actions">
+        {#if !isCollapsed}
+          <Button variant="primary" size="small" on:click={() => (showNewCollectionDialog = true)}>
+            New
+          </Button>
+        {/if}
+        <span title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+          <Button variant="secondary" on:click={toggleCollapse}>
+            {isCollapsed ? ">" : "<"}
+          </Button>
+        </span>
+      </div>
     </div>
 
-    <div class="search-row">
-      <input
-        type="text"
-        class="input input-sm search-input"
-        placeholder="Search collections or requests"
-        bind:value={searchQuery}
-      />
-      {#if searchQuery}
-        <button
-          class="clear-search"
-          on:click={() => (searchQuery = "")}
-          aria-label="Clear search"
-        >
-          x
-        </button>
-      {/if}
-    </div>
+    {#if !isCollapsed}
+      <div class="search-row">
+        <input
+          type="text"
+          class="input input-sm search-input"
+          placeholder="Search collections or requests"
+          bind:value={searchQuery}
+        />
+        {#if searchQuery}
+          <button
+            class="clear-search"
+            on:click={() => (searchQuery = "")}
+            aria-label="Clear search"
+          >
+            x
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
-  {#if $collectionStore.loading}
-    <div class="loading">Loading collections...</div>
-  {/if}
+  {#if !isCollapsed}
+    {#if $collectionStore.loading}
+      <div class="loading">Loading collections...</div>
+    {/if}
 
-  {#if $collectionStore.error}
-    <div class="error">
-      {$collectionStore.error}
-      <button on:click={() => collectionStore.clearError()}>x</button>
-    </div>
-  {/if}
+    {#if $collectionStore.error}
+      <div class="error">
+        {$collectionStore.error}
+        <button on:click={() => collectionStore.clearError()}>x</button>
+      </div>
+    {/if}
 
-  <div class="collections">
-    {#each filteredCollections as collection (collection.id)}
-      <div
-        class="collection-item"
-        class:selected={selectedCollectionName === collection.name}
-        class:menu-open={activeMenu === collection.name}
-      >
+    <div class="collections">
+      {#each filteredCollections as collection (collection.id)}
         <div
-          class="collection-header"
-          on:click={() => selectCollection(collection.name)}
-          on:keypress={(e) =>
-            e.key === "Enter" && selectCollection(collection.name)}
-          role="button"
-          tabindex="0"
+          class="collection-item"
+          class:selected={selectedCollectionName === collection.name}
+          class:menu-open={activeMenu === collection.name}
         >
-          <button
-            class="expand-btn"
-            on:click={(e) => {
-              e.stopPropagation();
-              toggleCollection(collection.name);
-            }}
-            aria-label="Toggle collection"
+          <div
+            class="collection-header"
+            on:click={() => selectCollection(collection.name)}
+            on:keypress={(e) => e.key === "Enter" && selectCollection(collection.name)}
+            role="button"
+            tabindex="0"
           >
-            <span
-              class="expand-icon"
-              class:expanded={isExpanded(collection.name)}
-            >
-              &gt;
-            </span>
-          </button>
-
-          <div class="collection-info">
-            <span class="collection-name">{collection.name}</span>
-            <span class="collection-count"
-              >{collection.requests?.length || 0}</span
-            >
-          </div>
-
-          <div class="collection-actions">
             <button
-              class="icon-btn"
-              on:click={(e) => handleAddRequest(e, collection.name)}
-              title="Add request"
-              aria-label="Add request"
+              class="expand-btn"
+              on:click={(e) => {
+                e.stopPropagation();
+                toggleCollection(collection.name);
+              }}
+              aria-label="Toggle collection"
             >
-              +
+              <span class="expand-icon" class:expanded={isExpanded(collection.name)}> &gt; </span>
             </button>
-            <button
-              class="icon-btn"
-              on:click={(e) => toggleMenu(e, collection.name)}
-              title="More actions"
-              aria-label="More actions"
-            >
-              ...
-            </button>
-          </div>
 
-          {#if activeMenu === collection.name}
-            <div class="collection-menu" on:click|stopPropagation>
+            <div class="collection-info">
+              <span class="collection-name">{collection.name}</span>
+              <span class="collection-count">{collection.requests?.length || 0}</span>
+            </div>
+
+            <div class="collection-actions">
               <button
-                class="menu-item"
-                on:click={() => openRenameCollection(collection.name)}
+                class="icon-btn"
+                on:click={(e) => handleAddRequest(e, collection.name)}
+                title="Add request"
+                aria-label="Add request"
               >
-                Rename
+                +
               </button>
               <button
-                class="menu-item danger"
-                on:click={() => handleDeleteCollection(collection.name)}
+                class="icon-btn"
+                on:click={(e) => toggleMenu(e, collection.name)}
+                title="More actions"
+                aria-label="More actions"
               >
-                Delete
+                ...
               </button>
+            </div>
+
+            {#if activeMenu === collection.name}
+              <div class="collection-menu" on:click|stopPropagation>
+                <button class="menu-item" on:click={() => openRenameCollection(collection.name)}>
+                  Rename
+                </button>
+                <button
+                  class="menu-item danger"
+                  on:click={() => handleDeleteCollection(collection.name)}
+                >
+                  Delete
+                </button>
+              </div>
+            {/if}
+          </div>
+
+          {#if isExpanded(collection.name)}
+            <div class="requests">
+              {#if getVisibleRequests(collection, normalizedQuery).length === 0}
+                <div class="empty-requests">
+                  {isSearching ? "No matching requests" : "No requests yet"}
+                </div>
+              {:else}
+                {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
+                  <div
+                    class="request-item"
+                    class:selected={selectedRequestId === request.id}
+                    on:click={() => selectRequest(request.id)}
+                    on:keypress={(e) => e.key === "Enter" && selectRequest(request.id)}
+                    role="button"
+                    tabindex="0"
+                  >
+                    <span class={`method-badge ${getMethodClass(request.verb)}`}>
+                      {request.verb}
+                    </span>
+                    <span class="request-name">{request.name}</span>
+                    <button
+                      class="icon-btn subtle"
+                      on:click={() => handleDeleteRequest(collection.name, request.id)}
+                      title="Delete request"
+                      aria-label="Delete request"
+                    >
+                      x
+                    </button>
+                  </div>
+                {/each}
+              {/if}
             </div>
           {/if}
         </div>
+      {/each}
+    </div>
 
-        {#if isExpanded(collection.name)}
-          <div class="requests">
-            {#if getVisibleRequests(collection, normalizedQuery).length === 0}
-              <div class="empty-requests">
-                {isSearching ? "No matching requests" : "No requests yet"}
-              </div>
-            {:else}
-              {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
-                <div
-                  class="request-item"
-                  class:selected={selectedRequestId === request.id}
-                  on:click={() => selectRequest(request.id)}
-                  on:keypress={(e) =>
-                    e.key === "Enter" && selectRequest(request.id)}
-                  role="button"
-                  tabindex="0"
-                >
-                  <span class={`method-badge ${getMethodClass(request.verb)}`}>
-                    {request.verb}
-                  </span>
-                  <span class="request-name">{request.name}</span>
-                  <button
-                    class="icon-btn subtle"
-                    on:click={() =>
-                      handleDeleteRequest(collection.name, request.id)}
-                    title="Delete request"
-                    aria-label="Delete request"
-                  >
-                    x
-                  </button>
-                </div>
-              {/each}
-            {/if}
-          </div>
+    {#if filteredCollections.length === 0 && !$collectionStore.loading}
+      <div class="empty-state">
+        <p>
+          {isSearching ? "No matching collections or requests" : "No collections yet"}
+        </p>
+        {#if !isSearching}
+          <p class="hint">Create your first collection to get started</p>
         {/if}
       </div>
-    {/each}
-  </div>
-
-  {#if filteredCollections.length === 0 && !$collectionStore.loading}
-    <div class="empty-state">
-      <p>
-        {isSearching
-          ? "No matching collections or requests"
-          : "No collections yet"}
-      </p>
-      {#if !isSearching}
-        <p class="hint">Create your first collection to get started</p>
-      {/if}
-    </div>
+    {/if}
   {/if}
 </div>
 
@@ -431,12 +426,8 @@
         autofocus
       />
       <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeNewCollectionDialog}>
-          Cancel
-        </Button>
-        <Button variant="primary" on:click={handleCreateCollection}>
-          Create
-        </Button>
+        <Button variant="secondary" on:click={closeNewCollectionDialog}>Cancel</Button>
+        <Button variant="primary" on:click={handleCreateCollection}>Create</Button>
       </div>
     </div>
   </div>
@@ -455,9 +446,7 @@
       />
       <div class="dialog-actions">
         <Button variant="secondary" on:click={closeRenameDialog}>Cancel</Button>
-        <Button variant="primary" on:click={handleRenameCollection}>
-          Save
-        </Button>
+        <Button variant="primary" on:click={handleRenameCollection}>Save</Button>
       </div>
     </div>
   </div>
@@ -470,9 +459,7 @@
       <p>Are you sure you want to delete "{deleteTarget}"?</p>
       <p class="warning">This action cannot be undone.</p>
       <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeDeleteConfirmDialog}>
-          Cancel
-        </Button>
+        <Button variant="secondary" on:click={closeDeleteConfirmDialog}>Cancel</Button>
         <Button variant="danger" on:click={confirmDelete}>Delete</Button>
       </div>
     </div>
@@ -485,9 +472,7 @@
       <p>Are you sure you want to delete this request?</p>
       <p class="warning">This action cannot be undone.</p>
       <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeDeleteRequestConfirmDialog}>
-          Cancel
-        </Button>
+        <Button variant="secondary" on:click={closeDeleteRequestConfirmDialog}>Cancel</Button>
         <Button variant="danger" on:click={confirmDeleteRequest}>Delete</Button>
       </div>
     </div>
@@ -505,6 +490,10 @@
     border-right: 1px solid var(--border);
   }
 
+  .collection-list.collapsed {
+    width: auto;
+  }
+
   .header {
     padding: var(--space-md);
     border-bottom: 1px solid var(--border);
@@ -517,6 +506,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
   }
 
   .header h3 {
