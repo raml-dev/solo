@@ -157,7 +157,18 @@ func (cm *CollectionManager) DeleteCollection(collectionName string) error {
 
 }
 
-// collections
+// requests
+
+func (cm *CollectionManager) GetRequest(collectionName, requestId string) (*Request, error) {
+	if collectionName == "" {
+		return nil, errors.New("no collection name specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return nil, err
+	}
+	return coll.GetRequestById(requestId)
+}
 
 func (cm *CollectionManager) GetRequests(collectionName string) (*[]Request, error) {
 	if collectionName == "" {

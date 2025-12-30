@@ -21,18 +21,6 @@ type Collection struct {
 	Id                  string    `json:"id"`
 }
 
-type Request struct {
-	Name                string         `json:"name"`
-	Url                 string         `json:"url"`
-	Verb                string         `json:"verb"`
-	Body                string         `json:"body"`
-	Id                  string         `json:"id"`
-	Headers             map[string]any `json:"headers"`
-	Cookies             map[string]any `json:"cookies"`
-	CreationTimestamp   time.Time      `json:"creationTimestamp"`
-	LastUpdateTimestamp time.Time      `json:"lastUpdateTimestamp"`
-}
-
 func NewCollection(name string) Collection {
 	tsp := time.Now()
 	return Collection{
