@@ -84,3 +84,12 @@ func (e *Environment) UpdateValue(name string, value ValueType) error {
 
 	return nil
 }
+func (e *Environment) GetSelectedValues(keys []string) *map[string]ValueType {
+	result := make(map[string]ValueType)
+	for _, k := range keys {
+		if val, ok := e.Values[k]; ok {
+			result[k] = val
+		}
+	}
+	return &result
+}

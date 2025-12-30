@@ -211,3 +211,21 @@ func (a *App) RemoveValue(environmentName string, valueName string) error {
 func (a *App) UpdateValue(environmentName string, valueName string, updated environment.ValueType) error {
 	return a.environmentManager.UpdateValue(environmentName, valueName, updated)
 }
+
+func (a *App) ResolveRequestPlaceholders(reqId string, collName string, envId string) (*map[string]environment.ValueType, error) {
+	req, err := a.collectionManager.GetRequest(collName, reqId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	env, err := a.environmentManager.LoadEnvironment(envId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	resolvedMap := env.GetSelectedValues(req.GetPlaceholders())
+
+	return resolvedMap, nil
+}
