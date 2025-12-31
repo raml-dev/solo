@@ -86,6 +86,10 @@ export function RemoveValue(arg1, arg2) {
   return window['go']['main']['App']['RemoveValue'](arg1, arg2);
 }
 
+export function ResolveRequestPlaceholders(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ResolveRequestPlaceholders'](arg1, arg2, arg3);
+}
+
 export function SaveCustomTheme(arg1) {
   return window['go']['main']['App']['SaveCustomTheme'](arg1);
 }
