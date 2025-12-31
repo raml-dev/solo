@@ -48,6 +48,8 @@ export function RemoveRequest(arg1:string,arg2:string):Promise<void>;
 
 export function RemoveValue(arg1:string,arg2:string):Promise<void>;
 
+export function ResolveRequestPlaceholders(arg1:string,arg2:string,arg3:string):Promise<any>;
+
 export function SaveCustomTheme(arg1:theme.Theme):Promise<void>;
 
 export function SetActiveTheme(arg1:string):Promise<void>;

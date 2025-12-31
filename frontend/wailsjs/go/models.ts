@@ -6,8 +6,8 @@ export namespace collection {
 	    verb: string;
 	    body: string;
 	    id: string;
-	    headers: Record<string, any>;
-	    cookies: Record<string, any>;
+	    headers: Record<string, string>;
+	    cookies: Record<string, string>;
 	    // Go type: time
 	    creationTimestamp: any;
 	    // Go type: time
