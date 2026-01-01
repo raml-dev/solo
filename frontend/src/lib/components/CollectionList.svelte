@@ -204,8 +204,6 @@
     if (!deleteRequestTarget) return;
 
     try {
-      console.log("collectionName: " + deleteRequestCollectionName);
-      console.log("requestId: " + deleteRequestTarget);
       await collectionStore.removeRequest(deleteRequestCollectionName, deleteRequestTarget);
       closeDeleteRequestConfirmDialog();
     } catch (err) {
