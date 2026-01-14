@@ -6,19 +6,25 @@ import (
 	"io"
 	"net/http"
 	"yapla/internal/configuration"
+	"yapla/internal/host"
 )
 
 type Service struct {
-	httpClient *http.Client
+	hostManager *host.HostManager
 }
 
 func NewService(config *configuration.Configuration) *Service {
-	return &Service{httpClient: http.DefaultClient}
+	return &Service{hostManager: host.NewHostManager()}
 }
 
 func (s *Service) Execute(method, url string, body string, headers map[string]any, cookies map[string]any) (*http.Response, error) {
 
-	fmt.Print(body)
+	client, err := s.hostManager.GetClientForUrl(url)
+
+	if err != nil {
+		return nil, err
+	}
+
 	request, err := http.NewRequest(method, url, bytes.NewReader([]byte(body)))
 
 	if err != nil {
@@ -47,9 +53,7 @@ func (s *Service) Execute(method, url string, body string, headers map[string]an
 
 	}
 
-	fmt.Printf("here")
-
-	return s.httpClient.Do(request)
+	return client.Do(request)
 
 }
 
