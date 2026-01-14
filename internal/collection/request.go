@@ -8,18 +8,18 @@ import (
 )
 
 type Request struct {
+	Id                  string            `json:"id"`
 	Name                string            `json:"name"`
 	Url                 string            `json:"url"`
 	Verb                string            `json:"verb"`
 	Body                string            `json:"body"`
-	Id                  string            `json:"id"`
 	Headers             map[string]string `json:"headers"`
 	Cookies             map[string]string `json:"cookies"`
 	CreationTimestamp   time.Time         `json:"creationTimestamp"`
 	LastUpdateTimestamp time.Time         `json:"lastUpdateTimestamp"`
 }
 
-func (req *Request) GetPlaceholders() []string {
+func (req Request) GetPlaceholders() []string {
 
 	uniqueMap := make(map[string]struct{})
 
