@@ -3,32 +3,45 @@ package host
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"os"
 	"sync"
 	"time"
+	fs "yapla/internal/tools"
 )
 
 type HostManager struct {
+	config     string
 	configs    map[string]Host
 	clientPool map[string]*http.Transport
 	mu         sync.RWMutex
 }
 
 func NewHostManager() *HostManager {
-	return &HostManager{
+	configDir, err := fs.GetMainConfig(fs.CONFIG_HOST_DIR)
+	if err != nil {
+		return nil
+	}
+
+	hm := &HostManager{
+		config:     configDir,
 		configs:    make(map[string]Host),
 		clientPool: make(map[string]*http.Transport)}
+
+	hm.loadHosts()
+	return hm
 }
 
-func (hm *HostManager) UpsertHost(config Host) {
+func (hm *HostManager) UpsertHost(config Host) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 
 	hm.configs[config.Name] = config
-
 	delete(hm.clientPool, config.Name)
+
+	return hm.saveHosts()
 }
 
 func (hm *HostManager) GetAllHosts() []Host {
@@ -42,11 +55,47 @@ func (hm *HostManager) GetAllHosts() []Host {
 	return hosts
 }
 
-func (hm *HostManager) DeleteHost(hostname string) {
+func (hm *HostManager) loadHosts() {
+	data, err := fs.ReadConfigFile(hm.config, fs.CONFIG_HOST_FILENAME)
+	if err != nil {
+		return
+	}
+
+	var hosts []Host
+	if err := json.Unmarshal(data, &hosts); err != nil {
+		return
+	}
+
+	for _, host := range hosts {
+		hm.configs[host.Name] = host
+	}
+}
+
+func (hm *HostManager) saveHosts() error {
+	hosts := make([]Host, 0, len(hm.configs))
+	for _, v := range hm.configs {
+		hosts = append(hosts, v)
+	}
+
+	data, err := json.Marshal(hosts)
+	if err != nil {
+		return err
+	}
+
+	if err := fs.UpdateConfigFile(hm.config, fs.CONFIG_HOST_FILENAME, data); err != nil {
+		return fs.CreateConfigFile(hm.config, fs.CONFIG_HOST_FILENAME, data)
+	}
+
+	return nil
+}
+
+func (hm *HostManager) DeleteHost(hostname string) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 	delete(hm.configs, hostname)
 	delete(hm.clientPool, hostname)
+
+	return hm.saveHosts()
 }
 
 func (hm *HostManager) GetClientForUrl(resolvedUrl string) (*http.Client, error) {

@@ -6,21 +6,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"yapla/internal/tools"
 	fs "yapla/internal/tools"
 )
 
 type CollectionManager struct {
-	path string
+	config string
 }
 
 func NewCollectionManager() *CollectionManager {
 
-	appConfigDir, err := fs.GetOrCreateConfigDir()
+	config, err := fs.GetMainConfig(fs.CONFIG_COLLECTION_DIR)
 	if err != nil {
 		return nil
 	}
 
-	return &CollectionManager{filepath.Join(appConfigDir, fs.CONFIG_COLLECTION_DIR)}
+	return &CollectionManager{config}
 }
 
 func (cm *CollectionManager) CreateCollection(collectionName string) error {
@@ -48,22 +49,12 @@ func (cm *CollectionManager) CreateCollection(collectionName string) error {
 		return err
 	}
 
-	if err := os.MkdirAll(cm.path, 0700); err != nil {
-		return err
-	}
-
-	err = os.WriteFile(cm.buildCollectionFileName(collectionName), bytes, 0600)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return fs.CreateConfigFile(cm.config, collectionName, bytes)
 
 }
 
 func (cm *CollectionManager) LoadCollections() (*[]string, error) {
-	dirEntry, err := os.ReadDir(cm.path)
+	dirEntry, err := fs.ReadConfigDirectory(cm.config)
 
 	if err != nil {
 		return nil, err
@@ -81,7 +72,7 @@ func (cm *CollectionManager) LoadCollections() (*[]string, error) {
 
 func (cm *CollectionManager) LoadCollectionsContent() (*[]Collection, error) {
 
-	dirEntry, err := os.ReadDir(cm.path)
+	dirEntry, err := fs.ReadConfigDirectory(cm.config)
 
 	if err != nil {
 		return nil, err
@@ -105,7 +96,7 @@ func (cm *CollectionManager) LoadCollectionsContent() (*[]Collection, error) {
 	}
 
 	if len(collections) == 0 {
-		return nil, fmt.Errorf("no collection found in %s", cm.path)
+		return nil, fmt.Errorf("no collection found in %s", cm.config)
 	}
 
 	return &collections, nil
@@ -115,7 +106,7 @@ func (cm *CollectionManager) LoadCollection(collectionName string) (*Collection,
 	if collectionName == "" {
 		return nil, errors.New("no collection name specified")
 	}
-	fileBytes, err := os.ReadFile(cm.buildCollectionFileName(collectionName))
+	fileBytes, err := fs.ReadConfigFile(cm.config, collectionName)
 
 	if err != nil {
 		return nil, err
@@ -141,19 +132,15 @@ func (cm *CollectionManager) UpdateCollection(updated Collection) error {
 		return err
 	}
 
-	fName := cm.buildCollectionFileName(updated.Name)
-	return os.WriteFile(fName, bytes, 0666)
+	return fs.UpdateConfigFile(cm.config, updated.Name, bytes)
 }
 
 func (cm *CollectionManager) DeleteCollection(collectionName string) error {
 	if collectionName == "" {
 		return errors.New("no collection name specified")
 	}
-	err := os.Remove(cm.buildCollectionFileName(collectionName))
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return tools.RemoveConfigFile(cm.config, collectionName)
 
 }
 
