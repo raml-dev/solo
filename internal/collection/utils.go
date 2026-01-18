@@ -1,7 +1,6 @@
 package collection
 
 import (
-	"fmt"
 	"slices"
 )
 
@@ -20,14 +19,6 @@ func (c *Collection) get(id string) (int, *Request) {
 		}
 	}
 	return -1, nil
-}
-
-func (cm *CollectionManager) buildCollectionFileName(name string) string {
-	// The fs directory tree will be:
-	// c.fsPath (is the main path)
-	// c.Name (the name of the json file containg collection)
-
-	return fmt.Sprintf("%s/%s.json", cm.path, name)
 }
 
 func (cm *CollectionManager) collectionExists(name string) (bool, error) {

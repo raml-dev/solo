@@ -2,6 +2,7 @@ package collection
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,7 +41,7 @@ func TestCreateCollection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := setupTestManager(t)
-			defer cleanupTestDir(cm.path)
+			defer cleanupTestDir(cm.config)
 
 			if tt.setupExisting {
 				if err := cm.CreateCollection(tt.collectionName); err != nil {
@@ -60,7 +61,7 @@ func TestCreateCollection(t *testing.T) {
 				}
 
 				// Verify file exists and is readable
-				data, readErr := os.ReadFile(cm.buildCollectionFileName(tt.collectionName))
+				data, readErr := os.ReadFile(buildCollectionFileName(cm.config, tt.collectionName))
 				if readErr != nil {
 					t.Errorf("Failed to read created collection: %v", readErr)
 				}
@@ -110,7 +111,7 @@ func TestLoadCollection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := setupTestManager(t)
-			defer cleanupTestDir(cm.path)
+			defer cleanupTestDir(cm.config)
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(cm, tt.collectionName); err != nil {
@@ -164,7 +165,7 @@ func TestUpdateCollection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := setupTestManager(t)
-			defer cleanupTestDir(cm.path)
+			defer cleanupTestDir(cm.config)
 
 			coll := tt.setup(cm)
 			err := cm.UpdateCollection(coll)
@@ -221,7 +222,7 @@ func TestDeleteCollection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := setupTestManager(t)
-			defer cleanupTestDir(cm.path)
+			defer cleanupTestDir(cm.config)
 
 			if tt.setupExisting {
 				if err := cm.CreateCollection(tt.collectionName); err != nil {
@@ -241,7 +242,7 @@ func TestDeleteCollection(t *testing.T) {
 				}
 
 				// Verify file is deleted
-				if _, statErr := os.Stat(cm.buildCollectionFileName(tt.collectionName)); !os.IsNotExist(statErr) {
+				if _, statErr := os.Stat(buildCollectionFileName(cm.config, tt.collectionName)); !os.IsNotExist(statErr) {
 					t.Errorf("Collection file should not exist after deletion")
 				}
 			}
@@ -273,7 +274,7 @@ func TestCollectionManagerAddRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cm := setupTestManager(t)
-			defer cleanupTestDir(cm.path)
+			defer cleanupTestDir(cm.config)
 
 			if tt.collectionName != "" {
 				cm.CreateCollection(tt.collectionName)
@@ -306,9 +307,13 @@ func setupTestManager(t *testing.T) *CollectionManager {
 	if err := os.MkdirAll(tmpDir, 0700); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
-	return &CollectionManager{path: tmpDir}
+	return &CollectionManager{config: tmpDir}
 }
 
 func cleanupTestDir(path string) {
 	os.RemoveAll(path)
+}
+
+func buildCollectionFileName(configPath, collectionName string) string {
+	return fmt.Sprintf("%s/%s", configPath, collectionName)
 }
