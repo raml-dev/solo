@@ -26,7 +26,7 @@ func GetMainConfig(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s/%s", configPath, name), nil
+	return filepath.Join(configPath, name)
 }
 
 func ReadConfigDirectory(configPath string) ([]os.DirEntry, error) {
