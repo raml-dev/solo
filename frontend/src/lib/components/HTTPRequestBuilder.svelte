@@ -312,7 +312,11 @@
 
   <!-- Response Section -->
   <div class="response-section" style="height: {responseHeight}px">
-    <div class="resize-handle" on:mousedown={startResize}></div>
+    <div
+      class="resize-handle"
+      class:resizing={isResizing}
+      on:mousedown={startResize}
+    ></div>
     <div class="response-header-bar">
       <h3 class="text-base font-semibold">RESPONSE</h3>
       {#if response}
@@ -570,6 +574,22 @@
     height: 8px;
     cursor: ns-resize;
     z-index: 10;
+  }
+
+  .resize-handle::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 3px;
+    height: 2px;
+    background: transparent;
+    transition: background-color 0.2s;
+  }
+
+  .resize-handle:hover::after,
+  .resize-handle.resizing::after {
+    background: var(--primary);
   }
 
   .response-header-bar {
