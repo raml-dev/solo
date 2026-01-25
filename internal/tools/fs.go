@@ -37,7 +37,7 @@ func CreateConfigFile(configPath, fileName string, content []byte) error {
 	if err := os.MkdirAll(configPath, 0700); err != nil {
 		return err
 	}
-	fName := fmt.Sprintf("%s/%s", configPath, fileName)
+	fName := filepath.Join(configPath, name)
 	return os.WriteFile(fName, content, 0600)
 }
 
