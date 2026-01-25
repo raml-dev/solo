@@ -42,7 +42,7 @@ func CreateConfigFile(configPath, fileName string, content []byte) error {
 }
 
 func UpdateConfigFile(configPath, fileName string, content []byte) error {
-	fName := fmt.Sprintf("%s/%s", configPath, fileName)
+	fName := filepath.Join(configPath, name)
 	return os.WriteFile(fName, content, 0666)
 }
 
