@@ -47,7 +47,7 @@ func UpdateConfigFile(configPath, fileName string, content []byte) error {
 }
 
 func RemoveConfigFile(configPath, fileName string) error {
-	fName := fmt.Sprintf("%s/%s", configPath, fileName)
+	fName := filepath.Join(configPath, name)
 	return os.Remove(fName)
 }
 
