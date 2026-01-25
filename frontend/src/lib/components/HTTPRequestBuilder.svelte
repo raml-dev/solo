@@ -35,6 +35,35 @@
   let responseTab = "body";
   let showSaveDialog = false;
   let requestName = "";
+  let responseHeight = 300;
+  let isResizing = false;
+  let builderElement: HTMLElement;
+
+  function startResize() {
+    isResizing = true;
+    window.addEventListener("mousemove", handleResize);
+    window.addEventListener("mouseup", stopResize);
+    document.body.style.userSelect = "none";
+  }
+
+  function handleResize(e: MouseEvent) {
+    if (!isResizing || !builderElement) return;
+
+    const rect = builderElement.getBoundingClientRect();
+    const newHeight = rect.bottom - e.clientY;
+
+    const minHeight = 40;
+    const maxHeight = rect.height - 150;
+
+    responseHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
+  }
+
+  function stopResize() {
+    isResizing = false;
+    window.removeEventListener("mousemove", handleResize);
+    window.removeEventListener("mouseup", stopResize);
+    document.body.style.userSelect = "";
+  }
 
   // Load request from collection when selected
   $: if ($selectedRequest) {
@@ -181,7 +210,7 @@
   }
 </script>
 
-<div class="request-builder">
+<div class="request-builder" bind:this={builderElement}>
   <!-- Request Line -->
   <div class="request-line">
     <div class="method-dropdown">
@@ -282,7 +311,8 @@
   </div>
 
   <!-- Response Section -->
-  <div class="response-section">
+  <div class="response-section" style="height: {responseHeight}px">
+    <div class="resize-handle" on:mousedown={startResize}></div>
     <div class="response-header-bar">
       <h3 class="text-base font-semibold">RESPONSE</h3>
       {#if response}
@@ -527,8 +557,19 @@
     border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    max-height: 50%;
     background: var(--bg-primary);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .resize-handle {
+    position: absolute;
+    top: -4px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    cursor: ns-resize;
+    z-index: 10;
   }
 
   .response-header-bar {
@@ -691,7 +732,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 200px;
+    height: 100%;
     background: var(--bg-tertiary);
   }
 </style>
