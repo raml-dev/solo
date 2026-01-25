@@ -52,7 +52,7 @@ func RemoveConfigFile(configPath, fileName string) error {
 }
 
 func ReadConfigFile(configPath, fileName string) ([]byte, error) {
-	fName := fmt.Sprintf("%s/%s", configPath, fileName)
+	fName := filepath.Join(configPath, name)
 	return os.ReadFile(fName)
 
 }
