@@ -2,3 +2,7 @@
 go = "1.25.5"
 "go:github.com/wailsapp/wails/v2/cmd/wails" = "2.11.0"
 node = "24.12.0"
+
+[tasks.dev]
+dir = "{{ config_root }}"
+run = "wails dev"
