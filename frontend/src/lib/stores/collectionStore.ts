@@ -83,21 +83,13 @@ function createCollectionStore() {
 
         // Create a new collection
         async createCollection(name: string) {
-            debugger; // Breakpoint qui
-            console.log('Store: creating collection', name);
             update(state => ({ ...state, loading: true, error: null }));
             try {
-                console.log('Store: calling CreateCollection API');
-                debugger; // Breakpoint prima della chiamata API
                 await CreateCollection(name);
-                console.log('Store: collection created, reloading collections');
                 // Reload all collections to get the updated list
                 const collections = this as any;
                 await collections.loadCollections();
-                console.log('Store: collections reloaded');
             } catch (err: any) {
-                debugger; // Breakpoint in caso di errore
-                console.error('Store: error creating collection', err);
                 update(state => ({
                     ...state,
                     error: err.message || 'Failed to create collection',

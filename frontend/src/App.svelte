@@ -3,7 +3,6 @@
   import MainLayout from "./lib/components/MainLayout.svelte";
   import CollectionList from "./lib/components/CollectionList.svelte";
   import EnvironmentManager from "./lib/components/EnvironmentManager.svelte";
-  import RequestEditor from "./lib/components/RequestEditor.svelte";
   import HTTPRequestBuilder from "./lib/components/HTTPRequestBuilder.svelte";
   import ThemeSelector from "./lib/components/ThemeSelector.svelte";
   import { initTheme } from "./lib/stores/themeStore";

@@ -89,7 +89,7 @@
 <div class="customizer">
   <div class="customizer-header">
     <h3 class="text-lg font-semibold">Customize Theme</h3>
-    <Button variant="primary" on:click={cancel} value="×" />
+    <Button variant="primary" on:click={cancel}>×</Button>
   </div>
 
   <div class="customizer-content">
@@ -214,8 +214,8 @@
   </div>
 
   <div class="customizer-footer">
-    <Button variant="secondary" on:click={cancel} value="Cancel" />
-    <Button variant="primary" on:click={saveTheme} value="Save Theme"/>
+    <Button variant="secondary" on:click={cancel}>Cancel</Button>
+    <Button variant="primary" on:click={saveTheme}>Save Theme</Button>
   </div>
 </div>
 
