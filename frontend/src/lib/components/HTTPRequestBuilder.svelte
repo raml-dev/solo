@@ -416,7 +416,7 @@
   }
 
   .method-dropdown {
-    min-width: 120px;
+    min-width: 100px;
   }
 
   .url-input {
