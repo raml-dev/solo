@@ -182,7 +182,7 @@
     try {
       await collectionStore.addRequest(collectionName, {
         name: "New Request",
-        url: "https://api.example.com",
+        url: "",
         verb: "GET"
       });
 
