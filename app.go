@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"yapla/internal/collection"
+	"yapla/internal/configuration"
 	"yapla/internal/environment"
 	"yapla/internal/requester"
 	"yapla/internal/theme"
@@ -16,21 +17,32 @@ type App struct {
 	themeManager       *theme.ThemeManager
 	collectionManager  *collection.CollectionManager
 	environmentManager *environment.EnvironmentManager
+	configManager      *configuration.ConfigurationManager
 }
 
 type RequestOptions struct {
-	Method  string         `json:"method"`
-	URL     string         `json:"url"`
-	Headers map[string]any `json:"headers"`
-	Body    string         `json:"body"`
+	Method   string                                 `json:"method"`
+	URL      string                                 `json:"url"`
+	Headers  map[string]any                         `json:"headers"`
+	Body     string                                 `json:"body"`
+	Settings *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	// Initialize Configuration Manager
+	cm, err := configuration.NewConfigurationManager()
+	if err != nil {
+		fmt.Printf("Error initializing configuration manager: %v\n", err)
+		// cm stays nil, handled gracefully in Service
+	}
+
 	return &App{
-		service:            requester.NewService(nil),
+		service:            requester.NewService(cm),
 		collectionManager:  collection.NewCollectionManager(),
-		environmentManager: environment.NewEnvironmentManager()}
+		environmentManager: environment.NewEnvironmentManager(),
+		configManager:      cm,
+	}
 }
 
 // startup is called when the app starts. The context is saved
@@ -49,13 +61,15 @@ func (a *App) startup(ctx context.Context) {
 
 // Execute actually performs the action of calling the server
 func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
-	return a.service.ExecuteRequest(
-		options.Method,
-		options.URL,
-		options.Body,
-		options.Headers,
-		nil,
-	)
+	execOpts := requester.ExecutionOptions{
+		Method:   options.Method,
+		URL:      options.URL,
+		Body:     options.Body,
+		Headers:  options.Headers,
+		Cookies:  nil, // TODO: Add cookies to RequestOptions from frontend if needed
+		Settings: options.Settings,
+	}
+	return a.service.ExecuteRequest(execOpts)
 }
 
 // Theme Management Methods
@@ -152,6 +166,23 @@ func (a *App) UpdateCollection(updated collection.Collection) error {
 
 func (a *App) DeleteCollection(collectionName string) error {
 	return a.collectionManager.DeleteCollection(collectionName)
+}
+
+// Configuration Management Methods
+
+func (a *App) GetConfiguration() (configuration.Configuration, error) {
+	if a.configManager == nil {
+		return configuration.Configuration{}, fmt.Errorf("configuration manager not initialized")
+	}
+	return a.configManager.Get(), nil
+}
+
+func (a *App) UpdateConfiguration(cfg configuration.Configuration) error {
+	if a.configManager == nil {
+		return fmt.Errorf("configuration manager not initialized")
+	}
+	// Save also updates the internal in-memory config safely
+	return a.configManager.Save(cfg)
 }
 
 // Request Management Methods

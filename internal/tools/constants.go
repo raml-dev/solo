@@ -10,5 +10,14 @@ const (
 )
 
 const (
+	DEFAULT_THEME           = "default-light"
+	DEFAULT_CHECK_UPDATES   = true
+	DEFAULT_TIMEOUT_SECONDS = 30
+	DEFAULT_MAX_REDIRECTS   = 10
+	DEFAULT_VALIDATE_SSL    = true
+	DEFAULT_USER_AGENT      = "Yapla/1.0"
+)
+
+const (
 	PLACEHOLDER_REGEXP = `\{\{(.*?)\}\}`
 )

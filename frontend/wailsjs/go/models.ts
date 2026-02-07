@@ -1,13 +1,14 @@
 export namespace collection {
 	
 	export class Request {
+	    id: string;
 	    name: string;
 	    url: string;
 	    verb: string;
 	    body: string;
-	    id: string;
 	    headers: Record<string, string>;
 	    cookies: Record<string, string>;
+	    settings?: configuration.RequestSettingsOverride;
 	    // Go type: time
 	    creationTimestamp: any;
 	    // Go type: time
@@ -19,13 +20,14 @@ export namespace collection {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.url = source["url"];
 	        this.verb = source["verb"];
 	        this.body = source["body"];
-	        this.id = source["id"];
 	        this.headers = source["headers"];
 	        this.cookies = source["cookies"];
+	        this.settings = this.convertValues(source["settings"], configuration.RequestSettingsOverride);
 	        this.creationTimestamp = this.convertValues(source["creationTimestamp"], null);
 	        this.lastUpdateTimestamp = this.convertValues(source["lastUpdateTimestamp"], null);
 	    }
@@ -87,6 +89,103 @@ export namespace collection {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace configuration {
+	
+	export class RequestSettings {
+	    timeoutSeconds: number;
+	    followRedirects: boolean;
+	    maxRedirects: number;
+	    validateSSL: boolean;
+	    defaultUserAgent: string;
+	    proxyUrl?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.timeoutSeconds = source["timeoutSeconds"];
+	        this.followRedirects = source["followRedirects"];
+	        this.maxRedirects = source["maxRedirects"];
+	        this.validateSSL = source["validateSSL"];
+	        this.defaultUserAgent = source["defaultUserAgent"];
+	        this.proxyUrl = source["proxyUrl"];
+	    }
+	}
+	export class GeneralSettings {
+	    theme: string;
+	    checkForUpdates: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new GeneralSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.theme = source["theme"];
+	        this.checkForUpdates = source["checkForUpdates"];
+	    }
+	}
+	export class Configuration {
+	    general: GeneralSettings;
+	    request: RequestSettings;
+	
+	    static createFrom(source: any = {}) {
+	        return new Configuration(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.general = this.convertValues(source["general"], GeneralSettings);
+	        this.request = this.convertValues(source["request"], RequestSettings);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class RequestSettingsOverride {
+	    timeoutSeconds?: number;
+	    followRedirects?: boolean;
+	    maxRedirects?: number;
+	    validateSSL?: boolean;
+	    defaultUserAgent?: string;
+	    proxyUrl?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestSettingsOverride(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.timeoutSeconds = source["timeoutSeconds"];
+	        this.followRedirects = source["followRedirects"];
+	        this.maxRedirects = source["maxRedirects"];
+	        this.validateSSL = source["validateSSL"];
+	        this.defaultUserAgent = source["defaultUserAgent"];
+	        this.proxyUrl = source["proxyUrl"];
+	    }
 	}
 
 }
@@ -157,6 +256,7 @@ export namespace main {
 	    url: string;
 	    headers: Record<string, any>;
 	    body: string;
+	    settings?: configuration.RequestSettingsOverride;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestOptions(source);
@@ -168,7 +268,26 @@ export namespace main {
 	        this.url = source["url"];
 	        this.headers = source["headers"];
 	        this.body = source["body"];
+	        this.settings = this.convertValues(source["settings"], configuration.RequestSettingsOverride);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

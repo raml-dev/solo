@@ -4,19 +4,21 @@ import (
 	"maps"
 	"slices"
 	"time"
+	"yapla/internal/configuration"
 	"yapla/internal/tools"
 )
 
 type Request struct {
-	Id                  string            `json:"id"`
-	Name                string            `json:"name"`
-	Url                 string            `json:"url"`
-	Verb                string            `json:"verb"`
-	Body                string            `json:"body"`
-	Headers             map[string]string `json:"headers"`
-	Cookies             map[string]string `json:"cookies"`
-	CreationTimestamp   time.Time         `json:"creationTimestamp"`
-	LastUpdateTimestamp time.Time         `json:"lastUpdateTimestamp"`
+	Id                  string                                 `json:"id"`
+	Name                string                                 `json:"name"`
+	Url                 string                                 `json:"url"`
+	Verb                string                                 `json:"verb"`
+	Body                string                                 `json:"body"`
+	Headers             map[string]string                      `json:"headers"`
+	Cookies             map[string]string                      `json:"cookies"`
+	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
+	CreationTimestamp   time.Time                              `json:"creationTimestamp"`
+	LastUpdateTimestamp time.Time                              `json:"lastUpdateTimestamp"`
 }
 
 func (req Request) GetPlaceholders() []string {
