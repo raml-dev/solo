@@ -5,44 +5,127 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"time"
 	"yapla/internal/configuration"
 	"yapla/internal/host"
 )
 
+// ExecutionOptions encapsulates all parameters required to execute a request
+type ExecutionOptions struct {
+	Method   string
+	URL      string
+	Body     string
+	Headers  map[string]any
+	Cookies  map[string]any
+	Settings *configuration.RequestSettingsOverride
+}
+
 type Service struct {
-	hostManager *host.HostManager
+	hostManager   *host.HostManager
+	configManager *configuration.ConfigurationManager
 }
 
-func NewService(config *configuration.Configuration) *Service {
-	return &Service{hostManager: host.NewHostManager()}
+func NewService(cm *configuration.ConfigurationManager) *Service {
+	return &Service{
+		hostManager:   host.NewHostManager(),
+		configManager: cm,
+	}
 }
 
-func (s *Service) Execute(method, url string, body string, headers map[string]any, cookies map[string]any) (*http.Response, error) {
+func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
 
-	client, err := s.hostManager.GetClientForUrl(url)
-
+	// Get base client from HostManager (handles custom Certs/Transport caching)
+	client, err := s.hostManager.GetClientForUrl(opts.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	request, err := http.NewRequest(method, url, bytes.NewReader([]byte(body)))
+	// Apply Global Configuration with Local Overrides
+	if s.configManager != nil {
+		cfg := s.configManager.Get()
+		overrides := opts.Settings
 
+		// Helper to check override existence
+		hasOverride := overrides != nil
+
+		// 1. Timeout
+		timeout := cfg.Request.TimeoutSeconds
+		if hasOverride && overrides.TimeoutSeconds != nil {
+			timeout = *overrides.TimeoutSeconds
+		}
+		if timeout > 0 {
+			client.Timeout = time.Duration(timeout) * time.Second
+		}
+
+		// 2. Redirects
+		followRedirects := cfg.Request.FollowRedirects
+		if hasOverride && overrides.FollowRedirects != nil {
+			followRedirects = *overrides.FollowRedirects
+		}
+
+		maxRedirects := cfg.Request.MaxRedirects
+		if hasOverride && overrides.MaxRedirects != nil {
+			maxRedirects = *overrides.MaxRedirects
+		}
+
+		if !followRedirects {
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+		} else if maxRedirects > 0 {
+			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				if len(via) >= maxRedirects {
+					return fmt.Errorf("stopped after %d redirects", maxRedirects)
+				}
+				return nil
+			}
+		}
+
+		// 3. Proxy (Requires Transport modification, careful with shared transport)
+		proxyURL := cfg.Request.ProxyURL
+		if hasOverride && overrides.ProxyURL != nil {
+			proxyURL = *overrides.ProxyURL
+		}
+
+		if proxyURL != "" {
+			parsedProxyUrl, err := url.Parse(proxyURL)
+			if err == nil {
+				// We need to clone the transport to avoid affecting other clients/threads sharing the pool
+				if t, ok := client.Transport.(*http.Transport); ok {
+					newTransport := t.Clone()
+					newTransport.Proxy = http.ProxyURL(parsedProxyUrl)
+					client.Transport = newTransport
+				}
+			}
+		}
+	}
+
+	request, err := http.NewRequest(opts.Method, opts.URL, bytes.NewReader([]byte(opts.Body)))
 	if err != nil {
 		return nil, err
 	}
 
-	for k, v := range headers {
+	// Set Default User-Agent if not overridden
+	if s.configManager != nil {
+		cfg := s.configManager.Get()
+		if cfg.Request.DefaultUserAgent != "" {
+			request.Header.Set("User-Agent", cfg.Request.DefaultUserAgent)
+		}
+	}
+
+	for k, v := range opts.Headers {
 		v, ok := v.(string)
 
 		if !ok {
 			return nil, fmt.Errorf("header %s  with value %v is not parsable as string", k, v)
 		} else {
-			request.Header.Add(k, v)
+			request.Header.Set(k, v) // Use Set to override default UA if present in headers
 		}
 
 	}
 
-	for k, v := range cookies {
+	for k, v := range opts.Cookies {
 		v, ok := v.(string)
 
 		if !ok {
@@ -64,20 +147,23 @@ type ResponseData struct {
 	Duration   int64             `json:"duration"`
 }
 
-func (s *Service) ExecuteRequest(method, url, body string, headers map[string]any, cookies map[string]any) (*ResponseData, error) {
-	resp, err := s.Execute(method, url, body, headers, cookies)
+func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
+	start := time.Now()
+	resp, err := s.Execute(opts)
+	duration := time.Since(start).Milliseconds()
+
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// Lettura della risposta
+	// Read response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	// Conversione headers
+	// Convert headers
 	respHeaders := make(map[string]string, len(resp.Header))
 	for k, v := range resp.Header {
 		respHeaders[k] = v[0]
@@ -87,6 +173,6 @@ func (s *Service) ExecuteRequest(method, url, body string, headers map[string]an
 		StatusCode: resp.StatusCode,
 		Headers:    respHeaders,
 		Body:       string(bodyBytes),
-		Duration:   0, // TODO: time tracking
+		Duration:   duration,
 	}, nil
 }

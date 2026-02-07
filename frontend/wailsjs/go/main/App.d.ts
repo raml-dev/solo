@@ -5,6 +5,7 @@ import {environment} from '../models';
 import {main} from '../models';
 import {requester} from '../models';
 import {theme} from '../models';
+import {configuration} from '../models';
 
 export function AddRequest(arg1:string,arg2:collection.Request):Promise<void>;
 
@@ -25,6 +26,8 @@ export function Execute(arg1:main.RequestOptions):Promise<requester.ResponseData
 export function GetActiveTheme():Promise<string>;
 
 export function GetAllThemes():Promise<Array<theme.Theme>>;
+
+export function GetConfiguration():Promise<configuration.Configuration>;
 
 export function GetCustomThemes():Promise<Array<theme.Theme>>;
 
@@ -55,6 +58,8 @@ export function SaveCustomTheme(arg1:theme.Theme):Promise<void>;
 export function SetActiveTheme(arg1:string):Promise<void>;
 
 export function UpdateCollection(arg1:collection.Collection):Promise<void>;
+
+export function UpdateConfiguration(arg1:configuration.Configuration):Promise<void>;
 
 export function UpdateEnvironment(arg1:environment.Environment):Promise<void>;
 

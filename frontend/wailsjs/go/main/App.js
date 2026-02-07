@@ -42,6 +42,10 @@ export function GetAllThemes() {
   return window['go']['main']['App']['GetAllThemes']();
 }
 
+export function GetConfiguration() {
+  return window['go']['main']['App']['GetConfiguration']();
+}
+
 export function GetCustomThemes() {
   return window['go']['main']['App']['GetCustomThemes']();
 }
@@ -100,6 +104,10 @@ export function SetActiveTheme(arg1) {
 
 export function UpdateCollection(arg1) {
   return window['go']['main']['App']['UpdateCollection'](arg1);
+}
+
+export function UpdateConfiguration(arg1) {
+  return window['go']['main']['App']['UpdateConfiguration'](arg1);
 }
 
 export function UpdateEnvironment(arg1) {
