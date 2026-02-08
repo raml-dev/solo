@@ -15,10 +15,10 @@ jobs:
       - name: Install tools with mise
         uses: jdx/mise-action@v2
 
-      #- name: Install Linux Dependencies
-      #  run: |
-      #    sudo apt-get update
-      #    sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Build Frontend Assets
         run: |
