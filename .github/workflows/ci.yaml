@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [ "main", "23-github-ci-setup" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
