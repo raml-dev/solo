@@ -2,6 +2,7 @@
   "recommendations": [
     "svelte.svelte-vscode",
     "editorconfig.editorconfig",
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint"
   ]
 }

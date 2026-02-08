@@ -10,5 +10,11 @@
   "[svelte]": {
     "editor.defaultFormatter": "svelte.svelte-vscode",
     "editor.formatOnSave": true
+  },
+  "eslint.workingDirectories": [{
+    "directory": "${workspaceFolder}/frontend"
+  }],
+  "eslint.options": {
+    "configFile": "${workspaceFolder}/frontend/eslint.config.js"
   }
 }
