@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   export let variant: BtnVariants = "primary";
   export let size: BtnSize = "sm";
   export let disabled = false;
   export let style: string = "";
 
+  export let click: () => void;
+
   type BtnVariants = "primary" | "secondary" | "tertiary" | "danger" | "success";
   type BtnSize = "sm" | "lg" | "small";
-  const dispatch = createEventDispatcher();
 
-  const handleClick = () => dispatch("click");
+  const handleClick = () => click();
 </script>
 
 <button class="btn btn-{variant} btn-{size}" {disabled} on:click={handleClick} {style} type="button"

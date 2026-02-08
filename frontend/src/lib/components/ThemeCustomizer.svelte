@@ -1,16 +1,32 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import { SaveCustomTheme } from "../../../wailsjs/go/main/App";
   import { changeTheme } from "../stores/themeStore";
   import type { Theme } from "../stores/themeStore";
   import Button from "./base/Button.svelte";
 
   export let baseTheme: Theme | null = null;
+  export let saved: (theme: Theme) => void;
+  export let close: () => void;
 
-  const dispatch = createEventDispatcher();
+  type Colors = {
+    primary: string,
+    "primary-dark": string
+    success: string
+    warning: string
+    danger: string
+    info: string
+    "bg-primary": string
+    "bg-secondary": string
+    "bg-tertiary": string
+    border: string
+    "border-dark": string
+    text: string
+    "text-muted": string
+    "text-light": string
+  }
 
   let themeName = "";
-  let colors = {
+  let colors: Colors = {
     primary: "#2563eb",
     "primary-dark": "#1e40af",
     success: "#10b981",
@@ -63,8 +79,8 @@
     try {
       await SaveCustomTheme(theme);
       await changeTheme(themeName);
-      dispatch("saved", theme);
-      dispatch("close");
+      saved(theme);
+      close();
     } catch (error) {
       console.error("Failed to save theme:", error);
       alert("Failed to save theme");
@@ -72,10 +88,10 @@
   }
 
   function cancel() {
-    dispatch("close");
+    close()
   }
 
-  function previewColor() {
+  function previewColor(colors: Colors) {
     // Apply colors temporarily to preview
     const root = document.documentElement;
     Object.entries(colors).forEach(([key, value]) => {
@@ -83,13 +99,13 @@
     });
   }
 
-  $: colors && previewColor();
+  $: previewColor(colors);
 </script>
 
 <div class="customizer">
   <div class="customizer-header">
     <h3 class="text-lg font-semibold">Customize Theme</h3>
-    <Button variant="primary" on:click={cancel}>×</Button>
+    <Button variant="primary" click={cancel}>×</Button>
   </div>
 
   <div class="customizer-content">
@@ -111,7 +127,7 @@
       <div class="color-section">
         <h4 class="section-title">Primary Colors</h4>
         <div class="color-grid">
-          {#each ["primary", "primary-dark", "success", "warning", "danger", "info"] as colorKey}
+          {#each ["primary", "primary-dark", "success", "warning", "danger", "info"] as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -137,7 +153,7 @@
       <div class="color-section">
         <h4 class="section-title">Background Colors</h4>
         <div class="color-grid">
-          {#each ["bg-primary", "bg-secondary", "bg-tertiary"] as colorKey}
+          {#each ["bg-primary", "bg-secondary", "bg-tertiary"] as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -163,7 +179,7 @@
       <div class="color-section">
         <h4 class="section-title">Border Colors</h4>
         <div class="color-grid">
-          {#each ["border", "border-dark"] as colorKey}
+          {#each ["border", "border-dark"] as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -189,7 +205,7 @@
       <div class="color-section">
         <h4 class="section-title">Text Colors</h4>
         <div class="color-grid">
-          {#each ["text", "text-muted", "text-light"] as colorKey}
+          {#each ["text", "text-muted", "text-light"] as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -214,8 +230,8 @@
   </div>
 
   <div class="customizer-footer">
-    <Button variant="secondary" on:click={cancel}>Cancel</Button>
-    <Button variant="primary" on:click={saveTheme}>Save Theme</Button>
+    <Button variant="secondary" click={cancel}>Cancel</Button>
+    <Button variant="primary" click={saveTheme}>Save Theme</Button>
   </div>
 </div>
 

@@ -14,7 +14,7 @@
   <div class="modal-panel">
     <slot />
     <div class="modal-footer">
-      <Button variant="secondary" on:click={toggleFn}>Close</Button>
+      <Button variant="secondary" click={toggleFn}>Close</Button>
       <slot name="additional-buttons" />
     </div>
   </div>

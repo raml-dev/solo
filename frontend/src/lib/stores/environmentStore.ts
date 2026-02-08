@@ -60,7 +60,7 @@ function createEnvironmentStore() {
         }
 
         update((state) => ({ ...state, environments, loading: false }));
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to load environments",
@@ -75,9 +75,8 @@ function createEnvironmentStore() {
       try {
         await CreateEnvironment(name);
         // Reload all environments to get the updated list
-        const store = this as any;
-        await store.loadEnvironments();
-      } catch (err: any) {
+        await this.loadEnvironments();
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to create environment",
@@ -104,7 +103,7 @@ function createEnvironmentStore() {
           }
           return newState;
         });
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to delete environment",
@@ -126,7 +125,7 @@ function createEnvironmentStore() {
           environments: state.environments.map((e) => (e.name === env.name ? env : e)),
           loading: false
         }));
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to update environment",

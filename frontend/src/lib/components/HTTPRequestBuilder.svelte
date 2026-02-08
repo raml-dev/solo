@@ -70,7 +70,7 @@
     loadRequestData($selectedRequest);
   }
 
-  function loadRequestData(request: any) {
+  function loadRequestData(request: collection.Request) {
     method = request.verb || "GET";
     url = request.url || "";
     requestBody = request.body || "";
@@ -99,8 +99,8 @@
     { value: "OPTIONS", label: "OPTIONS" }
   ];
 
-  function handleMethodChange(event: CustomEvent<string>) {
-    method = event.detail;
+  function handleMethodChange(value: string) {
+    method = value;
   }
 
   function addHeader() {
@@ -209,15 +209,15 @@
   <!-- Request Line -->
   <div class="request-line">
     <div class="method-dropdown">
-      <Dropdown bind:value={method} options={methodOptions} on:change={handleMethodChange} />
+      <Dropdown bind:value={method} options={methodOptions} change={handleMethodChange} />
     </div>
     <input type="text" class="input url-input" placeholder="Enter request URL" bind:value={url} />
-    <Button variant="secondary" on:click={() => (showSaveDialog = true)} style="min-width: 80px;"
+    <Button variant="secondary" click={() => (showSaveDialog = true)} style="min-width: 80px;"
       >{$selectedRequest && $selectedRequest.id ? "UPDATE" : "SAVE"}</Button
     >
     <Button
       variant="primary"
-      on:click={sendRequest}
+      click={sendRequest}
       disabled={loading}
       style="min-width: 100px;font-weight: var(--font-weight-semibold);"
       >{loading ? "SENDING..." : "SEND"}</Button
@@ -327,7 +327,7 @@
           <pre class="response-body"><code>{response.body}</code></pre>
         {:else}
           <div class="response-headers">
-            {#each Object.entries(response.headers) as [key, value]}
+            {#each Object.entries(response.headers) as [key, value] ([key])}
               <div class="response-header-row">
                 <span class="header-key">{key}:</span>
                 <span class="header-value">{value}</span>
@@ -380,9 +380,9 @@
       <svelte:fragment slot="additional-buttons">
         {#if $collectionStore.selectedCollectionName}
           {#if $selectedRequest && $selectedRequest.id}
-            <Button variant="primary" on:click={handleSaveToCollection}>Update</Button>
+            <Button variant="primary" click={handleSaveToCollection}>Update</Button>
           {:else}
-            <Button variant="primary" on:click={handleSaveToCollection}>Save</Button>
+            <Button variant="primary" click={handleSaveToCollection}>Save</Button>
           {/if}
         {/if}
       </svelte:fragment>

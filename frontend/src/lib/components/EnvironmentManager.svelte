@@ -36,8 +36,6 @@
 
   function selectEnvironment(name: string) {
     environmentStore.selectEnvironment(name);
-    expandedEnvironments.add(name);
-    expandedEnvironments = new Set(expandedEnvironments);
   }
 
   function closeNewEnvironmentDialog() {
@@ -191,7 +189,7 @@
   <div class="header">
     <div class="header-title">
       <h3>Environments</h3>
-      <Button variant="primary" size="small" on:click={() => (showNewEnvironmentDialog = true)}>
+      <Button variant="primary" size="small" click={() => (showNewEnvironmentDialog = true)}>
         New
       </Button>
     </div>
@@ -217,7 +215,7 @@
       >
         <div
           class="environment-header"
-          on:click={() => selectEnvironment(environment.name)}
+          on:click={() => {selectEnvironment(environment.name); toggleEnvironment(environment.name)}}
           on:keypress={(e) => e.key === "Enter" && selectEnvironment(environment.name)}
           role="button"
           tabindex="0"
@@ -279,7 +277,7 @@
             {#if Object.keys(environment.values || {}).length === 0}
               <div class="empty-values">No variables yet</div>
             {:else}
-              {#each Object.entries(environment.values || {}) as [key, val]}
+              {#each Object.entries(environment.values || {}) as [key, val] ([key])}
                 <div class="value-item">
                   <span class="value-key">{key}</span>
                   <span class="value-value">{val.value || "(empty)"}</span>
@@ -312,7 +310,7 @@
       autofocus
     />
     <svelte:fragment slot="additional-buttons">
-      <Button variant="primary" on:click={handleCreateEnvironment}>Create</Button>
+      <Button variant="primary" click={handleCreateEnvironment}>Create</Button>
     </svelte:fragment>
   </Modal>
 {/if}
@@ -323,7 +321,7 @@
     <p>Are you sure you want to delete "{deleteTarget}"?</p>
     <p class="warning">This action cannot be undone.</p>
     <svelte:fragment slot="additional-buttons">
-      <Button variant="danger" on:click={confirmDelete}>Delete</Button>
+      <Button variant="danger" click={confirmDelete}>Delete</Button>
     </svelte:fragment>
   </Modal>
 {/if}
@@ -340,7 +338,7 @@
         <span></span>
       </div>
 
-      {#each Object.entries(editingEnvironment.values || {}) as [key, val]}
+      {#each Object.entries(editingEnvironment.values || {}) as [key, val] ([key])}
         <div class="value-row">
           <input type="text" value={key} disabled class="input-sm" />
           <input
@@ -375,7 +373,7 @@
     </div>
 
     <svelte:fragment slot="additional-buttons">
-      <Button variant="primary" on:click={handleSaveEnvironment}>Save</Button>
+      <Button variant="primary" click={handleSaveEnvironment}>Save</Button>
     </svelte:fragment>
   </Modal>
 {/if}

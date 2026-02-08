@@ -61,7 +61,7 @@ function createCollectionStore() {
         }
 
         update((state) => ({ ...state, collections, loading: false }));
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to load collections",
@@ -76,9 +76,8 @@ function createCollectionStore() {
       try {
         await CreateCollection(name);
         // Reload all collections to get the updated list
-        const collections = this as any;
-        await collections.loadCollections();
-      } catch (err: any) {
+        await this.loadCollections();
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to create collection",
@@ -106,7 +105,7 @@ function createCollectionStore() {
           }
           return newState;
         });
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to delete collection",
@@ -141,15 +140,14 @@ function createCollectionStore() {
           await DeleteCollection(currentName);
         }
 
-        const collections = this as any;
-        await collections.loadCollections();
+        await this.loadCollections();
 
         update((state) => ({
           ...state,
           selectedCollectionName:
             state.selectedCollectionName === currentName ? newName : state.selectedCollectionName
         }));
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to rename collection",
@@ -160,7 +158,7 @@ function createCollectionStore() {
     },
 
     // Add a request to a collection
-    async addRequest(collectionName: string, request: Partial<Request>) {
+    async addRequest(collectionName: string, request: Partial<collection.Request>) {
       update((state) => ({ ...state, loading: true, error: null }));
       try {
         const newRequest = collection.Request.createFrom({
@@ -187,7 +185,7 @@ function createCollectionStore() {
           ),
           loading: false
         }));
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to add request",
@@ -213,7 +211,7 @@ function createCollectionStore() {
           ),
           loading: false
         }));
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to update request",
@@ -251,7 +249,7 @@ function createCollectionStore() {
 
           return newState;
         });
-      } catch (err: any) {
+      } catch (err) {
         update((state) => ({
           ...state,
           error: err.message || "Failed to remove request",

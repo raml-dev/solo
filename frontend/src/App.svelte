@@ -37,10 +37,10 @@
   <svelte:fragment slot="navbar-actions">
     <div class="nav-actions">
       <div class="view-switcher">
-        <Button variant="primary" size="small">Request Builder</Button>
+        <!-- <Button variant="primary" size="small">Request Builder</Button> -->
       </div>
-      <Button variant="secondary" on:click={toggleEnvironmentManager}>🌍 Environments</Button>
-      <Button variant="secondary" on:click={toggleThemeSelector}>🎨 Theme</Button>
+      <Button variant="secondary" click={toggleEnvironmentManager}>🌍 Environments</Button>
+      <Button variant="secondary" click={toggleThemeSelector}>🎨 Theme</Button>
     </div>
   </svelte:fragment>
 

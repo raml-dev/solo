@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { collectionStore } from "../stores/collectionStore";
-  import type { Collection, Request } from "../stores/collectionStore";
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
+  import {collection} from "../../../wailsjs/go/models";
 
   export let onRequestSelect: (requestId: string) => void = () => {};
 
@@ -35,23 +35,23 @@
     return (value || "").toLowerCase();
   }
 
-  function requestMatches(request: Request, query: string): boolean {
+  function requestMatches(request: collection.Request, query: string): boolean {
     if (!query) return true;
     return normalize(request.name).includes(query) || normalize(request.url).includes(query);
   }
 
-  function collectionMatches(collection: Collection, query: string): boolean {
+  function collectionMatches(collection: collection.Collection, query: string): boolean {
     if (!query) return true;
     return normalize(collection.name).includes(query);
   }
 
-  function getVisibleRequests(collection: Collection, query: string): Request[] {
+  function getVisibleRequests(collection: collection.Collection, query: string): collection.Request[] {
     const requests = collection.requests || [];
     if (!query) return requests;
     return requests.filter((request) => requestMatches(request, query));
   }
 
-  function shouldShowCollection(collection: Collection, query: string): boolean {
+  function shouldShowCollection(collection: collection.Collection, query: string): boolean {
     if (!query) return true;
     if (collectionMatches(collection, query)) return true;
     return getVisibleRequests(collection, query).length > 0;
@@ -259,12 +259,12 @@
       {/if}
       <div class="header-actions">
         {#if !isCollapsed}
-          <Button variant="primary" size="small" on:click={() => (showNewCollectionDialog = true)}>
+          <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
             New
           </Button>
         {/if}
         <span title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-          <Button variant="secondary" on:click={toggleCollapse}>
+          <Button variant="secondary" click={toggleCollapse}>
             {isCollapsed ? ">" : "<"}
           </Button>
         </span>
@@ -450,7 +450,7 @@
       />
     </div>
     <svelte:fragment slot="additional-buttons">
-      <Button variant="primary" on:click={handleCreateCollection}>Create</Button>
+      <Button variant="primary" click={handleCreateCollection}>Create</Button>
     </svelte:fragment>
   </Modal>
 {/if}
@@ -469,7 +469,7 @@
       />
     </div>
     <svelte:fragment slot="additional-buttons">
-      <Button variant="primary" on:click={handleRenameCollection}>Save</Button>
+      <Button variant="primary" click={handleRenameCollection}>Save</Button>
     </svelte:fragment>
   </Modal>
 {/if}
@@ -482,7 +482,7 @@
       <p class="warning">This action cannot be undone.</p>
     </div>
     <svelte:fragment slot="additional-buttons">
-      <Button variant="danger" on:click={confirmDelete}>Delete</Button>
+      <Button variant="danger" click={confirmDelete}>Delete</Button>
     </svelte:fragment>
   </Modal>
 {/if}
@@ -494,7 +494,7 @@
       <p class="warning">This action cannot be undone.</p>
     </div>
     <svelte:fragment slot="additional-buttons">
-      <Button variant="danger" on:click={confirmDeleteRequest}>Delete</Button>
+      <Button variant="danger" click={confirmDeleteRequest}>Delete</Button>
     </svelte:fragment>
   </Modal>
 {/if}

@@ -47,7 +47,7 @@
   <div class="theme-section">
     <h4 class="text-sm font-medium text-muted">Predefined Themes</h4>
     <div class="theme-grid">
-      {#each predefinedThemes as theme}
+      {#each predefinedThemes as theme (theme.name)}
         <button
           class="theme-card"
           class:active={$currentTheme?.name === theme.name}
@@ -71,7 +71,7 @@
     <div class="theme-section">
       <h4 class="text-sm font-medium text-muted">Custom Themes</h4>
       <div class="theme-grid">
-        {#each customThemes as theme}
+        {#each customThemes as theme (theme.name)}
           <button
             class="theme-card"
             class:active={$currentTheme?.name === theme.name}
@@ -92,7 +92,7 @@
   {/if}
 
   <!-- Create Custom Theme Button -->
-  <Button variant="secondary" on:click={openCustomizer}>Create Custom Theme</Button>
+  <Button variant="secondary" click={openCustomizer}>Create Custom Theme</Button>
 
   {#if showCustomizer}
     <Modal toggleFn={() => (showCustomizer = false)}>
