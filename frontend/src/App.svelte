@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import MainLayout from "./lib/components/MainLayout.svelte";
   import CollectionList from "./lib/components/CollectionList.svelte";
-  import HTTPRequestBuilder from "./lib/components/HTTPRequestBuilder.svelte";
+  import HTTPRequestBuilder from "./lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import { configurationStore } from "./lib/stores/configurationStore";
   import { collectionStore } from "./lib/stores/collectionStore";
   import { environmentStore } from "./lib/stores/environmentStore";
