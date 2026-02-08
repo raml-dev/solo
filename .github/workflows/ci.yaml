@@ -8,28 +8,19 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    env:
-      GOFLAGS: "-tags=webkit2gtk_4_1"
+    runs-on: ubuntu-latest 
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install tools with mise
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup mise
         uses: jdx/mise-action@v2
-
-      - name: Install Linux Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-
-      - name: Build Frontend Assets
-        run: |
-          cd frontend
-          npm install
-          npm run build
-
+      - name: Wails Build Check
+        uses: dAppServer/wails-build-action@v2
+        with:
+          install-go: false
+          install-node: false
+          build-platform: linux/amd64
+          package: false 
       - name: Run Go Tests
         run: go test -v ./...
-
-      - name: Build Check
-        run: wails build -platform linux/amd64 -tags webkit2gtk_4_1
