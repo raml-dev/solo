@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      GOFLAGS: "-tags=webkit2gtk_4_1"
     steps:
       - uses: actions/checkout@v4
 
