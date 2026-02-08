@@ -1,6 +1,6 @@
-@import './colors.css';
-@import './typography.css';
-@import './layout.css';
+@import "./colors.css";
+@import "./typography.css";
+@import "./layout.css";
 
 * {
   margin: 0;
@@ -102,24 +102,24 @@ textarea.input {
   font-weight: var(--font-weight-medium);
 }
 
-.badge-success { 
-  background: var(--status-success-bg); 
-  color: var(--status-success-text); 
+.badge-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
 }
 
-.badge-warning { 
-  background: var(--status-warning-bg); 
-  color: var(--status-warning-text); 
+.badge-warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
 }
 
-.badge-danger { 
-  background: var(--status-danger-bg); 
-  color: var(--status-danger-text); 
+.badge-danger {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
 }
 
-.badge-info { 
-  background: var(--status-info-bg); 
-  color: var(--status-info-text); 
+.badge-info {
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
 }
 
 /* Tabs */
@@ -141,8 +141,8 @@ textarea.input {
   font-family: var(--font-sans);
 }
 
-.tab:hover { 
-  color: var(--text); 
+.tab:hover {
+  color: var(--text);
 }
 
 .tab.active {

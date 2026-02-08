@@ -12,8 +12,8 @@
     </div>
     <div class="flex items-center gap-sm">
       <slot name="navbar-actions" />
-      <Button variant="secondary">Settings</Button>
-      <Button variant="secondary">Help</Button>
+      <Button variant="secondary" click={() => {}}>Settings</Button>
+      <Button variant="secondary" click={() => {}}>Help</Button>
     </div>
   </nav>
 

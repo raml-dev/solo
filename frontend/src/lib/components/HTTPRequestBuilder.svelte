@@ -1,10 +1,10 @@
 <script lang="ts">
   import { Execute } from "../../../wailsjs/go/main/App";
-  import { main } from "../../../wailsjs/go/models";
+  import { collection, type main } from "../../../wailsjs/go/models";
   import Button from "./base/Button.svelte";
   import Dropdown from "./base/Dropdown.svelte";
   import { collectionStore, selectedRequest } from "../stores/collectionStore";
-  import { onMount } from "svelte";
+  import Modal from "./base/Modal.svelte";
 
   interface Header {
     id: string;
@@ -27,7 +27,7 @@
   let requestBody = "";
   let headers: Header[] = [
     { id: "1", key: "Content-Type", value: "application/json", enabled: true },
-    { id: "2", key: "test", value: "test", enabled: true },
+    { id: "2", key: "test", value: "test", enabled: true }
   ];
 
   let response: HTTPResponse | null = null;
@@ -70,7 +70,7 @@
     loadRequestData($selectedRequest);
   }
 
-  function loadRequestData(request: any) {
+  function loadRequestData(request: collection.Request) {
     method = request.verb || "GET";
     url = request.url || "";
     requestBody = request.body || "";
@@ -82,7 +82,7 @@
         id: `header-${index}`,
         key,
         value: String(value),
-        enabled: true,
+        enabled: true
       }));
     } else {
       headers = [];
@@ -96,11 +96,11 @@
     { value: "DELETE", label: "DELETE" },
     { value: "PATCH", label: "PATCH" },
     { value: "HEAD", label: "HEAD" },
-    { value: "OPTIONS", label: "OPTIONS" },
+    { value: "OPTIONS", label: "OPTIONS" }
   ];
 
-  function handleMethodChange(event: CustomEvent<string>) {
-    method = event.detail;
+  function handleMethodChange(value: string) {
+    method = value;
   }
 
   function addHeader() {
@@ -108,7 +108,7 @@
       id: Date.now().toString(),
       key: "",
       value: "",
-      enabled: true,
+      enabled: true
     };
     headers = [...headers, newHeader];
   }
@@ -118,9 +118,7 @@
   }
 
   function toggleHeader(id: string) {
-    headers = headers.map((h) =>
-      h.id === id ? { ...h, enabled: !h.enabled } : h,
-    );
+    headers = headers.map((h) => (h.id === id ? { ...h, enabled: !h.enabled } : h));
   }
 
   async function sendRequest() {
@@ -132,7 +130,7 @@
         .filter((h) => h.enabled)
         .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {}),
       method,
-      url,
+      url
     };
 
     try {
@@ -145,7 +143,7 @@
 
         time: responseData.duration,
         headers: responseData.headers,
-        body: responseData.body,
+        body: responseData.body
       };
     } catch (error) {
       console.error("Request failed:", error);
@@ -170,28 +168,25 @@
         // Update existing request
         await collectionStore.updateRequest(
           $collectionStore.selectedCollectionName,
-          {
+          collection.Request.createFrom({
             ...$selectedRequest,
             name: requestName || $selectedRequest.name,
             url,
             verb: method,
             body: requestBody,
             headers: headersObj,
-            lastUpdateTimestamp: new Date().toISOString(),
-          },
+            lastUpdateTimestamp: new Date().toISOString()
+          })
         );
       } else {
         // Create new request
-        await collectionStore.addRequest(
-          $collectionStore.selectedCollectionName,
-          {
-            name: requestName || "Untitled Request",
-            url,
-            verb: method,
-            body: requestBody,
-            headers: headersObj,
-          },
-        );
+        await collectionStore.addRequest($collectionStore.selectedCollectionName, {
+          name: requestName || "Untitled Request",
+          url,
+          verb: method,
+          body: requestBody,
+          headers: headersObj
+        });
       }
 
       showSaveDialog = false;
@@ -214,27 +209,15 @@
   <!-- Request Line -->
   <div class="request-line">
     <div class="method-dropdown">
-      <Dropdown
-        bind:value={method}
-        options={methodOptions}
-        on:change={handleMethodChange}
-      />
+      <Dropdown bind:value={method} options={methodOptions} change={handleMethodChange} />
     </div>
-    <input
-      type="text"
-      class="input url-input"
-      placeholder="Enter request URL"
-      bind:value={url}
-    />
-    <Button
-      variant="secondary"
-      on:click={() => (showSaveDialog = true)}
-      style="min-width: 80px;"
+    <input type="text" class="input url-input" placeholder="Enter request URL" bind:value={url} />
+    <Button variant="secondary" click={() => (showSaveDialog = true)} style="min-width: 80px;"
       >{$selectedRequest && $selectedRequest.id ? "UPDATE" : "SAVE"}</Button
     >
     <Button
       variant="primary"
-      on:click={sendRequest}
+      click={sendRequest}
       disabled={loading}
       style="min-width: 100px;font-weight: var(--font-weight-semibold);"
       >{loading ? "SENDING..." : "SEND"}</Button
@@ -250,11 +233,7 @@
     >
       Headers
     </button>
-    <button
-      class="tab"
-      class:active={activeTab === "body"}
-      on:click={() => (activeTab = "body")}
-    >
+    <button class="tab" class:active={activeTab === "body"} on:click={() => (activeTab = "body")}>
       Body
     </button>
   </div>
@@ -294,9 +273,7 @@
             </button>
           </div>
         {/each}
-        <button class="btn-add-header" on:click={addHeader}>
-          + Add Header
-        </button>
+        <button class="btn-add-header" on:click={addHeader}> + Add Header </button>
       </div>
     {:else if activeTab === "body"}
       <div class="body-editor">
@@ -312,11 +289,7 @@
 
   <!-- Response Section -->
   <div class="response-section" style="height: {responseHeight}px">
-    <div
-      class="resize-handle"
-      class:resizing={isResizing}
-      on:mousedown={startResize}
-    ></div>
+    <div class="resize-handle" class:resizing={isResizing} on:mousedown={startResize}></div>
     <div class="response-header-bar">
       <h3 class="text-base font-semibold">RESPONSE</h3>
       {#if response}
@@ -354,7 +327,7 @@
           <pre class="response-body"><code>{response.body}</code></pre>
         {:else}
           <div class="response-headers">
-            {#each Object.entries(response.headers) as [key, value]}
+            {#each Object.entries(response.headers) as [key, value] ([key])}
               <div class="response-header-row">
                 <span class="header-key">{key}:</span>
                 <span class="header-value">{value}</span>
@@ -372,43 +345,29 @@
 </div>
 
 {#if showSaveDialog}
-  <div class="dialog-overlay" on:click={() => (showSaveDialog = false)}>
-    <div class="dialog" on:click={(e) => e.stopPropagation()}>
+  <div class="dialog">
+    <Modal toggleFn={() => (showSaveDialog = false)}>
       {#if $selectedRequest && $selectedRequest.id}
         <!-- Update existing request -->
         <h3>Update Request</h3>
         {#if !$collectionStore.selectedCollectionName}
-          <p class="warning">
-            Please select a collection from the sidebar first!
-          </p>
+          <p class="warning">Please select a collection from the sidebar first!</p>
         {:else}
           <p class="info">
             Do you want to update <strong>{$selectedRequest.name}</strong> in
             <strong>{$collectionStore.selectedCollectionName}</strong>?
           </p>
         {/if}
-        <div class="dialog-actions">
-          <Button variant="secondary" on:click={() => (showSaveDialog = false)}>
-            Cancel
-          </Button>
-          {#if $collectionStore.selectedCollectionName}
-            <Button variant="primary" on:click={handleSaveToCollection}>
-              Update
-            </Button>
-          {/if}
-        </div>
       {:else}
         <!-- Create new request -->
         <h3>Save Request to Collection</h3>
         {#if !$collectionStore.selectedCollectionName}
-          <p class="warning">
-            Please select a collection from the sidebar first!
-          </p>
+          <p class="warning">Please select a collection from the sidebar first!</p>
         {:else}
           <p class="info">
-            Saving to: <strong>{$collectionStore.selectedCollectionName}</strong
-            >
+            Saving to collection: <strong>{$collectionStore.selectedCollectionName}</strong>
           </p>
+          <!-- svelte-ignore a11y-autofocus -->
           <input
             type="text"
             bind:value={requestName}
@@ -417,18 +376,17 @@
             autofocus
           />
         {/if}
-        <div class="dialog-actions">
-          <Button variant="secondary" on:click={() => (showSaveDialog = false)}>
-            Cancel
-          </Button>
-          {#if $collectionStore.selectedCollectionName}
-            <Button variant="primary" on:click={handleSaveToCollection}>
-              Save
-            </Button>
-          {/if}
-        </div>
       {/if}
-    </div>
+      <svelte:fragment slot="additional-buttons">
+        {#if $collectionStore.selectedCollectionName}
+          {#if $selectedRequest && $selectedRequest.id}
+            <Button variant="primary" click={handleSaveToCollection}>Update</Button>
+          {:else}
+            <Button variant="primary" click={handleSaveToCollection}>Save</Button>
+          {/if}
+        {/if}
+      </svelte:fragment>
+    </Modal>
   </div>
 {/if}
 

@@ -1,19 +1,19 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onDestroy, onMount } from "svelte";
 
-  export let value: string = '';
+  export let value: string = "";
   export let options: Array<{ value: string; label: string; color?: string }> = [];
-  export let placeholder: string = 'Select...';
+  export let placeholder: string = "Select...";
   export let disabled: boolean = false;
 
-  const dispatch = createEventDispatcher();
-  
+  export let change: (value: string) => void;
+
   let isOpen = false;
   let dropdownElement: HTMLDivElement;
-  let selectedLabel = '';
+  let selectedLabel = "";
 
   $: {
-    const selected = options.find(opt => opt.value === value);
+    const selected = options.find((opt) => opt.value === value);
     selectedLabel = selected ? selected.label : placeholder;
   }
 
@@ -27,7 +27,7 @@
     value = option.value;
     selectedLabel = option.label;
     isOpen = false;
-    dispatch('change', option.value);
+    change(option.value);
   }
 
   function handleClickOutside(event: MouseEvent) {
@@ -37,24 +37,24 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    if (event.key === "Escape") {
       isOpen = false;
     }
   }
 
-  onMount(() => {
-    document.addEventListener('click', handleClickOutside);
-    document.addEventListener('keydown', handleKeydown);
+  onMount(async () => {
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("keydown", handleKeydown);
+  });
 
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-      document.removeEventListener('keydown', handleKeydown);
-    };
+  onDestroy(async () => {
+    document.removeEventListener("click", handleClickOutside);
+    document.removeEventListener("keydown", handleKeydown);
   });
 </script>
 
 <div class="dropdown" bind:this={dropdownElement}>
-  <button 
+  <button
     class="dropdown-trigger"
     class:disabled
     class:open={isOpen}
@@ -62,20 +62,14 @@
     type="button"
   >
     <span class="dropdown-value">{selectedLabel}</span>
-    <svg 
-      class="dropdown-arrow" 
-      class:rotated={isOpen}
-      width="12" 
-      height="12" 
-      viewBox="0 0 12 12"
-    >
-      <path d="M6 9L1 4h10z"/>
+    <svg class="dropdown-arrow" class:rotated={isOpen} width="12" height="12" viewBox="0 0 12 12">
+      <path d="M6 9L1 4h10z" />
     </svg>
   </button>
 
   {#if isOpen}
     <div class="dropdown-menu">
-      {#each options as option}
+      {#each options as option (option.value)}
         <button
           class="dropdown-option"
           class:selected={option.value === value}

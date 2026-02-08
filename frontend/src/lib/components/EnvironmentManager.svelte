@@ -1,950 +1,725 @@
 <script lang="ts">
-    import { environmentStore } from "../stores/environmentStore";
-    import type {
-        Environment,
-        EnvironmentValue,
-    } from "../stores/environmentStore";
-    import { environment } from "../../../wailsjs/go/models";
-    import Button from "./base/Button.svelte";
+  import { environmentStore } from "../stores/environmentStore";
+  import type { Environment, EnvironmentValue } from "../stores/environmentStore";
+  import { environment } from "../../../wailsjs/go/models";
+  import Button from "./base/Button.svelte";
+  import Modal from "./base/Modal.svelte";
 
-    export let onClose: () => void;
+  let showNewEnvironmentDialog = false;
+  let showDeleteConfirmDialog = false;
+  let newEnvironmentName = "";
+  let deleteTarget: string | null = null;
+  let expandedEnvironments: Set<string> = new Set();
+  let activeMenu: string | null = null;
 
-    let showNewEnvironmentDialog = false;
-    let showDeleteConfirmDialog = false;
-    let newEnvironmentName = "";
-    let deleteTarget: string | null = null;
-    let expandedEnvironments: Set<string> = new Set();
-    let activeMenu: string | null = null;
+  // For editing values
+  let editingEnvironment: Environment | null = null;
+  let newValueKey = "";
+  let newValueValue = "";
+  let newValueType = "string";
 
-    // For editing values
-    let editingEnvironment: Environment | null = null;
-    let newValueKey = "";
-    let newValueValue = "";
-    let newValueType = "string";
+  $: environments = $environmentStore.environments;
+  $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
 
-    $: environments = $environmentStore.environments;
-    $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
+  function isExpanded(environmentName: string): boolean {
+    return expandedEnvironments.has(environmentName);
+  }
 
-    function isExpanded(environmentName: string): boolean {
-        return expandedEnvironments.has(environmentName);
+  function toggleEnvironment(environmentName: string) {
+    if (expandedEnvironments.has(environmentName)) {
+      expandedEnvironments.delete(environmentName);
+    } else {
+      expandedEnvironments.add(environmentName);
+    }
+    expandedEnvironments = new Set(expandedEnvironments);
+  }
+
+  function selectEnvironment(name: string) {
+    environmentStore.selectEnvironment(name);
+  }
+
+  function closeNewEnvironmentDialog() {
+    showNewEnvironmentDialog = false;
+    newEnvironmentName = "";
+  }
+
+  async function handleCreateEnvironment() {
+    const trimmed = newEnvironmentName.trim();
+    if (!trimmed) {
+      return;
     }
 
-    function toggleEnvironment(environmentName: string) {
-        if (expandedEnvironments.has(environmentName)) {
-            expandedEnvironments.delete(environmentName);
-        } else {
-            expandedEnvironments.add(environmentName);
-        }
-        expandedEnvironments = new Set(expandedEnvironments);
+    const exists = environments.some((env) => env.name.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      alert(`Environment "${trimmed}" already exists.`);
+      return;
     }
 
-    function selectEnvironment(name: string) {
-        environmentStore.selectEnvironment(name);
-        expandedEnvironments.add(name);
-        expandedEnvironments = new Set(expandedEnvironments);
+    try {
+      await environmentStore.createEnvironment(trimmed);
+      closeNewEnvironmentDialog();
+    } catch (err) {
+      console.error("Error creating environment:", err);
+      alert(`Error creating environment: ${err}`);
+    }
+  }
+
+  function handleDeleteEnvironment(environmentName: string) {
+    deleteTarget = environmentName;
+    showDeleteConfirmDialog = true;
+    activeMenu = null;
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+
+    try {
+      await environmentStore.deleteEnvironment(deleteTarget);
+      closeDeleteConfirmDialog();
+    } catch (err) {
+      console.error("Error deleting environment:", err);
+      alert(`Error deleting environment: ${err}`);
+    }
+  }
+
+  function closeDeleteConfirmDialog() {
+    showDeleteConfirmDialog = false;
+    deleteTarget = null;
+  }
+
+  function toggleMenu(e: Event, environmentName: string) {
+    e.stopPropagation();
+    activeMenu = activeMenu === environmentName ? null : environmentName;
+  }
+
+  function openEditEnvironment(env: Environment) {
+    // Deep copy the environment using the Environment class
+    const copiedValues: Record<string, EnvironmentValue> = {};
+    for (const [key, val] of Object.entries(env.values || {})) {
+      copiedValues[key] = new environment.ValueType(val);
+    }
+    editingEnvironment = new environment.Environment({
+      ...env,
+      values: copiedValues
+    });
+    activeMenu = null;
+  }
+
+  function closeEditDialog() {
+    editingEnvironment = null;
+    newValueKey = "";
+    newValueValue = "";
+    newValueType = "default";
+  }
+
+  async function handleAddValue() {
+    if (!editingEnvironment) return;
+    const key = newValueKey.trim();
+    const value = newValueValue.trim();
+
+    if (!key) {
+      alert("Value name is required");
+      return;
     }
 
-    function closeNewEnvironmentDialog() {
-        showNewEnvironmentDialog = false;
-        newEnvironmentName = "";
+    if (editingEnvironment.values[key]) {
+      alert(`Value "${key}" already exists`);
+      return;
     }
 
-    async function handleCreateEnvironment() {
-        const trimmed = newEnvironmentName.trim();
-        if (!trimmed) {
-            return;
-        }
+    // Create a proper ValueType instance
+    const valueType = new environment.ValueType({
+      value,
+      type: newValueType
+    });
+    editingEnvironment.values[key] = valueType;
+    // Trigger reactivity with new Environment instance
+    editingEnvironment = new environment.Environment(editingEnvironment);
 
-        const exists = environments.some(
-            (env) => env.name.toLowerCase() === trimmed.toLowerCase(),
-        );
-        if (exists) {
-            alert(`Environment "${trimmed}" already exists.`);
-            return;
-        }
+    newValueKey = "";
+    newValueValue = "";
+    newValueType = "string";
+  }
 
-        try {
-            await environmentStore.createEnvironment(trimmed);
-            closeNewEnvironmentDialog();
-        } catch (err) {
-            console.error("Error creating environment:", err);
-            alert(`Error creating environment: ${err}`);
-        }
+  async function handleRemoveValue(key: string) {
+    if (!editingEnvironment) return;
+    delete editingEnvironment.values[key];
+    // Trigger reactivity with new Environment instance
+    editingEnvironment = new environment.Environment(editingEnvironment);
+  }
+
+  async function handleUpdateValue(key: string, value: string) {
+    if (!editingEnvironment) return;
+    // Create a new ValueType instance with updated value
+    const existingType = editingEnvironment.values[key];
+    editingEnvironment.values[key] = new environment.ValueType({
+      value,
+      type: existingType.type
+    });
+    // Trigger reactivity with new Environment instance
+    editingEnvironment = new environment.Environment(editingEnvironment);
+  }
+
+  async function handleSaveEnvironment() {
+    if (!editingEnvironment) return;
+
+    try {
+      // Ensure all values are proper ValueType instances
+      const processedValues: Record<string, EnvironmentValue> = {};
+      for (const [key, val] of Object.entries(editingEnvironment.values || {})) {
+        processedValues[key] = new environment.ValueType(val);
+      }
+
+      // Create a new Environment instance with processed values
+      const envToSave = new environment.Environment({
+        ...editingEnvironment,
+        values: processedValues
+      });
+
+      await environmentStore.updateEnvironment(envToSave);
+      closeEditDialog();
+    } catch (err) {
+      console.error("Error saving environment:", err);
+      alert(`Error saving environment: ${err}`);
     }
-
-    function handleDeleteEnvironment(environmentName: string) {
-        deleteTarget = environmentName;
-        showDeleteConfirmDialog = true;
-        activeMenu = null;
-    }
-
-    async function confirmDelete() {
-        if (!deleteTarget) return;
-
-        try {
-            await environmentStore.deleteEnvironment(deleteTarget);
-            closeDeleteConfirmDialog();
-        } catch (err) {
-            console.error("Error deleting environment:", err);
-            alert(`Error deleting environment: ${err}`);
-        }
-    }
-
-    function closeDeleteConfirmDialog() {
-        showDeleteConfirmDialog = false;
-        deleteTarget = null;
-    }
-
-    function toggleMenu(e: Event, environmentName: string) {
-        e.stopPropagation();
-        activeMenu = activeMenu === environmentName ? null : environmentName;
-    }
-
-    function clearMenu() {
-        if (activeMenu) {
-            activeMenu = null;
-        }
-    }
-
-    function openEditEnvironment(env: Environment) {
-        // Deep copy the environment using the Environment class
-        const copiedValues: Record<string, EnvironmentValue> = {};
-        for (const [key, val] of Object.entries(env.values || {})) {
-            copiedValues[key] = new environment.ValueType(val);
-        }
-        editingEnvironment = new environment.Environment({
-            ...env,
-            values: copiedValues,
-        });
-        activeMenu = null;
-    }
-
-    function closeEditDialog() {
-        editingEnvironment = null;
-        newValueKey = "";
-        newValueValue = "";
-        newValueType = "default";
-    }
-
-    async function handleAddValue() {
-        if (!editingEnvironment) return;
-        const key = newValueKey.trim();
-        const value = newValueValue.trim();
-
-        if (!key) {
-            alert("Value name is required");
-            return;
-        }
-
-        if (editingEnvironment.values[key]) {
-            alert(`Value "${key}" already exists`);
-            return;
-        }
-
-        // Create a proper ValueType instance
-        const valueType = new environment.ValueType({
-            value,
-            type: newValueType,
-        });
-        editingEnvironment.values[key] = valueType;
-        // Trigger reactivity with new Environment instance
-        editingEnvironment = new environment.Environment(editingEnvironment);
-
-        newValueKey = "";
-        newValueValue = "";
-        newValueType = "string";
-    }
-
-    async function handleRemoveValue(key: string) {
-        if (!editingEnvironment) return;
-        delete editingEnvironment.values[key];
-        // Trigger reactivity with new Environment instance
-        editingEnvironment = new environment.Environment(editingEnvironment);
-    }
-
-    async function handleUpdateValue(key: string, value: string) {
-        if (!editingEnvironment) return;
-        // Create a new ValueType instance with updated value
-        const existingType = editingEnvironment.values[key];
-        editingEnvironment.values[key] = new environment.ValueType({
-            value,
-            type: existingType.type,
-        });
-        // Trigger reactivity with new Environment instance
-        editingEnvironment = new environment.Environment(editingEnvironment);
-    }
-
-    async function handleSaveEnvironment() {
-        if (!editingEnvironment) return;
-
-        try {
-            // Ensure all values are proper ValueType instances
-            const processedValues: Record<string, EnvironmentValue> = {};
-            for (const [key, val] of Object.entries(
-                editingEnvironment.values || {},
-            )) {
-                processedValues[key] = new environment.ValueType(val);
-            }
-
-            // Create a new Environment instance with processed values
-            const envToSave = new environment.Environment({
-                ...editingEnvironment,
-                values: processedValues,
-            });
-
-            await environmentStore.updateEnvironment(envToSave);
-            closeEditDialog();
-        } catch (err) {
-            console.error("Error saving environment:", err);
-            alert(`Error saving environment: ${err}`);
-        }
-    }
+  }
 </script>
 
-<div class="modal-overlay" on:click={onClose}>
-    <div class="modal-content" on:click={(e) => e.stopPropagation()}>
-        <div class="modal-header">
-            <h2>Manage Environments</h2>
-            <button class="close-btn" on:click={onClose}>×</button>
-        </div>
-
-        <div class="environment-list" on:click={clearMenu}>
-            <div class="header">
-                <div class="header-title">
-                    <h3>Environments</h3>
-                    <Button
-                        variant="primary"
-                        size="small"
-                        on:click={() => (showNewEnvironmentDialog = true)}
-                    >
-                        New
-                    </Button>
-                </div>
-            </div>
-
-            {#if $environmentStore.loading}
-                <div class="loading">Loading environments...</div>
-            {/if}
-
-            {#if $environmentStore.error}
-                <div class="error">
-                    {$environmentStore.error}
-                    <button on:click={() => environmentStore.clearError()}
-                        >x</button
-                    >
-                </div>
-            {/if}
-
-            <div class="environments">
-                {#each environments as environment (environment.id)}
-                    <div
-                        class="environment-item"
-                        class:selected={selectedEnvironmentName ===
-                            environment.name}
-                        class:menu-open={activeMenu === environment.name}
-                    >
-                        <div
-                            class="environment-header"
-                            on:click={() => selectEnvironment(environment.name)}
-                            on:keypress={(e) =>
-                                e.key === "Enter" &&
-                                selectEnvironment(environment.name)}
-                            role="button"
-                            tabindex="0"
-                        >
-                            <button
-                                class="expand-btn"
-                                on:click={(e) => {
-                                    e.stopPropagation();
-                                    toggleEnvironment(environment.name);
-                                }}
-                                aria-label="Toggle environment"
-                            >
-                                <span
-                                    class="expand-icon"
-                                    class:expanded={isExpanded(
-                                        environment.name,
-                                    )}
-                                >
-                                    &gt;
-                                </span>
-                            </button>
-
-                            <div class="environment-info">
-                                <span class="environment-name"
-                                    >{environment.name}</span
-                                >
-                                <span class="environment-count">
-                                    {Object.keys(environment.values || {})
-                                        .length}
-                                </span>
-                            </div>
-
-                            <div class="environment-actions">
-                                <button
-                                    class="icon-btn"
-                                    on:click={(e) => {
-                                        e.stopPropagation();
-                                        openEditEnvironment(environment);
-                                    }}
-                                    title="Edit environment"
-                                    aria-label="Edit environment"
-                                >
-                                    ✎
-                                </button>
-                                <button
-                                    class="icon-btn"
-                                    on:click={(e) =>
-                                        toggleMenu(e, environment.name)}
-                                    title="More actions"
-                                    aria-label="More actions"
-                                >
-                                    ...
-                                </button>
-                            </div>
-
-                            {#if activeMenu === environment.name}
-                                <div
-                                    class="environment-menu"
-                                    on:click|stopPropagation
-                                >
-                                    <button
-                                        class="menu-item danger"
-                                        on:click={() =>
-                                            handleDeleteEnvironment(
-                                                environment.name,
-                                            )}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            {/if}
-                        </div>
-
-                        {#if isExpanded(environment.name)}
-                            <div class="values">
-                                {#if Object.keys(environment.values || {}).length === 0}
-                                    <div class="empty-values">
-                                        No variables yet
-                                    </div>
-                                {:else}
-                                    {#each Object.entries(environment.values || {}) as [key, val]}
-                                        <div class="value-item">
-                                            <span class="value-key">{key}</span>
-                                            <span class="value-value"
-                                                >{val.value || "(empty)"}</span
-                                            >
-                                        </div>
-                                    {/each}
-                                {/if}
-                            </div>
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-
-            {#if environments.length === 0 && !$environmentStore.loading}
-                <div class="empty-state">
-                    <p>No environments yet</p>
-                    <p class="hint">
-                        Create your first environment to get started
-                    </p>
-                </div>
-            {/if}
-        </div>
-
-        {#if showNewEnvironmentDialog}
-            <div class="dialog-overlay" on:click={closeNewEnvironmentDialog}>
-                <div class="dialog" on:click={(e) => e.stopPropagation()}>
-                    <h3>New Environment</h3>
-                    <input
-                        type="text"
-                        bind:value={newEnvironmentName}
-                        placeholder="Environment name"
-                        on:keydown={(e) =>
-                            e.key === "Enter" && handleCreateEnvironment()}
-                        autofocus
-                    />
-                    <div class="dialog-actions">
-                        <Button
-                            variant="secondary"
-                            on:click={closeNewEnvironmentDialog}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="primary"
-                            on:click={handleCreateEnvironment}
-                        >
-                            Create
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        {/if}
-
-        {#if showDeleteConfirmDialog}
-            <div class="dialog-overlay" on:click={closeDeleteConfirmDialog}>
-                <div class="dialog" on:click={(e) => e.stopPropagation()}>
-                    <h3>Delete Environment</h3>
-                    <p>Are you sure you want to delete "{deleteTarget}"?</p>
-                    <p class="warning">This action cannot be undone.</p>
-                    <div class="dialog-actions">
-                        <Button
-                            variant="secondary"
-                            on:click={closeDeleteConfirmDialog}
-                        >
-                            Cancel
-                        </Button>
-                        <Button variant="danger" on:click={confirmDelete}
-                            >Delete</Button
-                        >
-                    </div>
-                </div>
-            </div>
-        {/if}
-
-        {#if editingEnvironment}
-            <div class="dialog-overlay" on:click={closeEditDialog}>
-                <div
-                    class="dialog dialog-wide"
-                    on:click={(e) => e.stopPropagation()}
-                >
-                    <h3>Edit Environment: {editingEnvironment.name}</h3>
-
-                    <div class="values-editor">
-                        <div class="values-header">
-                            <span>Variable</span>
-                            <span>Value</span>
-                            <span>Type</span>
-                            <span></span>
-                        </div>
-
-                        {#each Object.entries(editingEnvironment.values || {}) as [key, val]}
-                            <div class="value-row">
-                                <input
-                                    type="text"
-                                    value={key}
-                                    disabled
-                                    class="input-sm"
-                                />
-                                <input
-                                    type="text"
-                                    value={val.value}
-                                    on:input={(e) =>
-                                        handleUpdateValue(
-                                            key,
-                                            e.currentTarget.value,
-                                        )}
-                                    class="input-sm"
-                                    placeholder="Value"
-                                />
-                                <input
-                                    type="text"
-                                    value={val.type}
-                                    disabled
-                                    class="input-sm input-type"
-                                />
-                                <button
-                                    class="icon-btn danger"
-                                    on:click={() => handleRemoveValue(key)}
-                                    title="Remove variable"
-                                >
-                                    x
-                                </button>
-                            </div>
-                        {/each}
-
-                        <div class="value-row new-value">
-                            <input
-                                type="text"
-                                bind:value={newValueKey}
-                                placeholder="Variable name"
-                                class="input-sm"
-                            />
-                            <input
-                                type="text"
-                                bind:value={newValueValue}
-                                placeholder="Value"
-                                class="input-sm"
-                            />
-                            <input
-                                type="text"
-                                bind:value={newValueType}
-                                placeholder="Type"
-                                class="input-sm input-type"
-                            />
-                            <button
-                                class="icon-btn"
-                                on:click={handleAddValue}
-                                title="Add variable"
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="dialog-actions">
-                        <Button variant="secondary" on:click={closeEditDialog}
-                            >Cancel</Button
-                        >
-                        <Button
-                            variant="primary"
-                            on:click={handleSaveEnvironment}
-                        >
-                            Save
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        {/if}
+<div class="environment-list">
+  <div class="header">
+    <div class="header-title">
+      <h3>Environments</h3>
+      <Button variant="primary" size="small" click={() => (showNewEnvironmentDialog = true)}>
+        New
+      </Button>
     </div>
+  </div>
+
+  {#if $environmentStore.loading}
+    <div class="loading">Loading environments...</div>
+  {/if}
+
+  {#if $environmentStore.error}
+    <div class="error">
+      {$environmentStore.error}
+      <button on:click={() => environmentStore.clearError()}>x</button>
+    </div>
+  {/if}
+
+  <div class="environments">
+    {#each environments as environment (environment.id)}
+      <div
+        class="environment-item"
+        class:selected={selectedEnvironmentName === environment.name}
+        class:menu-open={activeMenu === environment.name}
+      >
+        <div
+          class="environment-header"
+          on:click={() => {
+            selectEnvironment(environment.name);
+            toggleEnvironment(environment.name);
+          }}
+          on:keypress={(e) => e.key === "Enter" && selectEnvironment(environment.name)}
+          role="button"
+          tabindex="0"
+        >
+          <button
+            class="expand-btn"
+            on:click={(e) => {
+              e.stopPropagation();
+              toggleEnvironment(environment.name);
+            }}
+            aria-label="Toggle environment"
+          >
+            <span class="expand-icon" class:expanded={isExpanded(environment.name)}> &gt; </span>
+          </button>
+
+          <div class="environment-info">
+            <span class="environment-name">{environment.name}</span>
+            <span class="environment-count">
+              {Object.keys(environment.values || {}).length}
+            </span>
+          </div>
+
+          <div class="environment-actions">
+            <button
+              class="icon-btn"
+              on:click={(e) => {
+                e.stopPropagation();
+                openEditEnvironment(environment);
+              }}
+              title="Edit environment"
+              aria-label="Edit environment"
+            >
+              ✎
+            </button>
+            <button
+              class="icon-btn"
+              on:click={(e) => toggleMenu(e, environment.name)}
+              title="More actions"
+              aria-label="More actions"
+            >
+              ...
+            </button>
+          </div>
+
+          {#if activeMenu === environment.name}
+            <div class="environment-menu">
+              <button
+                class="menu-item danger"
+                on:click={() => handleDeleteEnvironment(environment.name)}
+              >
+                Delete
+              </button>
+            </div>
+          {/if}
+        </div>
+
+        {#if isExpanded(environment.name)}
+          <div class="values">
+            {#if Object.keys(environment.values || {}).length === 0}
+              <div class="empty-values">No variables yet</div>
+            {:else}
+              {#each Object.entries(environment.values || {}) as [key, val] ([key])}
+                <div class="value-item">
+                  <span class="value-key">{key}</span>
+                  <span class="value-value">{val.value || "(empty)"}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
 </div>
 
+{#if environments.length === 0 && !$environmentStore.loading}
+  <div class="empty-state">
+    <p>No environments yet</p>
+    <p class="hint">Create your first environment to get started</p>
+  </div>
+{/if}
+
+{#if showNewEnvironmentDialog}
+  <Modal toggleFn={() => (showNewEnvironmentDialog = false)}>
+    <h3>New Environment</h3>
+    <!-- svelte-ignore a11y-autofocus -->
+    <input
+      type="text"
+      bind:value={newEnvironmentName}
+      placeholder="Environment name"
+      on:keydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
+      autofocus
+    />
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="primary" click={handleCreateEnvironment}>Create</Button>
+    </svelte:fragment>
+  </Modal>
+{/if}
+
+{#if showDeleteConfirmDialog}
+  <Modal toggleFn={closeDeleteConfirmDialog}>
+    <h3>Delete Environment</h3>
+    <p>Are you sure you want to delete "{deleteTarget}"?</p>
+    <p class="warning">This action cannot be undone.</p>
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="danger" click={confirmDelete}>Delete</Button>
+    </svelte:fragment>
+  </Modal>
+{/if}
+
+{#if editingEnvironment}
+  <Modal toggleFn={closeEditDialog}>
+    <h3>Edit Environment: {editingEnvironment.name}</h3>
+
+    <div class="values-editor">
+      <div class="values-header">
+        <span>Variable</span>
+        <span>Value</span>
+        <span>Type</span>
+        <span></span>
+      </div>
+
+      {#each Object.entries(editingEnvironment.values || {}) as [key, val] ([key])}
+        <div class="value-row">
+          <input type="text" value={key} disabled class="input-sm" />
+          <input
+            type="text"
+            value={val.value}
+            on:input={(e) => handleUpdateValue(key, e.currentTarget.value)}
+            class="input-sm"
+            placeholder="Value"
+          />
+          <input type="text" value={val.type} disabled class="input-sm input-type" />
+          <button
+            class="icon-btn danger"
+            on:click={() => handleRemoveValue(key)}
+            title="Remove variable"
+          >
+            x
+          </button>
+        </div>
+      {/each}
+
+      <div class="value-row new-value">
+        <input type="text" bind:value={newValueKey} placeholder="Variable name" class="input-sm" />
+        <input type="text" bind:value={newValueValue} placeholder="Value" class="input-sm" />
+        <input
+          type="text"
+          bind:value={newValueType}
+          placeholder="Type"
+          class="input-sm input-type"
+        />
+        <button class="icon-btn" on:click={handleAddValue} title="Add variable"> + </button>
+      </div>
+    </div>
+
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="primary" click={handleSaveEnvironment}>Save</Button>
+    </svelte:fragment>
+  </Modal>
+{/if}
+
 <style>
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: var(--z-modal);
-    }
+  .environment-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  .header-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
-    .modal-content {
-        background: var(--bg-primary);
-        border-radius: var(--radius-lg);
-        width: 90%;
-        max-width: 800px;
-        max-height: 90vh;
-        display: flex;
-        flex-direction: column;
-        box-shadow: var(--shadow-lg);
-        overflow: hidden;
-    }
+  .header h3 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+  }
 
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--space-lg);
-        border-bottom: 1px solid var(--border);
-    }
+  .loading {
+    padding: var(--space-md);
+    text-align: center;
+    color: var(--text-muted);
+  }
 
-    .modal-header h2 {
-        margin: 0;
-        font-size: var(--font-size-xl);
-        font-weight: var(--font-weight-semibold);
-    }
+  .error {
+    margin: var(--space-md);
+    padding: var(--space-sm);
+    background: var(--status-danger-bg);
+    color: var(--status-danger-text);
+    border-radius: var(--radius-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--font-size-sm);
+  }
 
-    .close-btn {
-        background: none;
-        border: none;
-        font-size: 32px;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-sm);
-        transition: all var(--transition-fast);
-    }
+  .error button {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: var(--font-size-lg);
+    cursor: pointer;
+    padding: 0 var(--space-xs);
+  }
+  .environments {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
 
-    .close-btn:hover {
-        background: var(--bg-tertiary);
-        color: var(--text);
-    }
+  .environment-item {
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    border: 1px solid transparent;
+    overflow: visible;
+  }
 
-    .environment-list {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        overflow: hidden;
-        background: var(--bg-secondary);
-        padding: var(--space-md);
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-sm);
-    }
+  .environment-item.selected {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+  }
 
-    .header-title {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+  .environment-item.menu-open {
+    border-color: var(--border-dark);
+  }
 
-    .header h3 {
-        margin: 0;
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
-    }
+  .environment-header {
+    display: flex;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    gap: var(--space-xs);
+    position: relative;
+    border-radius: var(--radius-md);
+  }
 
-    .loading {
-        padding: var(--space-md);
-        text-align: center;
-        color: var(--text-muted);
-    }
+  .environment-header:hover {
+    background: var(--bg-tertiary);
+  }
 
-    .error {
-        margin: var(--space-md);
-        padding: var(--space-sm);
-        background: var(--status-danger-bg);
-        color: var(--status-danger-text);
-        border-radius: var(--radius-md);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: var(--font-size-sm);
-    }
+  .expand-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-    .error button {
-        background: none;
-        border: none;
-        color: inherit;
-        font-size: var(--font-size-lg);
-        cursor: pointer;
-        padding: 0 var(--space-xs);
-    }
+  .expand-icon {
+    display: inline-block;
+    transition: transform var(--transition-fast);
+  }
 
-    .environments {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--space-sm);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-xs);
-    }
+  .expand-icon.expanded {
+    transform: rotate(90deg);
+  }
 
-    .environment-item {
-        border-radius: var(--radius-md);
-        background: var(--bg-primary);
-        border: 1px solid transparent;
-        overflow: visible;
-    }
+  .environment-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex: 1;
+    min-width: 0;
+  }
 
-    .environment-item.selected {
-        border-color: var(--primary);
-        box-shadow: var(--shadow-sm);
-    }
+  .environment-name {
+    font-weight: var(--font-weight-medium);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-    .environment-item.menu-open {
-        border-color: var(--border-dark);
-    }
+  .environment-count {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    background: var(--bg-tertiary);
+    padding: 0 var(--space-xs);
+    border-radius: var(--radius-sm);
+  }
 
-    .environment-header {
-        display: flex;
-        align-items: center;
-        padding: var(--space-sm) var(--space-md);
-        cursor: pointer;
-        gap: var(--space-xs);
-        position: relative;
-        border-radius: var(--radius-md);
-    }
+  .environment-actions {
+    display: flex;
+    gap: var(--space-xs);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+  }
 
-    .environment-header:hover {
-        background: var(--bg-tertiary);
-    }
+  .environment-header:hover .environment-actions,
+  .environment-item.menu-open .environment-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 
-    .expand-btn {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 0;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+  .icon-btn {
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    padding: 0 var(--space-xs);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: all var(--transition-fast);
+    font-size: var(--font-size-sm);
+    height: 24px;
+  }
 
-    .expand-icon {
-        display: inline-block;
-        transition: transform var(--transition-fast);
-    }
+  .icon-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text);
+  }
 
-    .expand-icon.expanded {
-        transform: rotate(90deg);
-    }
+  .icon-btn.danger {
+    color: var(--danger);
+  }
 
-    .environment-info {
-        display: flex;
-        align-items: center;
-        gap: var(--space-xs);
-        flex: 1;
-        min-width: 0;
-    }
+  .icon-btn.danger:hover {
+    background: var(--status-danger-bg);
+  }
 
-    .environment-name {
-        font-weight: var(--font-weight-medium);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+  .environment-menu {
+    position: absolute;
+    right: var(--space-sm);
+    top: calc(100% + 6px);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    z-index: var(--z-dropdown);
+  }
 
-    .environment-count {
-        color: var(--text-muted);
-        font-size: var(--font-size-xs);
-        background: var(--bg-tertiary);
-        padding: 0 var(--space-xs);
-        border-radius: var(--radius-sm);
-    }
+  .menu-item {
+    padding: var(--space-sm) var(--space-md);
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: var(--font-size-sm);
+    color: var(--text);
+    cursor: pointer;
+  }
 
-    .environment-actions {
-        display: flex;
-        gap: var(--space-xs);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity var(--transition-fast);
-    }
+  .menu-item:hover {
+    background: var(--bg-tertiary);
+  }
 
-    .environment-header:hover .environment-actions,
-    .environment-item.menu-open .environment-actions {
-        opacity: 1;
-        pointer-events: auto;
-    }
+  .menu-item.danger {
+    color: var(--danger);
+  }
 
-    .icon-btn {
-        background: none;
-        border: 1px solid transparent;
-        cursor: pointer;
-        padding: 0 var(--space-xs);
-        border-radius: var(--radius-sm);
-        color: var(--text-muted);
-        transition: all var(--transition-fast);
-        font-size: var(--font-size-sm);
-        height: 24px;
-    }
+  .menu-item.danger:hover {
+    background: var(--status-danger-bg);
+  }
 
-    .icon-btn:hover {
-        background: var(--bg-tertiary);
-        color: var(--text);
-    }
+  .values {
+    background: var(--bg-secondary);
+    padding: 0 var(--space-sm) var(--space-sm) calc(var(--space-lg) + 8px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
 
-    .icon-btn.danger {
-        color: var(--danger);
-    }
+  .value-item {
+    display: flex;
+    align-items: center;
+    padding: var(--space-xs) var(--space-sm);
+    gap: var(--space-sm);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+  }
 
-    .icon-btn.danger:hover {
-        background: var(--status-danger-bg);
-    }
+  .value-key {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary);
+    min-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-    .environment-menu {
-        position: absolute;
-        right: var(--space-sm);
-        top: calc(100% + 6px);
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-md);
-        display: flex;
-        flex-direction: column;
-        min-width: 140px;
-        z-index: var(--z-dropdown);
-    }
+  .value-value {
+    flex: 1;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-    .menu-item {
-        padding: var(--space-sm) var(--space-md);
-        background: none;
-        border: none;
-        text-align: left;
-        font-size: var(--font-size-sm);
-        color: var(--text);
-        cursor: pointer;
-    }
+  .empty-values {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    padding: var(--space-xs) var(--space-sm);
+  }
 
-    .menu-item:hover {
-        background: var(--bg-tertiary);
-    }
+  .empty-state {
+    padding: var(--space-xl);
+    text-align: center;
+    color: var(--text-muted);
+  }
 
-    .menu-item.danger {
-        color: var(--danger);
-    }
+  .empty-state p {
+    margin: var(--space-xs) 0;
+  }
 
-    .menu-item.danger:hover {
-        background: var(--status-danger-bg);
-    }
+  .empty-state .hint {
+    font-size: var(--font-size-sm);
+  }
 
-    .values {
-        background: var(--bg-secondary);
-        padding: 0 var(--space-sm) var(--space-sm) calc(var(--space-lg) + 8px);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-xs);
-    }
+  .warning {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-md);
+  }
 
-    .value-item {
-        display: flex;
-        align-items: center;
-        padding: var(--space-xs) var(--space-sm);
-        gap: var(--space-sm);
-        border-radius: var(--radius-sm);
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-    }
+  input {
+    width: 100%;
+    padding: var(--space-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: var(--font-size-md);
+    margin-bottom: var(--space-md);
+  }
 
-    .value-key {
-        font-family: var(--font-mono);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--primary);
-        min-width: 100px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+  input:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
 
-    .value-value {
-        flex: 1;
-        font-size: var(--font-size-xs);
-        color: var(--text-muted);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+  .values-editor {
+    margin-bottom: var(--space-md);
+  }
 
-    .empty-values {
-        color: var(--text-muted);
-        font-size: var(--font-size-xs);
-        padding: var(--space-xs) var(--space-sm);
-    }
+  .values-header {
+    display: grid;
+    grid-template-columns: 1fr 2fr 100px 40px;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
 
-    .empty-state {
-        padding: var(--space-xl);
-        text-align: center;
-        color: var(--text-muted);
-    }
+  .value-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 100px 40px;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+    align-items: center;
+  }
 
-    .empty-state p {
-        margin: var(--space-xs) 0;
-    }
+  .value-row.new-value {
+    margin-top: var(--space-sm);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border);
+  }
 
-    .empty-state .hint {
-        font-size: var(--font-size-sm);
-    }
+  .input-sm {
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: var(--font-size-sm);
+    width: 100%;
+  }
 
-    .dialog-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: var(--z-modal);
-    }
+  .input-sm:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
 
-    .dialog {
-        background: var(--bg-primary);
-        padding: var(--space-xl);
-        border-radius: var(--radius-lg);
-        min-width: 360px;
-        box-shadow: var(--shadow-lg);
-    }
+  .input-sm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
-    .dialog-wide {
-        min-width: 600px;
-        max-width: 800px;
-    }
-
-    .dialog h3 {
-        margin: 0 0 var(--space-md) 0;
-        font-size: var(--font-size-xl);
-    }
-
-    .dialog p {
-        margin: 0 0 var(--space-sm) 0;
-        color: var(--text);
-    }
-
-    .dialog .warning {
-        color: var(--text-muted);
-        font-size: var(--font-size-sm);
-        margin-bottom: var(--space-md);
-    }
-
-    .dialog input {
-        width: 100%;
-        padding: var(--space-sm);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        background: var(--bg-secondary);
-        color: var(--text);
-        font-size: var(--font-size-md);
-        margin-bottom: var(--space-md);
-    }
-
-    .dialog input:focus {
-        outline: none;
-        border-color: var(--primary);
-    }
-
-    .dialog-actions {
-        display: flex;
-        gap: var(--space-sm);
-        justify-content: flex-end;
-    }
-
-    .values-editor {
-        margin-bottom: var(--space-md);
-    }
-
-    .values-header {
-        display: grid;
-        grid-template-columns: 1fr 2fr 100px 40px;
-        gap: var(--space-sm);
-        padding: var(--space-sm);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--text-muted);
-        border-bottom: 1px solid var(--border);
-    }
-
-    .value-row {
-        display: grid;
-        grid-template-columns: 1fr 2fr 100px 40px;
-        gap: var(--space-sm);
-        padding: var(--space-xs) 0;
-        align-items: center;
-    }
-
-    .value-row.new-value {
-        margin-top: var(--space-sm);
-        padding-top: var(--space-sm);
-        border-top: 1px solid var(--border);
-    }
-
-    .input-sm {
-        padding: var(--space-xs) var(--space-sm);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        background: var(--bg-secondary);
-        color: var(--text);
-        font-size: var(--font-size-sm);
-        width: 100%;
-    }
-
-    .input-sm:focus {
-        outline: none;
-        border-color: var(--primary);
-    }
-
-    .input-sm:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-
-    .input-type {
-        font-size: var(--font-size-xs);
-    }
+  .input-type {
+    font-size: var(--font-size-xs);
+  }
 </style>

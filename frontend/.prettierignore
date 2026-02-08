@@ -1,0 +1,7 @@
+node_modules
+dist
+*.min.js
+wailsjs/go/**
+.vscode
+package*.json
+*.MD
