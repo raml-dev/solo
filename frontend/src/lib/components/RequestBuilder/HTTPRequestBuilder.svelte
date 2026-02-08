@@ -1,12 +1,16 @@
 <script lang="ts">
-  import { Execute } from "../../../wailsjs/go/main/App";
-  import { collection, main } from "../../../wailsjs/go/models";
-  import Button from "./base/Button.svelte";
-  import Dropdown from "./base/Dropdown.svelte";
-  import { collectionStore, selectedRequest } from "../stores/collectionStore";
-  import { selectedEnvironment } from "../stores/environmentStore";
-  import Modal from "./base/Modal.svelte";
-  import { envAutocomplete } from "../actions/envAutocomplete";
+  import { Execute } from "../../../../wailsjs/go/main/App";
+  import { collection, main } from "../../../../wailsjs/go/models";
+  import Button from "../base/Button.svelte";
+  import Dropdown from "../base/Dropdown.svelte";
+  import { collectionStore, selectedRequest } from "../../stores/collectionStore";
+  import { selectedEnvironment } from "../../stores/environmentStore";
+  import Modal from "../base/Modal.svelte";
+  import { envAutocomplete } from "../../actions/envAutocomplete";
+  import Tabs from "../base/Tabs.svelte";
+  import Tab from "../base/Tab.svelte";
+  import RequestHeaders from "./RequestHeaders.svelte";
+  import RequestBody from "./RequestBody.svelte";
 
   interface Header {
     id: string;
@@ -30,7 +34,7 @@
 
   let method = "GET";
   let url = "";
-  let activeTab = "headers";
+  let activeTab = 0;
   let requestBody = "";
   let headers: Header[] = [
     { id: "1", key: "Content-Type", value: "application/json", enabled: true },
@@ -310,69 +314,15 @@
     >
   </div>
 
-  <!-- Request Tabs -->
-  <div class="tabs">
-    <button
-      class="tab"
-      class:active={activeTab === "headers"}
-      on:click={() => (activeTab = "headers")}
-    >
-      Headers
-    </button>
-    <button class="tab" class:active={activeTab === "body"} on:click={() => (activeTab = "body")}>
-      Body
-    </button>
-  </div>
-
-  <!-- Request Content -->
   <div class="request-content">
-    {#if activeTab === "headers"}
-      <div class="headers-editor">
-        {#each headers as header (header.id)}
-          <div class="header-row">
-            <input
-              type="checkbox"
-              class="header-checkbox"
-              checked={header.enabled}
-              on:change={() => toggleHeader(header.id)}
-            />
-            <input
-              type="text"
-              class="input header-input"
-              placeholder="Header name"
-              bind:value={header.key}
-              disabled={!header.enabled}
-            />
-            <input
-              type="text"
-              class="input header-input"
-              placeholder="Value"
-              bind:value={header.value}
-              disabled={!header.enabled}
-              use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
-            />
-            <button
-              class="btn-icon btn-remove"
-              on:click={() => removeHeader(header.id)}
-              title="Remove header"
-            >
-              ×
-            </button>
-          </div>
-        {/each}
-        <button class="btn-add-header" on:click={addHeader}> + Add Header </button>
-      </div>
-    {:else if activeTab === "body"}
-      <div class="body-editor">
-        <textarea
-          class="input code-input"
-          rows="12"
-          placeholder="Request body (JSON, XML, etc.)"
-          bind:value={requestBody}
-          use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
-        ></textarea>
-      </div>
-    {/if}
+    <Tabs {activeTab}>
+      <Tab title="Headers">
+        <RequestHeaders {headers} />
+      </Tab>
+      <Tab title="Body">
+        <RequestBody {requestBody} />
+      </Tab>
+    </Tabs>
   </div>
 
   <!-- Response Section -->
@@ -554,13 +504,6 @@
     font-weight: var(--font-weight-semibold);
   }
 
-  .tabs {
-    display: flex;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border);
-    padding: 0 var(--space-lg);
-  }
-
   .response-tabs {
     padding: 0 var(--space-md);
   }
@@ -570,32 +513,6 @@
     overflow-y: auto;
     background: var(--bg-secondary);
     min-height: 200px;
-  }
-
-  .headers-editor {
-    padding: var(--space-md);
-  }
-
-  .header-row {
-    display: flex;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-sm);
-    align-items: center;
-  }
-
-  .header-checkbox {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-
-  .header-input {
-    flex: 1;
-  }
-
-  .header-input:disabled {
-    opacity: 0.5;
-    background: var(--bg-tertiary);
   }
 
   .btn-icon {
@@ -616,37 +533,6 @@
   .btn-remove:hover {
     background: var(--danger);
     color: var(--bg-primary);
-  }
-
-  .btn-add-header {
-    padding: var(--space-sm) var(--space-md);
-    background: none;
-    border: 2px dashed var(--border-dark);
-    color: var(--text-muted);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    width: 100%;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    transition: all var(--transition-fast);
-  }
-
-  .btn-add-header:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: var(--bg-tertiary);
-  }
-
-  .body-editor {
-    padding: var(--space-md);
-  }
-
-  .code-input {
-    width: 100%;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    line-height: var(--line-height-relaxed);
-    resize: vertical;
   }
 
   .response-section {
