@@ -215,7 +215,10 @@
       >
         <div
           class="environment-header"
-          on:click={() => {selectEnvironment(environment.name); toggleEnvironment(environment.name)}}
+          on:click={() => {
+            selectEnvironment(environment.name);
+            toggleEnvironment(environment.name);
+          }}
           on:keypress={(e) => e.key === "Enter" && selectEnvironment(environment.name)}
           role="button"
           tabindex="0"

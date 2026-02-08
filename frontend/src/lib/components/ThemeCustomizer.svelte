@@ -9,21 +9,21 @@
   export let close: () => void;
 
   type Colors = {
-    primary: string,
-    "primary-dark": string
-    success: string
-    warning: string
-    danger: string
-    info: string
-    "bg-primary": string
-    "bg-secondary": string
-    "bg-tertiary": string
-    border: string
-    "border-dark": string
-    text: string
-    "text-muted": string
-    "text-light": string
-  }
+    primary: string;
+    "primary-dark": string;
+    success: string;
+    warning: string;
+    danger: string;
+    info: string;
+    "bg-primary": string;
+    "bg-secondary": string;
+    "bg-tertiary": string;
+    border: string;
+    "border-dark": string;
+    text: string;
+    "text-muted": string;
+    "text-light": string;
+  };
 
   let themeName = "";
   let colors: Colors = {
@@ -88,7 +88,7 @@
   }
 
   function cancel() {
-    close()
+    close();
   }
 
   function previewColor(colors: Colors) {

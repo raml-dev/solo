@@ -3,7 +3,7 @@
   import { collectionStore } from "../stores/collectionStore";
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
-  import {collection} from "../../../wailsjs/go/models";
+  import { collection } from "../../../wailsjs/go/models";
 
   export let onRequestSelect: (requestId: string) => void = () => {};
 
@@ -45,7 +45,10 @@
     return normalize(collection.name).includes(query);
   }
 
-  function getVisibleRequests(collection: collection.Collection, query: string): collection.Request[] {
+  function getVisibleRequests(
+    collection: collection.Collection,
+    query: string
+  ): collection.Request[] {
     const requests = collection.requests || [];
     if (!query) return requests;
     return requests.filter((request) => requestMatches(request, query));
