@@ -6,21 +6,21 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --info: #06b6d4;
-  
+
   /* Background Colors */
   --bg-primary: #ffffff;
   --bg-secondary: #f9fafb;
   --bg-tertiary: #f3f4f6;
-  
+
   /* Border Colors */
   --border: #e5e7eb;
   --border-dark: #d1d5db;
-  
+
   /* Text Colors */
   --text: #111827;
   --text-muted: #6b7280;
   --text-light: #9ca3af;
-  
+
   /* Status Colors (HTTP Status Codes) */
   --status-success-bg: #d1fae5;
   --status-success-text: #065f46;
@@ -30,7 +30,7 @@
   --status-danger-text: #991b1b;
   --status-info-bg: #dbeafe;
   --status-info-text: #1e40af;
-  
+
   /* HTTP Method Colors */
   --method-get-bg: #dbeafe;
   --method-get-text: #1e40af;

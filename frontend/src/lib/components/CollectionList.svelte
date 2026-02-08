@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { collectionStore } from "../stores/collectionStore";
   import type { Collection, Request } from "../stores/collectionStore";
   import Button from "./base/Button.svelte";
+  import Modal from "./base/Modal.svelte";
 
   export let onRequestSelect: (requestId: string) => void = () => {};
 
@@ -72,8 +73,6 @@
 
   function selectCollection(name: string) {
     collectionStore.selectCollection(name);
-    expandedCollections.add(name);
-    expandedCollections = new Set(expandedCollections);
   }
 
   function selectRequest(requestId: string) {
@@ -243,9 +242,16 @@
       isCollapsed = stored === "true";
     }
   });
+
+  onMount(async () => {
+    document.addEventListener("click", clearMenu);
+  });
+  onDestroy(async () => {
+    document.removeEventListener("click", clearMenu);
+  });
 </script>
 
-<div class="collection-list" class:collapsed={isCollapsed} on:click={clearMenu}>
+<div class="collection-list" class:collapsed={isCollapsed}>
   <div class="header">
     <div class="header-title">
       {#if !isCollapsed}
@@ -307,8 +313,17 @@
         >
           <div
             class="collection-header"
-            on:click={() => selectCollection(collection.name)}
-            on:keypress={(e) => e.key === "Enter" && selectCollection(collection.name)}
+            on:click={(e) => {
+              e.stopPropagation();
+              selectCollection(collection.name);
+              toggleCollection(collection.name);
+            }}
+            on:keypress={(e) => {
+              if (e.key === "Enter") {
+                selectCollection(collection.name);
+                toggleCollection(collection.name);
+              }
+            }}
             role="button"
             tabindex="0"
           >
@@ -348,13 +363,22 @@
             </div>
 
             {#if activeMenu === collection.name}
-              <div class="collection-menu" on:click|stopPropagation>
-                <button class="menu-item" on:click={() => openRenameCollection(collection.name)}>
+              <div class="collection-menu">
+                <button
+                  class="menu-item"
+                  on:click={(e) => {
+                    e.stopPropagation();
+                    openRenameCollection(collection.name);
+                  }}
+                >
                   Rename
                 </button>
                 <button
                   class="menu-item danger"
-                  on:click={() => handleDeleteCollection(collection.name)}
+                  on:click={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCollection(collection.name);
+                  }}
                 >
                   Delete
                 </button>
@@ -413,9 +437,10 @@
 </div>
 
 {#if showNewCollectionDialog}
-  <div class="dialog-overlay" on:click={closeNewCollectionDialog}>
-    <div class="dialog" on:click={(e) => e.stopPropagation()}>
+  <Modal toggleFn={closeNewCollectionDialog}>
+    <div class="dialog">
       <h3>New Collection</h3>
+      <!-- svelte-ignore a11y-autofocus -->
       <input
         type="text"
         bind:value={newCollectionName}
@@ -423,18 +448,18 @@
         on:keydown={(e) => e.key === "Enter" && handleCreateCollection()}
         autofocus
       />
-      <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeNewCollectionDialog}>Cancel</Button>
-        <Button variant="primary" on:click={handleCreateCollection}>Create</Button>
-      </div>
     </div>
-  </div>
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="primary" on:click={handleCreateCollection}>Create</Button>
+    </svelte:fragment>
+  </Modal>
 {/if}
 
 {#if showRenameCollectionDialog}
-  <div class="dialog-overlay" on:click={closeRenameDialog}>
-    <div class="dialog" on:click={(e) => e.stopPropagation()}>
+  <Modal toggleFn={closeRenameDialog}>
+    <div class="dialog">
       <h3>Rename Collection</h3>
+      <!-- svelte-ignore a11y-autofocus -->
       <input
         type="text"
         bind:value={renameCollectionName}
@@ -442,39 +467,36 @@
         on:keydown={(e) => e.key === "Enter" && handleRenameCollection()}
         autofocus
       />
-      <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeRenameDialog}>Cancel</Button>
-        <Button variant="primary" on:click={handleRenameCollection}>Save</Button>
-      </div>
     </div>
-  </div>
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="primary" on:click={handleRenameCollection}>Save</Button>
+    </svelte:fragment>
+  </Modal>
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <div class="dialog-overlay" on:click={closeDeleteConfirmDialog}>
-    <div class="dialog" on:click={(e) => e.stopPropagation()}>
+  <Modal toggleFn={closeDeleteConfirmDialog}>
+    <div class="dialog">
       <h3>Delete Collection</h3>
       <p>Are you sure you want to delete "{deleteTarget}"?</p>
       <p class="warning">This action cannot be undone.</p>
-      <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeDeleteConfirmDialog}>Cancel</Button>
-        <Button variant="danger" on:click={confirmDelete}>Delete</Button>
-      </div>
     </div>
-  </div>
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="danger" on:click={confirmDelete}>Delete</Button>
+    </svelte:fragment>
+  </Modal>
 {/if}
 {#if showDeleteRequestConfirmDialog}
-  <div class="dialog-overlay" on:click={closeDeleteRequestConfirmDialog}>
-    <div class="dialog" on:click={(e) => e.stopPropagation()}>
+  <Modal toggleFn={closeDeleteRequestConfirmDialog}>
+    <div class="dialog">
       <h3>Delete Request</h3>
       <p>Are you sure you want to delete this request?</p>
       <p class="warning">This action cannot be undone.</p>
-      <div class="dialog-actions">
-        <Button variant="secondary" on:click={closeDeleteRequestConfirmDialog}>Cancel</Button>
-        <Button variant="danger" on:click={confirmDeleteRequest}>Delete</Button>
-      </div>
     </div>
-  </div>
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="danger" on:click={confirmDeleteRequest}>Delete</Button>
+    </svelte:fragment>
+  </Modal>
 {/if}
 
 <style>
@@ -822,27 +844,6 @@
 
   .empty-state .hint {
     font-size: var(--font-size-sm);
-  }
-
-  .dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-modal);
-  }
-
-  .dialog {
-    background: var(--bg-primary);
-    padding: var(--space-xl);
-    border-radius: var(--radius-lg);
-    min-width: 360px;
-    box-shadow: var(--shadow-lg);
   }
 
   .dialog h3 {

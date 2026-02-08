@@ -1,30 +1,30 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { SaveCustomTheme } from '../../../wailsjs/go/main/App';
-  import { changeTheme } from '../stores/themeStore';
-  import type { Theme } from '../stores/themeStore';
-  import Button from './base/Button.svelte';
+  import { createEventDispatcher } from "svelte";
+  import { SaveCustomTheme } from "../../../wailsjs/go/main/App";
+  import { changeTheme } from "../stores/themeStore";
+  import type { Theme } from "../stores/themeStore";
+  import Button from "./base/Button.svelte";
 
   export let baseTheme: Theme | null = null;
 
   const dispatch = createEventDispatcher();
 
-  let themeName = '';
+  let themeName = "";
   let colors = {
-    'primary': '#2563eb',
-    'primary-dark': '#1e40af',
-    'success': '#10b981',
-    'warning': '#f59e0b',
-    'danger': '#ef4444',
-    'info': '#06b6d4',
-    'bg-primary': '#ffffff',
-    'bg-secondary': '#f9fafb',
-    'bg-tertiary': '#f3f4f6',
-    'border': '#e5e7eb',
-    'border-dark': '#d1d5db',
-    'text': '#111827',
-    'text-muted': '#6b7280',
-    'text-light': '#9ca3af',
+    primary: "#2563eb",
+    "primary-dark": "#1e40af",
+    success: "#10b981",
+    warning: "#f59e0b",
+    danger: "#ef4444",
+    info: "#06b6d4",
+    "bg-primary": "#ffffff",
+    "bg-secondary": "#f9fafb",
+    "bg-tertiary": "#f3f4f6",
+    border: "#e5e7eb",
+    "border-dark": "#d1d5db",
+    text: "#111827",
+    "text-muted": "#6b7280",
+    "text-light": "#9ca3af"
   };
 
   $: if (baseTheme) {
@@ -33,46 +33,46 @@
   }
 
   const colorLabels = {
-    'primary': 'Primary Color',
-    'primary-dark': 'Primary Dark',
-    'success': 'Success',
-    'warning': 'Warning',
-    'danger': 'Danger',
-    'info': 'Info',
-    'bg-primary': 'Background Primary',
-    'bg-secondary': 'Background Secondary',
-    'bg-tertiary': 'Background Tertiary',
-    'border': 'Border',
-    'border-dark': 'Border Dark',
-    'text': 'Text',
-    'text-muted': 'Text Muted',
-    'text-light': 'Text Light',
+    primary: "Primary Color",
+    "primary-dark": "Primary Dark",
+    success: "Success",
+    warning: "Warning",
+    danger: "Danger",
+    info: "Info",
+    "bg-primary": "Background Primary",
+    "bg-secondary": "Background Secondary",
+    "bg-tertiary": "Background Tertiary",
+    border: "Border",
+    "border-dark": "Border Dark",
+    text: "Text",
+    "text-muted": "Text Muted",
+    "text-light": "Text Light"
   };
 
   async function saveTheme() {
     if (!themeName.trim()) {
-      alert('Please enter a theme name');
+      alert("Please enter a theme name");
       return;
     }
 
     const theme: Theme = {
       name: themeName,
-      colors: colors,
+      colors: colors
     };
 
     try {
       await SaveCustomTheme(theme);
       await changeTheme(themeName);
-      dispatch('saved', theme);
-      dispatch('close');
+      dispatch("saved", theme);
+      dispatch("close");
     } catch (error) {
-      console.error('Failed to save theme:', error);
-      alert('Failed to save theme');
+      console.error("Failed to save theme:", error);
+      alert("Failed to save theme");
     }
   }
 
   function cancel() {
-    dispatch('close');
+    dispatch("close");
   }
 
   function previewColor() {
@@ -111,7 +111,7 @@
       <div class="color-section">
         <h4 class="section-title">Primary Colors</h4>
         <div class="color-grid">
-          {#each ['primary', 'primary-dark', 'success', 'warning', 'danger', 'info'] as colorKey}
+          {#each ["primary", "primary-dark", "success", "warning", "danger", "info"] as colorKey}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -137,7 +137,7 @@
       <div class="color-section">
         <h4 class="section-title">Background Colors</h4>
         <div class="color-grid">
-          {#each ['bg-primary', 'bg-secondary', 'bg-tertiary'] as colorKey}
+          {#each ["bg-primary", "bg-secondary", "bg-tertiary"] as colorKey}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -163,7 +163,7 @@
       <div class="color-section">
         <h4 class="section-title">Border Colors</h4>
         <div class="color-grid">
-          {#each ['border', 'border-dark'] as colorKey}
+          {#each ["border", "border-dark"] as colorKey}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -189,7 +189,7 @@
       <div class="color-section">
         <h4 class="section-title">Text Colors</h4>
         <div class="color-grid">
-          {#each ['text', 'text-muted', 'text-light'] as colorKey}
+          {#each ["text", "text-muted", "text-light"] as colorKey}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -233,28 +233,6 @@
     align-items: center;
     padding: var(--space-lg);
     border-bottom: 1px solid var(--border);
-  }
-
-  .btn-close {
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-2xl);
-    line-height: 1;
-    cursor: pointer;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition-fast);
-    font-family: var(--font-sans);
-  }
-
-  .btn-close:hover {
-    background: var(--border);
-    color: var(--text);
   }
 
   .customizer-content {

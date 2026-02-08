@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { currentTheme, changeTheme } from '../stores/themeStore';
-  import { GetAllThemes, GetPredefinedThemes, GetCustomThemes } from '../../../wailsjs/go/main/App';
-  import type { Theme } from '../stores/themeStore';
-  import Button from './base/Button.svelte';
+  import { onMount } from "svelte";
+  import { currentTheme, changeTheme } from "../stores/themeStore";
+  import { GetPredefinedThemes, GetCustomThemes } from "../../../wailsjs/go/main/App";
+  import type { Theme } from "../stores/themeStore";
+  import Button from "./base/Button.svelte";
+  import Modal from "./base/Modal.svelte";
 
-  let allThemes: Theme[] = [];
   let predefinedThemes: Theme[] = [];
   let customThemes: Theme[] = [];
   let showCustomizer = false;
@@ -16,11 +16,10 @@
 
   async function loadThemes() {
     try {
-      allThemes = await GetAllThemes();
       predefinedThemes = await GetPredefinedThemes();
       customThemes = await GetCustomThemes();
     } catch (error) {
-      console.error('Failed to load themes:', error);
+      console.error("Failed to load themes:", error);
     }
   }
 
@@ -28,12 +27,12 @@
     try {
       await changeTheme(themeName);
     } catch (error) {
-      console.error('Failed to change theme:', error);
+      console.error("Failed to change theme:", error);
     }
   }
 
   function getThemePreview(theme: Theme): string {
-    return theme.colors['bg-primary'] || '#ffffff';
+    return theme.colors["bg-primary"] || "#ffffff";
   }
 
   function openCustomizer() {
@@ -43,7 +42,7 @@
 
 <div class="theme-selector">
   <h3 class="text-base font-semibold">Theme</h3>
-  
+
   <!-- Predefined Themes -->
   <div class="theme-section">
     <h4 class="text-sm font-medium text-muted">Predefined Themes</h4>
@@ -96,12 +95,9 @@
   <Button variant="secondary" on:click={openCustomizer}>Create Custom Theme</Button>
 
   {#if showCustomizer}
-    <div class="customizer-overlay" on:click={() => showCustomizer = false}>
-      <div class="customizer-panel" on:click|stopPropagation>
-        <p class="text-muted">Theme customizer will go here</p>
-        <Button variant="secondary" on:click={() => showCustomizer = false}>Close</Button>
-      </div>
-    </div>
+    <Modal toggleFn={() => (showCustomizer = false)}>
+      <p class="text-muted">Theme customizer will go here</p>
+    </Modal>
   {/if}
 </div>
 
@@ -172,29 +168,5 @@
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     text-transform: capitalize;
-  }
-
-  .customizer-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-modal);
-  }
-
-  .customizer-panel {
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-xl);
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
   }
 </style>

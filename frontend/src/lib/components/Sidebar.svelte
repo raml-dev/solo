@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "./base/Button.svelte";
 
-  export let items: Array<{id: string, name: string, method?: string}> = [];
+  export let items: Array<{ id: string; name: string; method?: string }> = [];
   export let onSelect: (id: string) => void = () => {};
   export let selectedId: string | null = null;
 </script>
@@ -14,8 +14,8 @@
 
   <div class="sidebar-content">
     {#each items as item}
-      <button 
-        class="sidebar-item" 
+      <button
+        class="sidebar-item"
         class:active={item.id === selectedId}
         on:click={() => onSelect(item.id)}
       >
