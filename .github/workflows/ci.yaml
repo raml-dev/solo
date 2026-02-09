@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: ["main", "fix/check_type_and_ci"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
 
