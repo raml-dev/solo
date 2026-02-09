@@ -154,7 +154,7 @@
     const existingType = editingEnvironment.values[key];
     editingEnvironment.values[key] = new environment.ValueType({
       value,
-      type: existingType.type
+      type: existingType?.type || "default"
     });
     // Trigger reactivity with new Environment instance
     editingEnvironment = new environment.Environment(editingEnvironment);
@@ -283,7 +283,7 @@
               {#each Object.entries(environment.values || {}) as [key, val] ([key])}
                 <div class="value-item">
                   <span class="value-key">{key}</span>
-                  <span class="value-value">{val.value || "(empty)"}</span>
+                  <span class="value-value">{val?.value || "(empty)"}</span>
                 </div>
               {/each}
             {/if}
@@ -346,12 +346,12 @@
           <input type="text" value={key} disabled class="input-sm" />
           <input
             type="text"
-            value={val.value}
+            value={val?.value || ""}
             on:input={(e) => handleUpdateValue(key, e.currentTarget.value)}
             class="input-sm"
             placeholder="Value"
           />
-          <input type="text" value={val.type} disabled class="input-sm input-type" />
+          <input type="text" value={val?.type || "default"} disabled class="input-sm input-type" />
           <button
             class="icon-btn danger"
             on:click={() => handleRemoveValue(key)}
