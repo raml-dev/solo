@@ -2,14 +2,14 @@ name: ci
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main", "fix/check_type_and_ci"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04 
-    
+    runs-on: ubuntu-22.04
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
