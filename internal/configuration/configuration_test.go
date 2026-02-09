@@ -14,11 +14,23 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	}
 	defer os.RemoveAll(tempHome)
 
-	// Mock UserConfigDir via HOME env var (works on Unix/Mac)
-	// Note: tools.GetOrCreateConfigDir calls os.UserConfigDir()
+	// Mock UserConfigDir for all platforms
+	// - Linux: XDG_CONFIG_HOME takes precedence
+	// - macOS: HOME is used
+	// - Windows: LOCALAPPDATA is used
 	originalHome := os.Getenv("HOME")
+	originalXDG := os.Getenv("XDG_CONFIG_HOME")
+	originalLocalAppData := os.Getenv("LOCALAPPDATA")
+	
 	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", originalHome)
+	os.Setenv("XDG_CONFIG_HOME", tempHome)
+	os.Setenv("LOCALAPPDATA", tempHome)
+	
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("XDG_CONFIG_HOME", originalXDG)
+		os.Setenv("LOCALAPPDATA", originalLocalAppData)
+	}()
 
 	// Test initialization
 	cm, err := NewConfigurationManager()
