@@ -25,7 +25,8 @@ jobs:
       - name: Build Check (Wails)
         run: |
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
-          wails build -platform linux/amd64 -clean
+          wails build
+        # -platform linux/amd64 -clean
 
       - name: Run Go Tests
         run: go test -v ./...
