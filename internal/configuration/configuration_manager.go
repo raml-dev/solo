@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"sync"
 	"yapla/internal/tools"
@@ -17,6 +18,7 @@ func NewConfigurationManager() (*ConfigurationManager, error) {
 	// Setup paths
 	baseDir, err := tools.GetOrCreateConfigDir()
 	if err != nil {
+		slog.Error("Failed to get/create config directory", "error", err)
 		return nil, err
 	}
 
@@ -28,11 +30,14 @@ func NewConfigurationManager() (*ConfigurationManager, error) {
 	if err := cm.load(); err != nil {
 		if os.IsNotExist(err) {
 			// Create default if not exists
+			slog.Info("Configuration file not found, creating default")
 			defaultConfig := cm.createDefault()
 			if err := cm.Save(defaultConfig); err != nil {
+				slog.Error("Failed to save default configuration", "error", err)
 				return nil, err
 			}
 		} else {
+			slog.Error("Failed to load configuration", "error", err)
 			return nil, err
 		}
 	}
@@ -65,12 +70,21 @@ func (cm *ConfigurationManager) load() error {
 
 	var cfg Configuration
 	if err := json.Unmarshal(data, &cfg); err != nil {
+		slog.Error("Failed to parse configuration file", "error", err)
 		return err
 	}
 
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	cm.config = &cfg
+
+	slog.Info("Configuration loaded")
+	slog.Debug("Configuration details",
+		"theme", cfg.General.Theme,
+		"timeout", cfg.Request.TimeoutSeconds,
+		"follow_redirects", cfg.Request.FollowRedirects,
+		"validate_ssl", cfg.Request.ValidateSSL)
+
 	return nil
 }
 
@@ -86,15 +100,19 @@ func (cm *ConfigurationManager) Get() Configuration {
 func (cm *ConfigurationManager) Save(cfg Configuration) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
+		slog.Error("Failed to marshal configuration", "error", err)
 		return err
 	}
 
 	if err := tools.UpdateConfigFile(cm.configDir, tools.CONFIG_JSON_FILENAME, data); err != nil {
+		slog.Error("Failed to write configuration file", "error", err)
 		return err
 	}
 
 	cm.mu.Lock()
 	cm.config = &cfg
 	cm.mu.Unlock()
+
+	slog.Info("Configuration saved")
 	return nil
 }

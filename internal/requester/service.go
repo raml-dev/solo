@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -34,10 +35,16 @@ func NewService(cm *configuration.ConfigurationManager) *Service {
 }
 
 func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
+	slog.Debug("Preparing HTTP request",
+		"method", opts.Method,
+		"url", opts.URL,
+		"headers_count", len(opts.Headers),
+		"body_length", len(opts.Body))
 
 	// Get base client from HostManager (handles custom Certs/Transport caching)
 	client, err := s.hostManager.GetClientForUrl(opts.URL)
 	if err != nil {
+		slog.Error("Failed to get HTTP client", "url", opts.URL, "error", err)
 		return nil, err
 	}
 
@@ -99,10 +106,17 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
 				}
 			}
 		}
+
+		slog.Debug("Request settings applied",
+			"timeout", timeout,
+			"follow_redirects", followRedirects,
+			"max_redirects", maxRedirects,
+			"proxy", proxyURL)
 	}
 
 	request, err := http.NewRequest(opts.Method, opts.URL, bytes.NewReader([]byte(opts.Body)))
 	if err != nil {
+		slog.Error("Failed to create HTTP request", "method", opts.Method, "url", opts.URL, "error", err)
 		return nil, err
 	}
 
@@ -153,6 +167,11 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 	duration := time.Since(start).Milliseconds()
 
 	if err != nil {
+		slog.Error("HTTP request failed",
+			"method", opts.Method,
+			"url", opts.URL,
+			"duration_ms", duration,
+			"error", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -160,6 +179,7 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 	// Read response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		slog.Error("Failed to read response body", "url", opts.URL, "error", err)
 		return nil, err
 	}
 
@@ -168,6 +188,16 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 	for k, v := range resp.Header {
 		respHeaders[k] = v[0]
 	}
+
+	slog.Info("HTTP request completed",
+		"method", opts.Method,
+		"url", opts.URL,
+		"status", resp.StatusCode,
+		"duration_ms", duration)
+
+	slog.Debug("Response details",
+		"headers_count", len(respHeaders),
+		"body_length", len(bodyBytes))
 
 	return &ResponseData{
 		StatusCode: resp.StatusCode,

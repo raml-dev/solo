@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"yapla/internal/tools"
@@ -46,11 +47,17 @@ func (cm *CollectionManager) CreateCollection(collectionName string) error {
 	bytes, err := json.Marshal(collection)
 
 	if err != nil {
+		slog.Error("Failed to marshal collection", "name", collectionName, "error", err)
 		return err
 	}
 
-	return fs.CreateConfigFile(cm.config, collectionName, bytes)
+	if err := fs.CreateConfigFile(cm.config, collectionName, bytes); err != nil {
+		slog.Error("Failed to create collection file", "name", collectionName, "error", err)
+		return err
+	}
 
+	slog.Info("Collection created", "name", collectionName)
+	return nil
 }
 
 func (cm *CollectionManager) LoadCollections() (*[]string, error) {
@@ -88,7 +95,7 @@ func (cm *CollectionManager) LoadCollectionsContent() (*[]Collection, error) {
 		coll, err := cm.LoadCollection(collectionName)
 
 		if err != nil {
-			fmt.Printf("%s", err.Error())
+			slog.Warn("Failed to load collection in batch", "name", collectionName, "error", err)
 			continue
 		}
 
@@ -106,9 +113,13 @@ func (cm *CollectionManager) LoadCollection(collectionName string) (*Collection,
 	if collectionName == "" {
 		return nil, errors.New("no collection name specified")
 	}
+
+	slog.Debug("Loading collection", "name", collectionName)
+
 	fileBytes, err := fs.ReadConfigFile(cm.config, collectionName)
 
 	if err != nil {
+		slog.Debug("Failed to read collection file", "name", collectionName, "error", err)
 		return nil, err
 	}
 	var rC Collection
@@ -116,9 +127,11 @@ func (cm *CollectionManager) LoadCollection(collectionName string) (*Collection,
 	err = json.Unmarshal(fileBytes, &rC)
 
 	if err != nil {
+		slog.Error("Failed to parse collection file", "name", collectionName, "error", err)
 		return nil, err
 	}
 
+	slog.Debug("Collection loaded", "name", collectionName, "requests_count", len(rC.Requests))
 	return &rC, nil
 }
 
@@ -140,8 +153,13 @@ func (cm *CollectionManager) DeleteCollection(collectionName string) error {
 		return errors.New("no collection name specified")
 	}
 
-	return tools.RemoveConfigFile(cm.config, collectionName)
+	if err := tools.RemoveConfigFile(cm.config, collectionName); err != nil {
+		slog.Error("Failed to delete collection", "name", collectionName, "error", err)
+		return err
+	}
 
+	slog.Info("Collection deleted", "name", collectionName)
+	return nil
 }
 
 // requests
@@ -181,7 +199,12 @@ func (cm *CollectionManager) AddRequest(collectionName string, request Request) 
 		return err
 	}
 
-	return cm.UpdateCollection(*coll)
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return err
+	}
+
+	slog.Debug("Request added", "collection", collectionName, "request_id", request.Id, "request_name", request.Name)
+	return nil
 }
 
 func (cm *CollectionManager) RemoveRequest(collectionName string, requestId string) error {
@@ -200,7 +223,12 @@ func (cm *CollectionManager) RemoveRequest(collectionName string, requestId stri
 		return err
 	}
 
-	return cm.UpdateCollection(*coll)
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return err
+	}
+
+	slog.Debug("Request removed", "collection", collectionName, "request_id", requestId)
+	return nil
 }
 
 func (cm *CollectionManager) UpdateRequest(collectionName string, updated Request) error {
@@ -216,5 +244,10 @@ func (cm *CollectionManager) UpdateRequest(collectionName string, updated Reques
 		return err
 	}
 
-	return cm.UpdateCollection(*coll)
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return err
+	}
+
+	slog.Debug("Request updated", "collection", collectionName, "request_id", updated.Id)
+	return nil
 }
