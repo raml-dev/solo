@@ -18,7 +18,7 @@ var assets embed.FS
 var programLevel = new(slog.LevelVar) // default info
 
 func getLogPath() string {
-	baseDir, err := tools.GetMainConfig(tools.MAIN_DIR)
+	baseDir, err := tools.GetOrCreateConfigDir()
 	if err != nil {
 		return "app.log"
 	}
