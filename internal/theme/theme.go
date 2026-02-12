@@ -4,6 +4,7 @@ package theme
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	fs "yapla/internal/tools"
@@ -67,7 +68,13 @@ func (tm *ThemeManager) loadConfig() error {
 		return err
 	}
 
-	return json.Unmarshal(data, &tm.config)
+	if err := json.Unmarshal(data, &tm.config); err != nil {
+		slog.Error("Failed to parse theme config", "path", tm.configPath, "error", err)
+		return err
+	}
+
+	slog.Debug("Theme config loaded", "active_theme", tm.config.ActiveTheme, "custom_themes_count", len(tm.config.CustomThemes))
+	return nil
 }
 
 // saveConfig saves configuration to disk
@@ -88,7 +95,11 @@ func (tm *ThemeManager) GetActiveTheme() string {
 // SetActiveTheme sets the active theme
 func (tm *ThemeManager) SetActiveTheme(themeName string) error {
 	tm.config.ActiveTheme = themeName
-	return tm.saveConfig()
+	if err := tm.saveConfig(); err != nil {
+		return err
+	}
+	slog.Info("Theme changed", "theme", themeName)
+	return nil
 }
 
 // GetCustomThemes returns all custom themes

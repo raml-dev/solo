@@ -34,7 +34,7 @@ func NewApp() *App {
 	// Initialize Configuration Manager
 	cm, err := configuration.NewConfigurationManager()
 	if err != nil {
-		fmt.Printf("Error initializing configuration manager: %v\n", err)
+		slog.Warn("Failed to initialize configuration manager", "error", err)
 		// cm stays nil, handled gracefully in Service
 	}
 
@@ -51,13 +51,17 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	slog.Info("Application starting")
+
 	// Initialize theme manager
 	tm, err := theme.NewThemeManager()
 	if err != nil {
-		fmt.Printf("Error initializing theme manager: %v\n", err)
+		slog.Warn("Failed to initialize theme manager", "error", err)
 		// Continue anyway with nil theme manager
 	}
 	a.themeManager = tm
+
+	slog.Info("Application started")
 }
 
 // Execute actually performs the action of calling the server

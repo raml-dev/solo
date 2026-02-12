@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -101,6 +102,7 @@ func (hm *HostManager) DeleteHost(hostname string) error {
 func (hm *HostManager) GetClientForUrl(resolvedUrl string) (*http.Client, error) {
 	parsed, err := url.Parse(resolvedUrl)
 	if err != nil {
+		slog.Error("Failed to parse URL", "url", resolvedUrl, "error", err)
 		return nil, err
 	}
 	hostname := parsed.Host
@@ -110,6 +112,7 @@ func (hm *HostManager) GetClientForUrl(resolvedUrl string) (*http.Client, error)
 	hm.mu.RUnlock()
 
 	if exists {
+		slog.Debug("Reusing pooled HTTP client", "hostname", hostname)
 		return &http.Client{Transport: transport}, nil
 	}
 
@@ -122,31 +125,41 @@ func (hm *HostManager) createNewClient(hostname string) (*http.Client, error) {
 
 	// double-check locking
 	if t, ok := hm.clientPool[hostname]; ok {
+		slog.Debug("Reusing pooled HTTP client (after lock)", "hostname", hostname)
 		return &http.Client{Transport: t}, nil
 	}
 
 	host := hm.configs[hostname]
 
 	transport := &http.Transport{
-		TLSClientConfig:    buildTLS(host.TlsConfig),
+		TLSClientConfig:    buildTLS(host.TlsConfig, hostname),
 		MaxIdleConns:       10,
 		IdleConnTimeout:    30 * time.Second,
 		DisableCompression: false,
 	}
 
 	hm.clientPool[hostname] = transport
+	slog.Info("Created new HTTP client", "hostname", hostname)
 	return &http.Client{Transport: transport}, nil
 }
 
-func buildTLS(config TLSConfig) *tls.Config {
+func buildTLS(config TLSConfig, hostname string) *tls.Config {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: config.InsecureSkipVerify,
 	}
 
+	hasCerts := false
 	if config.PublicCertificateFilePath != "" && config.PrivateKeyFilePath != "" {
 		cert, err := tls.LoadX509KeyPair(config.PublicCertificateFilePath, config.PrivateKeyFilePath)
 		if err == nil {
 			tlsConfig.Certificates = []tls.Certificate{cert}
+			hasCerts = true
+		} else {
+			slog.Warn("Failed to load TLS key pair",
+				"hostname", hostname,
+				"cert_path", config.PublicCertificateFilePath,
+				"key_path", config.PrivateKeyFilePath,
+				"error", err)
 		}
 	}
 
@@ -157,11 +170,22 @@ func buildTLS(config TLSConfig) *tls.Config {
 			if ok := caCertPool.AppendCertsFromPEM(caCert); ok {
 				tlsConfig.RootCAs = caCertPool
 			}
+		} else {
+			slog.Warn("Failed to load CA certificate",
+				"hostname", hostname,
+				"ca_path", config.CaCertificateFilePath,
+				"error", err)
 		}
 	}
 
 	tlsConfig.MinVersion = tls.VersionTLS12
 	tlsConfig.CurvePreferences = []tls.CurveID{tls.CurveP256, tls.X25519}
+
+	slog.Debug("TLS config built",
+		"hostname", hostname,
+		"insecure_skip_verify", config.InsecureSkipVerify,
+		"has_client_certs", hasCerts,
+		"has_ca_cert", config.CaCertificateFilePath != "")
 
 	return tlsConfig
 }

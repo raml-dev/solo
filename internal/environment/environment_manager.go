@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	fs "yapla/internal/tools"
@@ -44,19 +45,23 @@ func (em *EnvironmentManager) CreateEnvironment(name string) error {
 	bytes, err := json.Marshal(environment)
 
 	if err != nil {
+		slog.Error("Failed to marshal environment", "name", name, "error", err)
 		return err
 	}
 
 	if err := os.MkdirAll(em.path, 0700); err != nil {
+		slog.Error("Failed to create environment directory", "path", em.path, "error", err)
 		return err
 	}
 
 	err = os.WriteFile(em.buildEnvironmentFileName(name), bytes, 0600)
 
 	if err != nil {
+		slog.Error("Failed to create environment file", "name", name, "error", err)
 		return err
 	}
 
+	slog.Info("Environment created", "name", name)
 	return nil
 }
 
@@ -80,9 +85,13 @@ func (em *EnvironmentManager) LoadEnvironment(name string) (*Environment, error)
 	if name == "" {
 		return nil, errors.New("no environment name specified")
 	}
+
+	slog.Debug("Loading environment", "name", name)
+
 	fileBytes, err := os.ReadFile(em.buildEnvironmentFileName(name))
 
 	if err != nil {
+		slog.Debug("Failed to read environment file", "name", name, "error", err)
 		return nil, err
 	}
 	var rC Environment
@@ -90,9 +99,11 @@ func (em *EnvironmentManager) LoadEnvironment(name string) (*Environment, error)
 	err = json.Unmarshal(fileBytes, &rC)
 
 	if err != nil {
+		slog.Error("Failed to parse environment file", "name", name, "error", err)
 		return nil, err
 	}
 
+	slog.Debug("Environment loaded", "name", name, "values_count", len(rC.Values))
 	return &rC, nil
 }
 
@@ -116,10 +127,12 @@ func (em *EnvironmentManager) DeleteEnvironment(name string) error {
 	}
 	err := os.Remove(em.buildEnvironmentFileName(name))
 	if err != nil {
+		slog.Error("Failed to delete environment", "name", name, "error", err)
 		return err
 	}
-	return nil
 
+	slog.Info("Environment deleted", "name", name)
+	return nil
 }
 
 // environments
@@ -150,7 +163,12 @@ func (em *EnvironmentManager) AddValue(environmentName, valueName string, value 
 		return err
 	}
 
-	return em.UpdateEnvironment(env)
+	if err := em.UpdateEnvironment(env); err != nil {
+		return err
+	}
+
+	slog.Debug("Value added", "environment", environmentName, "key", valueName)
+	return nil
 }
 
 func (em *EnvironmentManager) RemoveValue(environmentName, valueName string) error {
@@ -167,7 +185,12 @@ func (em *EnvironmentManager) RemoveValue(environmentName, valueName string) err
 		return err
 	}
 
-	return em.UpdateEnvironment(env)
+	if err := em.UpdateEnvironment(env); err != nil {
+		return err
+	}
+
+	slog.Debug("Value removed", "environment", environmentName, "key", valueName)
+	return nil
 }
 
 func (em *EnvironmentManager) UpdateValue(environmentName, valueName string, updated ValueType) error {
@@ -187,7 +210,12 @@ func (em *EnvironmentManager) UpdateValue(environmentName, valueName string, upd
 		return err
 	}
 
-	return em.UpdateEnvironment(env)
+	if err := em.UpdateEnvironment(env); err != nil {
+		return err
+	}
+
+	slog.Debug("Value updated", "environment", environmentName, "key", valueName)
+	return nil
 }
 
 // utilities
