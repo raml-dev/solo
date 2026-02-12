@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"yapla/internal/collection"
 	"yapla/internal/configuration"
 	"yapla/internal/environment"
@@ -259,4 +260,18 @@ func (a *App) ResolveRequestPlaceholders(reqId string, collName string, envId st
 	resolvedMap := env.GetSelectedValues(req.GetPlaceholders())
 
 	return resolvedMap, nil
+}
+
+// Changes log level at runtime
+func (a *App) SetDebugMode(enabled bool) {
+	if enabled {
+
+		programLevel.Set(slog.LevelDebug)
+		slog.Debug("Enabling debug mode")
+
+	} else {
+
+		slog.Debug("Disabling debug mode")
+		programLevel.Set(slog.LevelInfo)
+	}
 }
