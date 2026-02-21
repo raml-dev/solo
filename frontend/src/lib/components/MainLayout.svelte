@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
-  import EnvironmentManager from "./EnvironmentManager.svelte";
+  import EnvironmentManager from "./Environment/EnvironmentManager.svelte";
   import MainConfiguration from "./MainConfiguration.svelte";
 
   export let title = "Yapla";
