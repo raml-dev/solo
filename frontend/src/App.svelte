@@ -39,8 +39,6 @@
       <div class="view-switcher">
         <!-- <Button variant="primary" size="small">Request Builder</Button> -->
       </div>
-      <Button variant="secondary" click={toggleEnvironmentManager}>🌍 Environments</Button>
-      <Button variant="secondary" click={toggleThemeSelector}>🎨 Theme</Button>
     </div>
   </svelte:fragment>
 
@@ -50,18 +48,6 @@
     <HTTPRequestBuilder />
   {/if}
 </MainLayout>
-
-{#if showThemeSelector}
-  <Modal toggleFn={toggleThemeSelector}>
-    <ThemeSelector />
-  </Modal>
-{/if}
-
-{#if showEnvironmentManager}
-  <Modal toggleFn={toggleEnvironmentManager}>
-    <EnvironmentManager />
-  </Modal>
-{/if}
 
 <style>
   :global(body) {
