@@ -15,7 +15,6 @@ import (
 type App struct {
 	ctx                context.Context
 	service            *requester.Service
-	themeManager       *theme.ThemeManager
 	collectionManager  *collection.CollectionManager
 	environmentManager *environment.EnvironmentManager
 	configManager      *configuration.ConfigurationManager
@@ -31,11 +30,12 @@ type RequestOptions struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	// Initialize Configuration Manager
+	// Initialize Configuration Manager which now handles themes as well
 	cm, err := configuration.NewConfigurationManager()
 	if err != nil {
-		slog.Warn("Failed to initialize configuration manager", "error", err)
-		// cm stays nil, handled gracefully in Service
+		slog.Warn("FATAL: Failed to initialize configuration manager", "error", err)
+		// In the new design, config manager is critical. We could panic here.
+		// For now, we'll let it proceed, but operations will fail.
 	}
 
 	return &App{
@@ -50,17 +50,8 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-
 	slog.Info("Application starting")
-
-	// Initialize theme manager
-	tm, err := theme.NewThemeManager()
-	if err != nil {
-		slog.Warn("Failed to initialize theme manager", "error", err)
-		// Continue anyway with nil theme manager
-	}
-	a.themeManager = tm
-
+	// Theme manager is no longer needed, ConfigurationManager handles it.
 	slog.Info("Application started")
 }
 
@@ -77,78 +68,62 @@ func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 	return a.service.ExecuteRequest(execOpts)
 }
 
-// Theme Management Methods
+// Theme Management Methods (now routed to ConfigManager)
 
 // GetActiveTheme returns the currently active theme name
 func (a *App) GetActiveTheme() string {
-	if a.themeManager == nil {
+	if a.configManager == nil {
 		return "default-light"
 	}
-	return a.themeManager.GetActiveTheme()
+	return a.configManager.GetActiveTheme()
 }
 
 // SetActiveTheme sets the active theme
 func (a *App) SetActiveTheme(themeName string) error {
-	if a.themeManager == nil {
-		return fmt.Errorf("theme manager not initialized")
+	if a.configManager == nil {
+		return fmt.Errorf("configuration manager not initialized")
 	}
-	return a.themeManager.SetActiveTheme(themeName)
-}
-
-// GetPredefinedThemes returns all built-in themes
-func (a *App) GetPredefinedThemes() []theme.Theme {
-	if a.themeManager == nil {
-		return []theme.Theme{}
-	}
-	return a.themeManager.GetPredefinedThemes()
+	return a.configManager.SetActiveTheme(themeName)
 }
 
 // GetCustomThemes returns all user-created themes
 func (a *App) GetCustomThemes() []theme.Theme {
-	if a.themeManager == nil {
+	if a.configManager == nil {
 		return []theme.Theme{}
 	}
-	return a.themeManager.GetCustomThemes()
+	return a.configManager.GetCustomThemes()
 }
 
 // GetAllThemes returns both predefined and custom themes
 func (a *App) GetAllThemes() []theme.Theme {
-	if a.themeManager == nil {
+	if a.configManager == nil {
 		return []theme.Theme{}
 	}
-	return a.themeManager.GetAllThemes()
+	return a.configManager.GetAllThemes()
 }
 
 // SaveCustomTheme saves or updates a custom theme
 func (a *App) SaveCustomTheme(theme theme.Theme) error {
-	if a.themeManager == nil {
-		return fmt.Errorf("theme manager not initialized")
+	if a.configManager == nil {
+		return fmt.Errorf("configuration manager not initialized")
 	}
-	return a.themeManager.SaveCustomTheme(theme)
+	return a.configManager.SaveCustomTheme(theme)
 }
 
 // DeleteCustomTheme removes a custom theme
 func (a *App) DeleteCustomTheme(themeName string) error {
-	if a.themeManager == nil {
-		return fmt.Errorf("theme manager not initialized")
+	if a.configManager == nil {
+		return fmt.Errorf("configuration manager not initialized")
 	}
-	return a.themeManager.DeleteCustomTheme(themeName)
+	return a.configManager.DeleteCustomTheme(themeName)
 }
 
 // GetThemeByName returns a specific theme by name
 func (a *App) GetThemeByName(themeName string) (*theme.Theme, error) {
-	if a.themeManager == nil {
-		return nil, fmt.Errorf("theme manager not initialized")
+	if a.configManager == nil {
+		return nil, fmt.Errorf("configuration manager not initialized")
 	}
-
-	allThemes := a.themeManager.GetAllThemes()
-	for _, theme := range allThemes {
-		if theme.Name == themeName {
-			return &theme, nil
-		}
-	}
-
-	return nil, fmt.Errorf("theme not found: %s", themeName)
+	return a.configManager.GetThemeByName(themeName)
 }
 
 // Collection Management Methods
@@ -188,6 +163,13 @@ func (a *App) UpdateConfiguration(cfg configuration.Configuration) error {
 	}
 	// Save also updates the internal in-memory config safely
 	return a.configManager.Save(cfg)
+}
+
+func (a *App) GetDefaultConfiguration() (configuration.Configuration, error) {
+	if a.configManager == nil {
+		return configuration.Configuration{}, fmt.Errorf("configuration manager not initialized")
+	}
+	return a.configManager.GetDefaultConfiguration(), nil
 }
 
 // Request Management Methods

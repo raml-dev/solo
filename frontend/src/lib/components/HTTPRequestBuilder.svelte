@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Execute } from "../../../wailsjs/go/main/App";
-  import { collection, type main } from "../../../wailsjs/go/models";
+  import { collection, main } from "../../../wailsjs/go/models";
   import Button from "./base/Button.svelte";
   import Dropdown from "./base/Dropdown.svelte";
   import { collectionStore, selectedRequest } from "../stores/collectionStore";
@@ -124,14 +124,14 @@
   async function sendRequest() {
     loading = true;
 
-    const requestOptions: main.RequestOptions = {
+    const requestOptions = new main.RequestOptions({
       body: requestBody,
       headers: headers
         .filter((h) => h.enabled)
         .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {}),
       method,
       url
-    };
+    });
 
     try {
       // Simulate API call - replace with actual Wails backend call

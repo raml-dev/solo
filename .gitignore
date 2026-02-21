@@ -34,3 +34,4 @@ build/bin
 node_modules
 frontend/dist
 yapla
+.DS_Store

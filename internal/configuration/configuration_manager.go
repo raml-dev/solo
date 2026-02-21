@@ -2,9 +2,11 @@ package configuration
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"sync"
+	"yapla/internal/theme"
 	"yapla/internal/tools"
 )
 
@@ -48,7 +50,7 @@ func NewConfigurationManager() (*ConfigurationManager, error) {
 func (cm *ConfigurationManager) createDefault() Configuration {
 	return Configuration{
 		General: GeneralSettings{
-			Theme:           tools.DEFAULT_THEME,
+			ActiveTheme:     tools.DEFAULT_THEME,
 			CheckForUpdates: tools.DEFAULT_CHECK_UPDATES,
 		},
 		Request: RequestSettings{
@@ -58,6 +60,7 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			ValidateSSL:      tools.DEFAULT_VALIDATE_SSL,
 			DefaultUserAgent: tools.DEFAULT_USER_AGENT,
 		},
+		CustomThemes: []theme.Theme{},
 	}
 }
 
@@ -80,7 +83,7 @@ func (cm *ConfigurationManager) load() error {
 
 	slog.Info("Configuration loaded")
 	slog.Debug("Configuration details",
-		"theme", cfg.General.Theme,
+		"theme", cfg.General.ActiveTheme,
 		"timeout", cfg.Request.TimeoutSeconds,
 		"follow_redirects", cfg.Request.FollowRedirects,
 		"validate_ssl", cfg.Request.ValidateSSL)
@@ -115,4 +118,86 @@ func (cm *ConfigurationManager) Save(cfg Configuration) error {
 
 	slog.Info("Configuration saved")
 	return nil
+}
+
+func (cm *ConfigurationManager) GetDefaultConfiguration() Configuration {
+	return cm.createDefault()
+}
+
+// Theme management methods now part of ConfigurationManager
+
+func (cm *ConfigurationManager) GetActiveTheme() string {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.config.General.ActiveTheme
+}
+
+func (cm *ConfigurationManager) SetActiveTheme(themeName string) error {
+	cm.mu.Lock()
+	cm.config.General.ActiveTheme = themeName
+	configToSave := *cm.config
+	cm.mu.Unlock()
+	return cm.Save(configToSave) // Save immediately to persist
+}
+
+func (cm *ConfigurationManager) GetAllThemes() []theme.Theme {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	predefined := theme.GetPredefinedThemes()
+	return append(predefined, cm.config.CustomThemes...)
+}
+
+func (cm *ConfigurationManager) GetThemeByName(name string) (*theme.Theme, error) {
+	allThemes := cm.GetAllThemes()
+	for _, t := range allThemes {
+		if t.Name == name {
+			return &t, nil
+		}
+	}
+	return nil, fmt.Errorf("theme not found: %s", name)
+}
+
+func (cm *ConfigurationManager) GetCustomThemes() []theme.Theme {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.config.CustomThemes
+}
+
+func (cm *ConfigurationManager) SaveCustomTheme(th theme.Theme) error {
+	cm.mu.Lock()
+	found := false
+	for i, t := range cm.config.CustomThemes {
+		if t.Name == th.Name {
+			cm.config.CustomThemes[i] = th
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		cm.config.CustomThemes = append(cm.config.CustomThemes, th)
+	}
+	configToSave := *cm.config
+	cm.mu.Unlock()
+
+	return cm.Save(configToSave)
+}
+
+func (cm *ConfigurationManager) DeleteCustomTheme(themeName string) error {
+	cm.mu.Lock()
+	newThemes := []theme.Theme{}
+	for _, t := range cm.config.CustomThemes {
+		if t.Name != themeName {
+			newThemes = append(newThemes, t)
+		}
+	}
+	cm.config.CustomThemes = newThemes
+
+	if cm.config.General.ActiveTheme == themeName {
+		cm.config.General.ActiveTheme = tools.DEFAULT_THEME
+	}
+	configToSave := *cm.config
+	cm.mu.Unlock()
+
+	return cm.Save(configToSave)
 }

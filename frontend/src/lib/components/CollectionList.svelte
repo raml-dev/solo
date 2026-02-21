@@ -3,7 +3,7 @@
   import { collectionStore } from "../stores/collectionStore";
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
-  import { collection } from "../../../wailsjs/go/models";
+  import type { collection } from "../../../wailsjs/go/models";
 
   export let onRequestSelect: (requestId: string) => void = () => {};
 
