@@ -1,15 +1,19 @@
 package configuration
 
+import "yapla/internal/theme"
+
 type Configuration struct {
-	General GeneralSettings `json:"general"`
-	Request RequestSettings `json:"request"`
+	General       GeneralSettings  `json:"general"`
+	Request       RequestSettings  `json:"request"`
+	CustomThemes  []theme.Theme    `json:"customThemes"`
 }
 
 type GeneralSettings struct {
-	Theme           string `json:"theme"`
+	ActiveTheme     string `json:"activeTheme"`
 	CheckForUpdates bool   `json:"checkForUpdates"`
 	// Path overrides could be added here in the future
 }
+
 
 type RequestSettings struct {
 	TimeoutSeconds   int    `json:"timeoutSeconds"`

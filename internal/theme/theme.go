@@ -2,152 +2,14 @@
 // Place in project root
 package theme
 
-import (
-	"encoding/json"
-	"log/slog"
-	"os"
-	"path/filepath"
-	fs "yapla/internal/tools"
-)
-
 // Theme represents a color theme configuration
 type Theme struct {
 	Name   string            `json:"name"`
 	Colors map[string]string `json:"colors"`
 }
 
-// AppConfig represents the application configuration
-type AppConfig struct {
-	ActiveTheme  string  `json:"activeTheme"`
-	CustomThemes []Theme `json:"customThemes"`
-}
-
-// ThemeManager handles theme configuration
-type ThemeManager struct {
-	configPath string
-	config     AppConfig
-}
-
-// NewThemeManager creates a new theme manager
-func NewThemeManager() (*ThemeManager, error) {
-
-	appConfigDir, err := fs.GetOrCreateConfigDir()
-	if err != nil {
-		return nil, err
-	}
-
-	configPath := filepath.Join(appConfigDir, fs.CONFIG_JSON_FILENAME)
-
-	tm := &ThemeManager{
-		configPath: configPath,
-		config: AppConfig{
-			ActiveTheme:  "default-light",
-			CustomThemes: []Theme{},
-		},
-	}
-
-	// Load existing config or create default
-	if err := tm.loadConfig(); err != nil {
-		// If file doesn't exist, create it with defaults
-		if os.IsNotExist(err) {
-			if err := tm.saveConfig(); err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-
-	return tm, nil
-}
-
-// loadConfig loads configuration from disk
-func (tm *ThemeManager) loadConfig() error {
-	data, err := os.ReadFile(tm.configPath)
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(data, &tm.config); err != nil {
-		slog.Error("Failed to parse theme config", "path", tm.configPath, "error", err)
-		return err
-	}
-
-	slog.Debug("Theme config loaded", "active_theme", tm.config.ActiveTheme, "custom_themes_count", len(tm.config.CustomThemes))
-	return nil
-}
-
-// saveConfig saves configuration to disk
-func (tm *ThemeManager) saveConfig() error {
-	data, err := json.MarshalIndent(tm.config, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(tm.configPath, data, 0644)
-}
-
-// GetActiveTheme returns the currently active theme name
-func (tm *ThemeManager) GetActiveTheme() string {
-	return tm.config.ActiveTheme
-}
-
-// SetActiveTheme sets the active theme
-func (tm *ThemeManager) SetActiveTheme(themeName string) error {
-	tm.config.ActiveTheme = themeName
-	if err := tm.saveConfig(); err != nil {
-		return err
-	}
-	slog.Info("Theme changed", "theme", themeName)
-	return nil
-}
-
-// GetCustomThemes returns all custom themes
-func (tm *ThemeManager) GetCustomThemes() []Theme {
-	return tm.config.CustomThemes
-}
-
-// SaveCustomTheme saves or updates a custom theme
-func (tm *ThemeManager) SaveCustomTheme(theme Theme) error {
-	// Check if theme already exists
-	found := false
-	for i, t := range tm.config.CustomThemes {
-		if t.Name == theme.Name {
-			tm.config.CustomThemes[i] = theme
-			found = true
-			break
-		}
-	}
-
-	// If not found, add new theme
-	if !found {
-		tm.config.CustomThemes = append(tm.config.CustomThemes, theme)
-	}
-
-	return tm.saveConfig()
-}
-
-// DeleteCustomTheme removes a custom theme
-func (tm *ThemeManager) DeleteCustomTheme(themeName string) error {
-	newThemes := []Theme{}
-	for _, t := range tm.config.CustomThemes {
-		if t.Name != themeName {
-			newThemes = append(newThemes, t)
-		}
-	}
-
-	tm.config.CustomThemes = newThemes
-
-	// If deleted theme was active, switch to default
-	if tm.config.ActiveTheme == themeName {
-		tm.config.ActiveTheme = "default-light"
-	}
-
-	return tm.saveConfig()
-}
-
 // GetPredefinedThemes returns the built-in themes
-func (tm *ThemeManager) GetPredefinedThemes() []Theme {
+func GetPredefinedThemes() []Theme {
 	return []Theme{
 		{
 			Name: "default-light",
@@ -264,11 +126,4 @@ func (tm *ThemeManager) GetPredefinedThemes() []Theme {
 			},
 		},
 	}
-}
-
-// GetAllThemes returns both predefined and custom themes
-func (tm *ThemeManager) GetAllThemes() []Theme {
-	predefined := tm.GetPredefinedThemes()
-	custom := tm.GetCustomThemes()
-	return append(predefined, custom...)
 }

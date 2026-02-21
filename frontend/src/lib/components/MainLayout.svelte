@@ -2,18 +2,28 @@
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
   import EnvironmentManager from "./EnvironmentManager.svelte";
-  import ThemeSelector from "./ThemeSelector.svelte";
+  import MainConfiguration from "./MainConfiguration.svelte";
 
   export let title = "Yapla";
-  let showThemeSelector = false;
   let showEnvironmentManager = false;
+  let showMainConfiguration = false;
 
-  function toggleThemeSelector() {
-    showThemeSelector = !showThemeSelector;
-  }
+  // Bound from MainConfiguration
+  let configIsDirty = false;
+  let configIsLoading = false;
+  let saveConfig: () => Promise<void> = async () => {};
+  let revertConfig: () => void = () => {};
 
   function toggleEnvironmentManager() {
     showEnvironmentManager = !showEnvironmentManager;
+  }
+
+  function toggleMainConfiguration() {
+    // If closing, revert any unsaved changes (like theme preview)
+    if (showMainConfiguration) {
+      revertConfig();
+    }
+    showMainConfiguration = !showMainConfiguration;
   }
 </script>
 
@@ -26,8 +36,7 @@
     <div class="flex items-center gap-sm">
       <slot name="navbar-actions" />
       <Button variant="secondary" click={toggleEnvironmentManager}>Environments</Button>
-      <Button variant="secondary" click={toggleThemeSelector}>Theme</Button>
-      <Button variant="secondary" click={() => {}}>Settings</Button>
+      <Button variant="secondary" click={toggleMainConfiguration}>Settings</Button>
       <Button variant="secondary" click={() => {}}>Help</Button>
     </div>
   </nav>
@@ -38,15 +47,20 @@
   </div>
 </div>
 
-{#if showThemeSelector}
-  <Modal toggleFn={toggleThemeSelector}>
-    <ThemeSelector />
+{#if showEnvironmentManager}
+  <Modal title="Environments" toggleFn={toggleEnvironmentManager}>
+    <EnvironmentManager />
   </Modal>
 {/if}
 
-{#if showEnvironmentManager}
-  <Modal toggleFn={toggleEnvironmentManager}>
-    <EnvironmentManager />
+{#if showMainConfiguration}
+  <Modal title="Settings" toggleFn={toggleMainConfiguration}>
+    <svelte:fragment slot="additional-buttons">
+      <Button variant="primary" click={saveConfig} disabled={!configIsDirty || configIsLoading}>
+        {configIsLoading ? 'Saving...' : 'Save'}
+      </Button>
+    </svelte:fragment>
+    <MainConfiguration bind:isDirty={configIsDirty} bind:isLoading={configIsLoading} bind:save={saveConfig} bind:revert={revertConfig} />
   </Modal>
 {/if}
 

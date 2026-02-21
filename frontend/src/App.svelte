@@ -2,35 +2,21 @@
   import { onMount } from "svelte";
   import MainLayout from "./lib/components/MainLayout.svelte";
   import CollectionList from "./lib/components/CollectionList.svelte";
-  import EnvironmentManager from "./lib/components/EnvironmentManager.svelte";
   import HTTPRequestBuilder from "./lib/components/HTTPRequestBuilder.svelte";
-  import ThemeSelector from "./lib/components/ThemeSelector.svelte";
-  import { initTheme } from "./lib/stores/themeStore";
+  import { configurationStore } from "./lib/stores/configurationStore";
   import { collectionStore } from "./lib/stores/collectionStore";
   import { environmentStore } from "./lib/stores/environmentStore";
-  import Button from "./lib/components/base/Button.svelte";
-  import Modal from "./lib/components/base/Modal.svelte";
 
-  let showThemeSelector = false;
-  let showEnvironmentManager = false;
   let activeView: "builder" | "editor" = "builder";
 
   onMount(async () => {
-    // Initialize theme on app start
-    await initTheme();
+    // Initialize all app configuration, including theme
+    await configurationStore.init();
 
     // Load collections and environments
     await collectionStore.loadCollections();
     await environmentStore.loadEnvironments();
   });
-
-  function toggleThemeSelector() {
-    showThemeSelector = !showThemeSelector;
-  }
-
-  function toggleEnvironmentManager() {
-    showEnvironmentManager = !showEnvironmentManager;
-  }
 </script>
 
 <MainLayout title="yapla">

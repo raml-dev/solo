@@ -1,11 +1,11 @@
 <script lang="ts">
   import { SaveCustomTheme } from "../../../wailsjs/go/main/App";
-  import { changeTheme } from "../stores/themeStore";
-  import type { Theme } from "../stores/themeStore";
+  import { configurationStore } from "../stores/configurationStore";
+  import type { theme } from "../../../wailsjs/go/models";
   import Button from "./base/Button.svelte";
 
-  export let baseTheme: Theme | null = null;
-  export let saved: (theme: Theme) => void;
+  export let baseTheme: theme.Theme | null = null;
+  export let saved: (theme: theme.Theme) => void;
   export let close: () => void;
 
   type Colors = {
@@ -45,7 +45,7 @@
 
   $: if (baseTheme) {
     themeName = `${baseTheme.name}-custom`;
-    colors = { ...baseTheme.colors };
+    colors = { ...baseTheme.colors } as Colors;
   }
 
   const colorLabels = {
@@ -71,15 +71,15 @@
       return;
     }
 
-    const theme: Theme = {
+    const newTheme: theme.Theme = {
       name: themeName,
       colors: colors
     };
 
     try {
-      await SaveCustomTheme(theme);
-      await changeTheme(themeName);
-      saved(theme);
+      await SaveCustomTheme(newTheme);
+      await configurationStore.changeTheme(themeName);
+      saved(newTheme);
       close();
     } catch (error) {
       console.error("Failed to save theme:", error);
