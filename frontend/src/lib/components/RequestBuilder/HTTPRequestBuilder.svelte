@@ -11,6 +11,9 @@
   import Tab from "../base/Tab.svelte";
   import RequestHeaders from "./RequestHeaders.svelte";
   import RequestBody from "./RequestBody.svelte";
+  import RequestSettings from "./RequestSettings.svelte";
+  import { configurationStore } from "../../stores/configurationStore";
+  import type { configuration as conf } from "../../../../wailsjs/go/models";
 
   interface Header {
     id: string;
@@ -96,6 +99,10 @@
     });
   }
 
+  // --- Settings Override State ---
+  let requestSettings: conf.RequestSettingsOverride = {};
+  const { config: globalConfig } = configurationStore;
+
   function startResize() {
     isResizing = true;
     window.addEventListener("mousemove", handleResize);
@@ -132,6 +139,21 @@
     url = request.url || "";
     requestBody = request.body || "";
     requestName = request.name || "";
+
+    // Initialize per-request settings, falling back to global defaults for unset boolean values
+    const settings = request.settings || {};
+    const globalDefaults = $globalConfig.request;
+
+    requestSettings = {
+      timeoutSeconds: settings.timeoutSeconds, // Let placeholder handle visual default for numbers/strings
+      defaultUserAgent: settings.defaultUserAgent,
+      proxyUrl: settings.proxyUrl,
+      // For booleans, we must resolve to a concrete true/false for the checkbox
+      followRedirects: settings.followRedirects ?? globalDefaults.followRedirects,
+      validateSSL: settings.validateSSL ?? globalDefaults.validateSSL,
+      // maxRedirects depends on followRedirects, so we handle it in the form
+      maxRedirects: settings.maxRedirects,
+    };
 
     // Convert headers object to array
     if (request.headers && typeof request.headers === "object") {
@@ -196,11 +218,11 @@
       body: resolvedRequestBody,
       headers: resolvedHeaders,
       method,
-      url: resolvedUrl
+      url: resolvedUrl,
+      settings: requestSettings // Pass per-request settings
     });
 
     try {
-      // Simulate API call - replace with actual Wails backend call
       const responseData = await Execute(requestOptions);
 
       response = {
@@ -241,6 +263,7 @@
             verb: method,
             body: requestBody,
             headers: headersObj,
+            settings: requestSettings, // Save settings with the request
             lastUpdateTimestamp: new Date().toISOString()
           })
         );
@@ -251,7 +274,8 @@
           url,
           verb: method,
           body: requestBody,
-          headers: headersObj
+          headers: headersObj,
+          settings: requestSettings // Save settings with the request
         });
       }
 
@@ -321,6 +345,9 @@
       </Tab>
       <Tab title="Body">
         <RequestBody {requestBody} />
+      </Tab>
+      <Tab title="Settings">
+        <RequestSettings bind:requestSettings globalConfig={$globalConfig} />
       </Tab>
     </Tabs>
   </div>

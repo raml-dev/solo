@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { derived } from 'svelte/store';
+  import { onMount } from "svelte";
+  import { derived } from "svelte/store";
   import { configurationStore } from "../stores/configurationStore";
   import type { theme } from "../../../wailsjs/go/models";
   import { configuration } from "../../../wailsjs/go/models";
   import { GetDefaultConfiguration } from "../../../wailsjs/go/main/App";
   import Button from "./base/Button.svelte";
-  import Modal from './base/Modal.svelte';
+  import Modal from "./base/Modal.svelte";
 
   // --- Exported for parent binding ---
   export let isDirty = false;
@@ -21,9 +21,9 @@
   let showThemes = false;
 
   // --- Theme Preview State ---
-  let originalThemeName: string = '';
+  let originalThemeName: string = "";
   let originalThemeColors: Record<string, string> = {};
-  let previewThemeName: string = '';
+  let previewThemeName: string = "";
 
   // --- Configuration Objects ---
   function createEmptyConfig() {
@@ -46,7 +46,7 @@
   // Compares editable config with pristine state AND theme preview with original.
   $: {
     if (pristineConfig.request && editableConfig.request) {
-      const themeChanged = previewThemeName !== '' && previewThemeName !== originalThemeName;
+      const themeChanged = previewThemeName !== "" && previewThemeName !== originalThemeName;
       const stringPristine = JSON.stringify({
         general: { checkForUpdates: pristineConfig.general.checkForUpdates },
         request: pristineConfig.request
@@ -65,9 +65,9 @@
   const { config, allThemes } = configurationStore;
   const customThemes = derived([config], ([$config]) => $config?.customThemes || []);
   const predefinedThemes = derived([allThemes, customThemes], ([$allThemes, $customThemes]) => {
-      if (!$allThemes) return [];
-      const customThemeNames = new Set($customThemes.map(t => t.name));
-      return $allThemes.filter(t => !customThemeNames.has(t.name));
+    if (!$allThemes) return [];
+    const customThemeNames = new Set($customThemes.map((t) => t.name));
+    return $allThemes.filter((t) => !customThemeNames.has(t.name));
   });
 
   // --- Lifecycle ---
@@ -81,22 +81,24 @@
       console.error("Failed to load default configuration:", err);
     }
 
-    const unsubscribe = config.subscribe(value => {
+    const unsubscribe = config.subscribe((value) => {
       if (value?.request) {
         const deepCopiedValue = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
         if (!deepCopiedValue.general) deepCopiedValue.general = new configuration.GeneralSettings();
         if (!deepCopiedValue.request) deepCopiedValue.request = new configuration.RequestSettings();
         editableConfig = deepCopiedValue;
-        pristineConfig = new configuration.Configuration(JSON.parse(JSON.stringify(deepCopiedValue)));
+        pristineConfig = new configuration.Configuration(
+          JSON.parse(JSON.stringify(deepCopiedValue))
+        );
 
         // Capture original theme state for preview/revert functionality
         if (!originalThemeName) {
-          originalThemeName = value.general?.activeTheme || 'default-light';
+          originalThemeName = value.general?.activeTheme || "default-light";
           previewThemeName = originalThemeName;
-          
+
           // Store original theme colors for revert
           const themes = $allThemes;
-          const originalTheme = themes.find(t => t.name === originalThemeName);
+          const originalTheme = themes.find((t) => t.name === originalThemeName);
           if (originalTheme) {
             originalThemeColors = { ...originalTheme.colors };
           }
@@ -117,7 +119,7 @@
   function handleThemeChange(themeName: string) {
     // Find the theme and apply it as a preview (no persistence)
     const themes = $allThemes;
-    const selectedTheme = themes.find(t => t.name === themeName);
+    const selectedTheme = themes.find((t) => t.name === themeName);
     if (selectedTheme) {
       previewThemeName = themeName;
       applyThemeToDom(selectedTheme.colors);
@@ -141,10 +143,12 @@
 
       // Ensure numbers are valid integers
       if (editableConfig.request) {
-          editableConfig.request.timeoutSeconds = parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
-          editableConfig.request.maxRedirects = parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
+        editableConfig.request.timeoutSeconds =
+          parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
+        editableConfig.request.maxRedirects =
+          parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
       }
-      
+
       const currentConfig = $config;
       currentConfig.general.checkForUpdates = editableConfig.general.checkForUpdates;
       currentConfig.request = editableConfig.request;
@@ -157,7 +161,7 @@
         // Update original state after successful save
         originalThemeName = previewThemeName;
         const themes = $allThemes;
-        const savedTheme = themes.find(t => t.name === previewThemeName);
+        const savedTheme = themes.find((t) => t.name === previewThemeName);
         if (savedTheme) {
           originalThemeColors = { ...savedTheme.colors };
         }
@@ -167,8 +171,9 @@
       pristineConfig = new configuration.Configuration(JSON.parse(JSON.stringify(editableConfig)));
 
       successMessage = "Settings saved successfully";
-      setTimeout(() => { successMessage = null; }, 3000);
-      
+      setTimeout(() => {
+        successMessage = null;
+      }, 3000);
     } catch (err) {
       console.error("Error saving settings:", err);
       error = String(err);
@@ -198,9 +203,73 @@
     </div>
   </div>
 
+  <!-- Request Defaults Section -->
+  <div class="config-section">
+    <h4>Request Defaults</h4>
+    <div class="form-group">
+      <label for="timeout">Timeout (seconds)</label>
+      <input
+        id="timeout"
+        type="number"
+        bind:value={editableConfig.request.timeoutSeconds}
+        min="0"
+        step="1"
+        placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`}
+      />
+    </div>
+    <div class="form-group">
+      <label for="user-agent">Default User Agent</label>
+      <input
+        id="user-agent"
+        type="text"
+        bind:value={editableConfig.request.defaultUserAgent}
+        placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`}
+      />
+    </div>
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" bind:checked={editableConfig.request.followRedirects} />
+        Follow Redirects
+      </label>
+    </div>
+    <div class="form-group">
+      <label for="max-redirects">Max Redirects</label>
+      <input
+        id="max-redirects"
+        type="number"
+        bind:value={editableConfig.request.maxRedirects}
+        min="0"
+        step="1"
+        placeholder={`Default: ${defaultConfig.request.maxRedirects}`}
+        disabled={!editableConfig.request.followRedirects}
+      />
+    </div>
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" bind:checked={editableConfig.request.validateSSL} />
+        Validate SSL Certificates
+      </label>
+    </div>
+    <div class="form-group">
+      <label for="proxy">Proxy URL</label>
+      <input
+        id="proxy"
+        type="text"
+        bind:value={editableConfig.request.proxyUrl}
+        placeholder="http://user:pass@host:port (optional)"
+      />
+    </div>
+  </div>
+
   <!-- Theme Selector Section -->
   <div class="config-section">
-    <div class="section-header accordion-header" on:click={() => (showThemes = !showThemes)} on:keypress={() => (showThemes = !showThemes)} role="button" tabindex="0">
+    <div
+      class="section-header accordion-header"
+      on:click={() => (showThemes = !showThemes)}
+      on:keypress={() => (showThemes = !showThemes)}
+      role="button"
+      tabindex="0"
+    >
       <h4>Theme</h4>
       <span class="accordion-icon" class:expanded={showThemes}>›</span>
     </div>
@@ -253,7 +322,9 @@
             </div>
           </div>
         {/if}
-        <Button variant="secondary" click={() => showThemeCustomizer = true}>Create Custom Theme</Button>
+        <Button variant="secondary" click={() => (showThemeCustomizer = true)}
+          >Create Custom Theme</Button
+        >
         {#if showThemeCustomizer}
           <Modal title="Create Custom Theme" toggleFn={() => (showThemeCustomizer = false)}>
             <p class="text-muted">Theme customizer UI will be implemented here.</p>
@@ -262,51 +333,15 @@
       </div>
     {/if}
   </div>
-
-  <!-- Request Defaults Section -->
-  <div class="config-section">
-    <h4>Request Defaults</h4>
-    <div class="form-group">
-      <label for="timeout">Timeout (seconds)</label>
-      <input id="timeout" type="number" bind:value={editableConfig.request.timeoutSeconds} min="0" step="1" placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`} />
-    </div>
-    <div class="form-group">
-      <label for="user-agent">Default User Agent</label>
-      <input id="user-agent" type="text" bind:value={editableConfig.request.defaultUserAgent} placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`} />
-    </div>
-    <div class="form-group">
-      <label class="checkbox-label">
-        <input type="checkbox" bind:checked={editableConfig.request.followRedirects} />
-        Follow Redirects
-      </label>
-    </div>
-    <div class="form-group">
-      <label for="max-redirects">Max Redirects</label>
-      <input id="max-redirects" type="number" bind:value={editableConfig.request.maxRedirects} min="0" step="1" placeholder={`Default: ${defaultConfig.request.maxRedirects}`} disabled={!editableConfig.request.followRedirects} />
-    </div>
-    <div class="form-group">
-      <label class="checkbox-label">
-        <input type="checkbox" bind:checked={editableConfig.request.validateSSL} />
-        Validate SSL Certificates
-      </label>
-    </div>
-    <div class="form-group">
-      <label for="proxy">Proxy URL</label>
-      <input id="proxy" type="text" bind:value={editableConfig.request.proxyUrl} placeholder="http://user:pass@host:port (optional)" />
-    </div>
-  </div>
-
   {#if error}
     <div class="error">{error}</div>
   {/if}
   {#if successMessage}
     <div class="success">{successMessage}</div>
   {/if}
-
 </div>
 
 <style>
-
   .config-section {
     padding: var(--space-md) var(--space-lg);
     display: flex;
@@ -324,7 +359,7 @@
   }
 
   h5 {
-      margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-sm);
   }
 
   .section-header {
