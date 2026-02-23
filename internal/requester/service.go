@@ -150,7 +150,14 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
 
 	}
 
-	return client.Do(request)
+	response, err := client.Do(request)
+
+	if err != nil {
+		slog.Error("Error occurred in HTTP request", "method", opts.Method, "url", opts.URL, "error", err)
+		return nil, err
+	}
+
+	return response, err
 
 }
 
