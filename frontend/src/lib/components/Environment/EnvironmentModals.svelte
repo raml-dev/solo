@@ -11,7 +11,13 @@
 
   let newEnvironmentName = "";
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher<{
+    closeDelete: null;
+    closeError: null;
+    closeNew: null;
+    confirmDelete: string;
+    create: string;
+  }>();
 
   function closeNewEnvironmentDialog() {
     showNewEnvironmentDialog = false;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { envAutocomplete } from "../../../lib/actions/envAutocomplete";
-  import {selectedEnvironment} from "../../../lib/stores/environmentStore";
+  import { selectedEnvironment } from "../../../lib/stores/environmentStore";
 
   export let requestBody: string;
 

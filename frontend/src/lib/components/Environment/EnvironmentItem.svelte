@@ -17,8 +17,12 @@
 
   $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
 
-  const dispatch = createEventDispatcher();
-
+  const dispatch = createEventDispatcher<{
+    delete: string;
+    error: string;
+    select: string;
+    toggleMenu: string;
+  }>();
   function toggleEnvironment() {
     expanded = !expanded;
     if (expanded && draftValues.length === 0) {
