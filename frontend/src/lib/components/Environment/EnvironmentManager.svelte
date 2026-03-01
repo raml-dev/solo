@@ -12,7 +12,6 @@
   let activeMenu: string | null = null;
 
   $: environments = $environmentStore.environments;
-  $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
 
   function showError(msg: string) {
     errorMessage = msg;
@@ -94,7 +93,6 @@
     {#each environments as environment (environment.id)}
       <EnvironmentItem
         env={environment}
-        selected={selectedEnvironmentName === environment.name}
         menuOpen={activeMenu === environment.name}
         on:select={(e) => selectEnvironment(e.detail)}
         on:delete={handleDeleteEnvironment}
