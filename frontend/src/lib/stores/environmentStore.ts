@@ -4,7 +4,9 @@ import {
   LoadEnvironments,
   LoadEnvironment,
   UpdateEnvironment,
-  DeleteEnvironment
+  DeleteEnvironment,
+  GetSelectedEnvironment,
+  SetSelectedEnvironment
 } from "../../../wailsjs/go/main/App";
 import { environment } from "../../../wailsjs/go/models";
 
@@ -38,7 +40,11 @@ function createEnvironmentStore() {
     async loadEnvironments() {
       update((state) => ({ ...state, loading: true, error: null }));
       try {
-        const environmentNames = await LoadEnvironments();
+        const [environmentNames, persistedSelection] = await Promise.all([
+          LoadEnvironments(),
+          GetSelectedEnvironment()
+        ]);
+
         if (!environmentNames || environmentNames.length === 0) {
           update((state) => ({ ...state, environments: [], loading: false }));
           return;
@@ -59,7 +65,12 @@ function createEnvironmentStore() {
           }
         }
 
-        update((state) => ({ ...state, environments, loading: false }));
+        update((state) => ({
+          ...state,
+          environments,
+          selectedEnvironmentName: persistedSelection || state.selectedEnvironmentName,
+          loading: false
+        }));
       } catch (err) {
         update((state) => ({
           ...state,
@@ -135,9 +146,12 @@ function createEnvironmentStore() {
       }
     },
 
-    // Select an environment
+    // Select an environment and persist the selection
     selectEnvironment(name: string | null) {
       update((state) => ({ ...state, selectedEnvironmentName: name }));
+      SetSelectedEnvironment(name ?? "").catch((err) => {
+        console.error("Failed to persist selected environment:", err);
+      });
     },
 
     // Clear error
