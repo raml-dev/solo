@@ -2,3 +2,5 @@ node_modules
 dist
 *.min.js
 wailsjs
+internal_docs/*
+ENV_AUTOCOMPLETE_INTEGRATION.local.md

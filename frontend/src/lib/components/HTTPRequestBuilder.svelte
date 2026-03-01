@@ -4,7 +4,9 @@
   import Button from "./base/Button.svelte";
   import Dropdown from "./base/Dropdown.svelte";
   import { collectionStore, selectedRequest } from "../stores/collectionStore";
+  import { selectedEnvironment } from "../stores/environmentStore";
   import Modal from "./base/Modal.svelte";
+  import { envAutocomplete } from "../actions/envAutocomplete";
 
   interface Header {
     id: string;
@@ -19,6 +21,11 @@
     time: number;
     headers: Record<string, string>;
     body: string;
+  }
+
+  interface TextSegment {
+    text: string;
+    isToken: boolean;
   }
 
   let method = "GET";
@@ -38,6 +45,52 @@
   let responseHeight = 300;
   let isResizing = false;
   let builderElement: HTMLElement;
+  let urlInputElement: HTMLInputElement;
+  let urlScrollLeft = 0;
+  let urlSegments: TextSegment[] = [];
+  let environmentEntries: { key: string; value: string }[] = [];
+
+  $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+    key,
+    value: String(val?.value ?? "")
+  }));
+  $: urlSegments = splitTextSegments(url);
+
+  function splitTextSegments(value: string): TextSegment[] {
+    if (!value) return [];
+
+    const segments: TextSegment[] = [];
+    const tokenRegex = /(\{\{[^{}\r\n]+?\}\})/g;
+    let cursor = 0;
+
+    for (const match of value.matchAll(tokenRegex)) {
+      const index = match.index ?? 0;
+      const token = match[0];
+
+      if (index > cursor) {
+        segments.push({ text: value.slice(cursor, index), isToken: false });
+      }
+
+      segments.push({ text: token, isToken: true });
+      cursor = index + token.length;
+    }
+
+    if (cursor < value.length) {
+      segments.push({ text: value.slice(cursor), isToken: false });
+    }
+
+    return segments;
+  }
+
+  function resolveEnvironmentTokens(value: string): string {
+    if (!value) return value;
+
+    const envMap = new Map(environmentEntries.map((entry) => [entry.key, entry.value]));
+    return value.replace(/\{\{([^{}\r\n]+?)\}\}/g, (_fullMatch, key: string) => {
+      const cleanKey = key.trim();
+      return envMap.has(cleanKey) ? envMap.get(cleanKey)! : _fullMatch;
+    });
+  }
 
   function startResize() {
     isResizing = true;
@@ -123,14 +176,23 @@
 
   async function sendRequest() {
     loading = true;
+    const resolvedUrl = resolveEnvironmentTokens(url);
+    const resolvedRequestBody = resolveEnvironmentTokens(requestBody);
+    const resolvedHeaders = headers
+      .filter((h) => h.enabled)
+      .reduce(
+        (acc, { key, value }) => ({
+          ...acc,
+          [resolveEnvironmentTokens(key)]: resolveEnvironmentTokens(value)
+        }),
+        {}
+      );
 
     const requestOptions = new main.RequestOptions({
-      body: requestBody,
-      headers: headers
-        .filter((h) => h.enabled)
-        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {}),
+      body: resolvedRequestBody,
+      headers: resolvedHeaders,
       method,
-      url
+      url: resolvedUrl
     });
 
     try {
@@ -211,7 +273,31 @@
     <div class="method-dropdown">
       <Dropdown bind:value={method} options={methodOptions} change={handleMethodChange} />
     </div>
-    <input type="text" class="input url-input" placeholder="Enter request URL" bind:value={url} />
+    <div class="url-input-wrapper">
+      <div class="url-input-overlay" aria-hidden="true">
+        <div
+          class="url-input-overlay-content"
+          style={`transform: translateX(-${urlScrollLeft}px);`}
+        >
+          {#if !url}
+            <span class="url-placeholder">Enter request URL</span>
+          {:else}
+            {#each urlSegments as segment}
+              <span class:url-token={segment.isToken}>{segment.text}</span>
+            {/each}
+          {/if}
+        </div>
+      </div>
+      <input
+        bind:this={urlInputElement}
+        type="text"
+        class="input url-input token-input"
+        bind:value={url}
+        on:input={() => (urlScrollLeft = urlInputElement?.scrollLeft ?? 0)}
+        on:scroll={() => (urlScrollLeft = urlInputElement?.scrollLeft ?? 0)}
+        use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
+      />
+    </div>
     <Button variant="secondary" click={() => (showSaveDialog = true)} style="min-width: 80px;"
       >{$selectedRequest && $selectedRequest.id ? "UPDATE" : "SAVE"}</Button
     >
@@ -263,6 +349,7 @@
               placeholder="Value"
               bind:value={header.value}
               disabled={!header.enabled}
+              use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
             />
             <button
               class="btn-icon btn-remove"
@@ -282,6 +369,7 @@
           rows="12"
           placeholder="Request body (JSON, XML, etc.)"
           bind:value={requestBody}
+          use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
         ></textarea>
       </div>
     {/if}
@@ -413,6 +501,52 @@
 
   .url-input {
     flex: 1;
+  }
+
+  .url-input-wrapper {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+
+  .url-input-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid transparent;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-sans);
+    white-space: pre;
+    overflow: hidden;
+  }
+
+  .url-input-overlay-content {
+    min-width: 100%;
+    color: var(--text);
+  }
+
+  .url-placeholder {
+    color: var(--text-light);
+  }
+
+  .url-token {
+    color: var(--primary);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .token-input {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--text);
+  }
+
+  .token-input::selection {
+    background: rgba(74, 158, 255, 0.25);
+    color: transparent;
   }
 
   .btn-send {
@@ -712,5 +846,53 @@
     justify-content: center;
     height: 100%;
     background: var(--bg-tertiary);
+  }
+
+  :global(.env-autocomplete-menu) {
+    position: absolute;
+    z-index: 2000;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.env-autocomplete-item) {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    font-size: var(--font-size-sm);
+  }
+
+  :global(.env-autocomplete-item:hover),
+  :global(.env-autocomplete-item.active) {
+    background: var(--bg-tertiary);
+  }
+
+  :global(.env-autocomplete-item .env-key) {
+    color: var(--text);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+  }
+
+  :global(.env-autocomplete-item .env-value) {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
   }
 </style>
