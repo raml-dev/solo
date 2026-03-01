@@ -1,12 +1,19 @@
 <script lang="ts">
-  import Tab from "../../../types/Tab";
   import { setContext } from "svelte";
   import { writable } from "svelte/store";
   import type { Writable } from "svelte/store";
 
+  // FIXME: use a shared type for this
+  // when doing that, currently the app does not start properly - find a fix
+  type TabItem = {
+    title: string;
+    icon?: string;
+    value: symbol;
+  };
+
   export let activeTab: symbol;
 
-  const tabs: Writable<Tab[]> = writable([]);
+  const tabs: Writable<TabItem[]> = writable([]);
 
   const activeTabStore = writable(activeTab);
 
