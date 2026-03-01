@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { envAutocomplete } from "../../../lib/actions/envAutocomplete";
+  import {selectedEnvironment} from "../../../lib/stores/environmentStore";
   import Button from "../base/Button.svelte";
 
   export let headers: Header[];
@@ -27,6 +29,11 @@
     };
     headers = [...headers, newHeader];
   }
+
+  $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+    key,
+    value: String(val?.value ?? "")
+  }));
 </script>
 
 <div class="headers-editor">
@@ -51,6 +58,7 @@
         placeholder="Value"
         bind:value={header.value}
         disabled={!header.enabled}
+        use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
       />
       <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>
     </div>
