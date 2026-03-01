@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Tab from "../../../types/Tab";
   import { getContext, onMount } from "svelte";
   import type { Writable } from "svelte/store";
 
@@ -6,18 +7,18 @@
   export let icon = "";
   export let value = Symbol();
 
-  const itemsStore = getContext<Writable<any[]>>("items");
-  const activeTabStore = getContext<Writable<number>>("activeTab");
+  const tabsStore = getContext<Writable<Tab[]>>("tabs");
+  const activeTabStore = getContext<Writable<symbol>>("activeTab");
 
   onMount(() => {
     if (!$activeTabStore) {
-      $activeTabStore = value as unknown as number; // TS brainf*ck
+      $activeTabStore = value;
     }
 
-    const item = { title, value: value, icon };
-    $itemsStore = [...$itemsStore, item];
+    const item = { title, value, icon };
+    $tabsStore = [...$tabsStore, item];
     return () => {
-      $itemsStore = $itemsStore.splice($itemsStore.indexOf(item), 1);
+      $tabsStore = $tabsStore.splice($tabsStore.indexOf(item), 1);
     };
   });
 </script>
