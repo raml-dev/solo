@@ -34,6 +34,7 @@
     }));
     rows.push({ id: nextRowId++, key: "", value: "" });
     draftValues = rows;
+    dirty = false;
   }
 
   function isDirty(): boolean {
