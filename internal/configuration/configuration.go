@@ -9,8 +9,9 @@ type Configuration struct {
 }
 
 type GeneralSettings struct {
-	ActiveTheme     string `json:"activeTheme"`
-	CheckForUpdates bool   `json:"checkForUpdates"`
+	ActiveTheme         string `json:"activeTheme"`
+	CheckForUpdates     bool   `json:"checkForUpdates"`
+	SelectedEnvironment string `json:"selectedEnvironment,omitempty"`
 	// Path overrides could be added here in the future
 }
 
