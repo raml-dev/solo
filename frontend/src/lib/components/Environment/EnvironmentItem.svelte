@@ -57,8 +57,13 @@
   function handleUpdateRow(id: number, field: "key" | "value", val: string) {
     const idx = draftValues.findIndex((r) => r.id === id);
     if (idx === -1) return;
-
-    draftValues[idx] = { ...draftValues[idx], [field]: val };
+    draftValues = draftValues.map((element) => {
+      if (element.id === id) {
+        const newElement = { ...element, [field]: val };
+        return newElement;
+      }
+      return element;
+    });
 
     const isLast = idx === draftValues.length - 1;
 
@@ -67,8 +72,7 @@
     } else if (!isLast) {
       const updated = draftValues[idx];
       if (!updated.key.trim() && !updated.value.trim()) {
-        draftValues.splice(idx, 1);
-        draftValues = [...draftValues];
+        draftValues = draftValues.filter((_, arrIndex) => arrIndex !== idx);
       }
     }
     dirty = isDirty();
