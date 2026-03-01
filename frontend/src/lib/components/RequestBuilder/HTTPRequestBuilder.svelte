@@ -182,24 +182,6 @@
     method = value;
   }
 
-  function addHeader() {
-    const newHeader: Header = {
-      id: Date.now().toString(),
-      key: "",
-      value: "",
-      enabled: true
-    };
-    headers = [...headers, newHeader];
-  }
-
-  function removeHeader(id: string) {
-    headers = headers.filter((h) => h.id !== id);
-  }
-
-  function toggleHeader(id: string) {
-    headers = headers.map((h) => (h.id === id ? { ...h, enabled: !h.enabled } : h));
-  }
-
   async function sendRequest() {
     loading = true;
     const resolvedUrl = resolveEnvironmentTokens(url);
