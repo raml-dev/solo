@@ -131,8 +131,6 @@
     overflow: hidden;
     padding: var(--space-md);
     border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
     gap: var(--space-sm);
   }
   .header-title {
