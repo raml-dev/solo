@@ -1,30 +1,33 @@
 <script lang="ts">
+  import Tab from "../../../types/Tab";
   import { setContext } from "svelte";
   import { writable } from "svelte/store";
+  import type { Writable } from "svelte/store";
 
-  export let activeTab: number;
-  const items = writable([]);
+  export let activeTab: symbol;
+
+  const tabs: Writable<Tab[]> = writable([]);
 
   const activeTabStore = writable(activeTab);
 
-  setContext("items", items);
+  setContext("tabs", tabs);
   setContext("activeTab", activeTabStore);
 
   $: activeTab = $activeTabStore;
 </script>
 
 <div class="tabs">
-  {#each $items as item}
+  {#each $tabs as tab (tab.value)}
     <button
       class="tab"
-      class:active={$activeTabStore === item.value}
-      on:click={() => ($activeTabStore = item.value)}
+      class:active={$activeTabStore === tab.value}
+      on:click={() => ($activeTabStore = tab.value)}
     >
       <span>
-        {#if item.icon}
-          <i class={item.icon}></i>
+        {#if tab.icon}
+          <i class={tab.icon}></i>
         {/if}
-        {item.title}
+        {tab.title}
       </span>
     </button>
   {/each}

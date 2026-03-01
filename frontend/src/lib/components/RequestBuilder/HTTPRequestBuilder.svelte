@@ -37,7 +37,7 @@
 
   let method = "GET";
   let url = "";
-  let activeTab = 0;
+  let activeTab = Symbol();
   let requestBody = "";
   let headers: Header[] = [
     { id: "1", key: "Content-Type", value: "application/json", enabled: true },
@@ -152,7 +152,7 @@
       followRedirects: settings.followRedirects ?? globalDefaults.followRedirects,
       validateSSL: settings.validateSSL ?? globalDefaults.validateSSL,
       // maxRedirects depends on followRedirects, so we handle it in the form
-      maxRedirects: settings.maxRedirects,
+      maxRedirects: settings.maxRedirects
     };
 
     // Convert headers object to array
@@ -322,7 +322,7 @@
 
   <div class="request-content">
     <Tabs {activeTab}>
-      <Tab title="Headers">
+      <Tab title="Headers" value={activeTab}>
         <RequestHeaders {headers} />
       </Tab>
       <Tab title="Body">
