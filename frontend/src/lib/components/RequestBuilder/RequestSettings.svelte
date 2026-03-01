@@ -1,24 +1,31 @@
 <script lang="ts">
   import type { configuration as conf } from "../../../../wailsjs/go/models";
-  
+
   // Props passed from the parent (HTTPRequestBuilder)
   export let requestSettings: conf.RequestSettingsOverride;
   export let globalConfig: conf.Configuration;
-
 </script>
 
 <div class="settings-form-container">
   <div class="form-group">
     <label for="timeout">Timeout (seconds)</label>
-    <input id="timeout" type="number" min="0" step="1"
-           placeholder={`Global: ${globalConfig.request?.timeoutSeconds}`}
-           bind:value={requestSettings.timeoutSeconds} />
+    <input
+      id="timeout"
+      type="number"
+      min="0"
+      step="1"
+      placeholder={`Global: ${globalConfig.request.timeoutSeconds || "30"}`}
+      bind:value={requestSettings.timeoutSeconds}
+    />
   </div>
   <div class="form-group">
     <label for="user-agent">User Agent</label>
-    <input id="user-agent" type="text"
-           placeholder={`Global: ${globalConfig.request?.defaultUserAgent}`}
-           bind:value={requestSettings.defaultUserAgent} />
+    <input
+      id="user-agent"
+      type="text"
+      placeholder={`Global: ${globalConfig.request.defaultUserAgent || "Yapla/1.0"}`}
+      bind:value={requestSettings.defaultUserAgent}
+    />
   </div>
   <div class="form-group-row">
     <label class="checkbox-group">
@@ -27,10 +34,15 @@
     </label>
     <div class="form-group">
       <label for="max-redirects">Max Redirects</label>
-      <input id="max-redirects" type="number" min="0" step="1"
-             placeholder={`Global: ${globalConfig.request?.maxRedirects}`}
-             bind:value={requestSettings.maxRedirects}
-             disabled={!requestSettings.followRedirects} />
+      <input
+        id="max-redirects"
+        type="number"
+        min="0"
+        step="1"
+        placeholder={`Global: ${globalConfig.request.maxRedirects || "10"}`}
+        bind:value={requestSettings.maxRedirects}
+        disabled={!requestSettings.followRedirects}
+      />
     </div>
   </div>
   <div class="form-group">
@@ -41,9 +53,12 @@
   </div>
   <div class="form-group">
     <label for="proxy">Proxy URL</label>
-    <input id="proxy" type="text"
-           placeholder="Inherit from global settings"
-           bind:value={requestSettings.proxyUrl} />
+    <input
+      id="proxy"
+      type="text"
+      placeholder={`Global: ${globalConfig.request.proxyUrl || "Use system settings"}`}
+      bind:value={requestSettings.proxyUrl}
+    />
   </div>
 </div>
 
@@ -67,7 +82,7 @@
     gap: var(--space-lg);
     align-items: flex-end;
   }
-  
+
   .checkbox-group {
     display: flex;
     align-items: center;
@@ -81,7 +96,7 @@
     font-weight: var(--font-weight-medium);
     color: var(--text-muted);
   }
-  
+
   input[type="text"],
   input[type="number"] {
     padding: var(--space-sm);
@@ -93,7 +108,7 @@
   }
 
   input:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 </style>
