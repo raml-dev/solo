@@ -1,13 +1,18 @@
 <script lang="ts">
-  import Tab from "../../../types/Tab";
   import { getContext, onMount } from "svelte";
   import type { Writable } from "svelte/store";
+
+  type TabItem = {
+    title: string;
+    icon?: string;
+    value: symbol;
+  };
 
   export let title = "";
   export let icon = "";
   export let value = Symbol();
 
-  const tabsStore = getContext<Writable<Tab[]>>("tabs");
+  const tabsStore = getContext<Writable<TabItem[]>>("tabs");
   const activeTabStore = getContext<Writable<symbol>>("activeTab");
 
   onMount(() => {
