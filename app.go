@@ -157,6 +157,22 @@ func (a *App) DeleteHost(hostname string) error {
 	return a.hostManager.DeleteHost(hostname)
 }
 
+// GetSelectedEnvironment returns the persisted selected environment name
+func (a *App) GetSelectedEnvironment() string {
+	if a.configManager == nil {
+		return ""
+	}
+	return a.configManager.GetSelectedEnvironment()
+}
+
+// SetSelectedEnvironment persists the selected environment name
+func (a *App) SetSelectedEnvironment(name string) error {
+	if a.configManager == nil {
+		return fmt.Errorf("configuration manager not initialized")
+	}
+	return a.configManager.SetSelectedEnvironment(name)
+}
+
 // Collection Management Methods
 
 // CreateCollection creates a new, empty collection.

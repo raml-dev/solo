@@ -140,6 +140,20 @@ func (cm *ConfigurationManager) SetActiveTheme(themeName string) error {
 	return cm.Save(configToSave) // Save immediately to persist
 }
 
+func (cm *ConfigurationManager) GetSelectedEnvironment() string {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.config.General.SelectedEnvironment
+}
+
+func (cm *ConfigurationManager) SetSelectedEnvironment(name string) error {
+	cm.mu.Lock()
+	cm.config.General.SelectedEnvironment = name
+	configToSave := *cm.config
+	cm.mu.Unlock()
+	return cm.Save(configToSave)
+}
+
 func (cm *ConfigurationManager) GetAllThemes() []theme.Theme {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
