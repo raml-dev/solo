@@ -1,6 +1,7 @@
 <script lang="ts">
   export let requestBody: string;
 </script>
+
 <div class="body-editor">
   <textarea
     class="input code-input"
@@ -9,6 +10,7 @@
     bind:value={requestBody}
   ></textarea>
 </div>
+
 <style>
   .body-editor {
     padding: var(--space-md);

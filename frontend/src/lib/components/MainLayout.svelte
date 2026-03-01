@@ -57,10 +57,15 @@
   <Modal title="Settings" toggleFn={toggleMainConfiguration}>
     <svelte:fragment slot="additional-buttons">
       <Button variant="primary" click={saveConfig} disabled={!configIsDirty || configIsLoading}>
-        {configIsLoading ? 'Saving...' : 'Save'}
+        {configIsLoading ? "Saving..." : "Save"}
       </Button>
     </svelte:fragment>
-    <MainConfiguration bind:isDirty={configIsDirty} bind:isLoading={configIsLoading} bind:save={saveConfig} bind:revert={revertConfig} />
+    <MainConfiguration
+      bind:isDirty={configIsDirty}
+      bind:isLoading={configIsLoading}
+      bind:save={saveConfig}
+      bind:revert={revertConfig}
+    />
   </Modal>
 {/if}
 
