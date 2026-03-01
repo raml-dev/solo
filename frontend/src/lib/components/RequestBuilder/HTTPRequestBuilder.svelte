@@ -292,7 +292,7 @@
           {#if !url}
             <span class="url-placeholder">Enter request URL</span>
           {:else}
-            {#each urlSegments as segment}
+            {#each urlSegments as segment (segment)}
               <span class:url-token={segment.isToken}>{segment.text}</span>
             {/each}
           {/if}

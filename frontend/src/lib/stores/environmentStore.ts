@@ -147,9 +147,10 @@ function createEnvironmentStore() {
     },
 
     // Select an environment and persist the selection
-    selectEnvironment(name: string | null) {
+    selectEnvironment(name: string) {
+      if (name === "") throw new Error("Environment name must not be empty string");
       update((state) => ({ ...state, selectedEnvironmentName: name }));
-      SetSelectedEnvironment(name ?? "").catch((err) => {
+      SetSelectedEnvironment(name).catch((err) => {
         console.error("Failed to persist selected environment:", err);
       });
     },

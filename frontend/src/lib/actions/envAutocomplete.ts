@@ -22,7 +22,10 @@ const DEFAULT_TRIGGER = "{{";
 const DEFAULT_MAX_ITEMS = 8;
 const DEFAULT_INSERT_MODE = "value";
 
-function getCaretCoordinates(node: TextFieldElement, caretIndex: number): { left: number; top: number } {
+function getCaretCoordinates(
+  node: TextFieldElement,
+  caretIndex: number
+): { left: number; top: number } {
   const div = document.createElement("div");
   const span = document.createElement("span");
   const styles = window.getComputedStyle(node);
@@ -60,7 +63,8 @@ function getCaretCoordinates(node: TextFieldElement, caretIndex: number): { left
   const nodeRect = node.getBoundingClientRect();
   const caretRect = span.getBoundingClientRect();
 
-  const left = nodeRect.left + (caretRect.left - div.getBoundingClientRect().left) - node.scrollLeft;
+  const left =
+    nodeRect.left + (caretRect.left - div.getBoundingClientRect().left) - node.scrollLeft;
   const top = nodeRect.top + (caretRect.top - div.getBoundingClientRect().top) - node.scrollTop;
 
   div.remove();
