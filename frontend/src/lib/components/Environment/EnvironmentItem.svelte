@@ -6,7 +6,6 @@
   import Button from "../base/Button.svelte";
 
   export let env: Environment;
-  export let selected: boolean;
   export let menuOpen: boolean;
 
   let expanded = false;
@@ -15,6 +14,8 @@
   let nextRowId = 0;
 
   let dirty = false;
+
+  $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
 
   const dispatch = createEventDispatcher();
 
@@ -26,13 +27,11 @@
   }
 
   function initDraft() {
-    const rows: DraftRow[] = Object.entries(env.values || {}).map(
-      ([k, v]) => ({
-        id: nextRowId++,
-        key: k,
-        value: v.value,
-      })
-    );
+    const rows: DraftRow[] = Object.entries(env.values || {}).map(([k, v]) => ({
+      id: nextRowId++,
+      key: k,
+      value: v.value
+    }));
     rows.push({ id: nextRowId++, key: "", value: "" });
     draftValues = rows;
   }
@@ -47,10 +46,11 @@
     const draftKeys = Object.keys(draftMap);
     const storedKeys = Object.keys(stored);
     if (draftKeys.length !== storedKeys.length) return true;
-    else for (const k of draftKeys) {
-      if (!(k in stored)) return true;
-      else if (draftMap[k] !== stored[k].value) return true;
-    }
+    else
+      for (const k of draftKeys) {
+        if (!(k in stored)) return true;
+        else if (draftMap[k] !== stored[k].value) return true;
+      }
     return false;
   }
 
@@ -71,13 +71,16 @@
         draftValues = [...draftValues];
       }
     }
-    dirty = isDirty()
+    dirty = isDirty();
   }
 
   async function handleSaveEnvironment() {
     for (const row of draftValues) {
       if (row.value.trim() && !row.key.trim()) {
-        dispatch("error", "A variable has a value but no name. Please add a name or clear the value.");
+        dispatch(
+          "error",
+          "A variable has a value but no name. Please add a name or clear the value."
+        );
         return;
       }
     }
@@ -88,12 +91,12 @@
         if (k)
           processedValues[k] = new environment.ValueType({
             value: row.value,
-            type: "string",
+            type: "string"
           });
       }
       const envToSave = new environment.Environment({
         ...env,
-        values: processedValues,
+        values: processedValues
       });
       await environmentStore.updateEnvironment(envToSave);
       draftValues = [];
@@ -105,7 +108,8 @@
   }
 
   function selectEnvironment() {
-    dispatch("select", env.name);
+    // if this is already the selected environment, do nothing
+    if (selectedEnvironmentName !== env.name) dispatch("select", env.name);
   }
 
   function toggleMenu(e: Event) {
@@ -120,14 +124,15 @@
 
 <div
   class="environment-item"
-  class:selected
+  class:selected={selectedEnvironmentName === env.name}
   class:menu-open={menuOpen}
 >
   <input
-    type="checkbox"
+    type="radio"
+    name="environment-items"
     class="env-select"
-    checked={selected}
-    on:change|stopPropagation={selectEnvironment}
+    checked={selectedEnvironmentName === env.name}
+    on:change|preventDefault={selectEnvironment}
     title="Set as active environment"
     aria-label="Set {env.name} as active environment"
   />
@@ -167,12 +172,7 @@
 
       {#if menuOpen}
         <div class="environment-menu">
-          <button
-            class="menu-item danger"
-            on:click={handleDeleteEnvironment}
-          >
-            Delete
-          </button>
+          <button class="menu-item danger" on:click={handleDeleteEnvironment}> Delete </button>
         </div>
       {/if}
     </div>
@@ -205,14 +205,17 @@
         {/each}
 
         <div class="values-footer">
-          <Button variant="primary" size="small" disabled={!dirty} click={handleSaveEnvironment}>Save</Button>
+          <Button variant="primary" size="small" disabled={!dirty} click={handleSaveEnvironment}
+            >Save</Button
+          >
         </div>
       </div>
     {/if}
   </div>
 </div>
+
 <style>
-    .environment-item {
+  .environment-item {
     display: flex;
     align-items: flex-start;
     gap: var(--space-sm);
@@ -335,6 +338,35 @@
     height: 14px;
   }
 
+  input[type="radio"].env-select {
+    appearance: none;
+    -webkit-appearance: none;
+
+    width: 1em;
+    height: 1em;
+    border-radius: 3px; /* square = checkbox look */
+    background-color: white;
+    cursor: pointer;
+  }
+
+  input[type="radio"].env-select:checked {
+    background-color: var(--primary);
+    cursor: default;
+  }
+
+  input[type="radio"].env-select:checked::after {
+    content: "";
+    display: block;
+    position: relative;
+    left: 0.25em;
+    width: 0.3em;
+    height: 0.7em;
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+
   .environment-menu {
     position: absolute;
     right: var(--space-sm);
@@ -424,5 +456,4 @@
     justify-content: flex-end;
     padding-top: var(--space-xs);
   }
-
 </style>
