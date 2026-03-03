@@ -1,31 +1,63 @@
-name: Prudence Code Review
+name: prudence-review
 on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
-  review:
+  prudence-review:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/prudence')
     runs-on: ubuntu-latest
+
     steps:
+      - name: Add 'eyes' reaction
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            })
+
       - name: Checkout Prudence Agent
         uses: actions/checkout@v4
         with:
           repository: raml-dev/prudence
+          path: prudence-agent
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
-      - name: Run Prudence Review
+      - name: Run Prudence
+        working-directory: ./prudence-agent
         run: uv run main.py ${{ github.event.issue.number }}
         env:
-          PROVIDER_NAME: "groq"
+          PROVIDER_NAME: ${{secrets.PRUDENCE_PROVIDER}}
+          MODEL_NAME: ${{secrets.PRUDENCE_MODEL}}
+          REPO_NAME: ${{ github.repository }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          MODEL_NAME: "moonshotai/kimi-k2-instruct-0905"
-          REPO_NAME: ${{ github.repository }} 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
           GITHUB_PRIVATE_KEY: ${{ secrets.GITHUB_PRIVATE_KEY }}
           GITHUB_INSTALLATION_ID: ${{ secrets.GITHUB_INSTALLATION_ID }}
+
+      # 5. Feedback finale (Opzionale): aggiunge un razzo se tutto è andato bene
+      - name: Add 'rocket' reaction on success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            })
