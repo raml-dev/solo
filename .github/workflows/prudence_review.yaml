@@ -44,10 +44,10 @@ jobs:
           MODEL_NAME: ${{secrets.PRUDENCE_MODEL}}
           REPO_NAME: ${{ github.repository }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_PRIVATE_KEY: ${{ secrets.GITHUB_PRIVATE_KEY }}
-          GITHUB_INSTALLATION_ID: ${{ secrets.GITHUB_INSTALLATION_ID }}
+          GITHUB_TOKEN: ${{ secrets.PRUDENCE_GITHUB_TOKEN }}
+          GITHUB_APP_ID: ${{ secrets.PRUDENCE_GITHUB_APP_ID }}
+          GITHUB_PRIVATE_KEY: ${{ secrets.PRUDENCE_GITHUB_PRIVATE_KEY }}
+          GITHUB_INSTALLATION_ID: ${{ secrets.PRUDENCE_GITHUB_INSTALLATION_ID }}
 
       # 5. Feedback finale (Opzionale): aggiunge un razzo se tutto è andato bene
       - name: Add 'rocket' reaction on success
