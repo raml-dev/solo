@@ -8,6 +8,7 @@ import (
 	"yapla/internal/configuration"
 	"yapla/internal/environment"
 	"yapla/internal/host"
+	"yapla/internal/importer"
 	"yapla/internal/requester"
 	"yapla/internal/theme"
 
@@ -174,6 +175,24 @@ func (a *App) SetSelectedEnvironment(name string) error {
 }
 
 // Collection Management Methods
+
+// ImportPostmanCollection imports a Postman v2.1 collection file into Yapla.
+func (a *App) ImportPostmanCollection(path string) error {
+	imp := importer.NewPostmanImporter()
+	
+	coll, err := imp.Import(path)
+	if err != nil {
+		return fmt.Errorf("failed to import collection: %w", err)
+	}
+
+	// Salviamo la collection importata usando il manager esistente.
+	// UpdateCollection scriverà l'intero oggetto JSON su disco usando il suo Name.
+	if err := a.collectionManager.UpdateCollection(*coll); err != nil {
+		return fmt.Errorf("failed to save imported collection: %w", err)
+	}
+
+	return nil
+}
 
 // CreateCollection creates a new, empty collection.
 func (a *App) CreateCollection(collectionName string) error {
