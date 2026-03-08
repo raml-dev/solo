@@ -194,6 +194,22 @@ func (a *App) ImportPostmanCollection(path string) error {
 	return nil
 }
 
+// ImportBrunoCollection imports a Bruno collection from a directory.
+func (a *App) ImportBrunoCollection(path string) error {
+	imp := importer.NewBrunoImporter()
+
+	coll, err := imp.Import(path)
+	if err != nil {
+		return fmt.Errorf("failed to import Bruno collection: %w", err)
+	}
+
+	if err := a.collectionManager.UpdateCollection(*coll); err != nil {
+		return fmt.Errorf("failed to save imported Bruno collection: %w", err)
+	}
+
+	return nil
+}
+
 // CreateCollection creates a new, empty collection.
 func (a *App) CreateCollection(collectionName string) error {
 	return a.collectionManager.CreateCollection(collectionName)
@@ -349,6 +365,14 @@ func (a *App) SetDebugMode(enabled bool) {
 		slog.Debug("Disabling debug mode")
 		programLevel.Set(slog.LevelInfo)
 	}
+}
+
+// SelectDirectory opens a native file dialog to select a directory.
+func (a *App) SelectDirectory(title string) (string, error) {
+	slog.Debug("Opening directory dialog", "title", title)
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+	})
 }
 
 // SelectFile opens a native file dialog to select a file.
