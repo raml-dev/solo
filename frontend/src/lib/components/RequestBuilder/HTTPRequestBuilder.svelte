@@ -56,12 +56,14 @@
   let urlScrollLeft = 0;
   let urlSegments: TextSegment[] = [];
   let environmentEntries: { key: string; value: string }[] = [];
+  let showPlainUrl = false;
 
   $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
     key,
     value: String(val?.value ?? "")
   }));
   $: urlSegments = splitTextSegments(url);
+  $: showPlainUrl = url.length > 0;
 
   function splitTextSegments(value: string): TextSegment[] {
     if (!value) return [];
@@ -135,10 +137,14 @@
   }
 
   function loadRequestData(request: collection.Request) {
+    const rawRequest = request as unknown as { Url?: string; url?: string };
+    const urlValue = request.url || rawRequest.Url || rawRequest.url || "";
     method = request.verb || "GET";
-    url = request.url || "";
+    url = String(urlValue);
     requestBody = request.body || "";
     requestName = request.name || "";
+    urlSegments = splitTextSegments(url);
+    showPlainUrl = url.length > 0;
 
     // Initialize per-request settings, falling back to global defaults for unset boolean values
     const settings = request.settings || {};
@@ -283,7 +289,7 @@
     <div class="method-dropdown">
       <Dropdown bind:value={method} options={methodOptions} change={handleMethodChange} />
     </div>
-    <div class="url-input-wrapper">
+    <div class="url-input-wrapper" class:plain-url={showPlainUrl}>
       <div class="url-input-overlay" aria-hidden="true">
         <div
           class="url-input-overlay-content"
@@ -466,6 +472,18 @@
     flex: 1;
     min-width: 0;
     position: relative;
+  }
+
+  .url-input-wrapper.plain-url .url-input-overlay {
+    display: none;
+  }
+
+  .url-input-wrapper.plain-url .token-input {
+    color: var(--text);
+  }
+
+  .url-input-wrapper.plain-url .token-input::selection {
+    color: var(--text);
   }
 
   .url-input-overlay {

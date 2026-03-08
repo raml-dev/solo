@@ -4,6 +4,7 @@
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
   import type { collection } from "../../../wailsjs/go/models";
+  import { ImportPostmanCollection, SelectFile } from "../../../wailsjs/go/main/App";
 
   export let onRequestSelect: (requestId: string) => void = () => {};
 
@@ -239,6 +240,18 @@
     localStorage.setItem("sidebar_collapsed", String(isCollapsed));
   }
 
+  async function handleImportPostman() {
+    try {
+      const filePath = await SelectFile("Select Postman Collection", "*.json", "JSON Files");
+      if (!filePath) return;
+      await ImportPostmanCollection(filePath);
+      await collectionStore.loadCollections();
+    } catch (err) {
+      console.error("Error importing Postman collection:", err);
+      alert(`Error importing collection: ${err}`);
+    }
+  }
+
   onMount(() => {
     const stored = localStorage.getItem("sidebar_collapsed");
     if (stored !== null) {
@@ -262,6 +275,9 @@
       {/if}
       <div class="header-actions">
         {#if !isCollapsed}
+          <Button variant="secondary" size="small" click={handleImportPostman}>
+            Import
+          </Button>
           <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
             New
           </Button>
