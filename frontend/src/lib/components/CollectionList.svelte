@@ -4,7 +4,12 @@
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
   import type { collection } from "../../../wailsjs/go/models";
-  import { ImportPostmanCollection, SelectFile } from "../../../wailsjs/go/main/App";
+  import {
+    ImportPostmanCollection,
+    SelectFile,
+    ImportBrunoCollection,
+    SelectDirectory
+  } from "../../../wailsjs/go/main/App";
 
   export let onRequestSelect: (requestId: string) => void = () => {};
 
@@ -12,6 +17,7 @@
   let showRenameCollectionDialog = false;
   let showDeleteConfirmDialog = false;
   let showDeleteRequestConfirmDialog = false;
+  let showImportSelector = false;
   let newCollectionName = "";
   let renameCollectionName = "";
   let renameTarget: string | null = null;
@@ -252,6 +258,30 @@
     }
   }
 
+  async function handleImportBruno() {
+    try {
+      const dirPath = await SelectDirectory("Select Bruno Collection Folder");
+      if (!dirPath) {
+        return;
+      }
+
+      await ImportBrunoCollection(dirPath);
+      await collectionStore.loadCollections();
+    } catch (err) {
+      console.error("Error importing Bruno collection:", err);
+      alert(`Error importing collection: ${err}`);
+    }
+  }
+
+  async function handleSelectImportFormat(format: "postman" | "bruno") {
+    showImportSelector = false; // Close modal first
+    if (format === "postman") {
+      await handleImportPostman();
+    } else if (format === "bruno") {
+      await handleImportBruno();
+    }
+  }
+
   onMount(() => {
     const stored = localStorage.getItem("sidebar_collapsed");
     if (stored !== null) {
@@ -275,7 +305,7 @@
       {/if}
       <div class="header-actions">
         {#if !isCollapsed}
-          <Button variant="secondary" size="small" click={handleImportPostman}>
+          <Button variant="secondary" size="small" click={() => (showImportSelector = true)}>
             Import
           </Button>
           <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
@@ -515,6 +545,19 @@
     <svelte:fragment slot="additional-buttons">
       <Button variant="danger" click={confirmDeleteRequest}>Delete</Button>
     </svelte:fragment>
+  </Modal>
+{/if}
+
+{#if showImportSelector}
+  <Modal toggleFn={() => (showImportSelector = false)}>
+    <div class="dialog">
+      <h3>Import Collection</h3>
+      <p>Select the format of the collection you want to import.</p>
+      <div class="format-buttons">
+        <Button variant="primary" click={() => handleSelectImportFormat("postman")}>Postman</Button>
+        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>Bruno</Button>
+      </div>
+    </div>
   </Modal>
 {/if}
 
@@ -879,6 +922,12 @@
     color: var(--text-muted);
     font-size: var(--font-size-sm);
     margin-bottom: var(--space-md);
+  }
+
+  .format-buttons {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
   }
 
   .dialog input {

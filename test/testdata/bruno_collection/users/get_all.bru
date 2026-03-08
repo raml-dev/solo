@@ -1,0 +1,15 @@
+meta {
+  name: Get All Users
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/v1/users
+  body: none
+  auth: none
+}
+
+headers {
+  X-Custom-Header: TestValue
+}
