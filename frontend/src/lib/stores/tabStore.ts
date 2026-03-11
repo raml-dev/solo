@@ -1,5 +1,6 @@
 import { writable, derived } from "svelte/store";
 import type { configuration as conf } from "../../../wailsjs/go/models";
+import { notifications } from "./notificationStore";
 
 export interface TabHeader {
   id: string;
@@ -24,6 +25,8 @@ export interface TabState {
   bodyFormat: string;
   headers: TabHeader[];
   settings: conf.RequestSettingsOverride;
+  preRequestScript: string;
+  postResponseScript: string;
 }
 
 interface TabStoreState {
@@ -32,6 +35,7 @@ interface TabStoreState {
 }
 
 const EMPTY_TAB_LABEL = "New Request";
+const MAX_OPEN_TABS = 15;
 
 function makeEmptyTab(): TabState {
   return {
@@ -45,7 +49,9 @@ function makeEmptyTab(): TabState {
     body: "",
     bodyFormat: "json",
     headers: [],
-    settings: {}
+    settings: {},
+    preRequestScript: "",
+    postResponseScript: ""
   };
 }
 
@@ -62,12 +68,16 @@ function createTabStore() {
     openTab(
       requestId: string,
       collectionName: string,
-      meta: { label: string; verb: string; url: string; body: string; bodyFormat: string; headers: TabHeader[]; settings: conf.RequestSettingsOverride }
+      meta: { label: string; verb: string; url: string; body: string; bodyFormat: string; headers: TabHeader[]; settings: conf.RequestSettingsOverride; preRequestScript?: string; postResponseScript?: string }
     ) {
       update((state) => {
         const existing = state.tabs.find((t) => t.requestId === requestId);
         if (existing) {
           return { ...state, activeTabId: existing.id };
+        }
+        if (state.tabs.length >= MAX_OPEN_TABS) {
+          notifications.warning(`Maximum ${MAX_OPEN_TABS} tabs open. Close a tab to open another.`);
+          return state;
         }
         const tab: TabState = {
           id: crypto.randomUUID(),
@@ -80,7 +90,9 @@ function createTabStore() {
           body: meta.body,
           bodyFormat: meta.bodyFormat,
           headers: meta.headers,
-          settings: meta.settings
+          settings: meta.settings,
+          preRequestScript: meta.preRequestScript ?? "",
+          postResponseScript: meta.postResponseScript ?? ""
         };
         return { tabs: [...state.tabs, tab], activeTabId: tab.id };
       });
@@ -89,10 +101,16 @@ function createTabStore() {
     /** Open a blank unsaved tab (from + button) */
     newEmptyTab() {
       const tab = makeEmptyTab();
-      update((state) => ({
-        tabs: [...state.tabs, tab],
-        activeTabId: tab.id
-      }));
+      update((state) => {
+        if (state.tabs.length >= MAX_OPEN_TABS) {
+          notifications.warning(`Maximum ${MAX_OPEN_TABS} tabs open. Close a tab to open another.`);
+          return state;
+        }
+        return {
+          tabs: [...state.tabs, tab],
+          activeTabId: tab.id
+        };
+      });
     },
 
     /** Close a tab. If it was active, activate the nearest one. */
@@ -121,7 +139,7 @@ function createTabStore() {
     /** Update persisted form state for the active tab (called by the builder on every change) */
     updateTabFormState(
       tabId: string,
-      partial: Partial<Pick<TabState, "url" | "body" | "bodyFormat" | "headers" | "settings" | "verb" | "label" | "isDirty">>
+      partial: Partial<Pick<TabState, "url" | "body" | "bodyFormat" | "headers" | "settings" | "verb" | "label" | "isDirty" | "preRequestScript" | "postResponseScript">>
     ) {
       update((state) => ({
         ...state,

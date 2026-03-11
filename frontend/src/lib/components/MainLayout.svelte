@@ -43,7 +43,7 @@
 </div>
 
 {#if showEnvironmentManager}
-  <Modal title="Environments" toggleFn={toggleEnvironmentManager} size="wide">
+  <Modal toggleFn={toggleEnvironmentManager} size="settings">
     <EnvironmentManager />
   </Modal>
 {/if}

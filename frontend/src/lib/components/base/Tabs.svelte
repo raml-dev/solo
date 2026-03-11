@@ -6,6 +6,7 @@
   type TabItem = {
     title: string;
     value: string;
+    badge?: string;
   };
 
   export let activeValue: string;
@@ -28,6 +29,9 @@
       on:click={() => (activeValue = tab.value)}
     >
       <span>{tab.title}</span>
+      {#if tab.badge}
+        <span class="tab-badge">{tab.badge}</span>
+      {/if}
     </button>
   {/each}
 </div>
@@ -71,6 +75,13 @@
 
   .tab.active > span {
     color: var(--primary);
+  }
+
+  .tab-badge {
+    font-size: 0.6rem;
+    color: var(--success);
+    margin-left: 2px;
+    line-height: 1;
   }
 
   .tabs.variant-minimal {

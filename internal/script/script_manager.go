@@ -147,6 +147,14 @@ func (sm *ScriptManager) SetEnvironment(env map[string]string) {
 	sm.currentEnv = env
 }
 
+// SetContext injects the Wails runtime context so scripts can emit events.
+// Called from app.startup() after the context is available.
+func (sm *ScriptManager) SetContext(ctx context.Context) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	sm.wailsCtx = ctx
+}
+
 // GetSessionVars returns a copy of the current session variables.
 func (sm *ScriptManager) GetSessionVars() map[string]string {
 	sm.mutex.Lock()
@@ -157,4 +165,18 @@ func (sm *ScriptManager) GetSessionVars() map[string]string {
 		copyVars[k] = v
 	}
 	return copyVars
+}
+
+// RemoveSessionVar removes a single session variable by key.
+func (sm *ScriptManager) RemoveSessionVar(key string) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	delete(sm.sessionVars, key)
+}
+
+// ClearSessionVars removes all session variables.
+func (sm *ScriptManager) ClearSessionVars() {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	sm.sessionVars = make(map[string]string)
 }

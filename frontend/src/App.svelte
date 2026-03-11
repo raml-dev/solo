@@ -10,6 +10,7 @@
   import { configurationStore } from "./lib/stores/configurationStore";
   import { collectionStore } from "./lib/stores/collectionStore";
   import { environmentStore } from "./lib/stores/environmentStore";
+  import { sessionVarsStore } from "./lib/stores/sessionVarsStore";
 
   let consoleOpen = false;
   let consoleHeight = 260;
@@ -46,6 +47,7 @@
     await configurationStore.init();
     await collectionStore.loadCollections();
     await environmentStore.loadEnvironments();
+    sessionVarsStore.init();
   });
 </script>
 
