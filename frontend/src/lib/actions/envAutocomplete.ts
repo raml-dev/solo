@@ -182,12 +182,7 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
       keyLabel.className = "env-key";
       keyLabel.textContent = entry.key;
 
-      const valueLabel = document.createElement("span");
-      valueLabel.className = "env-value";
-      valueLabel.textContent = entry.value;
-
       item.appendChild(keyLabel);
-      item.appendChild(valueLabel);
       item.addEventListener("mousedown", (event) => {
         event.preventDefault();
         applySelection(entry);

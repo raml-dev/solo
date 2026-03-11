@@ -9,6 +9,7 @@ import {
   SetSelectedEnvironment
 } from "../../../wailsjs/go/main/App";
 import { environment } from "../../../wailsjs/go/models";
+import { notifications } from "./notificationStore";
 
 // Re-export types for convenience
 export type Environment = environment.Environment;
@@ -19,14 +20,12 @@ interface EnvironmentState {
   environments: Environment[];
   selectedEnvironmentName: string | null;
   loading: boolean;
-  error: string | null;
 }
 
 const initialState: EnvironmentState = {
   environments: [],
   selectedEnvironmentName: null,
   loading: false,
-  error: null
 };
 
 // Create the main store
@@ -36,9 +35,8 @@ function createEnvironmentStore() {
   return {
     subscribe,
 
-    // Load all environments
     async loadEnvironments() {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         const [environmentNames, persistedSelection] = await Promise.all([
           LoadEnvironments(),
@@ -50,18 +48,14 @@ function createEnvironmentStore() {
           return;
         }
 
-        // Load full content for each environment
         const environments: Environment[] = [];
         for (const name of environmentNames) {
-          // Remove .json extension if present
           const cleanName = name.replace(".json", "");
           try {
             const env = await LoadEnvironment(cleanName);
-            if (env) {
-              environments.push(env);
-            }
+            if (env) environments.push(env);
           } catch (err) {
-            console.error(`Error loading environment ${cleanName}:`, err);
+            notifications.error(`Failed to load environment "${cleanName}"`, String(err));
           }
         }
 
@@ -72,34 +66,25 @@ function createEnvironmentStore() {
           loading: false
         }));
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to load environments",
-          loading: false
-        }));
+        notifications.error("Failed to load environments", String(err), true);
+        update((state) => ({ ...state, loading: false }));
       }
     },
 
-    // Create a new environment
     async createEnvironment(name: string) {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         await CreateEnvironment(name);
-        // Reload all environments to get the updated list
         await this.loadEnvironments();
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to create environment",
-          loading: false
-        }));
+        notifications.error("Failed to create environment", String(err));
+        update((state) => ({ ...state, loading: false }));
         throw err;
       }
     },
 
-    // Delete an environment
     async deleteEnvironment(name: string) {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         await DeleteEnvironment(name);
         update((state) => {
@@ -108,57 +93,37 @@ function createEnvironmentStore() {
             environments: state.environments.filter((e) => e.name !== name),
             loading: false
           };
-          // If we deleted the selected environment, clear the selection
-          if (state.selectedEnvironmentName === name) {
-            newState.selectedEnvironmentName = null;
-          }
+          if (state.selectedEnvironmentName === name) newState.selectedEnvironmentName = null;
           return newState;
         });
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to delete environment",
-          loading: false
-        }));
+        notifications.error("Failed to delete environment", String(err));
+        update((state) => ({ ...state, loading: false }));
         throw err;
       }
     },
 
-    // Update an environment
     async updateEnvironment(env: Environment) {
-      update((state) => ({ ...state, loading: true, error: null }));
       try {
-        // Create a new instance with the correct class methods
         const envInstance = new environment.Environment(env);
         await UpdateEnvironment(envInstance);
         update((state) => ({
           ...state,
-          environments: state.environments.map((e) => (e.name === env.name ? env : e)),
-          loading: false
+          environments: state.environments.map((e) => (e.name === env.name ? env : e))
         }));
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to update environment",
-          loading: false
-        }));
+        notifications.error("Failed to save environment", String(err));
         throw err;
       }
     },
 
-    // Select an environment and persist the selection
     selectEnvironment(name: string) {
       if (name === "") throw new Error("Environment name must not be empty string");
       update((state) => ({ ...state, selectedEnvironmentName: name }));
       SetSelectedEnvironment(name).catch((err) => {
-        console.error("Failed to persist selected environment:", err);
+        notifications.error("Failed to persist selected environment", String(err));
       });
     },
-
-    // Clear error
-    clearError() {
-      update((state) => ({ ...state, error: null }));
-    }
   };
 }
 

@@ -5,15 +5,12 @@
 
   export let showNewEnvironmentDialog: boolean = false;
   export let showDeleteConfirmDialog: boolean = false;
-  export let showErrorDialog: boolean = false;
-  export let errorMessage: string = "";
   export let deleteTarget: string | null = null;
 
   let newEnvironmentName = "";
 
   const dispatch = createEventDispatcher<{
     closeDelete: null;
-    closeError: null;
     closeNew: null;
     confirmDelete: string;
     create: string;
@@ -64,13 +61,6 @@
     <svelte:fragment slot="additional-buttons">
       <Button variant="danger" click={confirmDelete}>Delete</Button>
     </svelte:fragment>
-  </Modal>
-{/if}
-
-{#if showErrorDialog}
-  <Modal toggleFn={() => dispatch("closeError")}>
-    <h3>Error</h3>
-    <p>{errorMessage}</p>
   </Modal>
 {/if}
 

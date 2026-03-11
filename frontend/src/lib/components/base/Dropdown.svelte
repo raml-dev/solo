@@ -5,6 +5,8 @@
   export let options: Array<{ value: string; label: string; color?: string }> = [];
   export let placeholder: string = "Select...";
   export let disabled: boolean = false;
+  export let variant: "default" | "minimal" | "url-method" = "default";
+  export let square = false;
 
   export let change: (value: string) => void;
 
@@ -53,11 +55,15 @@
   });
 </script>
 
-<div class="dropdown" bind:this={dropdownElement}>
+<div class="dropdown" class:variant-minimal-wrapper={variant === "minimal"} class:variant-url-method-wrapper={variant === "url-method"} bind:this={dropdownElement}>
   <button
     class="dropdown-trigger"
+    class:variant-minimal={variant === "minimal"}
+    class:variant-url-method={variant === "url-method"}
+    class:square
     class:disabled
     class:open={isOpen}
+    data-method={variant === "url-method" ? value : undefined}
     on:click={toggleDropdown}
     type="button"
   >
@@ -95,6 +101,10 @@
     width: 100%;
   }
 
+  .dropdown.variant-minimal-wrapper {
+    width: auto;
+  }
+
   .dropdown-trigger {
     width: 100%;
     display: flex;
@@ -118,8 +128,80 @@
 
   .dropdown-trigger.open {
     border-color: var(--primary);
+  }
+
+  .dropdown-trigger.variant-minimal {
+    background: none;
+    border: none;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text);
+    padding: 2px var(--space-xs);
+    border-radius: var(--radius-sm);
+    gap: 2px;
+    width: auto;
+  }
+  .dropdown-trigger.variant-minimal:hover {
     background: var(--bg-tertiary);
   }
+  .dropdown-trigger.variant-minimal .dropdown-value {
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .dropdown-trigger.variant-minimal .dropdown-arrow {
+    fill: var(--text);
+  }
+
+  /* When variant is minimal, align menu to the right of the trigger */
+  .dropdown:has(.variant-minimal) .dropdown-menu {
+    left: auto;
+    right: 0;
+    min-width: 120px;
+  }
+
+  /* square: no border-radius (for use inside a composed bar) */
+  .dropdown-trigger.square {
+    border-radius: 0;
+  }
+
+  /* url-method variant: compact, colored by HTTP method, no outer border */
+  .dropdown-trigger.variant-url-method {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    padding: 0 var(--space-md);
+    min-width: 90px;
+    height: 100%;
+    color: var(--text);
+  }
+  .dropdown-trigger.variant-url-method:hover {
+    background: var(--bg-tertiary);
+  }
+  .dropdown-trigger.variant-url-method .dropdown-value {
+    font-weight: var(--font-weight-semibold);
+  }
+  .dropdown:has(.variant-url-method) .dropdown-menu {
+    min-width: 130px;
+    left: 0;
+    right: auto;
+  }
+  .dropdown.variant-url-method-wrapper {
+    width: auto;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+
+  /* HTTP method colors */
+  .dropdown-trigger.variant-url-method[data-method="GET"]     { color: #4ec9a4; }
+  .dropdown-trigger.variant-url-method[data-method="POST"]    { color: #f5a623; }
+  .dropdown-trigger.variant-url-method[data-method="PUT"]     { color: #6c9ef8; }
+  .dropdown-trigger.variant-url-method[data-method="PATCH"]   { color: #b57bee; }
+  .dropdown-trigger.variant-url-method[data-method="DELETE"]  { color: #e06c75; }
+  .dropdown-trigger.variant-url-method[data-method="HEAD"]    { color: #56b6c2; }
+  .dropdown-trigger.variant-url-method[data-method="OPTIONS"] { color: var(--text-muted); }
 
   .dropdown-trigger.disabled {
     opacity: 0.5;

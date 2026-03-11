@@ -1,33 +1,42 @@
 <script lang="ts">
-  export let toggleFn: () => void = null;
-  export let title: string = "";
+  export let title: string = "Dialog";
+  export let toggleFn: () => void;
+  export let size: "default" | "wide" | "settings" = "default";
 </script>
 
 <div
-  class="modal-overlay"
+  class="dialog-overlay"
   role="presentation"
-  on:click={(event) => {
-    if (event.target === event.currentTarget) toggleFn?.();
-  }}
+  on:click={toggleFn}
+  on:keydown={(e) => e.key === "Escape" && toggleFn()}
 >
-  <div class="modal-panel">
-    <header class="modal-header">
-      {#if title}
-        <h3 class="modal-title">{title}</h3>
-      {/if}
-      <div class="modal-header-actions">
-        <slot name="additional-buttons" />
-        <button class="close-btn" on:click={toggleFn} aria-label="Close modal">&times;</button>
+  <div class="dialog" class:wide={size === "wide"} class:settings={size === "settings"} role="dialog" aria-modal="true" on:click|stopPropagation>
+    {#if size === "settings"}
+      <div class="settings-close-btn-wrapper">
+        <button class="btn-close" on:click={toggleFn}>&times;</button>
       </div>
-    </header>
-    <div class="modal-body">
+    {:else}
+      <header class="dialog-header">
+        <h3>{title}</h3>
+        <button class="btn-close" on:click={toggleFn}>&times;</button>
+      </header>
+    {/if}
+    <div class="dialog-content" class:no-padding={size === "settings"}>
       <slot />
     </div>
+    {#if size !== "settings"}
+      <footer class="dialog-footer">
+        <div class="additional-buttons">
+          <slot name="additional-buttons" />
+        </div>
+        <button class="btn" on:click={toggleFn}>Close</button>
+      </footer>
+    {/if}
   </div>
 </div>
 
 <style>
-  .modal-overlay {
+  .dialog-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -37,66 +46,96 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: var(--z-modal);
+    z-index: 1000;
   }
 
-  .modal-panel {
+  .dialog {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    min-width: 500px;
+    max-width: 80%;
+    max-height: 80vh;
+    box-shadow: var(--shadow-xl);
     display: flex;
     flex-direction: column;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    max-width: 800px;
-    width: 90%;
+    position: relative;
+  }
+
+  .dialog.wide {
+    min-width: 900px;
+    max-width: 90vw;
     max-height: 90vh;
-    box-shadow: var(--shadow-lg);
   }
 
-  .modal-header {
+  .dialog.settings {
+    min-width: 760px;
+    max-width: 90vw;
+    width: 860px;
+    height: 600px;
+    max-height: 90vh;
+  }
+
+  .settings-close-btn-wrapper {
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-sm);
+    z-index: 2;
+  }
+
+  .dialog-content.no-padding {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .dialog-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: var(--space-md) var(--space-lg);
+    align-items: center;
+    padding: var(--space-lg);
     border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
-    border-top-left-radius: var(--radius-lg);
-    border-top-right-radius: var(--radius-lg);
-    flex-shrink: 0;
   }
 
-  .modal-title {
+  .dialog-header h3 {
     margin: 0;
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
-    color: var(--text);
   }
 
-  .modal-header-actions {
+  .btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+
+  .dialog-content {
+    padding: var(--space-lg);
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .dialog-footer {
     display: flex;
+    justify-content: flex-end;
     align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    border-top: 1px solid var(--border);
+  }
+
+  .additional-buttons {
+    margin-right: auto;
+    display: flex;
     gap: var(--space-sm);
   }
 
-  .close-btn {
-    background: none;
-    border: none;
-    font-size: 24px;
-    line-height: 1;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    transition: all var(--transition-base);
-  }
-
-  .close-btn:hover {
-    color: var(--text);
+  .btn {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
     background: var(--bg-tertiary);
-  }
-
-  .modal-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space-lg);
+    color: var(--text);
+    cursor: pointer;
   }
 </style>

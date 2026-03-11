@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { envAutocomplete } from "../../../lib/actions/envAutocomplete";
   import { selectedEnvironment } from "../../../lib/stores/environmentStore";
   import Button from "../base/Button.svelte";
+  import TokenInput from "./TokenInput.svelte";
 
   export let headers: Header[];
 
@@ -52,14 +52,15 @@
         bind:value={header.key}
         disabled={!header.enabled}
       />
-      <input
-        type="text"
-        class="input header-input"
-        placeholder="Value"
-        bind:value={header.value}
-        disabled={!header.enabled}
-        use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
-      />
+      <div class="header-value-wrapper">
+        <TokenInput
+          bind:value={header.value}
+          placeholder="Value"
+          disabled={!header.enabled}
+          {environmentEntries}
+          wrapperClass="input header-input"
+        />
+      </div>
       <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>
     </div>
   {/each}
@@ -75,7 +76,18 @@
     display: flex;
     gap: var(--space-sm);
     margin-bottom: var(--space-sm);
-    align-items: center;
+    align-items: stretch;
+  }
+
+  .header-row .input,
+  .header-row .token-input-wrapper.input {
+    height: 34px;
+  }
+
+  .header-row .token-input-wrapper.input .real-input,
+  .header-row .token-input-wrapper.input .token-input-overlay {
+    padding: 0 var(--space-md);
+    line-height: 34px;
   }
 
   .header-checkbox {
@@ -86,6 +98,12 @@
 
   .header-input {
     flex: 1;
+  }
+
+  .header-value-wrapper {
+    flex: 1;
+    display: flex;
+    min-width: 0;
   }
 
   .header-input:disabled {

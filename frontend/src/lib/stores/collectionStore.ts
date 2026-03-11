@@ -10,6 +10,7 @@ import {
   UpdateRequest
 } from "../../../wailsjs/go/main/App";
 import { collection } from "../../../wailsjs/go/models";
+import { notifications } from "./notificationStore";
 
 // Store state
 interface CollectionState {
@@ -17,7 +18,6 @@ interface CollectionState {
   selectedCollectionName: string | null;
   selectedRequestId: string | null;
   loading: boolean;
-  error: string | null;
 }
 
 const initialState: CollectionState = {
@@ -25,7 +25,6 @@ const initialState: CollectionState = {
   selectedCollectionName: null,
   selectedRequestId: null,
   loading: false,
-  error: null
 };
 
 // Create the main store
@@ -37,7 +36,7 @@ function createCollectionStore() {
 
     // Load all collections
     async loadCollections() {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         const collectionNames = await LoadCollections();
         if (!collectionNames || collectionNames.length === 0) {
@@ -45,51 +44,40 @@ function createCollectionStore() {
           return;
         }
 
-        // Load full content for each collection
         const collections: collection.Collection[] = [];
         for (const name of collectionNames) {
-          // Remove .json extension if present
           const cleanName = name.replace(".json", "");
           try {
             const collection = await LoadCollection(cleanName);
-            if (collection) {
-              collections.push(collection);
-            }
+            if (collection) collections.push(collection);
           } catch (err) {
-            console.error(`Error loading collection ${cleanName}:`, err);
+            notifications.error(`Failed to load collection "${cleanName}"`, String(err));
           }
         }
 
         update((state) => ({ ...state, collections, loading: false }));
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to load collections",
-          loading: false
-        }));
+        notifications.error("Failed to load collections", String(err), true);
+        update((state) => ({ ...state, loading: false }));
       }
     },
 
     // Create a new collection
     async createCollection(name: string) {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         await CreateCollection(name);
-        // Reload all collections to get the updated list
         await this.loadCollections();
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to create collection",
-          loading: false
-        }));
+        notifications.error("Failed to create collection", String(err));
+        update((state) => ({ ...state, loading: false }));
         throw err;
       }
     },
 
     // Delete a collection
     async deleteCollection(name: string) {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         await DeleteCollection(name);
         update((state) => {
@@ -98,7 +86,6 @@ function createCollectionStore() {
             collections: state.collections.filter((c) => c.name !== name),
             loading: false
           };
-          // If we deleted the selected collection, clear the selection
           if (state.selectedCollectionName === name) {
             newState.selectedCollectionName = null;
             newState.selectedRequestId = null;
@@ -106,27 +93,20 @@ function createCollectionStore() {
           return newState;
         });
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to delete collection",
-          loading: false
-        }));
+        notifications.error("Failed to delete collection", String(err));
+        update((state) => ({ ...state, loading: false }));
         throw err;
       }
     },
 
     // Rename a collection
     async renameCollection(currentName: string, newName: string) {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
-        if (!currentName || !newName) {
-          throw new Error("Collection name is not specified");
-        }
+        if (!currentName || !newName) throw new Error("Collection name is not specified");
 
         const existing = await LoadCollection(currentName);
-        if (!existing) {
-          throw new Error(`Collection ${currentName} not found`);
-        }
+        if (!existing) throw new Error(`Collection ${currentName} not found`);
 
         const updated = collection.Collection.createFrom({
           ...existing,
@@ -135,11 +115,7 @@ function createCollectionStore() {
         });
 
         await UpdateCollection(updated);
-
-        if (currentName !== newName) {
-          await DeleteCollection(currentName);
-        }
-
+        if (currentName !== newName) await DeleteCollection(currentName);
         await this.loadCollections();
 
         update((state) => ({
@@ -148,21 +124,18 @@ function createCollectionStore() {
             state.selectedCollectionName === currentName ? newName : state.selectedCollectionName
         }));
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to rename collection",
-          loading: false
-        }));
+        notifications.error("Failed to rename collection", String(err));
+        update((state) => ({ ...state, loading: false }));
         throw err;
       }
     },
 
     // Add a request to a collection
-    async addRequest(collectionName: string, request: Partial<collection.Request>) {
-      update((state) => ({ ...state, loading: true, error: null }));
+    async addRequest(collectionName: string, request: Partial<collection.Request>): Promise<collection.Request> {
+      update((state) => ({ ...state }));
       try {
-        const newRequest = collection.Request.createFrom({
-          id: "", // Will be generated by the backend
+        const newRequestPayload = collection.Request.createFrom({
+          id: "",
           name: request.name || "New Request",
           url: request.url || "",
           verb: request.verb || "GET",
@@ -173,60 +146,55 @@ function createCollectionStore() {
           lastUpdateTimestamp: new Date().toISOString()
         });
 
-        await AddRequest(collectionName, newRequest);
+        const newRequest = await AddRequest(collectionName, newRequestPayload);
 
-        // Reload the collection to get the updated requests
-        const updatedCollection = await LoadCollection(collectionName);
+        update((state) => {
+          const updatedCollections = state.collections.map((c) => {
+            if (c.name === collectionName) {
+              return collection.Collection.createFrom({
+                ...c,
+                requests: [newRequest, ...c.requests],
+                lastUpdateTimestamp: new Date().toISOString()
+              });
+            }
+            return c;
+          });
+          return { ...state, collections: updatedCollections, selectedRequestId: newRequest.id };
+        });
 
-        update((state) => ({
-          ...state,
-          collections: state.collections.map((c) =>
-            c.name === collectionName ? updatedCollection : c
-          ),
-          loading: false
-        }));
+        return newRequest;
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to add request",
-          loading: false
-        }));
+        notifications.error("Failed to add request", String(err));
         throw err;
       }
     },
 
     // Update a request
     async updateRequest(collectionName: string, request: collection.Request) {
-      update((state) => ({ ...state, loading: true, error: null }));
       try {
         await UpdateRequest(collectionName, request);
-
-        // Reload the collection to get the updated requests
-        const updatedCollection = await LoadCollection(collectionName);
-
         update((state) => ({
           ...state,
-          collections: state.collections.map((c) =>
-            c.name === collectionName ? updatedCollection : c
-          ),
-          loading: false
+          collections: state.collections.map((c) => {
+            if (c.name !== collectionName) return c;
+            return collection.Collection.createFrom({
+              ...c,
+              requests: c.requests.map((r) => (r.id === request.id ? request : r)),
+              lastUpdateTimestamp: new Date().toISOString()
+            });
+          })
         }));
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to update request",
-          loading: false
-        }));
+        notifications.error("Failed to save request", String(err));
         throw err;
       }
     },
 
     // Remove a request
     async removeRequest(collectionName: string, requestId: string) {
-      update((state) => ({ ...state, loading: true, error: null }));
+      update((state) => ({ ...state, loading: true }));
       try {
         await RemoveRequest(collectionName, requestId);
-
         update((state) => {
           const newState = {
             ...state,
@@ -241,42 +209,25 @@ function createCollectionStore() {
             }),
             loading: false
           };
-
-          // If we deleted the selected request, clear the selection
-          if (state.selectedRequestId === requestId) {
-            newState.selectedRequestId = null;
-          }
-
+          if (state.selectedRequestId === requestId) newState.selectedRequestId = null;
           return newState;
         });
       } catch (err) {
-        update((state) => ({
-          ...state,
-          error: err.message || "Failed to remove request",
-          loading: false
-        }));
+        notifications.error("Failed to remove request", String(err));
+        update((state) => ({ ...state, loading: false }));
         throw err;
       }
     },
 
     // Select a collection
     selectCollection(name: string | null) {
-      update((state) => ({
-        ...state,
-        selectedCollectionName: name,
-        selectedRequestId: null // Clear request selection when changing collection
-      }));
+      update((state) => ({ ...state, selectedCollectionName: name, selectedRequestId: null }));
     },
 
     // Select a request
     selectRequest(requestId: string | null) {
       update((state) => ({ ...state, selectedRequestId: requestId }));
     },
-
-    // Clear error
-    clearError() {
-      update((state) => ({ ...state, error: null }));
-    }
   };
 }
 

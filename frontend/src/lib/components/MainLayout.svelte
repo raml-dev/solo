@@ -8,21 +8,11 @@
   let showEnvironmentManager = false;
   let showMainConfiguration = false;
 
-  // Bound from MainConfiguration
-  let configIsDirty = false;
-  let configIsLoading = false;
-  let saveConfig: () => Promise<void> = async () => {};
-  let revertConfig: () => void = () => {};
-
   function toggleEnvironmentManager() {
     showEnvironmentManager = !showEnvironmentManager;
   }
 
   function toggleMainConfiguration() {
-    // If closing, revert any unsaved changes (like theme preview)
-    if (showMainConfiguration) {
-      revertConfig();
-    }
     showMainConfiguration = !showMainConfiguration;
   }
 </script>
@@ -41,31 +31,26 @@
     </div>
   </nav>
 
-  <!-- Main ContEnvironmet Area -->
+  <!-- Main Content Area -->
   <div class="main-content">
     <slot />
+  </div>
+
+  <!-- Bottom Bar (always visible) -->
+  <div class="bottom-bar">
+    <slot name="bottom-bar" />
   </div>
 </div>
 
 {#if showEnvironmentManager}
-  <Modal title="Environments" toggleFn={toggleEnvironmentManager}>
+  <Modal title="Environments" toggleFn={toggleEnvironmentManager} size="wide">
     <EnvironmentManager />
   </Modal>
 {/if}
 
 {#if showMainConfiguration}
-  <Modal title="Settings" toggleFn={toggleMainConfiguration}>
-    <svelte:fragment slot="additional-buttons">
-      <Button variant="primary" click={saveConfig} disabled={!configIsDirty || configIsLoading}>
-        {configIsLoading ? "Saving..." : "Save"}
-      </Button>
-    </svelte:fragment>
-    <MainConfiguration
-      bind:isDirty={configIsDirty}
-      bind:isLoading={configIsLoading}
-      bind:save={saveConfig}
-      bind:revert={revertConfig}
-    />
+  <Modal title="Settings" toggleFn={toggleMainConfiguration} size="settings">
+    <MainConfiguration toggleFn={toggleMainConfiguration} />
   </Modal>
 {/if}
 
@@ -93,5 +78,18 @@
     overflow: hidden;
     display: flex;
     width: 100%;
+    min-height: 0;
+  }
+
+  .bottom-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 28px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    padding: 0 var(--space-md);
+    gap: 2px;
+    position: relative;  /* anchor for console-panel */
   }
 </style>

@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { collectionStore } from "../stores/collectionStore";
+  import { tabStore } from "../stores/tabStore";
+  import { notifications } from "../stores/notificationStore";
   import Button from "./base/Button.svelte";
   import Modal from "./base/Modal.svelte";
+  import Tabs from "./base/Tabs.svelte";
+  import Tab from "./base/Tab.svelte";
+  import DropZone from "./base/DropZone.svelte";
   import type { collection } from "../../../wailsjs/go/models";
   import {
     ImportPostmanCollection,
@@ -18,6 +23,10 @@
   let showDeleteConfirmDialog = false;
   let showDeleteRequestConfirmDialog = false;
   let showImportSelector = false;
+
+  let importActiveTab = "postman";
+
+
   let newCollectionName = "";
   let renameCollectionName = "";
   let renameTarget: string | null = null;
@@ -29,9 +38,39 @@
   let activeMenu: string | null = null;
   let isCollapsed = false;
 
+  let sidebarWidth = 280; // Default width
+  let isResizing = false;
+
+  function startResize(e: MouseEvent) {
+    e.preventDefault();
+    isResizing = true;
+    window.addEventListener("mousemove", handleResize);
+    window.addEventListener("mouseup", stopResize);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+  }
+
+  function handleResize(e: MouseEvent) {
+    if (!isResizing) return;
+    const newWidth = e.clientX;
+    const minWidth = 200;
+    const maxWidth = 600;
+    sidebarWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+  }
+
+  function stopResize() {
+    isResizing = false;
+    window.removeEventListener("mousemove", handleResize);
+    window.removeEventListener("mouseup", stopResize);
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    localStorage.setItem("sidebar_width", String(sidebarWidth));
+  }
+
   $: collections = $collectionStore.collections;
   $: selectedCollectionName = $collectionStore.selectedCollectionName;
-  $: selectedRequestId = $collectionStore.selectedRequestId;
+  // Highlight in sidebar is driven by the active tab, not the collectionStore selection
+  $: selectedRequestId = $tabStore.tabs.find((t) => t.id === $tabStore.activeTabId)?.requestId ?? null;
   $: normalizedQuery = searchQuery.trim().toLowerCase();
   $: isSearching = normalizedQuery.length > 0;
   $: filteredCollections = collections.filter((collection) =>
@@ -85,8 +124,31 @@
     collectionStore.selectCollection(name);
   }
 
-  function selectRequest(requestId: string) {
-    collectionStore.selectRequest(requestId);
+  function selectRequest(requestId: string, collectionName: string) {
+    // Find the request data to pass metadata to tabStore
+    const coll = $collectionStore.collections.find((c) => c.name === collectionName);
+    const req = coll?.requests.find((r) => r.id === requestId);
+    if (!req) return;
+
+    const headers = req.headers
+      ? Object.entries(req.headers).map(([key, value], i) => ({
+          id: `header-${i}`,
+          key,
+          value: String(value),
+          enabled: true
+        }))
+      : [];
+
+    tabStore.openTab(requestId, collectionName, {
+      label: req.name || "Request",
+      verb: req.verb || "GET",
+      url: req.url || "",
+      body: req.body || "",
+      bodyFormat: "json",
+      headers,
+      settings: req.settings || {}
+    });
+
     onRequestSelect(requestId);
   }
 
@@ -110,15 +172,13 @@
 
   async function handleCreateCollection() {
     const trimmed = newCollectionName.trim();
-    if (!trimmed) {
-      return;
-    }
+    if (!trimmed) return;
 
     const exists = collections.some(
       (collection) => collection.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) {
-      alert(`Collection "${trimmed}" already exists.`);
+      notifications.warning(`Collection "${trimmed}" already exists`);
       return;
     }
 
@@ -126,8 +186,7 @@
       await collectionStore.createCollection(trimmed);
       closeNewCollectionDialog();
     } catch (err) {
-      console.error("Error creating collection:", err);
-      alert(`Error creating collection: ${err}`);
+      // error already shown by store
     }
   }
 
@@ -143,7 +202,7 @@
       (collection) => collection.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) {
-      alert(`Collection "${trimmed}" already exists.`);
+      notifications.warning(`Collection "${trimmed}" already exists`);
       return;
     }
 
@@ -156,8 +215,7 @@
       }
       closeRenameDialog();
     } catch (err) {
-      console.error("Error renaming collection:", err);
-      alert(`Error renaming collection: ${err}`);
+      // error already shown by store
     }
   }
 
@@ -189,7 +247,7 @@
     e.stopPropagation();
 
     try {
-      await collectionStore.addRequest(collectionName, {
+      const newReq = await collectionStore.addRequest(collectionName, {
         name: "New Request",
         url: "",
         verb: "GET"
@@ -197,9 +255,20 @@
 
       expandedCollections.add(collectionName);
       expandedCollections = new Set(expandedCollections);
-      collectionStore.selectCollection(collectionName);
+
+      if (newReq?.id) {
+        tabStore.openTab(newReq.id, collectionName, {
+          label: "New Request",
+          verb: "GET",
+          url: "",
+          body: "",
+          bodyFormat: "json",
+          headers: [],
+          settings: {}
+        });
+      }
     } catch (err) {
-      console.error("Error adding request:", err);
+      // error already shown by store
     }
   }
 
@@ -216,7 +285,7 @@
       await collectionStore.removeRequest(deleteRequestCollectionName, deleteRequestTarget);
       closeDeleteRequestConfirmDialog();
     } catch (err) {
-      console.error("Error deleting request:", err);
+      // error already shown by store
     }
   }
 
@@ -252,29 +321,26 @@
       if (!filePath) return;
       await ImportPostmanCollection(filePath);
       await collectionStore.loadCollections();
+      notifications.success("Postman collection imported");
     } catch (err) {
-      console.error("Error importing Postman collection:", err);
-      alert(`Error importing collection: ${err}`);
+      notifications.error("Failed to import Postman collection", String(err));
     }
   }
 
   async function handleImportBruno() {
     try {
       const dirPath = await SelectDirectory("Select Bruno Collection Folder");
-      if (!dirPath) {
-        return;
-      }
-
+      if (!dirPath) return;
       await ImportBrunoCollection(dirPath);
       await collectionStore.loadCollections();
+      notifications.success("Bruno collection imported");
     } catch (err) {
-      console.error("Error importing Bruno collection:", err);
-      alert(`Error importing collection: ${err}`);
+      notifications.error("Failed to import Bruno collection", String(err));
     }
   }
 
   async function handleSelectImportFormat(format: "postman" | "bruno") {
-    showImportSelector = false; // Close modal first
+    showImportSelector = false;
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
@@ -282,7 +348,17 @@
     }
   }
 
+  function openImportModal() {
+    importActiveTab = "postman";
+    showImportSelector = true;
+  }
+
   onMount(() => {
+    const storedWidth = localStorage.getItem("sidebar_width");
+    if (storedWidth) {
+      sidebarWidth = parseInt(storedWidth, 10);
+    }
+
     const stored = localStorage.getItem("sidebar_collapsed");
     if (stored !== null) {
       isCollapsed = stored === "true";
@@ -297,7 +373,8 @@
   });
 </script>
 
-<div class="collection-list" class:collapsed={isCollapsed}>
+<div class="collection-list" class:collapsed={isCollapsed} style={`width: ${isCollapsed ? 'auto' : sidebarWidth + 'px'};`}>
+  <div class="resize-handle" on:mousedown={startResize} />
   <div class="header">
     <div class="header-title">
       {#if !isCollapsed}
@@ -305,7 +382,7 @@
       {/if}
       <div class="header-actions">
         {#if !isCollapsed}
-          <Button variant="secondary" size="small" click={() => (showImportSelector = true)}>
+          <Button variant="secondary" size="small" click={openImportModal}>
             Import
           </Button>
           <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
@@ -344,13 +421,6 @@
   {#if !isCollapsed}
     {#if $collectionStore.loading}
       <div class="loading">Loading collections...</div>
-    {/if}
-
-    {#if $collectionStore.error}
-      <div class="error">
-        {$collectionStore.error}
-        <button on:click={() => collectionStore.clearError()}>x</button>
-      </div>
     {/if}
 
     <div class="collections">
@@ -446,8 +516,8 @@
                   <div
                     class="request-item"
                     class:selected={selectedRequestId === request.id}
-                    on:click={() => selectRequest(request.id)}
-                    on:keypress={(e) => e.key === "Enter" && selectRequest(request.id)}
+                    on:click={() => selectRequest(request.id, collection.name)}
+                    on:keypress={(e) => e.key === "Enter" && selectRequest(request.id, collection.name)}
                     role="button"
                     tabindex="0"
                   >
@@ -549,15 +619,71 @@
 {/if}
 
 {#if showImportSelector}
-  <Modal toggleFn={() => (showImportSelector = false)}>
-    <div class="dialog">
-      <h3>Import Collection</h3>
-      <p>Select the format of the collection you want to import.</p>
-      <div class="format-buttons">
-        <Button variant="primary" click={() => handleSelectImportFormat("postman")}>Postman</Button>
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>Bruno</Button>
-      </div>
+  <Modal title="Import Collection" toggleFn={() => (showImportSelector = false)}>
+    <div class="import-modal-body">
+      <Tabs bind:activeValue={importActiveTab}>
+        <Tab title="Postman" value="postman">
+          <DropZone
+            title="Drop your Postman collection here"
+            subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
+            on:drop={async (e) => {
+              const paths = e.detail.paths;
+              showImportSelector = false;
+              if (paths.length > 0) {
+                await ImportPostmanCollection(paths[0]);
+                await collectionStore.loadCollections();
+              } else {
+                await handleImportPostman();
+              }
+            }}
+          >
+            <svelte:fragment slot="icon">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </svelte:fragment>
+          </DropZone>
+        </Tab>
+
+        <Tab title="Bruno" value="bruno">
+          <DropZone
+            title="Drop your Bruno collection folder here"
+            subtitle="Supports Bruno collection folders (.bru files)"
+            on:drop={async (e) => {
+              const paths = e.detail.paths;
+              showImportSelector = false;
+              if (paths.length > 0) {
+                await ImportBrunoCollection(paths[0]);
+                await collectionStore.loadCollections();
+              } else {
+                await handleImportBruno();
+              }
+            }}
+          >
+            <svelte:fragment slot="icon">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </svelte:fragment>
+          </DropZone>
+        </Tab>
+      </Tabs>
     </div>
+
+    <svelte:fragment slot="additional-buttons">
+      {#if importActiveTab === "postman"}
+        <Button variant="primary" click={() => handleSelectImportFormat("postman")}>
+          Select file…
+        </Button>
+      {:else}
+        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>
+          Select folder…
+        </Button>
+      {/if}
+    </svelte:fragment>
   </Modal>
 {/if}
 
@@ -566,10 +692,21 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    width: var(--sidebar-width);
+    /* width is now controlled by a style property */
     flex-shrink: 0;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
+    position: relative;
+  }
+
+  .resize-handle {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 50; /* Ensure it's on top */
   }
 
   .collection-list.collapsed {
@@ -950,5 +1087,12 @@
     display: flex;
     gap: var(--space-sm);
     justify-content: flex-end;
+  }
+
+  /* ── Import Modal ──────────────────────────────────────────── */
+
+  .import-modal-body {
+    /* remove default dialog-content padding so the Tabs bar touches the edges */
+    margin: calc(-1 * var(--space-lg));
   }
 </style>

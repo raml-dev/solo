@@ -138,7 +138,7 @@ func TestAddRequest(t *testing.T) {
 				testRequest = Request{Name: uuid.NewString()}
 			}
 
-			err := collection.AddRequest(testRequest)
+			_, err := collection.AddRequest(testRequest)
 			resLen := len(*collection.GetRequests())
 
 			if tt.error != nil && err == nil {

@@ -280,7 +280,7 @@ func TestCollectionManagerAddRequest(t *testing.T) {
 				cm.CreateCollection(tt.collectionName)
 			}
 
-			err := cm.AddRequest(tt.collectionName, tt.request)
+			_, err := cm.AddRequest(tt.collectionName, tt.request)
 
 			if tt.expectError {
 				if err == nil {

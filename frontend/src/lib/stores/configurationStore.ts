@@ -7,6 +7,7 @@ import {
 } from "../../../wailsjs/go/main/App";
 import { configuration } from "../../../wailsjs/go/models";
 import type { theme } from "../../../wailsjs/go/models";
+import { notifications } from "./notificationStore";
 
 // This is the single source of truth for all app configuration.
 function createEmptyConfig() {
@@ -61,11 +62,10 @@ function createConfigurationStore() {
         if (!normalized.general) normalized.general = new configuration.GeneralSettings();
         if (!normalized.request) normalized.request = new configuration.RequestSettings();
         if (!normalized.customThemes) normalized.customThemes = [] as theme.Theme[];
-
         allThemes.set(themes);
         config.set(normalized);
       } catch (error) {
-        console.error("Failed to initialize configuration and themes:", error);
+        notifications.error("Failed to initialize configuration", String(error), true);
       }
     },
 
@@ -74,21 +74,23 @@ function createConfigurationStore() {
         await UpdateConfiguration(newConfig);
         config.set(newConfig);
       } catch (error) {
-        console.error("Failed to save configuration:", error);
+        notifications.error("Failed to save configuration", String(error));
         throw error;
       }
     },
 
     changeTheme: async (themeName: string) => {
       try {
+        // Aggiorna solo activeTheme nel config in memoria (il DOM è già aggiornato via derived store)
         config.update((c) => {
           if (!c.general) c.general = new configuration.GeneralSettings();
           c.general.activeTheme = themeName;
           return c;
         });
+        // SetActiveTheme persiste solo activeTheme sul backend
         await SetActiveTheme(themeName);
       } catch (error) {
-        console.error("Failed to change theme:", error);
+        notifications.error("Failed to change theme", String(error));
         throw error;
       }
     }

@@ -4,26 +4,26 @@
 
   type TabItem = {
     title: string;
-    icon?: string;
-    value: symbol;
+    value: string;
   };
 
   export let title = "";
-  export let icon = "";
-  export let value = Symbol();
+  export let value: string;
 
   const tabsStore = getContext<Writable<TabItem[]>>("tabs");
-  const activeTabStore = getContext<Writable<symbol>>("activeTab");
+  const activeTabStore = getContext<Writable<string>>("activeTab");
 
   onMount(() => {
+    // If no tab is active yet, make this one the default
     if (!$activeTabStore) {
       $activeTabStore = value;
     }
 
-    const item = { title, value, icon };
+    const item = { title, value };
     $tabsStore = [...$tabsStore, item];
     return () => {
-      $tabsStore = $tabsStore.splice($tabsStore.indexOf(item), 1);
+      // Clean up when the tab is destroyed
+      $tabsStore = $tabsStore.filter(t => t.value !== value);
     };
   });
 </script>
