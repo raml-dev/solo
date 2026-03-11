@@ -9,6 +9,14 @@ export interface TabHeader {
   enabled: boolean;
 }
 
+export interface TabResponse {
+  status: number;
+  statusText: string;
+  time: number;
+  headers: Record<string, string>;
+  body: string;
+}
+
 export interface TabState {
   /** Unique tab id */
   id: string;
@@ -27,6 +35,9 @@ export interface TabState {
   settings: conf.RequestSettingsOverride;
   preRequestScript: string;
   postResponseScript: string;
+  // --- response state preserved across tab switches ---
+  response: TabResponse | null;
+  requestError: string | null;
 }
 
 interface TabStoreState {
@@ -51,7 +62,9 @@ function makeEmptyTab(): TabState {
     headers: [],
     settings: {},
     preRequestScript: "",
-    postResponseScript: ""
+    postResponseScript: "",
+    response: null,
+    requestError: null
   };
 }
 
@@ -92,7 +105,9 @@ function createTabStore() {
           headers: meta.headers,
           settings: meta.settings,
           preRequestScript: meta.preRequestScript ?? "",
-          postResponseScript: meta.postResponseScript ?? ""
+          postResponseScript: meta.postResponseScript ?? "",
+          response: null,
+          requestError: null
         };
         return { tabs: [...state.tabs, tab], activeTabId: tab.id };
       });
@@ -153,6 +168,15 @@ function createTabStore() {
         ...state,
         tabs: state.tabs.map((t) =>
           t.id === tabId ? { ...t, requestId, collectionName, label, isDirty: false } : t
+        )
+      }));
+    },
+
+    updateTabResponse(tabId: string, response: TabResponse | null, requestError: string | null) {
+      update((state) => ({
+        ...state,
+        tabs: state.tabs.map((t) =>
+          t.id === tabId ? { ...t, response, requestError } : t
         )
       }));
     },
