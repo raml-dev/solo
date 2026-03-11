@@ -5,7 +5,7 @@
   import Dropdown from "../base/Dropdown.svelte";
   import EmptyState from "../base/EmptyState.svelte";
   import { collectionStore } from "../../stores/collectionStore";
-  import { tabStore, activeTab as activeTabState } from "../../stores/tabStore";
+  import { tabStore, activeTab as activeTabState, type TabResponse } from "../../stores/tabStore";
   import { selectedEnvironment } from "../../stores/environmentStore";
   import Tabs from "../base/Tabs.svelte";
   import Tab from "../base/Tab.svelte";
@@ -30,13 +30,6 @@
     enabled: boolean;
   }
 
-  interface HTTPResponse {
-    status: number;
-    statusText: string;
-    time: number;
-    headers: Record<string, string>;
-    body: string;
-  }
 
   // --- Local form state ---
   let method = "GET";
@@ -54,7 +47,7 @@
 
   // UI state
   let requestPaneTab = "Body";
-  let response: HTTPResponse | null = null;
+  let response: TabResponse | null = null;
   let requestError: string | null = null;
   let loading = false;
   let responseTab = "body";
@@ -95,14 +88,15 @@
     requestName       = tab.label             || "";
     preRequestScript  = tab.preRequestScript  || "";
     postResponseScript= tab.postResponseScript|| "";
-    response          = null;
+    response          = tab.response ?? null;
+    requestError      = tab.requestError ?? null;
   }
 
   function resetForm() {
     activeBuilderTabId = null;
     method = "GET"; url = ""; requestBody = ""; requestBodyFormat = "json";
     headers = []; requestSettings = {}; requestName = "";
-    preRequestScript = ""; postResponseScript = ""; response = null;
+    preRequestScript = ""; postResponseScript = ""; response = null; requestError = null;
   }
 
   // --- Autosave to backend (debounced, called explicitly from handlers) ---
@@ -330,6 +324,9 @@
         time: responseData.duration, headers: responseData.headers,
         body: prettyPrint(rawBody, fmt)
       };
+      if (activeBuilderTabId) {
+        tabStore.updateTabResponse(activeBuilderTabId, response, null);
+      }
       historyStore.push({
         collectionName: $activeTabState?.collectionName ?? null,
         requestName: requestName || null,
@@ -340,6 +337,9 @@
     } catch (error) {
       response = null;
       requestError = String(error);
+      if (activeBuilderTabId) {
+        tabStore.updateTabResponse(activeBuilderTabId, null, requestError);
+      }
       historyStore.push({
         collectionName: $activeTabState?.collectionName ?? null,
         requestName: requestName || null,
