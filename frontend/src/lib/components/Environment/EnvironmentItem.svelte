@@ -1,120 +1,24 @@
 <script lang="ts">
-  import { environmentStore } from "../../stores/environmentStore";
-  import type { Environment, EnvironmentValue } from "../../stores/environmentStore";
-  import { environment } from "../../../../wailsjs/go/models";
   import { createEventDispatcher } from "svelte";
-  import { debounce } from "../../utils/debounce";
-  import { notifications } from "../../stores/notificationStore";
 
-  export let env: Environment;
+  export let env: { id: string; name: string };
   export let menuOpen: boolean;
-
-  let expanded = false;
-  type DraftRow = { id: number; key: string; value: string };
-  let draftValues: DraftRow[] = [];
-  let nextRowId = 0;
-
-  let saving = false;
-  let lastPersistedEnvironmentSignature: string | null = null;
-
-  $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
+  export let isActive: boolean = false;
+  export let isFocused: boolean = false;
 
   const dispatch = createEventDispatcher<{
     delete: string;
-    select: string;
+    open: string;
+    activate: string;
     toggleMenu: string;
   }>();
-  function toggleEnvironment() {
-    expanded = !expanded;
-    if (expanded && draftValues.length === 0) {
-      initDraft();
-    }
+
+  function openEnvironment() {
+    dispatch("open", env.name);
   }
 
-  function buildProcessedValuesAndSignature() {
-    const processedValues: Record<string, EnvironmentValue> = {};
-    for (const row of draftValues) {
-      const k = row.key.trim();
-      if (k) {
-        processedValues[k] = new environment.ValueType({
-          value: row.value,
-          type: "string"
-        });
-      }
-    }
-
-    const signature = JSON.stringify(
-      Object.keys(processedValues)
-        .sort()
-        .map((key) => [key, processedValues[key].value])
-    );
-
-    return { processedValues, signature };
-  }
-
-  function initDraft() {
-    const rows: DraftRow[] = Object.entries(env.values || {}).map(([k, v]) => ({
-      id: nextRowId++,
-      key: k,
-      value: v.value
-    }));
-    rows.push({ id: nextRowId++, key: "", value: "" });
-    draftValues = rows;
-
-    const { signature } = buildProcessedValuesAndSignature();
-    lastPersistedEnvironmentSignature = signature;
-  }
-
-  async function persistEnvironment() {
-    for (const row of draftValues) {
-      if (row.value.trim() && !row.key.trim()) {
-        notifications.warning("A variable has a value but no name. Please add a name or clear the value.");
-        return;
-      }
-    }
-    try {
-      const { processedValues, signature } = buildProcessedValuesAndSignature();
-      if (signature === lastPersistedEnvironmentSignature) return;
-
-      saving = true;
-      const envToSave = new environment.Environment({
-        ...env,
-        values: processedValues
-      });
-      await environmentStore.updateEnvironment(envToSave);
-      lastPersistedEnvironmentSignature = signature;
-    } catch (err) {
-      // error already shown by store
-    } finally {
-      saving = false;
-    }
-  }
-
-  const debouncedPersist = debounce(persistEnvironment, 600);
-
-  function handleUpdateRow(id: number, field: "key" | "value", val: string) {
-    const idx = draftValues.findIndex((r) => r.id === id);
-    if (idx === -1) return;
-    draftValues = draftValues.map((element) =>
-      element.id === id ? { ...element, [field]: val } : element
-    );
-
-    const isLast = idx === draftValues.length - 1;
-    if (isLast && val.trim()) {
-      draftValues = [...draftValues, { id: nextRowId++, key: "", value: "" }];
-    } else if (!isLast) {
-      const updated = draftValues[idx];
-      if (!updated.key.trim() && !updated.value.trim()) {
-        draftValues = draftValues.filter((_, i) => i !== idx);
-      }
-    }
-
-    debouncedPersist();
-  }
-
-  function selectEnvironment() {
-    // if this is already the selected environment, do nothing
-    if (selectedEnvironmentName !== env.name) dispatch("select", env.name);
+  function activateEnvironment() {
+    dispatch("activate", env.name);
   }
 
   function toggleMenu(e: Event) {
@@ -122,197 +26,102 @@
     dispatch("toggleMenu", env.name);
   }
 
-  function handleDeleteEnvironment() {
+  function handleDeleteEnvironment(e: Event) {
+    e.stopPropagation();
     dispatch("delete", env.name);
   }
 </script>
 
-<div
-  class="environment-item"
-  class:selected={selectedEnvironmentName === env.name}
-  class:menu-open={menuOpen}
->
-  <input
-    type="radio"
-    name="environment-items"
-    class="env-select"
-    checked={selectedEnvironmentName === env.name}
-    on:change|preventDefault={selectEnvironment}
-    title="Set as active environment"
-    aria-label="Set {env.name} as active environment"
-  />
-  <div class="environment-accordion">
-    <div
-      class="environment-header"
-      on:click={toggleEnvironment}
-      on:keypress={(e) => e.key === "Enter" && toggleEnvironment()}
-      role="button"
-      tabindex="0"
-    >
-      <button
-        class="expand-btn"
-        on:click|stopPropagation={toggleEnvironment}
-        aria-label="Toggle environment"
-      >
-        <span class="expand-icon" class:expanded> &gt; </span>
-      </button>
-
-      <div class="environment-info">
-        <span class="environment-name">{env.name}</span>
-        <span class="environment-count">
-          {Object.keys(env.values || {}).length}
-        </span>
-      </div>
-
-      <div class="environment-actions">
-        <button
-          class="icon-btn"
-          on:click={toggleMenu}
-          title="More actions"
-          aria-label="More actions"
-        >
-          ...
-        </button>
-      </div>
-
-      {#if menuOpen}
-        <div class="environment-menu">
-          <button class="menu-item danger" on:click={handleDeleteEnvironment}> Delete </button>
-        </div>
-      {/if}
-    </div>
-
-    {#if expanded}
-      <div class="values">
-        <div class="values-header">
-          <span>Variable</span>
-          <span>Value</span>
-          <span />
-        </div>
-
-        {#each draftValues as row (row.id)}
-          <div class="value-row">
-            <input
-              type="text"
-              value={row.key}
-              on:input={(e) => handleUpdateRow(row.id, "key", e.currentTarget.value)}
-              class="input-sm"
-              placeholder="Variable name"
-            />
-            <input
-              type="text"
-              value={row.value}
-              on:input={(e) => handleUpdateRow(row.id, "value", e.currentTarget.value)}
-              class="input-sm"
-              placeholder="Value"
-            />
-          </div>
-        {/each}
-
-        {#if saving}
-          <div class="values-footer">
-            <span class="saving-indicator">Saving…</span>
-          </div>
-        {/if}
-      </div>
-    {/if}
+<div class="environment-item" class:active={isActive} class:focused={isFocused}>
+  <div class="environment-info">
+    <input
+      class="active-radio"
+      type="radio"
+      name="active-environment"
+      checked={isActive}
+      on:change={activateEnvironment}
+      aria-label={`Set ${env.name} as active environment`}
+    />
+    <button class="environment-name-btn" on:click={openEnvironment}>{env.name}</button>
   </div>
+
+  <div class="environment-actions">
+    <button class="icon-btn" on:click={toggleMenu} title="More actions" aria-label="More actions">
+      ...
+    </button>
+  </div>
+
+  {#if menuOpen}
+    <div class="environment-menu">
+      <button class="menu-item danger" on:click={handleDeleteEnvironment}> Delete </button>
+    </div>
+  {/if}
 </div>
 
 <style>
   .environment-item {
     display: flex;
-    align-items: flex-start;
-    gap: var(--space-sm);
-  }
-
-  .environment-item.selected .environment-accordion {
-    border-color: var(--primary);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .environment-item.menu-open .environment-accordion {
-    border-color: var(--border-dark);
-  }
-
-  .environment-accordion {
-    flex: 1;
-    min-width: 0;
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    border: 1px solid transparent;
-    overflow: visible;
-  }
-
-  .environment-header {
-    display: flex;
     align-items: center;
     padding: var(--space-sm) var(--space-md);
-    cursor: pointer;
-    gap: var(--space-xs);
-    position: relative;
     border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    transition: background-color 0.15s;
+    position: relative;
   }
 
-  .environment-header:hover {
-    background: var(--bg-tertiary);
+  .environment-item:hover,
+  .environment-item.focused {
+    background-color: var(--bg-tertiary);
   }
 
-  .expand-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .environment-item.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
   }
 
-  .expand-icon {
-    display: inline-block;
-    transition: transform var(--transition-fast);
-  }
-
-  .expand-icon.expanded {
-    transform: rotate(90deg);
+  .environment-item.focused:not(.active) {
+    border-color: var(--border);
   }
 
   .environment-info {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: var(--space-xs);
-    flex: 1;
-    min-width: 0;
   }
 
-  .environment-name {
+  .active-radio {
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+
+  .environment-name-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    font: inherit;
     font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .environment-count {
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    background: var(--bg-tertiary);
-    padding: 0 var(--space-xs);
-    border-radius: var(--radius-sm);
-  }
 
   .environment-actions {
-    display: flex;
-    gap: var(--space-xs);
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--transition-fast);
+    transition: opacity 0.15s;
   }
 
-  .environment-header:hover .environment-actions,
-  .environment-item.menu-open .environment-actions {
+  .environment-item:hover .environment-actions,
+  .environment-item.focused .environment-actions,
+  .environment-item.active .environment-actions {
     opacity: 1;
     pointer-events: auto;
   }
@@ -328,50 +137,11 @@
     font-size: var(--font-size-sm);
     height: 24px;
   }
-
   .icon-btn:hover {
     background: var(--bg-tertiary);
     color: var(--text);
   }
-
-  .env-select {
-    margin-top: calc(var(--space-sm) + 2px);
-    flex-shrink: 0;
-    cursor: pointer;
-    accent-color: var(--primary);
-    width: 14px;
-    height: 14px;
-  }
-
-  input[type="radio"].env-select {
-    appearance: none;
-    -webkit-appearance: none;
-
-    width: 1em;
-    height: 1em;
-    border-radius: 3px; /* square = checkbox look */
-    background-color: white;
-    cursor: pointer;
-  }
-
-  input[type="radio"].env-select:checked {
-    background-color: var(--primary);
-    cursor: default;
-  }
-
-  input[type="radio"].env-select:checked::after {
-    content: "";
-    display: block;
-    position: relative;
-    left: 0.25em;
-    width: 0.3em;
-    height: 0.7em;
-    border: 2px solid white;
-    border-top: none;
-    border-left: none;
-    transform: rotate(45deg);
-  }
-
+  
   .environment-menu {
     position: absolute;
     right: var(--space-sm);
@@ -406,65 +176,5 @@
 
   .menu-item.danger:hover {
     background: var(--status-danger-bg);
-  }
-
-  .values {
-    background: var(--bg-secondary);
-    padding: 0 var(--space-sm) var(--space-sm) calc(var(--space-lg) + 8px);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .values-header {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: var(--space-sm);
-    padding: var(--space-sm);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .value-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: var(--space-sm);
-    padding: var(--space-xs) 0;
-    align-items: center;
-  }
-
-  .input-sm {
-    padding: var(--space-xs) var(--space-sm);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    color: var(--text);
-    font-size: var(--font-size-sm);
-    width: 100%;
-    margin-bottom: 0;
-  }
-
-  .input-sm:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
-
-  .input-sm:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .values-footer {
-    display: flex;
-    justify-content: flex-end;
-    padding-top: var(--space-xs);
-  }
-
-  .saving-indicator {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    font-style: italic;
   }
 </style>

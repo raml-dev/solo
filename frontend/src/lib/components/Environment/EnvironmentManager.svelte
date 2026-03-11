@@ -3,6 +3,7 @@
   import { notifications } from "../../stores/notificationStore";
   import Button from "../base/Button.svelte";
   import EnvironmentItem from "./EnvironmentItem.svelte";
+  import EnvironmentEditor from "./EnvironmentEditor.svelte";
   import EnvironmentModals from "./EnvironmentModals.svelte";
   import Modal from "../base/Modal.svelte";
   import Tabs from "../base/Tabs.svelte";
@@ -13,6 +14,7 @@
     ImportBrunoEnvironment,
     SelectFile
   } from "../../../../wailsjs/go/main/App";
+  import type { environment } from "../../../../wailsjs/go/models";
 
   let showNewEnvironmentDialog = false;
   let showDeleteConfirmDialog = false;
@@ -23,11 +25,37 @@
   let showOverwriteConfirmDialog = false;
   let pendingImport: { format: "postman" | "bruno"; path: string } | null = null;
   let overwriteTargetName: string | null = null;
+  let selectedEnvironment: environment.Environment | null = null;
+  let focusedEnvironmentName: string | null = null;
 
   $: environments = $environmentStore.environments;
+  $: {
+    const exists = focusedEnvironmentName && environments.some((e) => e.name === focusedEnvironmentName);
+    if (!exists) {
+      focusedEnvironmentName = $environmentStore.selectedEnvironmentName || environments[0]?.name || null;
+    }
+  }
+  $: selectedEnvironment = environments.find((env) => env.name === focusedEnvironmentName) || null;
 
-  function selectEnvironment(name: string) {
+  function openEnvironment(name: string) {
+    focusedEnvironmentName = name;
+  }
+
+  function activateEnvironment(name: string) {
     environmentStore.selectEnvironment(name);
+  }
+
+  async function handleUpdateEnvironment(event: CustomEvent<{ name: string; values: Record<string, environment.ValueType> }>) {
+    try {
+      const { name, values } = event.detail;
+      const env = environments.find((e) => e.name === name);
+      if (env) {
+        env.values = values;
+        await environmentStore.updateEnvironment(env);
+      }
+    } catch (err) {
+      notifications.error("Failed to update environment", String(err));
+    }
   }
 
   async function handleCreateEnvironment(event: CustomEvent<string>) {
@@ -59,6 +87,9 @@
 
     try {
       await environmentStore.deleteEnvironment(deleteTarget);
+      if (selectedEnvironment && selectedEnvironment.name === deleteTarget) {
+        selectedEnvironment = null;
+      }
       showDeleteConfirmDialog = false;
       deleteTarget = null;
     } catch (err) {
@@ -69,6 +100,10 @@
   function toggleMenu(event: CustomEvent<string>) {
     const environmentName = event.detail;
     activeMenu = activeMenu === environmentName ? null : environmentName;
+  }
+
+  function handleLayoutClick() {
+    activeMenu = null;
   }
 
   function openImportModal() {
@@ -141,42 +176,48 @@
   }
 </script>
 
-<div class="environment-list">
-  <div class="header">
-    <div class="header-title">
-      <h3>Environments</h3>
-      <div class="header-actions">
-        <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
-        <Button variant="primary" size="small" click={() => (showNewEnvironmentDialog = true)}>
-          New
-        </Button>
+<div class="environment-manager-layout" on:click={handleLayoutClick}>
+  <div class="environment-list">
+    <div class="header">
+      <div class="header-title">
+        <div class="header-actions">
+          <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
+          <Button variant="primary" size="small" click={() => (showNewEnvironmentDialog = true)}>
+            New
+          </Button>
+        </div>
       </div>
     </div>
+
+    {#if $environmentStore.loading}
+      <div class="loading">Loading environments...</div>
+    {/if}
+
+    <div class="environments">
+      {#each environments as environment (environment.id)}
+        <EnvironmentItem
+          env={environment}
+          menuOpen={activeMenu === environment.name}
+          isActive={environment.name === $environmentStore.selectedEnvironmentName}
+          isFocused={environment.name === focusedEnvironmentName}
+          on:open={(e) => openEnvironment(e.detail)}
+          on:activate={(e) => activateEnvironment(e.detail)}
+          on:delete={handleDeleteEnvironment}
+          on:toggleMenu={toggleMenu}
+        />
+      {/each}
+    </div>
+     {#if environments.length === 0 && !$environmentStore.loading}
+        <div class="empty-state">
+            <p>No environments yet</p>
+            <p class="hint">Create your first environment to get started</p>
+        </div>
+     {/if}
   </div>
-
-  {#if $environmentStore.loading}
-    <div class="loading">Loading environments...</div>
-  {/if}
-
-  <div class="environments">
-    {#each environments as environment (environment.id)}
-      <EnvironmentItem
-        env={environment}
-        menuOpen={activeMenu === environment.name}
-        on:select={(e) => selectEnvironment(e.detail)}
-        on:delete={handleDeleteEnvironment}
-        on:toggleMenu={toggleMenu}
-      />
-    {/each}
+  <div class="environment-editor-pane">
+    <EnvironmentEditor env={selectedEnvironment} on:update={handleUpdateEnvironment} />
   </div>
 </div>
-
-{#if environments.length === 0 && !$environmentStore.loading}
-  <div class="empty-state">
-    <p>No environments yet</p>
-    <p class="hint">Create your first environment to get started</p>
-  </div>
-{/if}
 
 <EnvironmentModals
   bind:showNewEnvironmentDialog
@@ -263,15 +304,38 @@
 {/if}
 
 <style>
+  .environment-manager-layout {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+  }
+
   .environment-list {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    flex: 1;
     overflow: hidden;
-    padding: var(--space-md);
-    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    padding: var(--space-lg) var(--space-sm);
     gap: var(--space-sm);
   }
+
+  .environment-editor-pane {
+    flex-grow: 1;
+    overflow: auto;
+    background: var(--bg-primary);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  }
+
+  .header {
+    padding: 0 var(--space-sm);
+  }
+
   .header-title {
     display: flex;
     justify-content: space-between;
@@ -282,51 +346,21 @@
     display: flex;
     gap: var(--space-xs);
     align-items: center;
+    width: 100%;
+  }
+
+  .header-actions :global(button) {
+    flex: 1;
   }
 
   .import-modal-body {
     margin: calc(-1 * var(--space-lg));
   }
 
-  .header h3 {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-  }
-
   .loading {
     padding: var(--space-md);
     text-align: center;
     color: var(--text-muted);
-  }
-
-  .error {
-    margin: var(--space-md);
-    padding: var(--space-sm);
-    background: var(--status-danger-bg);
-    color: var(--status-danger-text);
-    border-radius: var(--radius-md);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: var(--font-size-sm);
-  }
-
-  .error button {
-    background: none;
-    border: none;
-    color: inherit;
-    font-size: var(--font-size-lg);
-    cursor: pointer;
-    padding: 0 var(--space-xs);
-  }
-
-  .success {
-    margin: var(--space-md);
-    padding: var(--space-sm);
-    background: var(--status-success-bg);
-    color: var(--status-success-text);
-    border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
   }
 
@@ -335,13 +369,14 @@
     font-size: var(--font-size-sm);
     margin-bottom: var(--space-md);
   }
+
   .environments {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-sm);
     display: flex;
     flex-direction: column;
     gap: var(--space-xs);
+    padding: var(--space-xs);
   }
 
   .empty-state {

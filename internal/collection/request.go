@@ -20,6 +20,8 @@ type Request struct {
 	Headers             map[string]string                      `json:"headers"`
 	Cookies             map[string]string                      `json:"cookies"`
 	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
+	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
+	PostResponseScript  string                                 `json:"postResponseScript,omitempty"`
 	CreationTimestamp   time.Time                              `json:"creationTimestamp"`
 	LastUpdateTimestamp time.Time                              `json:"lastUpdateTimestamp"`
 }

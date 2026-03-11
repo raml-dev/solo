@@ -11,27 +11,32 @@ import (
 	"time"
 	"yapla/internal/configuration"
 	"yapla/internal/host"
+	"yapla/internal/script"
 )
 
 // ExecutionOptions encapsulates all parameters required to execute a request
 type ExecutionOptions struct {
-	Method   string
-	URL      string
-	Body     string
-	Headers  map[string]any
-	Cookies  map[string]any
-	Settings *configuration.RequestSettingsOverride
+	Method              string
+	URL                 string
+	Body                string
+	Headers             map[string]any
+	Cookies             map[string]any
+	Settings            *configuration.RequestSettingsOverride
+	PreRequestScript    string
+	PostResponseScript  string
 }
 
 type Service struct {
 	hostManager   *host.HostManager
 	configManager *configuration.ConfigurationManager
+	scriptManager *script.ScriptManager
 }
 
-func NewService(cm *configuration.ConfigurationManager) *Service {
+func NewService(cm *configuration.ConfigurationManager, sm *script.ScriptManager) *Service {
 	return &Service{
 		hostManager:   host.NewHostManager(),
 		configManager: cm,
+		scriptManager: sm,
 	}
 }
 
@@ -169,6 +174,15 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
 
 	}
 
+	// Execute pre-request script (may mutate method, url, headers, body)
+	if s.scriptManager != nil && opts.PreRequestScript != "" {
+		if err := s.scriptManager.ExecutePreRequest(opts.PreRequestScript, request); err != nil {
+			slog.Warn("Pre-request script error", "error", err)
+			return nil, fmt.Errorf("pre-request script error: %w", err)
+		}
+		slog.Debug("Pre-request script executed successfully")
+	}
+
 	response, err := client.Do(request)
 
 	if err != nil {
@@ -213,6 +227,16 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 	respHeaders := make(map[string]string, len(resp.Header))
 	for k, v := range resp.Header {
 		respHeaders[k] = v[0]
+	}
+
+	// Execute post-response script (read-only on request/response, can write session vars)
+	if s.scriptManager != nil && opts.PostResponseScript != "" {
+		if err := s.scriptManager.ExecutePostResponse(opts.PostResponseScript, resp.Request, resp, string(bodyBytes), duration); err != nil {
+			slog.Warn("Post-response script error", "error", err)
+			// Non-fatal: log the error but return the response anyway
+		} else {
+			slog.Debug("Post-response script executed successfully")
+		}
 	}
 
 	slog.Info("HTTP request completed",

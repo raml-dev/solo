@@ -10,6 +10,7 @@ import (
 	"yapla/internal/host"
 	"yapla/internal/importer"
 	"yapla/internal/requester"
+	"yapla/internal/script"
 	"yapla/internal/theme"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -23,32 +24,36 @@ type App struct {
 	environmentManager *environment.EnvironmentManager
 	configManager      *configuration.ConfigurationManager
 	hostManager        *host.HostManager
+	scriptManager      *script.ScriptManager
 }
 
 type RequestOptions struct {
-	Method   string                                 `json:"method"`
-	URL      string                                 `json:"url"`
-	Headers  map[string]any                         `json:"headers"`
-	Body     string                                 `json:"body"`
-	Settings *configuration.RequestSettingsOverride `json:"settings,omitempty"`
+	Method              string                                 `json:"method"`
+	URL                 string                                 `json:"url"`
+	Headers             map[string]any                         `json:"headers"`
+	Body                string                                 `json:"body"`
+	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
+	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
+	PostResponseScript  string                                 `json:"postResponseScript,omitempty"`
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	// Initialize Configuration Manager which now handles themes as well
 	cm, err := configuration.NewConfigurationManager()
 	if err != nil {
 		slog.Warn("FATAL: Failed to initialize configuration manager", "error", err)
-		// In the new design, config manager is critical. We could panic here.
-		// For now, we'll let it proceed, but operations will fail.
 	}
 
+	// ScriptManager is created without context here; context is set in startup()
+	sm := script.NewScriptManager(nil)
+
 	return &App{
-		service:            requester.NewService(cm),
+		service:            requester.NewService(cm, sm),
 		collectionManager:  collection.NewCollectionManager(),
 		environmentManager: environment.NewEnvironmentManager(),
 		configManager:      cm,
 		hostManager:        host.NewHostManager(),
+		scriptManager:      sm,
 	}
 }
 
@@ -56,22 +61,48 @@ func NewApp() *App {
 // so we can call the runtime methods.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	slog.Info("Application starting")
-	// Theme manager is no longer needed, ConfigurationManager handles it.
+	// Inject the real Wails context into ScriptManager so env.set() can emit events
+	if a.scriptManager != nil {
+		a.scriptManager.SetContext(ctx)
+	}
 	slog.Info("Application started")
 }
 
 // Execute performs the HTTP request with the given options.
 func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 	execOpts := requester.ExecutionOptions{
-		Method:   options.Method,
-		URL:      options.URL,
-		Body:     options.Body,
-		Headers:  options.Headers,
-		Cookies:  nil, // TODO: Add cookies to RequestOptions from frontend if needed
-		Settings: options.Settings,
+		Method:             options.Method,
+		URL:                options.URL,
+		Body:               options.Body,
+		Headers:            options.Headers,
+		Cookies:            nil,
+		Settings:           options.Settings,
+		PreRequestScript:   options.PreRequestScript,
+		PostResponseScript: options.PostResponseScript,
 	}
 	return a.service.ExecuteRequest(execOpts)
+}
+
+// GetSessionVars returns the current in-memory session variables set by scripts.
+func (a *App) GetSessionVars() map[string]string {
+	if a.scriptManager == nil {
+		return map[string]string{}
+	}
+	return a.scriptManager.GetSessionVars()
+}
+
+// RemoveSessionVar removes a single session variable set by scripts.
+func (a *App) RemoveSessionVar(key string) {
+	if a.scriptManager != nil {
+		a.scriptManager.RemoveSessionVar(key)
+	}
+}
+
+// ClearSessionVars clears all session variables set by scripts.
+func (a *App) ClearSessionVars() {
+	if a.scriptManager != nil {
+		a.scriptManager.ClearSessionVars()
+	}
 }
 
 // Theme Management Methods (now routed to ConfigManager)

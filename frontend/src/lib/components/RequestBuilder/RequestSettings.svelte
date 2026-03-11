@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { createEventDispatcher } from "svelte";
   import type { configuration as conf } from "../../../../wailsjs/go/models";
 
-  // Props passed from the parent (HTTPRequestBuilder)
   export let requestSettings: conf.RequestSettingsOverride;
   export let globalConfig: conf.Configuration;
+
+  const dispatch = createEventDispatcher();
+  function onChange() { dispatch("change"); }
 </script>
 
 <div class="settings-form-container">
@@ -15,7 +18,7 @@
       min="0"
       step="1"
       placeholder={`Global: ${globalConfig.request.timeoutSeconds || "30"}`}
-      bind:value={requestSettings.timeoutSeconds}
+      bind:value={requestSettings.timeoutSeconds} on:input={onChange}
     />
   </div>
   <div class="form-group">
@@ -24,12 +27,12 @@
       id="user-agent"
       type="text"
       placeholder={`Global: ${globalConfig.request.defaultUserAgent || "Yapla/1.0"}`}
-      bind:value={requestSettings.defaultUserAgent}
+      bind:value={requestSettings.defaultUserAgent} on:input={onChange}
     />
   </div>
   <div class="form-group-row">
     <label class="checkbox-group">
-      <input type="checkbox" bind:checked={requestSettings.followRedirects} />
+      <input type="checkbox" bind:checked={requestSettings.followRedirects} on:change={onChange} />
       Follow Redirects
     </label>
     <div class="form-group">
@@ -40,14 +43,14 @@
         min="0"
         step="1"
         placeholder={`Global: ${globalConfig.request.maxRedirects || "10"}`}
-        bind:value={requestSettings.maxRedirects}
+        bind:value={requestSettings.maxRedirects} on:input={onChange}
         disabled={!requestSettings.followRedirects}
       />
     </div>
   </div>
   <div class="form-group">
     <label class="checkbox-group">
-      <input type="checkbox" bind:checked={requestSettings.validateSSL} />
+      <input type="checkbox" bind:checked={requestSettings.validateSSL} on:change={onChange} />
       Validate SSL Certificates
     </label>
   </div>
@@ -57,7 +60,7 @@
       id="proxy"
       type="text"
       placeholder={`Global: ${globalConfig.request.proxyUrl || "Use system settings"}`}
-      bind:value={requestSettings.proxyUrl}
+      bind:value={requestSettings.proxyUrl} on:input={onChange}
     />
   </div>
 </div>

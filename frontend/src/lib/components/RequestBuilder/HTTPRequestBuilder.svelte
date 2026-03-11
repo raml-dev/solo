@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Execute } from "../../../../wailsjs/go/main/App";
+  import { Execute, GetSessionVars } from "../../../../wailsjs/go/main/App";
   import { collection, main } from "../../../../wailsjs/go/models";
   import Button from "../base/Button.svelte";
   import Dropdown from "../base/Dropdown.svelte";
@@ -11,6 +11,7 @@
   import Tab from "../base/Tab.svelte";
   import RequestHeaders from "./RequestHeaders.svelte";
   import RequestBody from "./RequestBody.svelte";
+  import RequestScripts from "./RequestScripts.svelte";
   import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
   import RequestSettings from "./RequestSettings.svelte";
   import TokenInput from "./TokenInput.svelte";
@@ -20,6 +21,7 @@
   import type { InputFormat } from "./types";
   import SaveRequestModal from "../SaveRequestModal.svelte";
   import { historyStore } from "../../stores/historyStore";
+  import { sessionVarsStore } from "../../stores/sessionVarsStore";
 
   interface Header {
     id: string;
@@ -36,7 +38,7 @@
     body: string;
   }
 
-  // --- Per-tab local form state (mirrors the active tab's stored state) ---
+  // --- Local form state ---
   let method = "GET";
   let url = "";
   let requestBody = "";
@@ -44,13 +46,14 @@
   let headers: Header[] = [];
   let requestSettings: conf.RequestSettingsOverride = {};
   let requestName = "";
+  let preRequestScript = "";
+  let postResponseScript = "";
 
-  // Internal tab tracking
+  // Tracks which tab is currently loaded — prevents re-loading same tab
   let activeBuilderTabId: string | null = null;
-  let isLoadingTab = false;
 
-  // UI state (not per-tab, stays across switches)
-  let requestPaneTab = "Body"; // Headers, Body, Settings
+  // UI state
+  let requestPaneTab = "Body";
   let response: HTTPResponse | null = null;
   let requestError: string | null = null;
   let loading = false;
@@ -68,88 +71,102 @@
     value: String(val?.value ?? "")
   }));
 
-  // --- Autosync: When the request body format changes, update Content-Type header ---
+  // --- Tab switching: ONE-WAY, store → form only ---
+  // Only fires when a different tab becomes active
   $: {
-    const contentTypeHeader = headers.find((h) => h.key.toLowerCase() === "content-type");
-    if (contentTypeHeader) {
-      switch (requestBodyFormat) {
-        case "json":  contentTypeHeader.value = "application/json"; break;
-        case "xml":   contentTypeHeader.value = "application/xml";  break;
-        case "text":  contentTypeHeader.value = "text/plain";       break;
-        case "none":  contentTypeHeader.value = "";                 break;
+    const nextTabId = $activeTabState?.id ?? null;
+    if (nextTabId !== activeBuilderTabId) {
+      if ($activeTabState) {
+        loadTabIntoForm($activeTabState);
+      } else {
+        resetForm();
       }
-      headers = [...headers];
     }
   }
 
-  // --- Tab switching: load form state from tab store ---
-  $: if ($activeTabState?.id && $activeTabState.id !== activeBuilderTabId) {
-    loadTabIntoForm($activeTabState);
-    activeBuilderTabId = $activeTabState.id;
-  }
-
-  $: if (!$activeTabState && activeBuilderTabId) {
-    // No tab open: reset form
-    activeBuilderTabId = null;
-    method = "GET";
-    url = "";
-    requestBody = "";
-    requestBodyFormat = "json";
-    headers = [];
-    requestSettings = {};
-    requestName = "";
-    response = null;
-  }
-
-  function loadTabIntoForm(tab: typeof $activeTabState) {
-    if (!tab) return;
-    isLoadingTab = true;
-    method = tab.verb || "GET";
-    url = tab.url || "";
-    requestBody = tab.body || "";
+  function loadTabIntoForm(tab: NonNullable<typeof $activeTabState>) {
+    activeBuilderTabId = tab.id;
+    method            = tab.verb              || "GET";
+    url               = tab.url               || "";
+    requestBody       = tab.body              || "";
     requestBodyFormat = (tab.bodyFormat as InputFormat) || "none";
-    headers = tab.headers ? [...tab.headers] : [];
-    requestSettings = { ...(tab.settings || {}) };
-    requestName = tab.label || "";
-    response = null; // clear response on tab switch
-    setTimeout(() => { isLoadingTab = false; }, 0);
+    headers           = tab.headers           ? [...tab.headers] : [];
+    requestSettings   = { ...(tab.settings   || {}) };
+    requestName       = tab.label             || "";
+    preRequestScript  = tab.preRequestScript  || "";
+    postResponseScript= tab.postResponseScript|| "";
+    response          = null;
   }
 
-  // --- Persist form state back to tab store on every change ---
-  $: if (!isLoadingTab && activeBuilderTabId && (url !== undefined || method || requestBody !== undefined || headers || requestSettings)) {
-    tabStore.updateTabFormState(activeBuilderTabId, {
-      verb: method,
-      url,
-      body: requestBody,
-      bodyFormat: requestBodyFormat,
-      headers,
-      settings: requestSettings
-    });
+  function resetForm() {
+    activeBuilderTabId = null;
+    method = "GET"; url = ""; requestBody = ""; requestBodyFormat = "json";
+    headers = []; requestSettings = {}; requestName = "";
+    preRequestScript = ""; postResponseScript = ""; response = null;
   }
 
-  // --- Autosave to backend for saved requests ---
-  const lastPersistedSignatureByTabId: Record<string, string> = {};
+  // --- Autosave to backend (debounced, called explicitly from handlers) ---
+  const lastSigByTabId: Record<string, string> = {};
   const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  function normalizeSettingsSignature(settings: conf.RequestSettingsOverride = {}) {
-    return {
-      timeoutSeconds: settings.timeoutSeconds ?? null,
-      defaultUserAgent: settings.defaultUserAgent ?? null,
-      proxyUrl: settings.proxyUrl ?? null,
-      followRedirects: settings.followRedirects ?? null,
-      validateSSL: settings.validateSSL ?? null,
-      maxRedirects: settings.maxRedirects ?? null
+  function scheduleAutosave() {
+    const tabId = activeBuilderTabId;
+    if (!tabId) return;
+    const tab = $activeTabState;
+    if (!tab?.requestId || !tab.collectionName) return;
+
+    const headersObj = headers
+      .filter((h) => h.enabled && h.key)
+      .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
+
+    const sig = JSON.stringify({
+      id: tab.requestId, name: requestName, url, verb: method,
+      body: requestBody, headers: headersObj,
+      settings: requestSettings, preRequestScript, postResponseScript
+    });
+
+    if (sig === lastSigByTabId[tabId]) return;
+
+    const existing = persistTimers.get(tabId);
+    if (existing) clearTimeout(existing);
+
+    const snap = {
+      collectionName: tab.collectionName, requestId: tab.requestId,
+      name: requestName || tab.label, url, verb: method, body: requestBody,
+      headersObj, settings: { ...requestSettings },
+      preRequestScript, postResponseScript, sig
     };
+
+    persistTimers.set(tabId, setTimeout(async () => {
+      persistTimers.delete(tabId);
+      await doPersist(tabId, snap);
+    }, 800));
   }
 
-  function buildSignature(payload: {
-    id: string; name: string; url: string; verb: string;
-    body: string; headers: Record<string, string>; settings: conf.RequestSettingsOverride;
+  async function doPersist(tabId: string, snap: {
+    collectionName: string; requestId: string; name: string;
+    url: string; verb: string; body: string;
+    headersObj: Record<string, string>; settings: conf.RequestSettingsOverride;
+    preRequestScript: string; postResponseScript: string; sig: string;
   }) {
-    return JSON.stringify({
-      ...payload,
-      settings: normalizeSettingsSignature(payload.settings)
-    });
+    if (snap.sig === lastSigByTabId[tabId]) return;
+    const stored = findRequestInStore(snap.requestId);
+    if (!stored) return;
+    try {
+      await collectionStore.updateRequest(
+        snap.collectionName,
+        collection.Request.createFrom({
+          ...stored,
+          name: snap.name, url: snap.url, verb: snap.verb, body: snap.body,
+          headers: snap.headersObj, settings: snap.settings,
+          preRequestScript: snap.preRequestScript,
+          postResponseScript: snap.postResponseScript,
+          lastUpdateTimestamp: new Date().toISOString()
+        })
+      );
+      lastSigByTabId[tabId] = snap.sig;
+      tabStore.markDirty(tabId, false);
+    } catch { /* silent */ }
   }
 
   function findRequestInStore(requestId: string): collection.Request | null {
@@ -160,76 +177,34 @@
     return null;
   }
 
-  $: if (!isLoadingTab && $activeTabState?.requestId && $activeTabState.collectionName) {
-    const tab = $activeTabState;
-    const headersObj = headers
-      .filter((h) => h.enabled && h.key)
-      .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
-
-    const sig = buildSignature({
-      id: tab.requestId!,
-      name: requestName || tab.label,
-      url, verb: method, body: requestBody,
-      headers: headersObj,
-      settings: requestSettings
+  // --- Field change handlers (called from template on user interaction) ---
+  function onFieldChange() {
+    // Sync in-memory tab state + schedule backend save
+    if (!activeBuilderTabId) return;
+    tabStore.updateTabFormState(activeBuilderTabId, {
+      verb: method, url, body: requestBody, bodyFormat: requestBodyFormat,
+      headers, settings: requestSettings, preRequestScript, postResponseScript
     });
-
-    const tabId = tab.id;
-    const collName = tab.collectionName;
-    const reqId = tab.requestId!;
-
-    const pending = persistTimers.get(tabId);
-    if (pending) clearTimeout(pending);
-
-    const snapshot = {
-      collectionName: collName,
-      requestId: reqId,
-      name: requestName || tab.label,
-      url, verb: method, body: requestBody,
-      headersObj, settings: { ...requestSettings },
-      signature: sig
-    };
-
-    const timer = setTimeout(async () => {
-      persistTimers.delete(tabId);
-      await persistRequest(tabId, snapshot);
-    }, 800);
-    persistTimers.set(tabId, timer);
+    scheduleAutosave();
   }
 
-  async function persistRequest(tabId: string, snapshot: {
-    collectionName: string;
-    requestId: string;
-    name: string; url: string; verb: string; body: string;
-    headersObj: Record<string, string>;
-    settings: conf.RequestSettingsOverride;
-    signature: string;
-  }) {
-    const last = lastPersistedSignatureByTabId[tabId];
-    if (snapshot.signature === last) return;
+  function handleMethodChange(value: string) {
+    method = value;
+    onFieldChange();
+  }
 
-    const stored = findRequestInStore(snapshot.requestId);
-    if (!stored) return;
-
-    try {
-      await collectionStore.updateRequest(
-        snapshot.collectionName,
-        collection.Request.createFrom({
-          ...stored,
-          name: snapshot.name,
-          url: snapshot.url,
-          verb: snapshot.verb,
-          body: snapshot.body,
-          headers: snapshot.headersObj,
-          settings: snapshot.settings,
-          lastUpdateTimestamp: new Date().toISOString()
-        })
-      );
-      lastPersistedSignatureByTabId[tabId] = snapshot.signature;
-      tabStore.markDirty(tabId, false);
-    } catch (err) {
-      // autosave failure is silent — store already notifies
+  function handleBodyFormatChange(value: string) {
+    requestBodyFormat = value as InputFormat;
+    // Also update Content-Type header
+    const ct = headers.find((h) => h.key.toLowerCase() === "content-type");
+    if (ct) {
+      ct.value = value === "json" ? "application/json"
+               : value === "xml"  ? "application/xml"
+               : value === "text" ? "text/plain"
+               : "";
+      headers = [...headers];
     }
+    onFieldChange();
   }
 
   // --- Resize ---
@@ -239,14 +214,11 @@
     window.addEventListener("mouseup", stopResize);
     document.body.style.userSelect = "none";
   }
-
   function handleResize(e: MouseEvent) {
     if (!isResizing || !builderElement) return;
     const rect = builderElement.getBoundingClientRect();
-    const newHeight = rect.bottom - e.clientY;
-    responseHeight = Math.max(40, Math.min(newHeight, rect.height - 150));
+    responseHeight = Math.max(40, Math.min(rect.bottom - e.clientY, rect.height - 150));
   }
-
   function stopResize() {
     isResizing = false;
     window.removeEventListener("mousemove", handleResize);
@@ -254,81 +226,49 @@
     document.body.style.userSelect = "";
   }
 
-  // --- Methods ---
+  // --- Methods / Body format options ---
   const methodOptions = [
-    { value: "GET", label: "GET" },
-    { value: "POST", label: "POST" },
-    { value: "PUT", label: "PUT" },
-    { value: "DELETE", label: "DELETE" },
-    { value: "PATCH", label: "PATCH" },
-    { value: "HEAD", label: "HEAD" },
+    { value: "GET", label: "GET" }, { value: "POST", label: "POST" },
+    { value: "PUT", label: "PUT" }, { value: "DELETE", label: "DELETE" },
+    { value: "PATCH", label: "PATCH" }, { value: "HEAD", label: "HEAD" },
     { value: "OPTIONS", label: "OPTIONS" }
   ];
-
   const bodyFormatOptions = [
-    { value: "none", label: "None" },
-    { value: "json", label: "JSON" },
-    { value: "xml",  label: "XML"  },
-    { value: "text", label: "Text" }
+    { value: "none", label: "None" }, { value: "json", label: "JSON" },
+    { value: "xml",  label: "XML"  }, { value: "text", label: "Text" }
   ];
 
-  function handleMethodChange(value: string) {
-    method = value;
-    if (activeBuilderTabId) {
-      tabStore.updateTabFormState(activeBuilderTabId, { verb: value });
-    }
-  }
-
-  function handleBodyFormatChange(value: string) {
-    requestBodyFormat = value as InputFormat;
-    if (activeBuilderTabId) {
-      tabStore.updateTabFormState(activeBuilderTabId, { bodyFormat: value });
-    }
-  }
-
+  // --- Beautify ---
   function formatBody() {
     if (!requestBody?.trim()) return;
-
     if (requestBodyFormat === "json") {
-      try {
-        const parsed = JSON.parse(requestBody);
-        requestBody = JSON.stringify(parsed, null, 2);
-      } catch {
-        // invalid JSON — do nothing
-      }
+      try { requestBody = JSON.stringify(JSON.parse(requestBody), null, 2); } catch {}
     } else if (requestBodyFormat === "xml") {
       requestBody = prettifyXml(requestBody);
     }
-    // text: nothing to format
+    onFieldChange();
   }
 
-  function prettifyXml(xml: string): string {
+  function prettifyXml(xmlStr: string): string {
     const INDENT = "  ";
-    let formatted = "";
-    let depth = 0;
-    // split on tags
-    const parts = xml.replace(/>\s*</g, "><").split(/(<[^>]+>)/);
+    let formatted = "", depth = 0;
+    const parts = xmlStr.replace(/>\s*</g, "><").split(/(<[^>]+>)/);
     for (const part of parts) {
       if (!part.trim()) continue;
       if (part.startsWith("</")) {
-        // closing tag — dedent first
         depth = Math.max(0, depth - 1);
         formatted += INDENT.repeat(depth) + part + "\n";
       } else if (part.startsWith("<?") || part.startsWith("<!")) {
-        // declaration / comment — same level
         formatted += INDENT.repeat(depth) + part + "\n";
-      } else if (part.startsWith("<") && !part.endsWith("/>")) {
-        // opening tag
+      } else if (part.startsWith("<") && part.endsWith("/>")) {
+        formatted += INDENT.repeat(depth) + part + "\n";
+      } else if (part.startsWith("<")) {
         formatted += INDENT.repeat(depth) + part + "\n";
         depth++;
-      } else if (part.startsWith("<") && part.endsWith("/>")) {
-        // self-closing tag
-        formatted += INDENT.repeat(depth) + part + "\n";
       } else {
-        // text content — attach to previous line if possible
         const lines = formatted.trimEnd().split("\n");
         const last = lines[lines.length - 1];
-        if (last && last.trimEnd().endsWith(">")) {
+        if (last?.trimEnd().endsWith(">")) {
           lines[lines.length - 1] = last + part;
           formatted = lines.join("\n") + "\n";
         } else {
@@ -339,57 +279,63 @@
     return formatted.trim();
   }
 
-  function resolveEnvironmentTokens(value: string): string {
+  // --- Environment token resolution ---
+  function resolveEnvironmentTokens(value: string, sessionVars: Record<string, string> = {}): string {
     if (!value) return value;
+
     const envMap = new Map(environmentEntries.map((e) => [e.key, e.value]));
+    const sessionMap = new Map(Object.entries(sessionVars || {}));
+
     return value.replace(/\{\{([^{}\r\n]+?)\}\}/g, (_full, key: string) => {
       const k = key.trim();
-      return envMap.has(k) ? envMap.get(k)! : _full;
+      if (sessionMap.has(k)) return String(sessionMap.get(k) ?? "");
+      if (envMap.has(k)) return String(envMap.get(k) ?? "");
+      return _full;
     });
   }
 
+  // --- Send request ---
   async function sendRequest() {
-    if (!$activeTabState?.requestId) {
-      showSaveDialog = true;
-      return;
-    }
+    if (!$activeTabState?.requestId) { showSaveDialog = true; return; }
     loading = true;
-    const resolvedUrl = resolveEnvironmentTokens(url);
-    const resolvedBody = resolveEnvironmentTokens(requestBody);
+
+    // Keep token resolution aligned with backend env.get precedence:
+    // session vars first, then selected environment.
+    const sessionVars = await GetSessionVars().catch(() => ({} as Record<string, string>));
+
+    const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
+    const resolvedBody = resolveEnvironmentTokens(requestBody, sessionVars);
     const resolvedHeaders = headers
       .filter((h) => h.enabled)
       .reduce((acc, { key, value }) => ({
         ...acc,
-        [resolveEnvironmentTokens(key)]: resolveEnvironmentTokens(value)
-      }), {});
+        [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
+      }), {} as Record<string, string>);
 
     const requestOptions = new main.RequestOptions({
-      body: resolvedBody,
-      headers: resolvedHeaders,
-      method,
-      url: resolvedUrl,
-      settings: requestSettings
+      body: resolvedBody, headers: resolvedHeaders, method, url: resolvedUrl,
+      settings: requestSettings,
+      preRequestScript: preRequestScript || "",
+      postResponseScript: postResponseScript || ""
     });
 
     try {
       const responseData = await Execute(requestOptions);
       requestError = null;
+      sessionVarsStore.refresh();
       const rawBody = responseData.body ?? "";
       const fmt = detectResponseFormat(responseData.headers ?? {});
-      const prettyBody = prettyPrint(rawBody, fmt);
       response = {
-        status: responseData.statusCode,
-        statusText: "TBD",
-        time: responseData.duration,
-        headers: responseData.headers,
-        body: prettyBody
+        status: responseData.statusCode, statusText: "TBD",
+        time: responseData.duration, headers: responseData.headers,
+        body: prettyPrint(rawBody, fmt)
       };
       historyStore.push({
         collectionName: $activeTabState?.collectionName ?? null,
         requestName: requestName || null,
         request: { method, url: resolvedUrl, headers: resolvedHeaders, body: resolvedBody },
         response: { status: responseData.statusCode, time: responseData.duration, headers: responseData.headers, body: rawBody },
-        error: null,
+        error: null
       });
     } catch (error) {
       response = null;
@@ -398,8 +344,7 @@
         collectionName: $activeTabState?.collectionName ?? null,
         requestName: requestName || null,
         request: { method, url: resolvedUrl, headers: resolvedHeaders, body: resolvedBody },
-        response: null,
-        error: requestError,
+        response: null, error: requestError
       });
     } finally {
       loading = false;
@@ -408,18 +353,13 @@
 
   function prettyPrint(body: string, fmt: "json" | "xml" | "text"): string {
     if (!body?.trim()) return body;
-    if (fmt === "json") {
-      try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; }
-    }
-    if (fmt === "xml") {
-      return prettifyXml(body);
-    }
+    if (fmt === "json") { try { return JSON.stringify(JSON.parse(body), null, 2); } catch {} }
+    if (fmt === "xml") return prettifyXml(body);
     return body;
   }
 
-  function detectResponseFormat(headers: Record<string, string>): "json" | "xml" | "text" {
-    const ct = Object.entries(headers ?? {})
-      .find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "";
+  function detectResponseFormat(hdrs: Record<string, string>): "json" | "xml" | "text" {
+    const ct = Object.entries(hdrs ?? {}).find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "";
     if (ct.includes("json")) return "json";
     if (ct.includes("xml") || ct.includes("html")) return "xml";
     return "text";
@@ -430,25 +370,17 @@
   async function handleSaveRequest(event: CustomEvent<{ name: string; collection: string }>) {
     const { name, collection: targetCollection } = event.detail;
     if (!targetCollection || !activeBuilderTabId) return;
-
     try {
       const headersObj = headers
         .filter((h) => h.enabled && h.key)
-        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
-
+        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
       await collectionStore.addRequest(targetCollection, {
-        name: name || "Untitled Request",
-        url, verb: method, body: requestBody,
+        name: name || "Untitled Request", url, verb: method, body: requestBody,
         headers: headersObj, settings: requestSettings
       });
-
-      // The new request is now the selected one in collectionStore
-      // CollectionList.openTab will fire; bind this tab to it
       showSaveDialog = false;
       await sendRequest();
-    } catch (err) {
-      // error already shown by store
-    }
+    } catch { /* shown by store */ }
   }
 
   function getStatusClass(status: number): string {
@@ -474,6 +406,7 @@
           placeholder="Enter request URL"
           {environmentEntries}
           wrapperClass="url-bar-input"
+          on:change={onFieldChange}
         />
         <div class="url-bar-divider" />
         <Button
@@ -490,6 +423,7 @@
       <Tabs bind:activeValue={requestPaneTab} variant="minimal">
         <Tab title="Headers" value="Headers" />
         <Tab title="Body" value="Body" />
+        <Tab title="Scripts" value="Scripts" badge={preRequestScript.trim() || postResponseScript.trim() ? "●" : undefined} />
         <Tab title="Settings" value="Settings" />
       </Tabs>
 
@@ -522,19 +456,28 @@
     <div class="request-content-body">
       {#if requestPaneTab === 'Headers'}
         {#key $activeTabState.id}
-          <RequestHeaders {headers} />
+          <RequestHeaders {headers} on:change={onFieldChange} />
         {/key}
       {:else if requestPaneTab === 'Body'}
         {#key $activeTabState.id}
           {#if requestBodyFormat === 'none'}
             <EmptyState message="This request does not have a body" />
           {:else}
-            <RequestBody bind:requestBody bind:format={requestBodyFormat} />
+            <RequestBody bind:requestBody bind:format={requestBodyFormat} on:change={onFieldChange} />
           {/if}
+        {/key}
+      {:else if requestPaneTab === 'Scripts'}
+        {#key $activeTabState.id}
+          <RequestScripts
+            bind:preRequestScript
+            bind:postResponseScript
+            onPreChange={(val) => { preRequestScript = val; onFieldChange(); }}
+            onPostChange={(val) => { postResponseScript = val; onFieldChange(); }}
+          />
         {/key}
       {:else if requestPaneTab === 'Settings'}
         {#key $activeTabState.id}
-          <RequestSettings bind:requestSettings globalConfig={$globalConfig} />
+          <RequestSettings bind:requestSettings globalConfig={$globalConfig} on:change={onFieldChange} />
         {/key}
       {/if}
     </div>

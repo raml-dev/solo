@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { createEventDispatcher } from "svelte";
   import { selectedEnvironment } from "../../../lib/stores/environmentStore";
   import Button from "../base/Button.svelte";
   import TokenInput from "./TokenInput.svelte";
 
   export let headers: Header[];
+
+  const dispatch = createEventDispatcher();
 
   type Header = {
     id: string;
@@ -14,10 +17,12 @@
 
   function toggleHeader(id: string) {
     headers = headers.map((h) => (h.id === id ? { ...h, enabled: !h.enabled } : h));
+    dispatch("change");
   }
 
   function removeHeader(id: string) {
     headers = headers.filter((h) => h.id !== id);
+    dispatch("change");
   }
 
   function addHeader() {
@@ -28,6 +33,7 @@
       enabled: true
     };
     headers = [...headers, newHeader];
+    dispatch("change");
   }
 
   $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
@@ -51,6 +57,7 @@
         placeholder="Header name"
         bind:value={header.key}
         disabled={!header.enabled}
+        on:input={() => dispatch("change")}
       />
       <div class="header-value-wrapper">
         <TokenInput
@@ -59,6 +66,7 @@
           disabled={!header.enabled}
           {environmentEntries}
           wrapperClass="input header-input"
+          on:change={() => dispatch("change")}
         />
       </div>
       <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>

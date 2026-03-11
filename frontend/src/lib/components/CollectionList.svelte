@@ -146,7 +146,9 @@
       body: req.body || "",
       bodyFormat: "json",
       headers,
-      settings: req.settings || {}
+      settings: req.settings || {},
+      preRequestScript: req.preRequestScript || "",
+      postResponseScript: req.postResponseScript || ""
     });
 
     onRequestSelect(requestId);

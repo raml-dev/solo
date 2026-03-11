@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
-  import { EditorState, Compartment } from "@codemirror/state";
+  import { EditorState, Compartment, Annotation } from "@codemirror/state";
   import {
     EditorView,
     ViewPlugin,
@@ -22,6 +22,8 @@
   import { tags } from "@lezer/highlight";
   import { json } from "@codemirror/lang-json";
   import { xml } from "@codemirror/lang-xml";
+  import { StreamLanguage } from "@codemirror/language";
+  import { lua } from "@codemirror/legacy-modes/mode/lua";
   import { indentationMarkers } from "@replit/codemirror-indentation-markers";
   import {
     autocompletion,
@@ -33,10 +35,15 @@
 
   export let value: string;
   export let format: "none" | "json" | "xml" | "text" = "json";
+  export let language: "json" | "xml" | "lua" | "text" | "none" | "" = "";
   export let environmentEntries: { key: string; value: string }[] = [];
   export let readOnly = false;
 
   const dispatch = createEventDispatcher();
+
+  // Annotation to mark transactions initiated by us (external sync) so the
+  // updateListener does NOT re-emit "change" and cause an infinite loop.
+  const externalUpdate = Annotation.define<boolean>();
 
   let editorEl: HTMLDivElement;
   let view: EditorView;
@@ -63,7 +70,7 @@
         autocompletion({ override: [envCompletionSource] }),
         tokenHighlightPlugin,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
+          if (update.docChanged && !update.transactions.some(tr => tr.annotation(externalUpdate))) {
             dispatch("change", update.state.doc.toString());
           }
         }),
@@ -85,23 +92,32 @@
 
   onDestroy(() => view?.destroy());
 
-  // When value prop changes from outside, sync to editor
+  // When value prop changes from outside, sync to editor WITHOUT triggering change event
   $: if (view && value !== view.state.doc.toString()) {
     view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: value ?? "" }
+      changes: { from: 0, to: view.state.doc.length, insert: value ?? "" },
+      annotations: [externalUpdate.of(true)]
     });
   }
 
-  // When format changes, reconfigure language
-  $: if (view) {
-    view.dispatch({
-      effects: languageCompartment.reconfigure(getLangExtension())
-    });
+  // When format/language changes, reconfigure language extension (guarded)
+  let _lastLang = "";
+  $: {
+    const effectiveLang = language || format;
+    if (view && effectiveLang !== _lastLang) {
+      _lastLang = effectiveLang;
+      view.dispatch({
+        effects: languageCompartment.reconfigure(getLangExtension())
+      });
+    }
   }
 
   function getLangExtension() {
-    if (format === "json") return json();
-    if (format === "xml") return xml();
+    // explicit language prop takes priority
+    const lang = language || format;
+    if (lang === "json") return json();
+    if (lang === "xml") return xml();
+    if (lang === "lua") return StreamLanguage.define(lua);
     return [];
   }
 

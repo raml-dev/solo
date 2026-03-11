@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tokenTooltipStore, cancelHideTokenTooltip, tooltipMouseLeave, forceHideTokenTooltip } from "../../stores/tokenTooltipStore";
   import { selectedEnvironment, environmentStore } from "../../stores/environmentStore";
+  import { sessionVarsStore } from "../../stores/sessionVarsStore";
   import { environment } from "../../../../wailsjs/go/models";
   import { tick } from "svelte";
 
@@ -12,10 +13,16 @@
   $: tokenKey = state.tokenKey;
   $: visible = state.visible;
   
+  $: sessionValue = tokenKey ? $sessionVarsStore[tokenKey] : undefined;
   $: envValue = $selectedEnvironment?.values[tokenKey]?.value ?? "";
-  $: exists = $selectedEnvironment?.values[tokenKey] !== undefined;
+  $: hasSessionValue = sessionValue !== undefined;
+  $: hasEnvValue = $selectedEnvironment?.values[tokenKey] !== undefined;
+  $: displayValue = hasSessionValue ? String(sessionValue) : envValue;
+  $: exists = hasSessionValue || hasEnvValue;
+  $: valueSource = hasSessionValue ? "session" : (hasEnvValue ? "environment" : "none");
 
   $: if (visible && !isEditing) {
+    // Editing always targets the persisted environment value, not the session override.
     editValue = envValue;
   }
 
@@ -42,6 +49,11 @@
     });
     await environmentStore.updateEnvironment(envToSave);
     isEditing = false;
+  }
+
+  async function clearSessionOverride() {
+    if (!tokenKey) return;
+    await sessionVarsStore.remove(tokenKey);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -78,13 +90,30 @@
       </div>
     {:else}
       <div class="preview-mode">
-        <span class="preview-value" class:unresolved={!exists}>
-          {exists ? envValue : "Unresolved variable"}
-        </span>
-        <button class="edit-btn" on:click={handleEditClick} title="Edit value">
+        <div class="preview-main">
+          <span class="preview-value" class:unresolved={!exists}>
+            {exists ? displayValue : "Unresolved variable"}
+          </span>
+          {#if valueSource !== "none"}
+            <span class="source-label" class:session={valueSource === "session"}>
+              {valueSource}
+            </span>
+          {/if}
+        </div>
+        <button
+          class="edit-btn"
+          on:click={handleEditClick}
+          title="Edit environment value"
+        >
           ✎
         </button>
       </div>
+      {#if valueSource === "session"}
+        <div class="session-hint-wrap">
+          <div class="session-hint">Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo resta quello di sessione finché non la svuoti.</div>
+          <button class="session-clear-btn" on:click={clearSessionOverride}>Use env value</button>
+        </div>
+      {/if}
     {/if}
   </div>
 {/if}
@@ -114,9 +143,65 @@
     max-width: 90vw;
   }
 
+  .session-hint-wrap {
+    margin-top: var(--space-xs);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    max-width: 70ch;
+  }
+
+  .session-hint {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    line-height: 1.35;
+  }
+
+  .session-clear-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: var(--font-size-xs);
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+
+  .session-clear-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .preview-main {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    min-width: 0;
+  }
+
   .preview-value {
     font-family: var(--font-mono);
     overflow-wrap: anywhere;
+  }
+
+  .source-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    padding: 1px 6px;
+    flex-shrink: 0;
+  }
+
+  .source-label.session {
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
   }
 
   .preview-value.unresolved {
@@ -140,6 +225,7 @@
     color: var(--primary);
     background: var(--bg-tertiary);
   }
+
 
   .edit-mode {
     display: flex;
