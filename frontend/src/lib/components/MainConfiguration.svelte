@@ -1,31 +1,107 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { derived } from "svelte/store";
   import { configurationStore } from "../stores/configurationStore";
+  import { notifications } from "../stores/notificationStore";
   import type { theme } from "../../../wailsjs/go/models";
   import { configuration } from "../../../wailsjs/go/models";
   import { GetDefaultConfiguration } from "../../../wailsjs/go/main/App";
-  import Button from "./base/Button.svelte";
-  import Modal from "./base/Modal.svelte";
+  import { debounce } from "../utils/debounce";
+  import Dropdown from "./base/Dropdown.svelte";
+  import ThemePreview from "./Settings/ThemePreview.svelte";
 
-  // --- Exported for parent binding ---
-  export let isDirty = false;
-  export let isLoading = false;
-  export let save: () => Promise<void>;
-  export let revert: () => void;
+  export let toggleFn: () => void;
 
-  // --- Component State ---
-  let error: string | null = null;
-  let successMessage: string | null = null;
-  let showThemeCustomizer = false;
-  let showThemes = false;
+  // --- Nav ---
+  type SettingsSection = "general" | "themes";
+  let activeSection: SettingsSection = "themes";
 
-  // --- Theme Preview State ---
-  let originalThemeName: string = "";
-  let originalThemeColors: Record<string, string> = {};
-  let previewThemeName: string = "";
+  const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
+    { id: "general", label: "General" },
+    { id: "themes",  label: "Themes"  },
+  ];
 
-  // --- Configuration Objects ---
+  // --- Store ---
+  const { config, allThemes } = configurationStore;
+
+  $: themeOptions = ($allThemes || []).map((t) => ({ value: t.name, label: formatThemeName(t.name) }));
+
+  function findTheme(name: string) {
+    return ($allThemes || []).find((t) => t.name === name) || null;
+  }
+
+  function formatThemeName(name: string): string {
+    return name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  // --- Theme UI state (letti dal config al mount) ---
+  let themeMode: "sync" | "manual" = "manual";
+  let activeThemeName = "";
+  let dayTheme   = "zinc-light";
+  let nightTheme = "zinc-dark";
+
+  // Inizializza da config (una volta sola, appena config+temi sono pronti)
+  let initialized = false;
+  $: if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
+    activeThemeName = $config.general.activeTheme;
+    themeMode       = ($config.general.themeMode as "sync" | "manual") || "manual";
+    dayTheme        = $config.general.dayTheme   || "zinc-light";
+    nightTheme      = $config.general.nightTheme || "zinc-dark";
+    initialized = true;
+  }
+
+  // --- System preference ---
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+  function getSystemTheme(): "light" | "dark" {
+    return prefersDark.matches ? "dark" : "light";
+  }
+
+  // --- Applica tema + persiste tutto nel config ---
+  async function applyAndSaveTheme(themeName: string) {
+    if (!findTheme(themeName)) return;
+    activeThemeName = themeName;
+    try {
+      // Salva activeTheme, themeMode, dayTheme, nightTheme in un'unica write
+      const current = $config;
+      current.general.activeTheme = themeName;
+      current.general.themeMode   = themeMode;
+      current.general.dayTheme    = dayTheme;
+      current.general.nightTheme  = nightTheme;
+      await configurationStore.save(current);
+      // Applica colori al DOM (changeTheme li applica già via derived store)
+      await configurationStore.changeTheme(themeName);
+    } catch { /* shown by store */ }
+  }
+
+  // In sync mode: applica il tema giusto per il sistema corrente
+  async function applySync() {
+    const target = getSystemTheme() === "dark" ? nightTheme : dayTheme;
+    await applyAndSaveTheme(target);
+  }
+
+  async function handleThemeModeChange(mode: "sync" | "manual") {
+    themeMode = mode;
+    if (mode === "sync") {
+      await applySync();
+    } else {
+      // Persiste solo il cambio di modalità, tema rimane invariato
+      const current = $config;
+      current.general.themeMode = "manual";
+      await configurationStore.save(current);
+    }
+  }
+
+  async function handleManualThemeSelect(name: string) {
+    await applyAndSaveTheme(name);
+  }
+
+  // Listener per cambi OS in sync mode
+  onMount(() => {
+    const listener = () => { if (themeMode === "sync") applySync(); };
+    prefersDark.addEventListener("change", listener);
+    return () => prefersDark.removeEventListener("change", listener);
+  });
+
+  // --- General / Request settings ---
   function createEmptyConfig() {
     const cfg = new configuration.Configuration();
     cfg.general = new configuration.GeneralSettings();
@@ -34,367 +110,416 @@
     return cfg;
   }
 
-  // Default config from backend, used for placeholders
-  let defaultConfig: configuration.Configuration = createEmptyConfig();
-  // Pristine copy of the config, to detect changes
-  let pristineConfig: configuration.Configuration = createEmptyConfig();
-  // The config object bound to the form fields
-  let editableConfig: configuration.Configuration = createEmptyConfig();
+  let defaultConfig = createEmptyConfig();
+  let editableConfig = createEmptyConfig();
+  let saveStatus: "idle" | "saving" | "saved" = "idle";
+  let lastPersistedSignature: string | null = null;
 
-  // --- Dirty Check ---
-  // Reactive statement to check if the form is dirty.
-  // Compares editable config with pristine state AND theme preview with original.
-  $: {
-    if (pristineConfig.request && editableConfig.request) {
-      const themeChanged = previewThemeName !== "" && previewThemeName !== originalThemeName;
-      const stringPristine = JSON.stringify({
-        general: { checkForUpdates: pristineConfig.general.checkForUpdates },
-        request: pristineConfig.request
-      });
-      const stringEditable = JSON.stringify({
-        general: { checkForUpdates: editableConfig.general.checkForUpdates },
-        request: editableConfig.request
-      });
-      isDirty = stringPristine !== stringEditable || themeChanged;
-    } else {
-      isDirty = false;
-    }
+  function toSignature(cfg: configuration.Configuration): string {
+    return JSON.stringify({
+      checkForUpdates: cfg.general?.checkForUpdates ?? false,
+      request: {
+        timeoutSeconds:   cfg.request?.timeoutSeconds   ?? 0,
+        defaultUserAgent: cfg.request?.defaultUserAgent ?? "",
+        followRedirects:  cfg.request?.followRedirects  ?? true,
+        maxRedirects:     cfg.request?.maxRedirects      ?? 0,
+        validateSSL:      cfg.request?.validateSSL       ?? true,
+        proxyUrl:         cfg.request?.proxyUrl          ?? "",
+      }
+    });
   }
 
-  // --- Store Subscriptions ---
-  const { config, allThemes } = configurationStore;
-  const customThemes = derived([config], ([$config]) => $config?.customThemes || []);
-  const predefinedThemes = derived([allThemes, customThemes], ([$allThemes, $customThemes]) => {
-    if (!$allThemes) return [];
-    const customThemeNames = new Set($customThemes.map((t) => t.name));
-    return $allThemes.filter((t) => !customThemeNames.has(t.name));
-  });
-
-  // --- Lifecycle ---
   onMount(async () => {
     try {
-      const loadedDefaults = await GetDefaultConfiguration();
-      defaultConfig = new configuration.Configuration(loadedDefaults);
+      const loaded = await GetDefaultConfiguration();
+      defaultConfig = new configuration.Configuration(loaded);
       if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
       if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
     } catch (err) {
-      console.error("Failed to load default configuration:", err);
+      notifications.error("Failed to load default configuration", String(err));
     }
 
-    const unsubscribe = config.subscribe((value) => {
+    const unsub = config.subscribe((value) => {
       if (value?.request) {
-        const deepCopiedValue = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
-        if (!deepCopiedValue.general) deepCopiedValue.general = new configuration.GeneralSettings();
-        if (!deepCopiedValue.request) deepCopiedValue.request = new configuration.RequestSettings();
-        editableConfig = deepCopiedValue;
-        pristineConfig = new configuration.Configuration(
-          JSON.parse(JSON.stringify(deepCopiedValue))
-        );
-
-        // Capture original theme state for preview/revert functionality
-        if (!originalThemeName) {
-          originalThemeName = value.general?.activeTheme || "default-light";
-          previewThemeName = originalThemeName;
-
-          // Store original theme colors for revert
-          const themes = $allThemes;
-          const originalTheme = themes.find((t) => t.name === originalThemeName);
-          if (originalTheme) {
-            originalThemeColors = { ...originalTheme.colors };
-          }
-        }
+        const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
+        if (!copy.general) copy.general = new configuration.GeneralSettings();
+        if (!copy.request) copy.request = new configuration.RequestSettings();
+        editableConfig = copy;
+        lastPersistedSignature = toSignature(copy);
       }
     });
-    unsubscribe();
+    return () => unsub();
   });
 
-  // --- Theme Preview Helpers ---
-  function applyThemeToDom(colors: Record<string, string>) {
-    const root = document.documentElement;
-    Object.entries(colors).forEach(([key, value]) => {
-      root.style.setProperty(`--${key}`, value);
-    });
-  }
-
-  function handleThemeChange(themeName: string) {
-    // Find the theme and apply it as a preview (no persistence)
-    const themes = $allThemes;
-    const selectedTheme = themes.find((t) => t.name === themeName);
-    if (selectedTheme) {
-      previewThemeName = themeName;
-      applyThemeToDom(selectedTheme.colors);
-    }
-  }
-
-  function handleRevert() {
-    // Restore original theme if preview differs
-    if (previewThemeName !== originalThemeName && Object.keys(originalThemeColors).length > 0) {
-      applyThemeToDom(originalThemeColors);
-      previewThemeName = originalThemeName;
-    }
-  }
-
-  // --- Event Handlers ---
-  async function handleSaveSettings() {
+  async function persistRequestSettings() {
     try {
-      isLoading = true;
-      error = null;
-      successMessage = null;
-
-      // Ensure numbers are valid integers
-      if (editableConfig.request) {
-        editableConfig.request.timeoutSeconds =
-          parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
-        editableConfig.request.maxRedirects =
-          parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
-      }
-
-      const currentConfig = $config;
-      currentConfig.general.checkForUpdates = editableConfig.general.checkForUpdates;
-      currentConfig.request = editableConfig.request;
-
-      await configurationStore.save(currentConfig);
-
-      // Persist theme if changed
-      if (previewThemeName !== originalThemeName) {
-        await configurationStore.changeTheme(previewThemeName);
-        // Update original state after successful save
-        originalThemeName = previewThemeName;
-        const themes = $allThemes;
-        const savedTheme = themes.find((t) => t.name === previewThemeName);
-        if (savedTheme) {
-          originalThemeColors = { ...savedTheme.colors };
-        }
-      }
-
-      // Update pristine state to reset isDirty flag
-      pristineConfig = new configuration.Configuration(JSON.parse(JSON.stringify(editableConfig)));
-
-      successMessage = "Settings saved successfully";
-      setTimeout(() => {
-        successMessage = null;
-      }, 3000);
-    } catch (err) {
-      console.error("Error saving settings:", err);
-      error = String(err);
-    } finally {
-      isLoading = false;
-    }
+      saveStatus = "saving";
+      editableConfig.request.timeoutSeconds = parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
+      editableConfig.request.maxRedirects   = parseInt(String(editableConfig.request.maxRedirects),   10) || 0;
+      const current = $config;
+      current.general.checkForUpdates = editableConfig.general.checkForUpdates;
+      current.request = editableConfig.request;
+      const sig = toSignature(current);
+      if (sig === lastPersistedSignature) { saveStatus = "idle"; return; }
+      await configurationStore.save(current);
+      lastPersistedSignature = sig;
+      saveStatus = "saved";
+      setTimeout(() => { saveStatus = "idle"; }, 2000);
+    } catch { saveStatus = "idle"; }
   }
 
-  // Assign exports after functions are defined
-  save = handleSaveSettings;
-  revert = handleRevert;
-
-  function getThemePreview(theme: theme.Theme): string {
-    return theme.colors["bg-primary"] || "#ffffff";
-  }
+  const debouncedSave = debounce(persistRequestSettings, 800);
+  $: if (editableConfig.request || editableConfig.general) debouncedSave();
 </script>
 
-<div class="configuration-container">
-  <!-- General Settings Section -->
-  <div class="config-section">
-    <h4>General</h4>
-    <div class="form-group">
-      <label class="checkbox-label">
-        <input type="checkbox" bind:checked={editableConfig.general.checkForUpdates} />
-        Check for updates on startup
-      </label>
-    </div>
-  </div>
+<div class="settings-modal">
+  <!-- Sidebar -->
+  <nav class="settings-nav">
+    {#each NAV_ITEMS as item}
+      <button
+        class="nav-item"
+        class:active={activeSection === item.id}
+        on:click={() => (activeSection = item.id)}
+      >
+        {item.label}
+      </button>
+    {/each}
+  </nav>
 
-  <!-- Request Defaults Section -->
-  <div class="config-section">
-    <h4>Request Defaults</h4>
-    <div class="form-group">
-      <label for="timeout">Timeout (seconds)</label>
-      <input
-        id="timeout"
-        type="number"
-        bind:value={editableConfig.request.timeoutSeconds}
-        min="0"
-        step="1"
-        placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`}
-      />
-    </div>
-    <div class="form-group">
-      <label for="user-agent">Default User Agent</label>
-      <input
-        id="user-agent"
-        type="text"
-        bind:value={editableConfig.request.defaultUserAgent}
-        placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`}
-      />
-    </div>
-    <div class="form-group">
-      <label class="checkbox-label">
-        <input type="checkbox" bind:checked={editableConfig.request.followRedirects} />
-        Follow Redirects
-      </label>
-    </div>
-    <div class="form-group">
-      <label for="max-redirects">Max Redirects</label>
-      <input
-        id="max-redirects"
-        type="number"
-        bind:value={editableConfig.request.maxRedirects}
-        min="0"
-        step="1"
-        placeholder={`Default: ${defaultConfig.request.maxRedirects}`}
-        disabled={!editableConfig.request.followRedirects}
-      />
-    </div>
-    <div class="form-group">
-      <label class="checkbox-label">
-        <input type="checkbox" bind:checked={editableConfig.request.validateSSL} />
-        Validate SSL Certificates
-      </label>
-    </div>
-    <div class="form-group">
-      <label for="proxy">Proxy URL</label>
-      <input
-        id="proxy"
-        type="text"
-        bind:value={editableConfig.request.proxyUrl}
-        placeholder="http://user:pass@host:port (optional)"
-      />
-    </div>
-  </div>
+  <!-- Content -->
+  <div class="settings-content">
 
-  <!-- Theme Selector Section -->
-  <div class="config-section">
-    <div
-      class="section-header accordion-header"
-      on:click={() => (showThemes = !showThemes)}
-      on:keypress={() => (showThemes = !showThemes)}
-      role="button"
-      tabindex="0"
-    >
-      <h4>Theme</h4>
-      <span class="accordion-icon" class:expanded={showThemes}>›</span>
-    </div>
+    {#if activeSection === "themes"}
+      <div class="section-body">
+        <h2 class="section-title">Themes</h2>
+        <p class="section-desc">Personalize your experience with themes that match your style. Manually select a theme or sync with system settings and let the machine set your day and night themes.</p>
 
-    {#if showThemes}
-      <div class="theme-section-content">
-        <div class="theme-section">
-          <h5 class="text-sm font-medium text-muted">Predefined Themes</h5>
-          <div class="theme-grid">
-            {#each $predefinedThemes as theme (theme.name)}
+        <!-- Mode selector -->
+        <div class="theme-mode-row">
+          <span class="theme-mode-label">Theme selection</span>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" bind:group={themeMode} value="sync" on:change={() => handleThemeModeChange("sync")} />
+              Sync with system
+            </label>
+            <label class="radio-label">
+              <input type="radio" bind:group={themeMode} value="manual" on:change={() => handleThemeModeChange("manual")} />
+              Manual
+            </label>
+          </div>
+        </div>
+
+        {#if themeMode === "manual"}
+          <!-- Manual: griglia di tutti i temi, click = applica -->
+          <div class="theme-grid-manual">
+            {#each ($allThemes || []) as t (t.name)}
               <button
-                class="theme-card"
-                class:active={previewThemeName === theme.name}
-                on:click={() => handleThemeChange(theme.name)}
-                title={`Activate ${theme.name} theme`}
+                class="theme-tile"
+                class:active-tile={activeThemeName === t.name}
+                on:click={() => handleManualThemeSelect(t.name)}
               >
-                <div class="theme-preview" style="background: {getThemePreview(theme)}" />
-                <div class="theme-colors">
-                  <span class="color-dot" style="background: {theme.colors.primary}" />
-                  <span class="color-dot" style="background: {theme.colors.success}" />
-                  <span class="color-dot" style="background: {theme.colors.warning}" />
-                  <span class="color-dot" style="background: {theme.colors.danger}" />
+                <div class="theme-tile-preview">
+                  <ThemePreview themeColors={t.colors} />
                 </div>
-                <span class="theme-name">{theme.name}</span>
+                <span class="theme-tile-name">{formatThemeName(t.name)}</span>
+                {#if activeThemeName === t.name}
+                  <span class="active-badge">ACTIVE</span>
+                {/if}
               </button>
             {/each}
           </div>
-        </div>
-        {#if $customThemes.length > 0}
-          <div class="theme-section">
-            <h5 class="text-sm font-medium text-muted">Custom Themes</h5>
-            <div class="theme-grid">
-              {#each $customThemes as theme (theme.name)}
-                <button
-                  class="theme-card"
-                  class:active={previewThemeName === theme.name}
-                  on:click={() => handleThemeChange(theme.name)}
-                  title={`Activate ${theme.name} theme`}
-                >
-                  <div class="theme-preview" style="background: {getThemePreview(theme)}" />
-                  <div class="theme-colors">
-                    <span class="color-dot" style="background: {theme.colors.primary}" />
-                    <span class="color-dot" style="background: {theme.colors.success}" />
-                    <span class="color-dot" style="background: {theme.colors.warning}" />
-                    <span class="color-dot" style="background: {theme.colors.danger}" />
-                  </div>
-                  <span class="theme-name">{theme.name}</span>
-                </button>
-              {/each}
+
+        {:else}
+          <!-- Sync: mostra solo il tema attivo corrente -->
+          <div class="sync-active-theme">
+            <div class="sync-active-preview">
+              <ThemePreview themeColors={findTheme(activeThemeName)?.colors || {}} />
+            </div>
+            <div class="sync-active-info">
+              <span class="sync-active-name">{formatThemeName(activeThemeName) || "—"}</span>
+              <span class="sync-active-sub">Currently active — follows your system appearance</span>
             </div>
           </div>
         {/if}
-        <Button variant="secondary" click={() => (showThemeCustomizer = true)}
-          >Create Custom Theme</Button
-        >
-        {#if showThemeCustomizer}
-          <Modal title="Create Custom Theme" toggleFn={() => (showThemeCustomizer = false)}>
-            <p class="text-muted">Theme customizer UI will be implemented here.</p>
-          </Modal>
+      </div>
+
+    {:else if activeSection === "general"}
+      <div class="section-body">
+        <h2 class="section-title">General</h2>
+        <p class="section-desc">Configure general application behavior and request defaults.</p>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" bind:checked={editableConfig.general.checkForUpdates} />
+            Check for updates on startup
+          </label>
+        </div>
+
+        <h3 class="subsection-title">Request Defaults</h3>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="timeout">Timeout (seconds)</label>
+            <input id="timeout" type="number" bind:value={editableConfig.request.timeoutSeconds}
+              min="0" step="1" placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`} />
+          </div>
+          <div class="form-group">
+            <label for="max-redirects">Max Redirects</label>
+            <input id="max-redirects" type="number" bind:value={editableConfig.request.maxRedirects}
+              min="0" step="1" placeholder={`Default: ${defaultConfig.request.maxRedirects}`}
+              disabled={!editableConfig.request.followRedirects} />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="user-agent">Default User Agent</label>
+          <input id="user-agent" type="text" bind:value={editableConfig.request.defaultUserAgent}
+            placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`} />
+        </div>
+
+        <div class="form-group">
+          <label for="proxy">Proxy URL</label>
+          <input id="proxy" type="text" bind:value={editableConfig.request.proxyUrl}
+            placeholder="http://user:pass@host:port (optional)" />
+        </div>
+
+        <div class="checkboxes">
+          <label class="checkbox-label">
+            <input type="checkbox" bind:checked={editableConfig.request.followRedirects} />
+            Follow Redirects
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" bind:checked={editableConfig.request.validateSSL} />
+            Validate SSL Certificates
+          </label>
+        </div>
+
+        {#if saveStatus === "saving"}
+          <p class="save-status">Saving…</p>
+        {:else if saveStatus === "saved"}
+          <p class="save-status saved">Saved ✓</p>
         {/if}
       </div>
     {/if}
   </div>
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
-  {#if successMessage}
-    <div class="success">{successMessage}</div>
-  {/if}
 </div>
 
 <style>
-  .config-section {
-    padding: var(--space-md) var(--space-lg);
+  .settings-modal {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+  }
+
+  /* ---- Sidebar ---- */
+  .settings-nav {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: var(--space-lg) var(--space-sm);
     display: flex;
     flex-direction: column;
+    gap: 2px;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    text-align: left;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-item:hover { background: var(--bg-tertiary); color: var(--text); }
+  .nav-item.active { background: var(--bg-tertiary); color: var(--text); font-weight: var(--font-weight-semibold); }
+
+  /* ---- Content ---- */
+  .settings-content {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    background: var(--bg-primary);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  }
+
+  .section-body {
+    padding: var(--space-xl) var(--space-xl) var(--space-xl) var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  .section-title {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--text);
+  }
+
+  .section-desc {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* ---- Theme mode row ---- */
+  .theme-mode-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .theme-mode-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+  }
+
+  .radio-group {
+    display: flex;
+    gap: var(--space-lg);
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  /* ---- Sync active theme display ---- */
+  .sync-active-theme {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    padding: var(--space-md);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+  }
+
+  .sync-active-preview {
+    width: 180px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 240 / 130;
+  }
+
+  .sync-active-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .sync-active-name {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text);
+    text-transform: capitalize;
+  }
+
+  .sync-active-sub {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+  }
+
+  /* ---- Theme grid (manual mode) ---- */
+  .theme-grid-manual {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: var(--space-md);
   }
 
-  h4 {
-    margin: 0 0 var(--space-md) 0;
-    font-size: var(--font-size-md);
-    font-weight: var(--font-weight-medium);
-    color: var(--primary);
+  .theme-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-xs);
+    padding: var(--space-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    text-align: left;
+    font-family: inherit;
+  }
+  .theme-tile:hover { border-color: var(--border-dark); }
+  .theme-tile.active-tile {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+
+  .theme-tile-preview {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 240 / 130;
+    background: var(--bg-tertiary);
+  }
+
+  .theme-tile-name {
+    font-size: var(--font-size-xs, 0.72rem);
+    color: var(--text);
+    text-transform: capitalize;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .active-badge {
+    align-self: flex-start;
+    font-size: 0.6rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.06em;
+    background: color-mix(in srgb, var(--info) 20%, transparent);
+    color: var(--info);
+    border: 1px solid color-mix(in srgb, var(--info) 40%, transparent);
+    border-radius: var(--radius-sm);
+    padding: 1px 6px;
+    /* in card header: push to right */
+    margin-left: auto;
+  }
+
+  .theme-preview {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 240 / 130;
+    background: var(--bg-tertiary);
+  }
+
+  /* ---- General form ---- */
+  .subsection-title {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     border-bottom: 1px solid var(--border);
     padding-bottom: var(--space-xs);
   }
 
-  h5 {
-    margin-bottom: var(--space-sm);
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-sm);
-  }
-
-  .accordion-header {
-    cursor: pointer;
-    padding: var(--space-xs);
-    border-radius: var(--radius-md);
-    transition: background-color var(--transition-fast);
-  }
-
-  .accordion-header:hover {
-    background-color: var(--bg-tertiary);
-  }
-
-  .accordion-icon {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--text-muted);
-    transition: transform var(--transition-base);
-  }
-
-  .accordion-icon.expanded {
-    transform: rotate(90deg);
-  }
-
-  .theme-section-content {
-    padding-top: var(--space-md);
-    border-top: 1px solid var(--border-dark);
-    margin-top: var(--space-sm);
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
   }
 
   .form-group {
@@ -403,9 +528,8 @@
     gap: var(--space-xs);
   }
 
-  label:not(.checkbox-label) {
+  label:not(.checkbox-label):not(.radio-label) {
     font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
     color: var(--text-muted);
   }
 
@@ -415,108 +539,32 @@
     gap: var(--space-sm);
     cursor: pointer;
     font-size: var(--font-size-sm);
-    user-select: none;
+    color: var(--text);
+  }
+
+  .checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
   }
 
   input[type="text"],
   input[type="number"] {
-    padding: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
     color: var(--text);
     font-size: var(--font-size-sm);
   }
+  input:focus { outline: none; border-color: var(--primary); }
+  input:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  input[type="text"]:focus,
-  input[type="number"]:focus {
-    outline: none;
-    border-color: var(--primary);
+  .save-status {
+    font-size: var(--font-size-xs, 0.72rem);
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
   }
-
-  input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .error {
-    margin: 0 var(--space-lg) var(--space-md);
-    color: var(--danger);
-    font-size: var(--font-size-sm);
-    padding: var(--space-sm);
-    background: var(--status-danger-bg);
-    border-radius: var(--radius-sm);
-  }
-
-  .success {
-    margin: 0 var(--space-lg) var(--space-md);
-    color: var(--success);
-    font-size: var(--font-size-sm);
-    padding: var(--space-sm);
-    background: var(--bg-tertiary);
-    border: 1px solid var(--success);
-    border-radius: var(--radius-sm);
-  }
-
-  /* Styles from ThemeSelector */
-  .theme-section {
-    margin-top: 0;
-  }
-
-  .theme-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: var(--space-md);
-    margin-bottom: var(--space-lg);
-  }
-
-  .theme-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-md);
-    border: 2px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--bg-secondary);
-    cursor: pointer;
-    transition: all var(--transition-base);
-    font-family: var(--font-sans);
-    text-align: center;
-  }
-
-  .theme-card:hover {
-    border-color: var(--border-dark);
-    transform: translateY(-2px);
-  }
-
-  .theme-card.active {
-    border-color: var(--primary);
-    background: var(--bg-tertiary);
-  }
-
-  .theme-preview {
-    width: 100%;
-    height: 60px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-  }
-
-  .theme-colors {
-    display: flex;
-    gap: var(--space-xs);
-  }
-
-  .color-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-  }
-
-  .theme-name {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-    text-transform: capitalize;
-  }
+  .save-status.saved { color: var(--success); }
 </style>

@@ -10,7 +10,9 @@ const (
 )
 
 const (
-	DEFAULT_THEME           = "default-light"
+	DEFAULT_THEME           = "zinc-light"
+	DEFAULT_THEME_LIGHT     = "zinc-light"
+	DEFAULT_THEME_DARK      = "zinc-dark"
 	DEFAULT_CHECK_UPDATES   = true
 	DEFAULT_TIMEOUT_SECONDS = 30
 	DEFAULT_MAX_REDIRECTS   = 10

@@ -3,39 +3,31 @@
   import { writable } from "svelte/store";
   import type { Writable } from "svelte/store";
 
-  // FIXME: use a shared type for this
-  // when doing that, currently the app does not start properly - find a fix
   type TabItem = {
     title: string;
-    icon?: string;
-    value: symbol;
+    value: string;
   };
 
-  export let activeTab: symbol;
+  export let activeValue: string;
+  export let variant: "default" | "minimal" = "default";
 
   const tabs: Writable<TabItem[]> = writable([]);
-
-  const activeTabStore = writable(activeTab);
-
+  const activeTabStore = writable(activeValue);
   setContext("tabs", tabs);
   setContext("activeTab", activeTabStore);
 
-  $: activeTab = $activeTabStore;
+  // Two-way binding.
+  $: $activeTabStore = activeValue;
 </script>
 
-<div class="tabs">
+<div class="tabs" class:variant-minimal={variant === "minimal"}>
   {#each $tabs as tab (tab.value)}
     <button
       class="tab"
-      class:active={$activeTabStore === tab.value}
-      on:click={() => ($activeTabStore = tab.value)}
+      class:active={activeValue === tab.value}
+      on:click={() => (activeValue = tab.value)}
     >
-      <span>
-        {#if tab.icon}
-          <i class={tab.icon}></i>
-        {/if}
-        {tab.title}
-      </span>
+      <span>{tab.title}</span>
     </button>
   {/each}
 </div>
@@ -79,5 +71,15 @@
 
   .tab.active > span {
     color: var(--primary);
+  }
+
+  .tabs.variant-minimal {
+    padding: 0 0 0 var(--space-xs);
+    border-bottom: none;
+    flex: 1;
+  }
+  .tabs.variant-minimal .tab {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
   }
 </style>

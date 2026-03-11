@@ -131,6 +131,7 @@ func (cm *CollectionManager) LoadCollection(collectionName string) (*Collection,
 		return nil, err
 	}
 
+
 	slog.Debug("Collection loaded", "name", collectionName, "requests_count", len(rC.Requests))
 	return &rC, nil
 }
@@ -186,25 +187,26 @@ func (cm *CollectionManager) GetRequests(collectionName string) (*[]Request, err
 	return coll.GetRequests(), nil
 }
 
-func (cm *CollectionManager) AddRequest(collectionName string, request Request) error {
+func (cm *CollectionManager) AddRequest(collectionName string, request Request) (*Request, error) {
 	if collectionName == "" {
-		return errors.New("no collection name specified")
+		return nil, errors.New("no collection name specified")
 	}
 	coll, err := cm.LoadCollection(collectionName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := coll.AddRequest(request); err != nil {
-		return err
+	newRequest, err := coll.AddRequest(request)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := cm.UpdateCollection(*coll); err != nil {
-		return err
+		return nil, err
 	}
 
-	slog.Debug("Request added", "collection", collectionName, "request_id", request.Id, "request_name", request.Name)
-	return nil
+	slog.Debug("Request added", "collection", collectionName, "request_id", newRequest.Id, "request_name", newRequest.Name)
+	return newRequest, nil
 }
 
 func (cm *CollectionManager) RemoveRequest(collectionName string, requestId string) error {

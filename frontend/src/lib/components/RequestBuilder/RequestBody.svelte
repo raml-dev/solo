@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { envAutocomplete } from "../../../lib/actions/envAutocomplete";
+  import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
+  import type { InputFormat } from "./types";
   import { selectedEnvironment } from "../../../lib/stores/environmentStore";
 
   export let requestBody: string;
+  export let format: InputFormat;
 
   $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
     key,
@@ -10,26 +12,21 @@
   }));
 </script>
 
-<div class="body-editor">
-  <textarea
-    class="input code-input"
-    rows="12"
-    placeholder="Request body (JSON, XML, etc.)"
+<div class="body-editor-wrapper">
+  <CodeMirrorEditor
     bind:value={requestBody}
-    use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
-  ></textarea>
+    bind:format={format}
+    {environmentEntries}
+    on:change={(e) => (requestBody = e.detail)}
+  />
 </div>
 
 <style>
-  .body-editor {
+  .body-editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     padding: var(--space-md);
-  }
-
-  .code-input {
-    width: 100%;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    line-height: var(--line-height-relaxed);
-    resize: vertical;
+    flex: 1;
   }
 </style>

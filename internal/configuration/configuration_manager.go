@@ -51,6 +51,9 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 	return Configuration{
 		General: GeneralSettings{
 			ActiveTheme:     tools.DEFAULT_THEME,
+			ThemeMode:       "manual",
+			DayTheme:        tools.DEFAULT_THEME_LIGHT,
+			NightTheme:      tools.DEFAULT_THEME_DARK,
 			CheckForUpdates: tools.DEFAULT_CHECK_UPDATES,
 		},
 		Request: RequestSettings{

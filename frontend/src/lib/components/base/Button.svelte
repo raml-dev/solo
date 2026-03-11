@@ -3,6 +3,7 @@
   export let size: BtnSize = "sm";
   export let disabled = false;
   export let style: string = "";
+  export let square = false;
 
   export let click: () => void;
 
@@ -12,7 +13,7 @@
   const handleClick = () => click();
 </script>
 
-<button class="btn btn-{variant} btn-{size}" {disabled} on:click={handleClick} {style} type="button"
+<button class="btn btn-{variant} btn-{size}" class:btn-square={square} {disabled} on:click={handleClick} {style} type="button"
   ><slot></slot></button
 >
 
@@ -85,5 +86,9 @@
   .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .btn-square {
+    border-radius: 0;
   }
 </style>

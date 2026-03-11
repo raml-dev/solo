@@ -210,6 +210,52 @@ func (a *App) ImportBrunoCollection(path string) error {
 	return nil
 }
 
+// ImportPostmanEnvironment imports a Postman environment JSON file.
+func (a *App) ImportPostmanEnvironment(path string, overwrite bool) error {
+	imp := importer.NewPostmanEnvironmentImporter()
+
+	env, err := imp.Import(path)
+	if err != nil {
+		return fmt.Errorf("failed to import Postman environment: %w", err)
+	}
+
+	if a.environmentManager != nil {
+		existing, loadErr := a.environmentManager.LoadEnvironment(env.Name)
+		if loadErr == nil && existing != nil && !overwrite {
+			return fmt.Errorf("environment %s already exists", env.Name)
+		}
+	}
+
+	if err := a.environmentManager.UpdateEnvironment(env); err != nil {
+		return fmt.Errorf("failed to save imported environment: %w", err)
+	}
+
+	return nil
+}
+
+// ImportBrunoEnvironment imports a Bruno environment .bru file.
+func (a *App) ImportBrunoEnvironment(path string, overwrite bool) error {
+	imp := importer.NewBrunoEnvironmentImporter()
+
+	env, err := imp.Import(path)
+	if err != nil {
+		return fmt.Errorf("failed to import Bruno environment: %w", err)
+	}
+
+	if a.environmentManager != nil {
+		existing, loadErr := a.environmentManager.LoadEnvironment(env.Name)
+		if loadErr == nil && existing != nil && !overwrite {
+			return fmt.Errorf("environment %s already exists", env.Name)
+		}
+	}
+
+	if err := a.environmentManager.UpdateEnvironment(env); err != nil {
+		return fmt.Errorf("failed to save imported environment: %w", err)
+	}
+
+	return nil
+}
+
 // CreateCollection creates a new, empty collection.
 func (a *App) CreateCollection(collectionName string) error {
 	return a.collectionManager.CreateCollection(collectionName)
@@ -270,7 +316,7 @@ func (a *App) GetRequests(collectionName string) (*[]collection.Request, error) 
 }
 
 // AddRequest adds a new request to a specific collection.
-func (a *App) AddRequest(collectionName string, request collection.Request) error {
+func (a *App) AddRequest(collectionName string, request collection.Request) (*collection.Request, error) {
 	return a.collectionManager.AddRequest(collectionName, request)
 }
 

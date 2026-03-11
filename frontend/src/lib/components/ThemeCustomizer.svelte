@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SaveCustomTheme } from "../../../wailsjs/go/main/App";
   import { configurationStore } from "../stores/configurationStore";
+  import { notifications } from "../stores/notificationStore";
   import type { theme } from "../../../wailsjs/go/models";
   import Button from "./base/Button.svelte";
 
@@ -67,7 +68,7 @@
 
   async function saveTheme() {
     if (!themeName.trim()) {
-      alert("Please enter a theme name");
+      notifications.warning("Please enter a theme name");
       return;
     }
 
@@ -82,8 +83,7 @@
       saved(newTheme);
       close();
     } catch (error) {
-      console.error("Failed to save theme:", error);
-      alert("Failed to save theme");
+      notifications.error("Failed to save theme", String(error));
     }
   }
 

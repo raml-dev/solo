@@ -3,7 +3,8 @@
   import type { Environment, EnvironmentValue } from "../../stores/environmentStore";
   import { environment } from "../../../../wailsjs/go/models";
   import { createEventDispatcher } from "svelte";
-  import Button from "../base/Button.svelte";
+  import { debounce } from "../../utils/debounce";
+  import { notifications } from "../../stores/notificationStore";
 
   export let env: Environment;
   export let menuOpen: boolean;
@@ -13,13 +14,13 @@
   let draftValues: DraftRow[] = [];
   let nextRowId = 0;
 
-  let dirty = false;
+  let saving = false;
+  let lastPersistedEnvironmentSignature: string | null = null;
 
   $: selectedEnvironmentName = $environmentStore.selectedEnvironmentName;
 
   const dispatch = createEventDispatcher<{
     delete: string;
-    error: string;
     select: string;
     toggleMenu: string;
   }>();
@@ -30,6 +31,27 @@
     }
   }
 
+  function buildProcessedValuesAndSignature() {
+    const processedValues: Record<string, EnvironmentValue> = {};
+    for (const row of draftValues) {
+      const k = row.key.trim();
+      if (k) {
+        processedValues[k] = new environment.ValueType({
+          value: row.value,
+          type: "string"
+        });
+      }
+    }
+
+    const signature = JSON.stringify(
+      Object.keys(processedValues)
+        .sort()
+        .map((key) => [key, processedValues[key].value])
+    );
+
+    return { processedValues, signature };
+  }
+
   function initDraft() {
     const rows: DraftRow[] = Object.entries(env.values || {}).map(([k, v]) => ({
       id: nextRowId++,
@@ -38,82 +60,56 @@
     }));
     rows.push({ id: nextRowId++, key: "", value: "" });
     draftValues = rows;
-    dirty = false;
+
+    const { signature } = buildProcessedValuesAndSignature();
+    lastPersistedEnvironmentSignature = signature;
   }
 
-  function isDirty(): boolean {
-    const stored = env.values || {};
-    const draftMap: Record<string, string> = {};
-    for (const row of draftValues) {
-      const k = row.key.trim();
-      if (k) draftMap[k] = row.value;
-    }
-    const draftKeys = Object.keys(draftMap);
-    const storedKeys = Object.keys(stored);
-    if (draftKeys.length !== storedKeys.length) return true;
-    else
-      for (const k of draftKeys) {
-        if (!(k in stored)) return true;
-        else if (draftMap[k] !== stored[k].value) return true;
-      }
-    return false;
-  }
-
-  function handleUpdateRow(id: number, field: "key" | "value", val: string) {
-    const idx = draftValues.findIndex((r) => r.id === id);
-    if (idx === -1) return;
-    draftValues = draftValues.map((element) => {
-      if (element.id === id) {
-        const newElement = { ...element, [field]: val };
-        return newElement;
-      }
-      return element;
-    });
-
-    const isLast = idx === draftValues.length - 1;
-
-    if (isLast && val.trim()) {
-      draftValues = [...draftValues, { id: nextRowId++, key: "", value: "" }];
-    } else if (!isLast) {
-      const updated = draftValues[idx];
-      if (!updated.key.trim() && !updated.value.trim()) {
-        draftValues = draftValues.filter((_, arrIndex) => arrIndex !== idx);
-      }
-    }
-    dirty = isDirty();
-  }
-
-  async function handleSaveEnvironment() {
+  async function persistEnvironment() {
     for (const row of draftValues) {
       if (row.value.trim() && !row.key.trim()) {
-        dispatch(
-          "error",
-          "A variable has a value but no name. Please add a name or clear the value."
-        );
+        notifications.warning("A variable has a value but no name. Please add a name or clear the value.");
         return;
       }
     }
     try {
-      const processedValues: Record<string, EnvironmentValue> = {};
-      for (const row of draftValues) {
-        const k = row.key.trim();
-        if (k)
-          processedValues[k] = new environment.ValueType({
-            value: row.value,
-            type: "string"
-          });
-      }
+      const { processedValues, signature } = buildProcessedValuesAndSignature();
+      if (signature === lastPersistedEnvironmentSignature) return;
+
+      saving = true;
       const envToSave = new environment.Environment({
         ...env,
         values: processedValues
       });
       await environmentStore.updateEnvironment(envToSave);
-      draftValues = [];
-      initDraft();
+      lastPersistedEnvironmentSignature = signature;
     } catch (err) {
-      console.error("Error saving environment:", err);
-      dispatch("error", `Error saving environment: ${err}`);
+      // error already shown by store
+    } finally {
+      saving = false;
     }
+  }
+
+  const debouncedPersist = debounce(persistEnvironment, 600);
+
+  function handleUpdateRow(id: number, field: "key" | "value", val: string) {
+    const idx = draftValues.findIndex((r) => r.id === id);
+    if (idx === -1) return;
+    draftValues = draftValues.map((element) =>
+      element.id === id ? { ...element, [field]: val } : element
+    );
+
+    const isLast = idx === draftValues.length - 1;
+    if (isLast && val.trim()) {
+      draftValues = [...draftValues, { id: nextRowId++, key: "", value: "" }];
+    } else if (!isLast) {
+      const updated = draftValues[idx];
+      if (!updated.key.trim() && !updated.value.trim()) {
+        draftValues = draftValues.filter((_, i) => i !== idx);
+      }
+    }
+
+    debouncedPersist();
   }
 
   function selectEnvironment() {
@@ -213,11 +209,11 @@
           </div>
         {/each}
 
-        <div class="values-footer">
-          <Button variant="primary" size="small" disabled={!dirty} click={handleSaveEnvironment}
-            >Save</Button
-          >
-        </div>
+        {#if saving}
+          <div class="values-footer">
+            <span class="saving-indicator">Saving…</span>
+          </div>
+        {/if}
       </div>
     {/if}
   </div>
@@ -464,5 +460,11 @@
     display: flex;
     justify-content: flex-end;
     padding-top: var(--space-xs);
+  }
+
+  .saving-indicator {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    font-style: italic;
   }
 </style>

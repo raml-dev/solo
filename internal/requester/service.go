@@ -2,6 +2,7 @@ package requester
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log/slog"
@@ -107,11 +108,29 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
 			}
 		}
 
+		// 4. SSL Validation
+		validateSSL := cfg.Request.ValidateSSL
+		if hasOverride && overrides.ValidateSSL != nil {
+			validateSSL = *overrides.ValidateSSL
+		}
+
+		if !validateSSL {
+			if t, ok := client.Transport.(*http.Transport); ok {
+				newTransport := t.Clone()
+				if newTransport.TLSClientConfig == nil {
+					newTransport.TLSClientConfig = &tls.Config{}
+				}
+				newTransport.TLSClientConfig.InsecureSkipVerify = true
+				client.Transport = newTransport
+			}
+		}
+
 		slog.Debug("Request settings applied",
 			"timeout", timeout,
 			"follow_redirects", followRedirects,
 			"max_redirects", maxRedirects,
-			"proxy", proxyURL)
+			"proxy", proxyURL,
+			"validate_ssl", validateSSL)
 	}
 
 	request, err := http.NewRequest(opts.Method, opts.URL, bytes.NewReader([]byte(opts.Body)))

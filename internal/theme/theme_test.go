@@ -11,8 +11,8 @@ func TestGetPredefinedThemes(t *testing.T) {
 		t.Fatal("GetPredefinedThemes returned an empty slice, expected at least one theme.")
 	}
 
-	foundDefaultLight := false
-	foundDefaultDark := false
+	foundZincLight := false
+	foundZincDark := false
 
 	for _, theme := range predefinedThemes {
 		if theme.Name == "" {
@@ -21,19 +21,28 @@ func TestGetPredefinedThemes(t *testing.T) {
 		if len(theme.Colors) == 0 {
 			t.Errorf("Theme '%s' has no colors defined.", theme.Name)
 		}
-
-		if theme.Name == "default-light" {
-			foundDefaultLight = true
+		if theme.Name == "zinc-light" {
+			foundZincLight = true
 		}
-		if theme.Name == "default-dark" {
-			foundDefaultDark = true
+		if theme.Name == "zinc-dark" {
+			foundZincDark = true
 		}
 	}
 
-	if !foundDefaultLight {
-		t.Error("Predefined theme 'default-light' was not found.")
+	if !foundZincLight {
+		t.Error("Predefined theme 'zinc-light' was not found.")
 	}
-	if !foundDefaultDark {
-		t.Error("Predefined theme 'default-dark' was not found.")
+	if !foundZincDark {
+		t.Error("Predefined theme 'zinc-dark' was not found.")
+	}
+
+	// Ensure all themes have required color keys
+	requiredKeys := []string{"primary", "bg-primary", "bg-secondary", "bg-tertiary", "border", "text", "text-muted"}
+	for _, theme := range predefinedThemes {
+		for _, key := range requiredKeys {
+			if _, ok := theme.Colors[key]; !ok {
+				t.Errorf("Theme '%s' is missing required color key '%s'.", theme.Name, key)
+			}
+		}
 	}
 }

@@ -44,7 +44,7 @@ func (c *Collection) GetRequestById(id string) (*Request, error) {
 
 }
 
-func (c *Collection) AddRequest(request Request) error {
+func (c *Collection) AddRequest(request Request) (*Request, error) {
 	if request.Id == "" {
 		request.Id = uuid.NewString()
 	}
@@ -57,12 +57,13 @@ func (c *Collection) AddRequest(request Request) error {
 	exists := c.exists(request.Id)
 
 	if exists {
-		return fmt.Errorf("Request %s with id %s already exists", request.Name, request.Id)
+		return nil, fmt.Errorf("Request %s with id %s already exists", request.Name, request.Id)
 	}
 
 	c.Requests = append(c.Requests, request)
+	c.LastUpdateTimestamp = now
 
-	return nil
+	return &request, nil
 }
 
 func (c *Collection) RemoveRequest(id string) error {
@@ -86,7 +87,7 @@ func (c *Collection) RemoveRequest(id string) error {
 	return nil
 }
 
-func (c Collection) UpdateRequest(updated Request) error {
+func (c *Collection) UpdateRequest(updated Request) error {
 	if updated.Id == "" {
 		return errors.New("missing identifier for request")
 	}

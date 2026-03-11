@@ -10,9 +10,11 @@ type Configuration struct {
 
 type GeneralSettings struct {
 	ActiveTheme         string `json:"activeTheme"`
+	ThemeMode           string `json:"themeMode,omitempty"`           // "manual" | "sync"
+	DayTheme            string `json:"dayTheme,omitempty"`            // tema usato in sync light
+	NightTheme          string `json:"nightTheme,omitempty"`          // tema usato in sync dark
 	CheckForUpdates     bool   `json:"checkForUpdates"`
 	SelectedEnvironment string `json:"selectedEnvironment,omitempty"`
-	// Path overrides could be added here in the future
 }
 
 
