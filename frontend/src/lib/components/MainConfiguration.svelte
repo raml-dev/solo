@@ -3,8 +3,8 @@
   import { configurationStore } from "../stores/configurationStore";
   import { notifications } from "../stores/notificationStore";
   import type { theme } from "../../../wailsjs/go/models";
-  import { configuration } from "../../../wailsjs/go/models";
-  import { GetDefaultConfiguration } from "../../../wailsjs/go/main/App";
+  import { configuration, host } from "../../../wailsjs/go/models";
+  import { GetDefaultConfiguration, GetAllHosts, UpsertHost, DeleteHost, SelectFile } from "../../../wailsjs/go/main/App";
   import { debounce } from "../utils/debounce";
   import Dropdown from "./base/Dropdown.svelte";
   import ThemePreview from "./Settings/ThemePreview.svelte";
@@ -12,12 +12,13 @@
   export let toggleFn: () => void;
 
   // --- Nav ---
-  type SettingsSection = "general" | "themes";
+  type SettingsSection = "general" | "themes" | "hosts";
   let activeSection: SettingsSection = "themes";
 
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
     { id: "themes",  label: "Themes"  },
+    { id: "hosts",   label: "Hosts"   },
   ];
 
   // --- Store ---
@@ -170,6 +171,95 @@
 
   const debouncedSave = debounce(persistRequestSettings, 800);
   $: if (editableConfig.request || editableConfig.general) debouncedSave();
+
+  // --- Hosts ---
+  let hostsList: host.Host[] = [];
+  let editingHost: host.Host | null = null;
+  let editingCookies: { key: string; value: string }[] = [];
+
+  async function fetchHosts() {
+    try {
+      hostsList = await GetAllHosts();
+    } catch (err) {
+      notifications.error("Failed to load hosts", String(err));
+    }
+  }
+
+  function startAddHost() {
+    const newHost = new host.Host();
+    newHost.id = crypto.randomUUID();
+    newHost.name = "";
+    newHost.tlsConfig = new host.TLSConfig({
+      enabled: false,
+      insecureSkipVerify: false,
+      publicCertificateFilePath: "",
+      privateKeyFilePath: "",
+      caCertificateFilePath: ""
+    });
+    newHost.cookies = {};
+    editingHost = newHost;
+    editingCookies = [];
+  }
+
+  function editExistingHost(h: host.Host) {
+    editingHost = JSON.parse(JSON.stringify(h));
+    if (!editingHost.cookies) editingHost.cookies = {};
+    editingCookies = Object.entries(editingHost.cookies).map(([key, value]) => ({ key, value }));
+  }
+
+  function addCookieRow() {
+    editingCookies = [...editingCookies, { key: "", value: "" }];
+  }
+
+  function removeCookieRow(index: number) {
+    editingCookies = editingCookies.filter((_, i) => i !== index);
+  }
+
+  async function pickCertFile(field: "publicCertificateFilePath" | "privateKeyFilePath" | "caCertificateFilePath") {
+    if (!editingHost) return;
+    try {
+      const path = await SelectFile("Select Certificate/Key File", "*.*", "All Files");
+      if (path) {
+        editingHost.tlsConfig[field] = path;
+      }
+    } catch (err) {
+      notifications.error("File selection failed", String(err));
+    }
+  }
+
+  async function handleSaveHost() {
+    if (!editingHost || !editingHost.name) return;
+    try {
+      // Map cookie array back to object
+      const cookieMap: Record<string, string> = {};
+      editingCookies.forEach(c => {
+        if (c.key.trim()) cookieMap[c.key.trim()] = c.value;
+      });
+      editingHost.cookies = cookieMap;
+
+      await UpsertHost(editingHost);
+      await fetchHosts();
+      editingHost = null;
+      notifications.success("Host configuration saved");
+    } catch (err) {
+      notifications.error("Failed to save host", String(err));
+    }
+  }
+
+  async function handleDeleteHost(name: string) {
+    if (!confirm(`Are you sure you want to delete host config for "${name}"?`)) return;
+    try {
+      await DeleteHost(name);
+      await fetchHosts();
+      notifications.success("Host deleted");
+    } catch (err) {
+      notifications.error("Failed to delete host", String(err));
+    }
+  }
+
+  $: if (activeSection === "hosts" && hostsList.length === 0) {
+    fetchHosts();
+  }
 </script>
 
 <div class="settings-modal">
@@ -298,6 +388,131 @@
           <p class="save-status">Saving…</p>
         {:else if saveStatus === "saved"}
           <p class="save-status saved">Saved ✓</p>
+        {/if}
+      </div>
+
+    {:else if activeSection === "hosts"}
+      <div class="section-body">
+        <h2 class="section-title">Hosts</h2>
+        <p class="section-desc">Manage specific TLS and certificate configurations for your target hosts.</p>
+
+        {#if !editingHost}
+          <div class="hosts-header">
+            <button class="btn btn-primary" on:click={startAddHost}>Add Host</button>
+          </div>
+
+          <div class="hosts-list">
+            {#if hostsList.length === 0}
+              <div class="empty-state">No specific host configuration found.</div>
+            {:else}
+              <div class="table-container">
+                <table class="hosts-table">
+                  <thead>
+                    <tr>
+                      <th>Hostname</th>
+                      <th>TLS</th>
+                      <th>Skip Verify</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each hostsList as h (h.id)}
+                      <tr>
+                        <td><strong>{h.name}</strong></td>
+                        <td>
+                          <span class="badge" class:badge-success={h.tlsConfig.enabled}>
+                            {h.tlsConfig.enabled ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td>
+                          <span class="badge" class:badge-warning={h.tlsConfig.insecureSkipVerify}>
+                            {h.tlsConfig.insecureSkipVerify ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td class="actions-cell">
+                          <button class="btn-icon" on:click={() => editExistingHost(h)}>Edit</button>
+                          <button class="btn-icon btn-danger" on:click={() => handleDeleteHost(h.name)}>Delete</button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <!-- Edit Form -->
+          <div class="host-form">
+            <h3 class="subsection-title">{editingHost.name ? 'Edit Host' : 'New Host'}</h3>
+            
+            <div class="form-group">
+              <label for="h-name">Hostname (e.g. api.company.com or localhost:8443)</label>
+              <input id="h-name" type="text" bind:value={editingHost.name} placeholder="Hostname" />
+            </div>
+
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" bind:checked={editingHost.tlsConfig.enabled} />
+                Enable Custom TLS Configuration
+              </label>
+            </div>
+
+            {#if editingHost.tlsConfig.enabled}
+              <div class="tls-details">
+                <div class="checkbox-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" bind:checked={editingHost.tlsConfig.insecureSkipVerify} />
+                    Insecure Skip Verify (not recommended)
+                  </label>
+                </div>
+
+                <div class="form-group file-picker">
+                  <label>Public Certificate (.crt, .pem)</label>
+                  <div class="input-with-action">
+                    <input type="text" bind:value={editingHost.tlsConfig.publicCertificateFilePath} readonly />
+                    <button class="btn btn-secondary" on:click={() => pickCertFile('publicCertificateFilePath')}>Browse</button>
+                  </div>
+                </div>
+
+                <div class="form-group file-picker">
+                  <label>Private Key (.key)</label>
+                  <div class="input-with-action">
+                    <input type="text" bind:value={editingHost.tlsConfig.privateKeyFilePath} readonly />
+                    <button class="btn btn-secondary" on:click={() => pickCertFile('privateKeyFilePath')}>Browse</button>
+                  </div>
+                </div>
+
+                <div class="form-group file-picker">
+                  <label>CA Certificate (Root CA)</label>
+                  <div class="input-with-action">
+                    <input type="text" bind:value={editingHost.tlsConfig.caCertificateFilePath} readonly />
+                    <button class="btn btn-secondary" on:click={() => pickCertFile('caCertificateFilePath')}>Browse</button>
+                  </div>
+                </div>
+              </div>
+            {/if}
+
+            <div class="cookies-section">
+              <h3 class="subsection-title">Cookies</h3>
+              <p class="section-desc">These cookies will be automatically added to all requests sent to this host.</p>
+              
+              <div class="cookies-list">
+                {#each editingCookies as cookie, i}
+                  <div class="cookie-row">
+                    <input type="text" bind:value={cookie.key} placeholder="Cookie Name" />
+                    <input type="text" bind:value={cookie.value} placeholder="Value" />
+                    <button class="btn-icon btn-danger" on:click={() => removeCookieRow(i)}>Remove</button>
+                  </div>
+                {/each}
+                <button class="btn btn-secondary btn-sm" on:click={addCookieRow}>+ Add Cookie</button>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn btn-secondary" on:click={() => (editingHost = null)}>Cancel</button>
+              <button class="btn btn-primary" on:click={handleSaveHost} disabled={!editingHost.name}>Save Host</button>
+            </div>
+          </div>
         {/if}
       </div>
     {/if}
@@ -567,4 +782,169 @@
     margin: 0;
   }
   .save-status.saved { color: var(--success); }
+
+  /* ---- Hosts section ---- */
+  .hosts-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--space-md);
+  }
+
+  .table-container {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .hosts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+  }
+
+  .hosts-table th,
+  .hosts-table td {
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hosts-table th {
+    background: var(--bg-secondary);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-muted);
+  }
+
+  .hosts-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .badge {
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+  }
+  .badge-success { background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); }
+  .badge-warning { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); }
+
+  .actions-cell {
+    display: flex;
+    gap: var(--space-sm);
+  }
+
+  /* ---- Host form ---- */
+  .host-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+
+  .tls-details {
+    padding-left: var(--space-lg);
+    border-left: 2px solid var(--primary);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-top: var(--space-xs);
+  }
+
+  .input-with-action {
+    display: flex;
+    gap: var(--space-sm);
+  }
+
+  .input-with-action input {
+    flex: 1;
+    background: var(--bg-tertiary);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border);
+  }
+
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .cookies-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+  }
+
+  .cookie-row {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr auto;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    align-items: center;
+  }
+
+  .cookie-row input {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-xs);
+  }
+
+  .btn-sm {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-xs);
+    align-self: flex-start;
+  }
+
+  /* ---- Buttons & Utils ---- */
+  .btn {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    transition: all 0.15s;
+    background: var(--bg-secondary);
+    color: var(--text);
+  }
+  .btn:hover:not(:disabled) { background: var(--bg-tertiary); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+
+  .btn-secondary { background: var(--bg-tertiary); border-color: var(--border); }
+
+  .btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    color: var(--primary);
+    padding: 0;
+  }
+  .btn-icon:hover { text-decoration: underline; }
+  .btn-icon.btn-danger { color: var(--danger); }
+
+  .empty-state {
+    padding: var(--space-xl);
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border);
+  }
 </style>

@@ -1,9 +1,10 @@
 package host
 
 type Host struct {
-	Id        string    `json:"id"`
-	Name      string    `json:"name"`
-	TlsConfig TLSConfig `json:"tlsConfig"`
+	Id        string            `json:"id"`
+	Name      string            `json:"name"`
+	TlsConfig TLSConfig         `json:"tlsConfig"`
+	Cookies   map[string]string `json:"cookies"`
 }
 
 type TLSConfig struct {
