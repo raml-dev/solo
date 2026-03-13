@@ -44,15 +44,17 @@ func NewApp() *App {
 		slog.Warn("FATAL: Failed to initialize configuration manager", "error", err)
 	}
 
+	hm := host.NewHostManager()
+
 	// ScriptManager is created without context here; context is set in startup()
 	sm := script.NewScriptManager(nil)
 
 	return &App{
-		service:            requester.NewService(cm, sm),
+		service:            requester.NewService(cm, sm, hm),
 		collectionManager:  collection.NewCollectionManager(),
 		environmentManager: environment.NewEnvironmentManager(),
 		configManager:      cm,
-		hostManager:        host.NewHostManager(),
+		hostManager:        hm,
 		scriptManager:      sm,
 	}
 }

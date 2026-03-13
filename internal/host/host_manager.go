@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -40,7 +41,22 @@ func (hm *HostManager) UpsertHost(config Host) error {
 	defer hm.mu.Unlock()
 
 	hm.configs[config.Name] = config
-	delete(hm.clientPool, config.Name)
+	
+	// Clear all pooled clients for this hostname (across all ports)
+	for key := range hm.clientPool {
+		h, _, err := net.SplitHostPort(key)
+		if err != nil {
+			// key doesn't have a port, it's just the hostname
+			if key == config.Name {
+				delete(hm.clientPool, key)
+			}
+		} else {
+			// key has a port, compare only the host part
+			if h == config.Name {
+				delete(hm.clientPool, key)
+			}
+		}
+	}
 
 	return hm.saveHosts()
 }
@@ -101,7 +117,19 @@ func (hm *HostManager) DeleteHost(hostname string) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 	delete(hm.configs, hostname)
-	delete(hm.clientPool, hostname)
+	
+	for key := range hm.clientPool {
+		h, _, err := net.SplitHostPort(key)
+		if err != nil {
+			if key == hostname {
+				delete(hm.clientPool, key)
+			}
+		} else {
+			if h == hostname {
+				delete(hm.clientPool, key)
+			}
+		}
+	}
 
 	return hm.saveHosts()
 }
@@ -112,31 +140,40 @@ func (hm *HostManager) GetClientForUrl(resolvedUrl string) (*http.Client, error)
 		slog.Error("Failed to parse URL", "url", resolvedUrl, "error", err)
 		return nil, err
 	}
-	hostname := parsed.Host
+	
+	// Separate hostname from port for configuration lookup
+	hostname := parsed.Hostname()
 
 	hm.mu.RLock()
-	transport, exists := hm.clientPool[hostname]
+	// We still use the full host (with port) for the client pool to avoid sharing 
+	// connections between different ports, but we use hostname for config.
+	transport, exists := hm.clientPool[parsed.Host]
 	hm.mu.RUnlock()
 
 	if exists {
-		slog.Debug("Reusing pooled HTTP client", "hostname", hostname)
+		slog.Debug("Reusing pooled HTTP client", "host", parsed.Host)
 		return &http.Client{Transport: transport}, nil
 	}
 
-	return hm.createNewClient(hostname)
+	return hm.createNewClient(parsed.Host, hostname)
 }
 
-func (hm *HostManager) createNewClient(hostname string) (*http.Client, error) {
+func (hm *HostManager) createNewClient(fullHost string, hostname string) (*http.Client, error) {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 
 	// double-check locking
-	if t, ok := hm.clientPool[hostname]; ok {
-		slog.Debug("Reusing pooled HTTP client (after lock)", "hostname", hostname)
+	if t, ok := hm.clientPool[fullHost]; ok {
+		slog.Debug("Reusing pooled HTTP client (after lock)", "host", fullHost)
 		return &http.Client{Transport: t}, nil
 	}
 
-	host := hm.configs[hostname]
+	host, ok := hm.configs[hostname]
+	if !ok {
+		slog.Debug("No custom host configuration found", "hostname", hostname)
+	} else {
+		slog.Info("Custom host configuration found", "hostname", hostname, "tls_enabled", host.TlsConfig.Enabled)
+	}
 
 	transport := &http.Transport{
 		TLSClientConfig:    buildTLS(host.TlsConfig, hostname),
@@ -145,8 +182,8 @@ func (hm *HostManager) createNewClient(hostname string) (*http.Client, error) {
 		DisableCompression: false,
 	}
 
-	hm.clientPool[hostname] = transport
-	slog.Info("Created new HTTP client", "hostname", hostname)
+	hm.clientPool[fullHost] = transport
+	slog.Info("Created new HTTP client", "host", fullHost, "hostname", hostname)
 	return &http.Client{Transport: transport}, nil
 }
 
@@ -155,19 +192,28 @@ func buildTLS(config TLSConfig, hostname string) *tls.Config {
 		InsecureSkipVerify: config.InsecureSkipVerify,
 	}
 
+	if !config.Enabled {
+		slog.Debug("TLS not enabled for host", "hostname", hostname)
+		return tlsConfig
+	}
+
 	hasCerts := false
 	if config.PublicCertificateFilePath != "" && config.PrivateKeyFilePath != "" {
 		cert, err := tls.LoadX509KeyPair(config.PublicCertificateFilePath, config.PrivateKeyFilePath)
 		if err == nil {
 			tlsConfig.Certificates = []tls.Certificate{cert}
 			hasCerts = true
+			slog.Info("Loaded client certificate for mTLS", "hostname", hostname, "cert", config.PublicCertificateFilePath)
 		} else {
-			slog.Warn("Failed to load TLS key pair",
+			slog.Error("Failed to load client certificate key pair",
 				"hostname", hostname,
 				"cert_path", config.PublicCertificateFilePath,
 				"key_path", config.PrivateKeyFilePath,
 				"error", err)
 		}
+	} else if (config.PublicCertificateFilePath != "" && config.PrivateKeyFilePath == "") || 
+	          (config.PublicCertificateFilePath == "" && config.PrivateKeyFilePath != "") {
+		slog.Warn("mTLS configuration incomplete: both certificate and key are required", "hostname", hostname)
 	}
 
 	if config.CaCertificateFilePath != "" {
@@ -176,9 +222,12 @@ func buildTLS(config TLSConfig, hostname string) *tls.Config {
 			caCertPool := x509.NewCertPool()
 			if ok := caCertPool.AppendCertsFromPEM(caCert); ok {
 				tlsConfig.RootCAs = caCertPool
+				slog.Info("Loaded CA certificate", "hostname", hostname, "ca", config.CaCertificateFilePath)
+			} else {
+				slog.Error("Failed to append CA certificate to pool", "hostname", hostname, "ca", config.CaCertificateFilePath)
 			}
 		} else {
-			slog.Warn("Failed to load CA certificate",
+			slog.Error("Failed to read CA certificate file",
 				"hostname", hostname,
 				"ca_path", config.CaCertificateFilePath,
 				"error", err)

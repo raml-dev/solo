@@ -32,9 +32,9 @@ type Service struct {
 	scriptManager *script.ScriptManager
 }
 
-func NewService(cm *configuration.ConfigurationManager, sm *script.ScriptManager) *Service {
+func NewService(cm *configuration.ConfigurationManager, sm *script.ScriptManager, hm *host.HostManager) *Service {
 	return &Service{
-		hostManager:   host.NewHostManager(),
+		hostManager:   hm,
 		configManager: cm,
 		scriptManager: sm,
 	}
