@@ -45,6 +45,13 @@ func (hm *HostManager) UpsertHost(config Host) error {
 	return hm.saveHosts()
 }
 
+func (hm *HostManager) GetHost(hostname string) (Host, bool) {
+	hm.mu.RLock()
+	defer hm.mu.RUnlock()
+	h, ok := hm.configs[hostname]
+	return h, ok
+}
+
 func (hm *HostManager) GetAllHosts() []Host {
 	hm.mu.RLock()
 	defer hm.mu.RUnlock()

@@ -174,6 +174,16 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, error) {
 
 	}
 
+	// Host Specific Cookies
+	parsedUrl, err := url.Parse(opts.URL)
+	if err == nil {
+		if hostCfg, ok := s.hostManager.GetHost(parsedUrl.Host); ok {
+			for name, value := range hostCfg.Cookies {
+				request.AddCookie(&http.Cookie{Name: name, Value: value})
+			}
+		}
+	}
+
 	// Execute pre-request script (may mutate method, url, headers, body)
 	if s.scriptManager != nil && opts.PreRequestScript != "" {
 		if err := s.scriptManager.ExecutePreRequest(opts.PreRequestScript, request); err != nil {
