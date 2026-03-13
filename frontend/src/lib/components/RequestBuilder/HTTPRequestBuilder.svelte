@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { Execute, GetSessionVars } from "../../../../wailsjs/go/main/App";
   import { collection, main } from "../../../../wailsjs/go/models";
   import Button from "../base/Button.svelte";
@@ -24,6 +25,7 @@
   import { sessionVarsStore } from "../../stores/sessionVarsStore";
 
   interface Header {
+
     id: string;
     key: string;
     value: string;
@@ -58,6 +60,16 @@
   let environmentEntries: { key: string; value: string }[] = [];
 
   const { config: globalConfig } = configurationStore;
+
+  onMount(() => {
+    const handleSaveNew = () => {
+      showSaveDialog = true;
+    };
+    window.addEventListener("yapla:save-request-new", handleSaveNew);
+    return () => {
+      window.removeEventListener("yapla:save-request-new", handleSaveNew);
+    };
+  });
 
   $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
     key,
@@ -99,87 +111,23 @@
     preRequestScript = ""; postResponseScript = ""; response = null; requestError = null;
   }
 
-  // --- Autosave to backend (debounced, called explicitly from handlers) ---
-  const lastSigByTabId: Record<string, string> = {};
-  const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-  function scheduleAutosave() {
-    const tabId = activeBuilderTabId;
-    if (!tabId) return;
-    const tab = $activeTabState;
-    if (!tab?.requestId || !tab.collectionName) return;
-
-    const headersObj = headers
-      .filter((h) => h.enabled && h.key)
-      .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
-
-    const sig = JSON.stringify({
-      id: tab.requestId, name: requestName, url, verb: method,
-      body: requestBody, headers: headersObj,
-      settings: requestSettings, preRequestScript, postResponseScript
-    });
-
-    if (sig === lastSigByTabId[tabId]) return;
-
-    const existing = persistTimers.get(tabId);
-    if (existing) clearTimeout(existing);
-
-    const snap = {
-      collectionName: tab.collectionName, requestId: tab.requestId,
-      name: requestName || tab.label, url, verb: method, body: requestBody,
-      headersObj, settings: { ...requestSettings },
-      preRequestScript, postResponseScript, sig
-    };
-
-    persistTimers.set(tabId, setTimeout(async () => {
-      persistTimers.delete(tabId);
-      await doPersist(tabId, snap);
-    }, 800));
-  }
-
-  async function doPersist(tabId: string, snap: {
-    collectionName: string; requestId: string; name: string;
-    url: string; verb: string; body: string;
-    headersObj: Record<string, string>; settings: conf.RequestSettingsOverride;
-    preRequestScript: string; postResponseScript: string; sig: string;
-  }) {
-    if (snap.sig === lastSigByTabId[tabId]) return;
-    const stored = findRequestInStore(snap.requestId);
-    if (!stored) return;
-    try {
-      await collectionStore.updateRequest(
-        snap.collectionName,
-        collection.Request.createFrom({
-          ...stored,
-          name: snap.name, url: snap.url, verb: snap.verb, body: snap.body,
-          headers: snap.headersObj, settings: snap.settings,
-          preRequestScript: snap.preRequestScript,
-          postResponseScript: snap.postResponseScript,
-          lastUpdateTimestamp: new Date().toISOString()
-        })
-      );
-      lastSigByTabId[tabId] = snap.sig;
-      tabStore.markDirty(tabId, false);
-    } catch { /* silent */ }
-  }
-
-  function findRequestInStore(requestId: string): collection.Request | null {
-    for (const coll of $collectionStore.collections) {
-      const found = coll.requests.find((r) => r.id === requestId);
-      if (found) return found;
+  async function handleSave() {
+    if (!activeBuilderTabId) return;
+    if (!$activeTabState?.requestId) {
+      showSaveDialog = true;
+      return;
     }
-    return null;
+    await tabStore.saveTab(activeBuilderTabId);
   }
 
   // --- Field change handlers (called from template on user interaction) ---
   function onFieldChange() {
-    // Sync in-memory tab state + schedule backend save
+    // Sync in-memory tab state
     if (!activeBuilderTabId) return;
     tabStore.updateTabFormState(activeBuilderTabId, {
       verb: method, url, body: requestBody, bodyFormat: requestBodyFormat,
       headers, settings: requestSettings, preRequestScript, postResponseScript
     });
-    scheduleAutosave();
   }
 
   function handleMethodChange(value: string) {
@@ -394,6 +342,29 @@
 {#if $activeTabState}
   <div class="request-builder" bind:this={builderElement}>
     <TokenTooltip />
+
+    <!-- Request Header -->
+    <div class="request-header">
+      <div class="request-name-container">
+        <span class="request-name">{requestName || "New Request"}</span>
+        {#if $activeTabState.isDirty}
+          <button
+            class="save-btn"
+            on:click={handleSave}
+            title="Save Request (Ctrl+S)"
+            aria-label="Save Request"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>Save</span>
+          </button>
+        {/if}
+      </div>
+    </div>
+
     <!-- Request Line -->
     <div class="request-line">
       <div class="url-bar">
@@ -553,8 +524,50 @@
     background: var(--bg-primary);
   }
 
+  .request-header {
+    padding: var(--space-sm) var(--space-lg) 0 var(--space-lg);
+    background: var(--bg-primary);
+  }
+
+  .request-name-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    height: 24px;
+  }
+
+  .request-name {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .save-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--primary);
+    font-size: 11px;
+    font-family: var(--font-sans);
+    font-weight: var(--font-weight-bold);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .save-btn:hover {
+    background: var(--primary);
+    color: var(--bg-primary);
+    border-color: var(--primary);
+  }
+
   .request-line {
-    padding: var(--space-md) var(--space-lg);
+    padding: var(--space-xs) var(--space-lg) var(--space-md) var(--space-lg);
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border);
   }
