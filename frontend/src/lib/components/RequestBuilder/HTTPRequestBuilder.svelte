@@ -15,6 +15,7 @@
   import RequestScripts from "./RequestScripts.svelte";
   import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
   import RequestSettings from "./RequestSettings.svelte";
+  import RequestRunner from "./RequestRunner.svelte";
   import TokenInput from "./TokenInput.svelte";
   import TokenTooltip from "./TokenTooltip.svelte";
   import { configurationStore } from "../../stores/configurationStore";
@@ -396,6 +397,7 @@
         <Tab title="Body" value="Body" />
         <Tab title="Scripts" value="Scripts" badge={preRequestScript.trim() || postResponseScript.trim() ? "●" : undefined} />
         <Tab title="Settings" value="Settings" />
+        <Tab title="Runner" value="Runner" />
       </Tabs>
 
       {#if requestPaneTab === 'Body'}
@@ -449,6 +451,18 @@
       {:else if requestPaneTab === 'Settings'}
         {#key $activeTabState.id}
           <RequestSettings bind:requestSettings globalConfig={$globalConfig} on:change={onFieldChange} />
+        {/key}
+      {:else if requestPaneTab === 'Runner'}
+        {#key $activeTabState.id}
+          <RequestRunner 
+            {method} 
+            {url} 
+            body={requestBody} 
+            {headers} 
+            settings={requestSettings} 
+            {preRequestScript} 
+            {postResponseScript} 
+          />
         {/key}
       {/if}
     </div>
