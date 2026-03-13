@@ -10,6 +10,7 @@ import (
 	"yapla/internal/host"
 	"yapla/internal/importer"
 	"yapla/internal/requester"
+	"yapla/internal/runner"
 	"yapla/internal/script"
 	"yapla/internal/theme"
 
@@ -25,6 +26,7 @@ type App struct {
 	configManager      *configuration.ConfigurationManager
 	hostManager        *host.HostManager
 	scriptManager      *script.ScriptManager
+	runner             *runner.Runner
 }
 
 type RequestOptions struct {
@@ -35,6 +37,39 @@ type RequestOptions struct {
 	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
 	PostResponseScript  string                                 `json:"postResponseScript,omitempty"`
+}
+
+// RunParallel performs parallel HTTP requests for load testing.
+func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, stopOnError bool) (runner.RunnerStats, error) {
+	if a.runner == nil {
+		return runner.RunnerStats{}, fmt.Errorf("runner not initialized")
+	}
+
+	execOpts := requester.ExecutionOptions{
+		Method:             options.Method,
+		URL:                options.URL,
+		Body:               options.Body,
+		Headers:            options.Headers,
+		Cookies:            nil,
+		Settings:           options.Settings,
+		PreRequestScript:   options.PreRequestScript,
+		PostResponseScript: options.PostResponseScript,
+	}
+
+	opts := runner.RunnerOptions{
+		Concurrency: concurrency,
+		Iterations:  iterations,
+		StopOnError: stopOnError,
+		Request:     execOpts,
+	}
+
+	onResult := func(res runner.RunnerResult) {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "runner:result", res)
+		}
+	}
+
+	return a.runner.Run(a.ctx, opts, onResult), nil
 }
 
 // NewApp creates a new App application struct
@@ -48,14 +83,16 @@ func NewApp() *App {
 
 	// ScriptManager is created without context here; context is set in startup()
 	sm := script.NewScriptManager(nil)
+	service := requester.NewService(cm, sm, hm)
 
 	return &App{
-		service:            requester.NewService(cm, sm, hm),
+		service:            service,
 		collectionManager:  collection.NewCollectionManager(),
 		environmentManager: environment.NewEnvironmentManager(),
 		configManager:      cm,
 		hostManager:        hm,
 		scriptManager:      sm,
+		runner:             runner.NewRunner(service),
 	}
 }
 
