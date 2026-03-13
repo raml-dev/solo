@@ -1,8 +1,15 @@
 <script lang="ts">
   import { tabStore } from "../../stores/tabStore";
+  import Modal from "../base/Modal.svelte";
+  import Button from "../base/Button.svelte";
 
   $: tabs = $tabStore.tabs;
   $: activeTabId = $tabStore.activeTabId;
+
+  let tabToCloseId: string | null = null;
+  let showConfirmClose = false;
+
+  $: tabToClose = tabs.find(t => t.id === tabToCloseId);
 
   function getMethodClass(verb: string): string {
     return `method-${(verb || "get").toLowerCase()}`;
@@ -10,7 +17,39 @@
 
   function handleClose(e: MouseEvent, tabId: string) {
     e.stopPropagation();
-    tabStore.closeTab(tabId);
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab?.isDirty) {
+      tabToCloseId = tabId;
+      showConfirmClose = true;
+    } else {
+      tabStore.closeTab(tabId);
+    }
+  }
+
+  async function confirmCloseSave() {
+    if (tabToCloseId) {
+      // If it's a new unsaved request, we can't save it directly via saveTab
+      // because it needs a collection first. For now, let's just close it or
+      // we could trigger the Save modal from HTTPRequestBuilder.
+      // But tabStore.saveTab handles the existing request case.
+      if (tabToClose?.requestId) {
+        await tabStore.saveTab(tabToCloseId);
+      }
+      tabStore.closeTab(tabToCloseId);
+    }
+    closeConfirmModal();
+  }
+
+  function confirmCloseDiscard() {
+    if (tabToCloseId) {
+      tabStore.closeTab(tabToCloseId);
+    }
+    closeConfirmModal();
+  }
+
+  function closeConfirmModal() {
+    showConfirmClose = false;
+    tabToCloseId = null;
   }
 </script>
 
@@ -22,7 +61,9 @@
       <div
         class="tab"
         class:active={tab.id === activeTabId}
+        class:preview-tab={tab.isPreview}
         on:click={() => tabStore.setActiveTab(tab.id)}
+        on:dblclick={() => tabStore.fixTab(tab.id)}
         title={tab.label}
       >
         <span class="method-badge {getMethodClass(tab.verb)}">{tab.verb}</span>
@@ -47,7 +88,49 @@
   >+</button>
 </div>
 
+{#if showConfirmClose}
+  <Modal title="Unsaved Changes" toggleFn={closeConfirmModal} size="sm">
+    <div class="confirm-modal-body">
+      <p>Do you want to save the changes to <strong>{tabToClose?.label}</strong>?</p>
+      <p class="text-muted">Your changes will be lost if you don't save them.</p>
+
+      <div class="confirm-modal-actions">
+        <Button variant="secondary" click={confirmCloseDiscard}>Don't Save</Button>
+        <div class="flex-spacer" />
+        <Button variant="secondary" click={closeConfirmModal}>Cancel</Button>
+        <Button variant="primary" click={confirmCloseSave}>Save</Button>
+      </div>
+    </div>
+  </Modal>
+{/if}
+
 <style>
+  .confirm-modal-body {
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .confirm-modal-body p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  .confirm-modal-actions {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+  }
+
+  .flex-spacer {
+    flex: 1;
+  }
+
   .tab-bar {
     display: flex;
     align-items: stretch;
@@ -130,6 +213,10 @@
     white-space: nowrap;
     flex: 1;
     min-width: 0;
+  }
+
+  .preview-tab .tab-label {
+    font-style: italic;
   }
 
   .dirty-dot {

@@ -1,6 +1,8 @@
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 import type { configuration as conf } from "../../../wailsjs/go/models";
+import { collection } from "../../../wailsjs/go/models";
 import { notifications } from "./notificationStore";
+import { collectionStore } from "./collectionStore";
 
 export interface TabHeader {
   id: string;
@@ -27,6 +29,8 @@ export interface TabState {
   verb: string;
   /** Unsaved changes indicator */
   isDirty: boolean;
+  /** Preview mode: can be replaced by another request if not fixed */
+  isPreview: boolean;
   // --- form state preserved across tab switches ---
   url: string;
   body: string;
@@ -56,6 +60,7 @@ function makeEmptyTab(): TabState {
     label: EMPTY_TAB_LABEL,
     verb: "GET",
     isDirty: false,
+    isPreview: true,
     url: "",
     body: "",
     bodyFormat: "json",
@@ -77,28 +82,71 @@ function createTabStore() {
   return {
     subscribe,
 
-    /** Open a tab for an existing saved request. If already open, just activate it. */
+    /** Open a tab for an existing saved request. If already open, just activate it. 
+     *  Implements "preview tab" logic: replaces an existing tab if it's in preview mode.
+     */
     openTab(
       requestId: string,
       collectionName: string,
       meta: { label: string; verb: string; url: string; body: string; bodyFormat: string; headers: TabHeader[]; settings: conf.RequestSettingsOverride; preRequestScript?: string; postResponseScript?: string }
     ) {
       update((state) => {
+        // 1. If already open, just activate it
         const existing = state.tabs.find((t) => t.requestId === requestId);
         if (existing) {
           return { ...state, activeTabId: existing.id };
         }
+
+        // 2. Look for a replaceable tab (isPreview mode)
+        // We prioritize the active tab if it's replaceable, otherwise the first replaceable one.
+        const activeTab = state.tabs.find(t => t.id === state.activeTabId);
+        
+        let tabToReplace: TabState | undefined;
+        if (activeTab && activeTab.isPreview) {
+          tabToReplace = activeTab;
+        } else {
+          tabToReplace = state.tabs.find(t => t.isPreview);
+        }
+
+        if (tabToReplace) {
+          return {
+            ...state,
+            activeTabId: tabToReplace.id,
+            tabs: state.tabs.map(t => t.id === tabToReplace?.id ? {
+              ...t,
+              requestId,
+              collectionName,
+              label: meta.label,
+              verb: meta.verb,
+              isDirty: false,
+              isPreview: true, // Remains in preview until interacted with
+              url: meta.url,
+              body: meta.body,
+              bodyFormat: meta.bodyFormat,
+              headers: meta.headers,
+              settings: meta.settings,
+              preRequestScript: meta.preRequestScript ?? "",
+              postResponseScript: meta.postResponseScript ?? "",
+              response: null,
+              requestError: null
+            } : t)
+          };
+        }
+
+        // 3. If no replaceable tab, create a new one (respecting limit)
         if (state.tabs.length >= MAX_OPEN_TABS) {
           notifications.warning(`Maximum ${MAX_OPEN_TABS} tabs open. Close a tab to open another.`);
           return state;
         }
-        const tab: TabState = {
+        
+        const newTab: TabState = {
           id: crypto.randomUUID(),
           requestId,
           collectionName,
           label: meta.label,
           verb: meta.verb,
           isDirty: false,
+          isPreview: true,
           url: meta.url,
           body: meta.body,
           bodyFormat: meta.bodyFormat,
@@ -109,7 +157,7 @@ function createTabStore() {
           response: null,
           requestError: null
         };
-        return { tabs: [...state.tabs, tab], activeTabId: tab.id };
+        return { tabs: [...state.tabs, newTab], activeTabId: newTab.id };
       });
     },
 
@@ -158,7 +206,12 @@ function createTabStore() {
     ) {
       update((state) => ({
         ...state,
-        tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, ...partial } : t))
+        tabs: state.tabs.map((t) => (t.id === tabId ? { 
+          ...t, 
+          ...partial, 
+          isDirty: partial.isDirty ?? true,
+          isPreview: false // Interaction fixes the tab
+        } : t))
       }));
     },
 
@@ -167,16 +220,60 @@ function createTabStore() {
       update((state) => ({
         ...state,
         tabs: state.tabs.map((t) =>
-          t.id === tabId ? { ...t, requestId, collectionName, label, isDirty: false } : t
+          t.id === tabId ? { ...t, requestId, collectionName, label, isDirty: false, isPreview: false } : t
         )
       }));
+    },
+
+    async saveTab(tabId: string) {
+      const state = get(this);
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab || !tab.requestId || !tab.collectionName) return;
+
+      const collections = get(collectionStore).collections;
+      let originalRequest: collection.Request | null = null;
+      for (const coll of collections) {
+        const found = coll.requests.find((r) => r.id === tab.requestId);
+        if (found) {
+          originalRequest = found;
+          break;
+        }
+      }
+
+      if (!originalRequest) return;
+
+      const headersObj = tab.headers
+        .filter((h) => h.enabled && h.key)
+        .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
+
+      try {
+        await collectionStore.updateRequest(
+          tab.collectionName,
+          collection.Request.createFrom({
+            ...originalRequest,
+            url: tab.url,
+            verb: tab.verb,
+            body: tab.body,
+            headers: headersObj,
+            settings: tab.settings,
+            preRequestScript: tab.preRequestScript,
+            postResponseScript: tab.postResponseScript,
+            lastUpdateTimestamp: new Date().toISOString()
+          })
+        );
+        this.markDirty(tabId, false);
+        this.fixTab(tabId);
+      } catch (error) {
+        notifications.error("Failed to save request");
+        throw error;
+      }
     },
 
     updateTabResponse(tabId: string, response: TabResponse | null, requestError: string | null) {
       update((state) => ({
         ...state,
         tabs: state.tabs.map((t) =>
-          t.id === tabId ? { ...t, response, requestError } : t
+          t.id === tabId ? { ...t, response, requestError, isPreview: false } : t
         )
       }));
     },
@@ -184,7 +281,14 @@ function createTabStore() {
     markDirty(tabId: string, isDirty: boolean) {
       update((state) => ({
         ...state,
-        tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isDirty } : t))
+        tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isDirty, isPreview: isDirty ? false : t.isPreview } : t))
+      }));
+    },
+
+    fixTab(tabId: string) {
+      update((state) => ({
+        ...state,
+        tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isPreview: false } : t))
       }));
     },
 

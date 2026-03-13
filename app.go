@@ -70,6 +70,20 @@ func (a *App) startup(ctx context.Context) {
 	slog.Info("Application started")
 }
 
+// beforeClose is called when the user tries to close the application.
+// We emit an event to the frontend to check for unsaved changes and veto the close.
+func (a *App) beforeClose(ctx context.Context) bool {
+	runtime.EventsEmit(ctx, "app:request-close")
+	return true // Veto the close
+}
+
+// ForceQuit exits the application immediately, bypassing the beforeClose hook.
+func (a *App) ForceQuit() {
+	if a.ctx != nil {
+		runtime.Quit(a.ctx)
+	}
+}
+
 // Execute performs the HTTP request with the given options.
 func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 	execOpts := requester.ExecutionOptions{
