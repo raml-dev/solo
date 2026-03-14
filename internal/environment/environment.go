@@ -14,6 +14,9 @@ type Environment struct {
 	Values              map[string]ValueType `json:"values"`
 	CreationTimestamp   time.Time            `json:"creation_timestamp"`
 	LastUpdateTimestamp time.Time            `json:"last_update_timestamp"`
+	GitRemote           string               `json:"gitRemote,omitempty"`
+	GitPath             string               `json:"gitPath,omitempty"`
+	GitProvider         string               `json:"gitProvider,omitempty"`
 }
 
 type ValueType struct {

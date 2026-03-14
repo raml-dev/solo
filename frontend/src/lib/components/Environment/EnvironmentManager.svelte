@@ -12,9 +12,18 @@
   import {
     ImportPostmanEnvironment,
     ImportBrunoEnvironment,
-    SelectFile
+    SelectFile,
+    SyncGitEnvironment,
+    GetGitEnvironmentStatus,
+    GitEnvKeepOurs,
+    GitEnvKeepTheirs,
+    GitEnvAbortRebase,
+    GitEnvDiscardChanges,
+    OpenEnvironmentInTerminal,
   } from "../../../../wailsjs/go/main/App";
   import type { environment } from "../../../../wailsjs/go/models";
+  import GitEnvImportView from "../GitEnvImportView.svelte";
+  import GitStatusPanel from "../GitStatusPanel.svelte";
 
   let showNewEnvironmentDialog = false;
   let showDeleteConfirmDialog = false;
@@ -27,6 +36,9 @@
   let overwriteTargetName: string | null = null;
   let selectedEnvironment: environment.Environment | null = null;
   let focusedEnvironmentName: string | null = null;
+  let syncingEnvironments: Set<string> = new Set();
+  let gitStatusEnvId: string | null = null;
+  let gitStatusEnvName: string | null = null;
 
   $: environments = $environmentStore.environments;
   $: {
@@ -104,6 +116,28 @@
 
   function handleLayoutClick() {
     activeMenu = null;
+  }
+
+  async function handleSync(environmentId: string) {
+    syncingEnvironments.add(environmentId);
+    syncingEnvironments = new Set(syncingEnvironments);
+    try {
+      await SyncGitEnvironment(environmentId);
+      notifications.success("Git environment synced successfully");
+      await environmentStore.loadEnvironments();
+    } catch (err) {
+      notifications.error("Sync failed", String(err));
+    } finally {
+      syncingEnvironments.delete(environmentId);
+      syncingEnvironments = new Set(syncingEnvironments);
+    }
+  }
+
+  function handleGitStatus(environmentId: string) {
+    const env = environments.find((e) => e.id === environmentId);
+    if (!env) return;
+    gitStatusEnvId = environmentId;
+    gitStatusEnvName = env.name;
   }
 
   function openImportModal() {
@@ -200,10 +234,13 @@
           menuOpen={activeMenu === environment.name}
           isActive={environment.name === $environmentStore.selectedEnvironmentName}
           isFocused={environment.name === focusedEnvironmentName}
+          isSyncing={syncingEnvironments.has(environment.id)}
           on:open={(e) => openEnvironment(e.detail)}
           on:activate={(e) => activateEnvironment(e.detail)}
           on:delete={handleDeleteEnvironment}
           on:toggleMenu={toggleMenu}
+          on:sync={(e) => handleSync(e.detail)}
+          on:gitStatus={(e) => handleGitStatus(e.detail)}
         />
       {/each}
     </div>
@@ -279,14 +316,18 @@
             </svelte:fragment>
           </DropZone>
         </Tab>
+
+        <Tab title="Git" value="git">
+          <GitEnvImportView on:imported={() => (showImportSelector = false)} />
+        </Tab>
       </Tabs>
     </div>
 
     <svelte:fragment slot="additional-buttons">
       {#if importActiveTab === "postman"}
         <Button variant="primary" click={() => handleSelectImportFormat("postman")}>Select file…</Button>
-      {:else}
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>Select folder…</Button>
+      {:else if importActiveTab === "bruno"}
+        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>Select file…</Button>
       {/if}
     </svelte:fragment>
   </Modal>
@@ -303,6 +344,25 @@
   </Modal>
 {/if}
 
+{#if gitStatusEnvId && gitStatusEnvName}
+  <GitStatusPanel
+    entityId={gitStatusEnvId}
+    entityName={gitStatusEnvName}
+    fnGetStatus={GetGitEnvironmentStatus}
+    fnSync={SyncGitEnvironment}
+    fnKeepOurs={GitEnvKeepOurs}
+    fnKeepTheirs={GitEnvKeepTheirs}
+    fnAbortRebase={GitEnvAbortRebase}
+    fnDiscard={GitEnvDiscardChanges}
+    fnOpenTerminal={OpenEnvironmentInTerminal}
+    onReload={environmentStore.loadEnvironments}
+    on:close={() => {
+      gitStatusEnvId = null;
+      gitStatusEnvName = null;
+    }}
+  />
+{/if}
+
 <style>
   .environment-manager-layout {
     display: flex;
@@ -313,7 +373,9 @@
   }
 
   .environment-list {
-    width: 200px;
+    width: fit-content;
+    min-width: 180px;
+    max-width: 320px;
     flex-shrink: 0;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);

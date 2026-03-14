@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"yapla/internal/tools"
 	fs "yapla/internal/tools"
 )
@@ -23,6 +24,13 @@ func NewCollectionManager() *CollectionManager {
 	}
 
 	return &CollectionManager{config}
+}
+
+func (cm *CollectionManager) GetConfigPath() (string, error) {
+	if cm.config == "" {
+		return "", errors.New("configuration path not set")
+	}
+	return cm.config, nil
 }
 
 func (cm *CollectionManager) CreateCollection(collectionName string) error {
@@ -51,7 +59,12 @@ func (cm *CollectionManager) CreateCollection(collectionName string) error {
 		return err
 	}
 
-	if err := fs.CreateConfigFile(cm.config, collectionName, bytes); err != nil {
+	fileName := collectionName
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	if err := fs.CreateConfigFile(cm.config, fileName, bytes); err != nil {
 		slog.Error("Failed to create collection file", "name", collectionName, "error", err)
 		return err
 	}
@@ -70,11 +83,13 @@ func (cm *CollectionManager) LoadCollections() (*[]string, error) {
 	names := make([]string, 0, len(dirEntry))
 
 	for _, e := range dirEntry {
-		names = append(names, e.Name())
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		names = append(names, strings.TrimSuffix(e.Name(), ".json"))
 	}
 
 	return &names, nil
-
 }
 
 func (cm *CollectionManager) LoadCollectionsContent() (*[]Collection, error) {
@@ -88,10 +103,10 @@ func (cm *CollectionManager) LoadCollectionsContent() (*[]Collection, error) {
 	collections := make([]Collection, 0, len(dirEntry))
 
 	for _, e := range dirEntry {
-		collectionName := e.Name()
-		if filepath.Ext(collectionName) == ".json" {
-			collectionName = collectionName[:len(collectionName)-5]
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
 		}
+		collectionName := strings.TrimSuffix(e.Name(), ".json")
 		coll, err := cm.LoadCollection(collectionName)
 
 		if err != nil {
@@ -112,7 +127,12 @@ func (cm *CollectionManager) LoadCollection(collectionName string) (*Collection,
 
 	slog.Debug("Loading collection", "name", collectionName)
 
-	fileBytes, err := fs.ReadConfigFile(cm.config, collectionName)
+	fileName := collectionName
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	fileBytes, err := fs.ReadConfigFile(cm.config, fileName)
 
 	if err != nil {
 		slog.Debug("Failed to read collection file", "name", collectionName, "error", err)
@@ -126,7 +146,6 @@ func (cm *CollectionManager) LoadCollection(collectionName string) (*Collection,
 		slog.Error("Failed to parse collection file", "name", collectionName, "error", err)
 		return nil, err
 	}
-
 
 	slog.Debug("Collection loaded", "name", collectionName, "requests_count", len(rC.Requests))
 	return &rC, nil
@@ -142,7 +161,12 @@ func (cm *CollectionManager) UpdateCollection(updated Collection) error {
 		return err
 	}
 
-	return fs.UpdateConfigFile(cm.config, updated.Name, bytes)
+	fileName := updated.Name
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	return fs.UpdateConfigFile(cm.config, fileName, bytes)
 }
 
 func (cm *CollectionManager) DeleteCollection(collectionName string) error {
@@ -150,7 +174,12 @@ func (cm *CollectionManager) DeleteCollection(collectionName string) error {
 		return errors.New("no collection name specified")
 	}
 
-	if err := tools.RemoveConfigFile(cm.config, collectionName); err != nil {
+	fileName := collectionName
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	if err := tools.RemoveConfigFile(cm.config, fileName); err != nil {
 		slog.Error("Failed to delete collection", "name", collectionName, "error", err)
 		return err
 	}

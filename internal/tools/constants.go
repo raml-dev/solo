@@ -7,6 +7,7 @@ const (
 	CONFIG_HOST_DIR       = "hosts"
 	CONFIG_HOST_FILENAME  = "host.json"
 	CONFIG_ENV_DIR        = "environments"
+	GIT_STORAGE_DIR       = "git_storage"
 )
 
 const (

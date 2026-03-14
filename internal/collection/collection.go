@@ -19,6 +19,9 @@ type Collection struct {
 	Requests            []Request `json:"requests"`
 	Name                string    `json:"name"`
 	Id                  string    `json:"id"`
+	GitRemote           string    `json:"gitRemote,omitempty"`
+	GitPath             string    `json:"gitPath,omitempty"`
+	GitProvider         string    `json:"gitProvider,omitempty"`
 }
 
 func NewCollection(name string) Collection {

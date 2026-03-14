@@ -2,17 +2,24 @@ package main
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"yapla/internal/collection"
 	"yapla/internal/configuration"
 	"yapla/internal/environment"
+	"yapla/internal/git"
 	"yapla/internal/host"
 	"yapla/internal/importer"
 	"yapla/internal/requester"
 	"yapla/internal/runner"
 	"yapla/internal/script"
 	"yapla/internal/theme"
+	"yapla/internal/tools"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -27,6 +34,7 @@ type App struct {
 	hostManager        *host.HostManager
 	scriptManager      *script.ScriptManager
 	runner             *runner.Runner
+	gitManager         *git.Manager
 }
 
 type RequestOptions struct {
@@ -93,6 +101,7 @@ func NewApp() *App {
 		hostManager:        hm,
 		scriptManager:      sm,
 		runner:             runner.NewRunner(service),
+		gitManager:         git.NewManager(),
 	}
 }
 
@@ -497,6 +506,289 @@ func (a *App) SetDebugMode(enabled bool) {
 	}
 }
 
+// Git Management Methods
+
+// IdentifyGitProvider returns the provider name for the given Git URL.
+func (a *App) IdentifyGitProvider(url string) (string, error) {
+	if a.gitManager == nil {
+		return "", fmt.Errorf("git manager not initialized")
+	}
+	return a.gitManager.IdentifyProvider(url), nil
+}
+
+// GetGitRemoteBranches returns a list of branches for a given Git URL.
+func (a *App) GetGitRemoteBranches(url string) ([]string, error) {
+	if a.gitManager == nil {
+		return nil, fmt.Errorf("git manager not initialized")
+	}
+	return a.gitManager.GetRemoteBranches(url)
+}
+
+// BrowseGitRemote returns a list of files and folders in a remote Git repository.
+func (a *App) BrowseGitRemote(url string) ([]git.GitResource, error) {
+	if a.gitManager == nil {
+		return nil, fmt.Errorf("git manager not initialized")
+	}
+	return a.gitManager.BrowseRemote(url)
+}
+
+// SetupGitCollection clones a repository and sets up sparse-checkout for a specific collection path.
+func (a *App) SetupGitCollection(url, remotePath, localName, providerType string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+
+	// Generate a unique storage directory name based on URL hash to avoid conflicts
+	hash := sha1.Sum([]byte(url))
+	storageDirName := fmt.Sprintf("%x", hash[:8])
+
+	// Determine local target directory: ~/.yapla/git_storage/<hash>
+	configRoot, err := tools.GetOrCreateConfigDir()
+	if err != nil {
+		return err
+	}
+	targetDir := filepath.Join(configRoot, tools.GIT_STORAGE_DIR, storageDirName)
+
+	if err := a.gitManager.SetupGitCollection(url, remotePath, targetDir); err != nil {
+		return err
+	}
+
+	// Detect format and create/update the local Yapla collection metadata
+	var coll collection.Collection
+	
+	// Load the file content to create the metadata
+	fullPath := filepath.Join(targetDir, remotePath)
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		return fmt.Errorf("file not found after git setup: %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		// Bruno folder
+		imp := importer.NewBrunoImporter()
+		c, err := imp.Import(fullPath)
+		if err != nil {
+			return err
+		}
+		coll = *c
+	} else {
+		// File (Yapla or Postman)
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			return err
+		}
+
+		slog.Debug("File read from Git repo", "path", fullPath, "size", len(data))
+
+		// Try to detect format by attempting a Yapla-native unmarshal first.
+		// Yapla files contain "creationTimestamp" and "requests" fields;
+		// Postman files contain "info" and "item" fields instead.
+		// NOTE: "yapla_version" does NOT exist in the Collection struct,
+		// so it must never be used as a detection key.
+		var tryYapla collection.Collection
+		if err := json.Unmarshal(data, &tryYapla); err == nil && tryYapla.Name != "" && tryYapla.Id != "" {
+			slog.Debug("Detected Yapla native format", "name", tryYapla.Name, "requests", len(tryYapla.Requests))
+			coll = tryYapla
+		} else {
+			slog.Debug("Detected Postman format, calling importer")
+			// Postman
+			imp := importer.NewPostmanImporter()
+			c, err := imp.Import(fullPath)
+			if err != nil {
+				return err
+			}
+			coll = *c
+		}
+	}
+
+	// Update metadata
+	// If localName is empty, we use the name found in the file, otherwise we keep localName
+	if localName == "" {
+		if coll.Name == "" {
+			// Fallback to filename if still empty
+			coll.Name = filepath.Base(remotePath)
+		}
+	} else {
+		coll.Name = localName
+	}
+	
+	coll.GitRemote = url
+	coll.GitPath = remotePath
+	coll.GitProvider = providerType
+
+	return a.collectionManager.UpdateCollection(coll)
+}
+
+// SyncGitCollection performs pull, commit and push for a Git-backed collection.
+func (a *App) SyncGitCollection(collectionId string) error {
+	gitRepoDir, targetColl, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return err
+	}
+	gitFilePath := filepath.Join(gitRepoDir, targetColl.GitPath)
+
+	// 3. Save current Yapla state to the file in the Git repo before syncing
+	// This ensures we push our latest local changes
+	jsonData, err := json.MarshalIndent(targetColl, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(gitFilePath, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to update file in git repo: %w", err)
+	}
+
+	// 4. Perform Sync (Pull, Commit, Push)
+	if err := a.gitManager.SyncGitCollection(gitRepoDir, targetColl.Name, ""); err != nil {
+		return err
+	}
+
+	// 5. Reload the collection from the synced git file to update local Yapla state
+	updatedData, err := os.ReadFile(gitFilePath)
+	if err == nil {
+		var updatedColl collection.Collection
+		if err := json.Unmarshal(updatedData, &updatedColl); err == nil {
+			// Keep our local metadata
+			updatedColl.Id = targetColl.Id
+			updatedColl.Name = targetColl.Name
+			updatedColl.GitRemote = targetColl.GitRemote
+			updatedColl.GitPath = targetColl.GitPath
+			updatedColl.GitProvider = targetColl.GitProvider
+			return a.collectionManager.UpdateCollection(updatedColl)
+		}
+	}
+
+	return nil
+}
+
+// SetupGitEnvironment clones a repository and sets up sparse-checkout for a specific environment path.
+func (a *App) SetupGitEnvironment(url, remotePath, localName, providerType string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+
+	// Generate a unique storage directory name based on URL hash
+	hash := sha1.Sum([]byte(url))
+	storageDirName := fmt.Sprintf("env_%x", hash[:8])
+
+	// Determine local target directory: ~/.yapla/git_storage/<hash>
+	configRoot, err := tools.GetOrCreateConfigDir()
+	if err != nil {
+		return err
+	}
+	targetDir := filepath.Join(configRoot, tools.GIT_STORAGE_DIR, storageDirName)
+
+	if err := a.gitManager.SetupGitCollection(url, remotePath, targetDir); err != nil {
+		return err
+	}
+
+	// Detect format and create/update the local Yapla environment metadata
+	var env environment.Environment
+	
+	fullPath := filepath.Join(targetDir, remotePath)
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		return fmt.Errorf("environment file not found after git setup: %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		// Bruno environment folder (actually Bruno usually has .bru files)
+		imp := importer.NewBrunoEnvironmentImporter()
+		e, err := imp.Import(fullPath)
+		if err != nil {
+			return err
+		}
+		env = *e
+	} else {
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			return err
+		}
+
+		slog.Debug("Environment file read from Git repo", "path", fullPath, "size", len(data))
+
+		// Try to detect format
+		content := string(data)
+		if strings.Contains(content, "\"creation_timestamp\"") && strings.Contains(content, "\"values\"") {
+			// Yapla Native
+			if err := json.Unmarshal(data, &env); err != nil {
+				return err
+			}
+		} else if strings.Contains(content, "\"values\"") && strings.Contains(content, "\"_postman_variable_scope\"") {
+			// Postman
+			imp := importer.NewPostmanEnvironmentImporter()
+			e, err := imp.Import(fullPath)
+			if err != nil {
+				return err
+			}
+			env = *e
+		} else if strings.HasSuffix(fullPath, ".bru") {
+			// Bruno single file
+			imp := importer.NewBrunoEnvironmentImporter()
+			e, err := imp.Import(fullPath)
+			if err != nil {
+				return err
+			}
+			env = *e
+		} else {
+			return fmt.Errorf("unsupported environment format")
+		}
+	}
+
+	// Update metadata
+	if localName == "" {
+		if env.Name == "" {
+			env.Name = filepath.Base(remotePath)
+		}
+	} else {
+		env.Name = localName
+	}
+	
+	env.GitRemote = url
+	env.GitPath = remotePath
+	env.GitProvider = providerType
+
+	return a.environmentManager.UpdateEnvironment(&env)
+}
+
+// SyncGitEnvironment performs pull, commit and push for a Git-backed environment.
+func (a *App) SyncGitEnvironment(environmentId string) error {
+	gitRepoDir, targetEnv, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return err
+	}
+	gitFilePath := filepath.Join(gitRepoDir, targetEnv.GitPath)
+
+	// Save current state to git repo
+	jsonData, err := json.MarshalIndent(targetEnv, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(gitFilePath, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to update environment file in git repo: %w", err)
+	}
+
+	// Perform Sync
+	if err := a.gitManager.SyncGitCollection(gitRepoDir, targetEnv.Name, ""); err != nil {
+		return err
+	}
+
+	// Reload and update local state
+	updatedData, err := os.ReadFile(gitFilePath)
+	if err == nil {
+		var updatedEnv environment.Environment
+		if err := json.Unmarshal(updatedData, &updatedEnv); err == nil {
+			updatedEnv.Id = targetEnv.Id
+			updatedEnv.Name = targetEnv.Name
+			updatedEnv.GitRemote = targetEnv.GitRemote
+			updatedEnv.GitPath = targetEnv.GitPath
+			updatedEnv.GitProvider = targetEnv.GitProvider
+			return a.environmentManager.UpdateEnvironment(&updatedEnv)
+		}
+	}
+
+	return nil
+}
+
 // SelectDirectory opens a native file dialog to select a directory.
 func (a *App) SelectDirectory(title string) (string, error) {
 	slog.Debug("Opening directory dialog", "title", title)
@@ -518,4 +810,258 @@ func (a *App) SelectFile(title, patterns, displayName string) (string, error) {
 			},
 		},
 	})
+}
+
+// ── Git helpers ──────────────────────────────────────────────────────────────
+
+// resolveGitCollectionDir resolves a collectionId to its local git repo dir
+// and returns the collection metadata. Avoids duplicating the hash logic everywhere.
+func (a *App) resolveGitCollectionDir(collectionId string) (gitRepoDir string, coll *collection.Collection, err error) {
+	collsContent, err := a.collectionManager.LoadCollectionsContent()
+	if err != nil {
+		return "", nil, err
+	}
+
+	var target *collection.Collection
+	for i, c := range *collsContent {
+		if c.Id == collectionId {
+			target = &(*collsContent)[i]
+			break
+		}
+	}
+
+	if target == nil || target.GitRemote == "" {
+		return "", nil, fmt.Errorf("collection not found or not Git-backed")
+	}
+
+	configRoot, err := tools.GetOrCreateConfigDir()
+	if err != nil {
+		return "", nil, err
+	}
+
+	hash := sha1.Sum([]byte(target.GitRemote))
+	storageDirName := fmt.Sprintf("%x", hash[:8])
+	dir := filepath.Join(configRoot, tools.GIT_STORAGE_DIR, storageDirName)
+
+	return dir, target, nil
+}
+
+// ── Git Status Panel ─────────────────────────────────────────────────────────
+
+// GetGitCollectionStatus returns the current git status for a Git-backed collection.
+func (a *App) GetGitCollectionStatus(collectionId string) (git.CollectionStatus, error) {
+	if a.gitManager == nil {
+		return git.CollectionStatus{}, fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return git.CollectionStatus{}, err
+	}
+	return a.gitManager.GetCollectionStatus(dir)
+}
+
+// GitKeepOurs resolves all conflicts in a Git-backed collection by keeping our version.
+func (a *App) GitKeepOurs(collectionId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.KeepOurs(dir)
+}
+
+// GitKeepTheirs resolves all conflicts in a Git-backed collection by keeping the remote version.
+func (a *App) GitKeepTheirs(collectionId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, coll, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return err
+	}
+	if err := a.gitManager.KeepTheirs(dir); err != nil {
+		return err
+	}
+	// After accepting remote changes, reload the collection from the git file
+	// so the local Yapla state reflects the remote version.
+	gitFilePath := filepath.Join(dir, coll.GitPath)
+	data, err := os.ReadFile(gitFilePath)
+	if err != nil {
+		return nil // best-effort, don't fail the whole operation
+	}
+	var updatedColl collection.Collection
+	if err := json.Unmarshal(data, &updatedColl); err != nil {
+		return nil
+	}
+	updatedColl.Id = coll.Id
+	updatedColl.Name = coll.Name
+	updatedColl.GitRemote = coll.GitRemote
+	updatedColl.GitPath = coll.GitPath
+	updatedColl.GitProvider = coll.GitProvider
+	return a.collectionManager.UpdateCollection(updatedColl)
+}
+
+// GitAbortRebase aborts an in-progress rebase for a Git-backed collection.
+func (a *App) GitAbortRebase(collectionId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.AbortRebase(dir)
+}
+
+// GitDiscardChanges discards all local uncommitted changes for a Git-backed collection.
+func (a *App) GitDiscardChanges(collectionId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.DiscardAllChanges(dir)
+}
+
+// ── Open in Terminal ─────────────────────────────────────────────────────────
+
+// OpenCollectionInTerminal opens the system terminal at the git storage directory
+// for the given Git-backed collection.
+func (a *App) OpenCollectionInTerminal(collectionId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitCollectionDir(collectionId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.OpenInTerminal(dir)
+}
+
+// ── Git Environment helpers ───────────────────────────────────────────────────
+
+// resolveGitEnvDir resolves an environmentId to its local git repo dir
+// and returns the environment metadata.
+func (a *App) resolveGitEnvDir(environmentId string) (gitRepoDir string, env *environment.Environment, err error) {
+	envsContent, err := a.environmentManager.LoadEnvironmentsContent()
+	if err != nil {
+		return "", nil, err
+	}
+
+	var target *environment.Environment
+	for i, e := range *envsContent {
+		if e.Id == environmentId {
+			target = &(*envsContent)[i]
+			break
+		}
+	}
+
+	if target == nil || target.GitRemote == "" {
+		return "", nil, fmt.Errorf("environment not found or not Git-backed")
+	}
+
+	configRoot, err := tools.GetOrCreateConfigDir()
+	if err != nil {
+		return "", nil, err
+	}
+
+	hash := sha1.Sum([]byte(target.GitRemote))
+	storageDirName := fmt.Sprintf("env_%x", hash[:8])
+	dir := filepath.Join(configRoot, tools.GIT_STORAGE_DIR, storageDirName)
+
+	return dir, target, nil
+}
+
+// GetGitEnvironmentStatus returns the current git status for a Git-backed environment.
+func (a *App) GetGitEnvironmentStatus(environmentId string) (git.CollectionStatus, error) {
+	if a.gitManager == nil {
+		return git.CollectionStatus{}, fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return git.CollectionStatus{}, err
+	}
+	return a.gitManager.GetCollectionStatus(dir)
+}
+
+// GitEnvKeepOurs resolves all conflicts in a Git-backed environment by keeping our version.
+func (a *App) GitEnvKeepOurs(environmentId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.KeepOurs(dir)
+}
+
+// GitEnvKeepTheirs resolves all conflicts in a Git-backed environment by keeping the remote version.
+func (a *App) GitEnvKeepTheirs(environmentId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, env, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return err
+	}
+	if err := a.gitManager.KeepTheirs(dir); err != nil {
+		return err
+	}
+	gitFilePath := filepath.Join(dir, env.GitPath)
+	data, err := os.ReadFile(gitFilePath)
+	if err != nil {
+		return nil
+	}
+	var updatedEnv environment.Environment
+	if err := json.Unmarshal(data, &updatedEnv); err != nil {
+		return nil
+	}
+	updatedEnv.Id = env.Id
+	updatedEnv.Name = env.Name
+	updatedEnv.GitRemote = env.GitRemote
+	updatedEnv.GitPath = env.GitPath
+	updatedEnv.GitProvider = env.GitProvider
+	return a.environmentManager.UpdateEnvironment(&updatedEnv)
+}
+
+// GitEnvAbortRebase aborts an in-progress rebase for a Git-backed environment.
+func (a *App) GitEnvAbortRebase(environmentId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.AbortRebase(dir)
+}
+
+// GitEnvDiscardChanges discards all local uncommitted changes for a Git-backed environment.
+func (a *App) GitEnvDiscardChanges(environmentId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.DiscardAllChanges(dir)
+}
+
+// OpenEnvironmentInTerminal opens the system terminal at the git storage directory
+// for the given Git-backed environment.
+func (a *App) OpenEnvironmentInTerminal(environmentId string) error {
+	if a.gitManager == nil {
+		return fmt.Errorf("git manager not initialized")
+	}
+	dir, _, err := a.resolveGitEnvDir(environmentId)
+	if err != nil {
+		return err
+	}
+	return a.gitManager.OpenInTerminal(dir)
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ func NewPostmanImporter() *PostmanImporter {
 }
 
 func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
+	slog.Info("Importing Postman collection", "path", path)
 	fileData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("impossibile leggere il file: %w", err)
@@ -27,6 +29,8 @@ func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
 	if err := json.Unmarshal(fileData, &pc); err != nil {
 		return nil, fmt.Errorf("errore nel parsing della collection Postman: %w", err)
 	}
+
+	slog.Debug("Postman collection unmarshaled", "name", pc.Info.Name, "items_count", len(pc.Item))
 
 	now := time.Now()
 	coll := &models.Collection{
@@ -39,28 +43,32 @@ func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
 
 	processItems(pc.Item, "", &coll.Requests)
 
+	slog.Info("Postman import completed", "requests_found", len(coll.Requests))
 	return coll, nil
 }
 
 // Recursive function to flatten folders
 func processItems(items []postmanItem, folderPath string, dest *[]models.Request) {
 	for _, item := range items {
-		// If it has children, it's a folder
+		// 1. Process as folder if it has children
 		if len(item.Item) > 0 {
 			newPath := item.Name + " / "
 			if folderPath != "" {
 				newPath = folderPath + item.Name + " / "
 			}
 			processItems(item.Item, newPath, dest)
-			continue
+			// Note: We don't skip the rest of the loop because some exporters 
+			// might put a request and an item array in the same object.
 		}
 
-		// If it's a request (it may also be an empty folder, so we check)
+		// 2. Process as request if it has request data
 		if item.Request != nil {
 			reqName := item.Name
 			if folderPath != "" {
 				reqName = folderPath + item.Name
 			}
+
+			slog.Debug("Processing Postman request", "name", reqName)
 
 			req := models.Request{
 				Id:                  generateUUID(),
