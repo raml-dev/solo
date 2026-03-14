@@ -1,31 +1,35 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
+  import Button from "$src/lib/components/base/Button.svelte";
+  import Dropdown from "$src/lib/components/base/Dropdown.svelte";
+  import EmptyState from "$src/lib/components/base/EmptyState.svelte";
+  import Tab from "$src/lib/components/base/Tab.svelte";
+  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
+  import RequestBody from "$src/lib/components/RequestBuilder/RequestBody.svelte";
+  import RequestHeaders from "$src/lib/components/RequestBuilder/RequestHeaders.svelte";
+  import RequestRunner from "$src/lib/components/RequestBuilder/RequestRunner.svelte";
+  import RequestScripts from "$src/lib/components/RequestBuilder/RequestScripts.svelte";
+  import RequestSettings from "$src/lib/components/RequestBuilder/RequestSettings.svelte";
+  import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
+  import TokenTooltip from "$src/lib/components/RequestBuilder/TokenTooltip.svelte";
+  import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
+  import SaveRequestModal from "$src/lib/components/SaveRequestModal.svelte";
+  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { configurationStore } from "$src/lib/stores/configurationStore";
+  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { historyStore } from "$src/lib/stores/historyStore";
+  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
+  import {
+    activeTab as activeTabState,
+    tabStore,
+    type TabResponse
+  } from "$src/lib/stores/tabStore";
+  import { Execute, GetSessionVars } from "$wails/go/main/App";
+  import type { configuration as conf } from "$wails/go/models";
+  import { main } from "$wails/go/models";
   import { onMount } from "svelte";
-  import { Execute, GetSessionVars } from "../../../../wailsjs/go/main/App";
-  import { main } from "../../../../wailsjs/go/models";
-  import Button from "../base/Button.svelte";
-  import Dropdown from "../base/Dropdown.svelte";
-  import EmptyState from "../base/EmptyState.svelte";
-  import { collectionStore } from "../../stores/collectionStore";
-  import { tabStore, activeTab as activeTabState, type TabResponse } from "../../stores/tabStore";
-  import { selectedEnvironment } from "../../stores/environmentStore";
-  import Tabs from "../base/Tabs.svelte";
-  import Tab from "../base/Tab.svelte";
-  import RequestHeaders from "./RequestHeaders.svelte";
-  import RequestBody from "./RequestBody.svelte";
-  import RequestScripts from "./RequestScripts.svelte";
-  import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
-  import RequestSettings from "./RequestSettings.svelte";
-  import RequestRunner from "./RequestRunner.svelte";
-  import TokenInput from "./TokenInput.svelte";
-  import TokenTooltip from "./TokenTooltip.svelte";
-  import { configurationStore } from "../../stores/configurationStore";
-  import type { configuration as conf } from "../../../../wailsjs/go/models";
-  import type { InputFormat } from "./types";
-  import SaveRequestModal from "../SaveRequestModal.svelte";
-  import { historyStore } from "../../stores/historyStore";
-  import { sessionVarsStore } from "../../stores/sessionVarsStore";
 
   interface Header {
     id: string;

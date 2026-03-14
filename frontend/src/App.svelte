@@ -1,20 +1,20 @@
 <script lang="ts">
+  import CollectionList from "$src/lib/components/CollectionList.svelte";
+  import Console from "$src/lib/components/Console/Console.svelte";
+  import MainLayout from "$src/lib/components/MainLayout.svelte";
+  import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
+  import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import Modal from "$src/lib/components/base/Modal.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { configurationStore } from "$src/lib/stores/configurationStore";
+  import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { historyStore } from "$src/lib/stores/historyStore";
+  import { activeTab, tabStore } from "$src/lib/stores/tabStore";
+  import { ForceQuit } from "$wails/go/main/App";
+  import { EventsOn } from "$wails/runtime/runtime";
   import { onMount } from "svelte";
-  import MainLayout from "./lib/components/MainLayout.svelte";
-  import CollectionList from "./lib/components/CollectionList.svelte";
-  import HTTPRequestBuilder from "./lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
-  import RequestTabBar from "./lib/components/RequestBuilder/RequestTabBar.svelte";
-  import ToastContainer from "./lib/components/base/ToastContainer.svelte";
-  import Console from "./lib/components/Console/Console.svelte";
-  import Modal from "./lib/components/base/Modal.svelte";
-  import Button from "./lib/components/base/Button.svelte";
-  import { historyStore } from "./lib/stores/historyStore";
-  import { configurationStore } from "./lib/stores/configurationStore";
-  import { collectionStore } from "./lib/stores/collectionStore";
-  import { environmentStore } from "./lib/stores/environmentStore";
-  import { tabStore, activeTab } from "./lib/stores/tabStore";
-  import { EventsOn } from "../wailsjs/runtime/runtime";
-  import { ForceQuit } from "../wailsjs/go/main/App";
 
   let consoleOpen = $state(false);
   let consoleHeight = $state(260);

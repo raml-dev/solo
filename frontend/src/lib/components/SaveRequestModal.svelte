@@ -1,7 +1,7 @@
 <script lang="ts">
+  import Button from "$src/lib/components/base/Button.svelte";
+  import { collectionStore } from "$src/lib/stores/collectionStore";
   import { onMount } from "svelte";
-  import { collectionStore } from "../stores/collectionStore";
-  import Button from "./base/Button.svelte";
   import { slide } from "svelte/transition";
 
   interface Props {

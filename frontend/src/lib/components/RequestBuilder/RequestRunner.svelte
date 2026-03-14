@@ -1,11 +1,11 @@
 <script lang="ts">
+  import Button from "$src/lib/components/base/Button.svelte";
+  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { GetSessionVars, RunParallel } from "$wails/go/main/App";
+  import type { configuration as conf } from "$wails/go/models";
+  import { main, runner } from "$wails/go/models";
+  import { EventsOff, EventsOn } from "$wails/runtime";
   import { onMount } from "svelte";
-  import { RunParallel, GetSessionVars } from "../../../../wailsjs/go/main/App";
-  import { main, runner } from "../../../../wailsjs/go/models";
-  import Button from "../base/Button.svelte";
-  import { selectedEnvironment } from "../../stores/environmentStore";
-  import { EventsOn, EventsOff } from "../../../../wailsjs/runtime";
-  import type { configuration as conf } from "../../../../wailsjs/go/models";
 
   interface Header {
     id: string;

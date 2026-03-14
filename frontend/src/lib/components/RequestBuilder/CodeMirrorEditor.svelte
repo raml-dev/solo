@@ -1,39 +1,39 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { onMount, onDestroy } from "svelte";
-  import { EditorState, Compartment, Annotation } from "@codemirror/state";
-  import {
-    EditorView,
-    ViewPlugin,
-    Decoration,
-    keymap,
-    lineNumbers,
-    highlightActiveLine,
-    highlightActiveLineGutter,
-    type DecorationSet
-  } from "@codemirror/view";
-  import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-  import {
-    foldGutter,
-    foldKeymap,
-    syntaxHighlighting,
-    defaultHighlightStyle,
-    HighlightStyle
-  } from "@codemirror/language";
-  import { tags } from "@lezer/highlight";
-  import { json } from "@codemirror/lang-json";
-  import { xml } from "@codemirror/lang-xml";
-  import { StreamLanguage } from "@codemirror/language";
-  import { lua } from "@codemirror/legacy-modes/mode/lua";
-  import { indentationMarkers } from "@replit/codemirror-indentation-markers";
+  import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import {
     autocompletion,
     completionKeymap,
     type CompletionContext,
     type CompletionResult
   } from "@codemirror/autocomplete";
-  import { showTokenTooltip, hideTokenTooltipDelay } from "../../stores/tokenTooltipStore";
+  import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+  import { json } from "@codemirror/lang-json";
+  import { xml } from "@codemirror/lang-xml";
+  import {
+    defaultHighlightStyle,
+    foldGutter,
+    foldKeymap,
+    HighlightStyle,
+    StreamLanguage,
+    syntaxHighlighting
+  } from "@codemirror/language";
+  import { lua } from "@codemirror/legacy-modes/mode/lua";
+  import { Annotation, Compartment, EditorState } from "@codemirror/state";
+  import {
+    Decoration,
+    EditorView,
+    highlightActiveLine,
+    highlightActiveLineGutter,
+    keymap,
+    lineNumbers,
+    ViewPlugin,
+    type DecorationSet
+  } from "@codemirror/view";
+  import { tags } from "@lezer/highlight";
+  import { indentationMarkers } from "@replit/codemirror-indentation-markers";
+  import { onDestroy, onMount } from "svelte";
 
   interface Props {
     value: string;
@@ -87,9 +87,9 @@
                 update.docChanged &&
                 !update.transactions.some((tr) => tr.annotation(externalUpdate))
               ) {
-                  onChange?.(update.state.doc.toString());
-                }
-              })
+                onChange?.(update.state.doc.toString());
+              }
+            })
           ]
         : [EditorState.readOnly.of(true), EditorView.editable.of(false)])
     ];

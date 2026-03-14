@@ -1,16 +1,16 @@
-import { writable, derived } from "svelte/store";
+import { notifications } from "$src/lib/stores/notificationStore";
 import {
-  CreateCollection,
-  LoadCollections,
-  LoadCollection,
-  UpdateCollection,
-  DeleteCollection,
   AddRequest,
+  CreateCollection,
+  DeleteCollection,
+  LoadCollection,
+  LoadCollections,
   RemoveRequest,
+  UpdateCollection,
   UpdateRequest
-} from "../../../wailsjs/go/main/App";
-import { collection } from "../../../wailsjs/go/models";
-import { notifications } from "./notificationStore";
+} from "$wails/go/main/App";
+import { collection } from "$wails/go/models";
+import { derived, writable } from "svelte/store";
 
 // Store state
 interface CollectionState {

@@ -1,21 +1,21 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { onMount } from "svelte";
-  import { configurationStore } from "../stores/configurationStore";
-  import { notifications } from "../stores/notificationStore";
-  import type { theme } from "../../../wailsjs/go/models";
-  import { configuration, host } from "../../../wailsjs/go/models";
+  import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
+  import { configurationStore } from "$src/lib/stores/configurationStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
+  import { debounce } from "$src/lib/utils/debounce";
+  import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
-    GetDefaultConfiguration,
-    GetAllHosts,
-    UpsertHost,
     DeleteHost,
-    SelectFile
-  } from "../../../wailsjs/go/main/App";
-  import { debounce } from "../utils/debounce";
-  import { createStableId, mapRecordToRowsWithStableIds } from "../utils/stableKeyValueRows";
-  import ThemePreview from "./Settings/ThemePreview.svelte";
+    GetAllHosts,
+    GetDefaultConfiguration,
+    SelectFile,
+    UpsertHost
+  } from "$wails/go/main/App";
+  import type { theme } from "$wails/go/models";
+  import { configuration, host } from "$wails/go/models";
+  import { onMount } from "svelte";
 
   // --- Nav ---
   type SettingsSection = "general" | "themes" | "hosts";

@@ -2,8 +2,8 @@
   import { run } from "svelte/legacy";
 
   import { setContext } from "svelte";
-  import { writable } from "svelte/store";
   import type { Writable } from "svelte/store";
+  import { writable } from "svelte/store";
 
   type TabItem = {
     title: string;

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { historyStore } from "../../stores/historyStore";
-  import ConsoleEntry from "./ConsoleEntry.svelte";
-  import Button from "../base/Button.svelte";
+  import ConsoleEntry from "$src/lib/components/Console/ConsoleEntry.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import { historyStore } from "$src/lib/stores/historyStore";
 
   let filterMethod = $state("");
   let filterStatus = $state("");

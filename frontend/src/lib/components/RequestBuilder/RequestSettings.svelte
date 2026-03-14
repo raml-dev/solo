@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { configuration as conf } from "../../../../wailsjs/go/models";
+  import type { configuration as conf } from "$wails/go/models";
 
   interface Props {
     requestSettings: conf.RequestSettingsOverride;
@@ -39,7 +39,11 @@
   </div>
   <div class="form-group-row">
     <label class="checkbox-group">
-      <input type="checkbox" bind:checked={requestSettings.followRedirects} onchange={handleChange} />
+      <input
+        type="checkbox"
+        bind:checked={requestSettings.followRedirects}
+        onchange={handleChange}
+      />
       Follow Redirects
     </label>
     <div class="form-group">

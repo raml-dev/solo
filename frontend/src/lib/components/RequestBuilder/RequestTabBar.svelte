@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { tabStore } from "../../stores/tabStore";
-  import Modal from "../base/Modal.svelte";
-  import Button from "../base/Button.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import Modal from "$src/lib/components/base/Modal.svelte";
+  import { tabStore } from "$src/lib/stores/tabStore";
 
   let tabs = $derived($tabStore.tabs);
   let activeTabId = $derived($tabStore.activeTabId);

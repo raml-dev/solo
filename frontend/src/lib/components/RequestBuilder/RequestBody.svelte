@@ -1,7 +1,7 @@
 <script lang="ts">
-  import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
-  import type { InputFormat } from "./types";
-  import { selectedEnvironment } from "../../../lib/stores/environmentStore";
+  import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
+  import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
+  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
 
   interface Props {
     requestBody: string;

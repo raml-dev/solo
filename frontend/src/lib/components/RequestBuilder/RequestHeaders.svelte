@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { selectedEnvironment } from "../../../lib/stores/environmentStore";
-  import Button from "../base/Button.svelte";
-  import TokenInput from "./TokenInput.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
+  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
 
   interface Props {
     headers: Header[];

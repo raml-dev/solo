@@ -1,9 +1,9 @@
 <script lang="ts">
   import { self } from "svelte/legacy";
 
+  import Button from "$src/lib/components/base/Button.svelte";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import { onMount } from "svelte";
-  import { notifications } from "../stores/notificationStore";
-  import Button from "./base/Button.svelte";
 
   interface Props {
     // ── Props ────────────────────────────────────────────────────────────────

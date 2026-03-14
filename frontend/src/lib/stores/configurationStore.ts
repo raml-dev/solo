@@ -1,13 +1,13 @@
-import { writable, derived } from "svelte/store";
+import { notifications } from "$src/lib/stores/notificationStore";
 import {
-  GetConfiguration,
-  UpdateConfiguration,
   GetAllThemes,
-  SetActiveTheme
-} from "../../../wailsjs/go/main/App";
-import { configuration } from "../../../wailsjs/go/models";
-import type { theme } from "../../../wailsjs/go/models";
-import { notifications } from "./notificationStore";
+  GetConfiguration,
+  SetActiveTheme,
+  UpdateConfiguration
+} from "$wails/go/main/App";
+import type { theme } from "$wails/go/models";
+import { configuration } from "$wails/go/models";
+import { derived, writable } from "svelte/store";
 
 // This is the single source of truth for all app configuration.
 function createEmptyConfig() {

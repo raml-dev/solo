@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { envAutocomplete } from "../../actions/envAutocomplete";
-  import { splitTextSegments } from "../../utils/tokens";
-  import { showTokenTooltip, hideTokenTooltipDelay } from "../../stores/tokenTooltipStore";
-  import type { TextSegment } from "../../utils/tokens";
+  import { envAutocomplete } from "$src/lib/actions/envAutocomplete";
+  import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
+  import type { TextSegment } from "$src/lib/utils/tokens";
+  import { splitTextSegments } from "$src/lib/utils/tokens";
 
   interface Props {
     value?: string;

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Button from "../base/Button.svelte";
-  import Modal from "../base/Modal.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import Modal from "$src/lib/components/base/Modal.svelte";
 
   interface Props {
     showNewEnvironmentDialog?: boolean;

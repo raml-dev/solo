@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Button from "./base/Button.svelte";
-  import Modal from "./base/Modal.svelte";
-  import EnvironmentManager from "./Environment/EnvironmentManager.svelte";
-  import MainConfiguration from "./MainConfiguration.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import Modal from "$src/lib/components/base/Modal.svelte";
+  import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
+  import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
 
   interface Props {
     title?: string;

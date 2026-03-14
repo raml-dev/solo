@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { HistoryEntry } from "../../stores/historyStore";
+  import type { HistoryEntry } from "$src/lib/stores/historyStore";
 
   interface Props {
     entry: HistoryEntry;

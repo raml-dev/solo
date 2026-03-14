@@ -1,11 +1,11 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { SaveCustomTheme } from "../../../wailsjs/go/main/App";
-  import { configurationStore } from "../stores/configurationStore";
-  import { notifications } from "../stores/notificationStore";
-  import type { theme } from "../../../wailsjs/go/models";
-  import Button from "./base/Button.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import { configurationStore } from "$src/lib/stores/configurationStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
+  import { SaveCustomTheme } from "$wails/go/main/App";
+  import type { theme } from "$wails/go/models";
 
   interface Props {
     baseTheme?: theme.Theme | null;

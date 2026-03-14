@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import { OnFileDrop, OnFileDropOff } from "../../../../wailsjs/runtime/runtime";
+  import { OnFileDrop, OnFileDropOff } from "$wails/runtime/runtime";
+  import { onDestroy, onMount } from "svelte";
 
   interface Props {
     /** Titolo grande al centro della zona */

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { notifications } from "../../stores/notificationStore";
-  import type { Notification } from "../../stores/notificationStore";
+  import type { Notification } from "$src/lib/stores/notificationStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
 
   interface Props {
     notification: Notification;

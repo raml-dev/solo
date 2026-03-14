@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { notifications } from "../../stores/notificationStore";
-  import Toast from "./Toast.svelte";
+  import Toast from "$src/lib/components/base/Toast.svelte";
+  import { notifications } from "$src/lib/stores/notificationStore";
 </script>
 
 {#if $notifications.length > 0}

@@ -1,6 +1,6 @@
+import { ClearSessionVars, GetSessionVars, RemoveSessionVar } from "$wails/go/main/App";
+import { EventsOn } from "$wails/runtime/runtime";
 import { writable } from "svelte/store";
-import { EventsOn } from "../../../wailsjs/runtime/runtime";
-import { GetSessionVars, ClearSessionVars, RemoveSessionVar } from "../../../wailsjs/go/main/App";
 
 function createSessionVarsStore() {
   const { subscribe, set } = writable<Record<string, string>>({});

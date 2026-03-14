@@ -3,15 +3,15 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
+  import { environmentStore, selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
-    tokenTooltipStore,
     cancelHideTokenTooltip,
-    tooltipMouseLeave,
-    forceHideTokenTooltip
-  } from "../../stores/tokenTooltipStore";
-  import { selectedEnvironment, environmentStore } from "../../stores/environmentStore";
-  import { sessionVarsStore } from "../../stores/sessionVarsStore";
-  import { environment } from "../../../../wailsjs/go/models";
+    forceHideTokenTooltip,
+    tokenTooltipStore,
+    tooltipMouseLeave
+  } from "$src/lib/stores/tokenTooltipStore";
+  import { environment } from "$wails/go/models";
   import { tick } from "svelte";
 
   let isEditing = $state(false);

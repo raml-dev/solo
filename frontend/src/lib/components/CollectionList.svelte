@@ -1,29 +1,29 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
-  import { collectionStore } from "../stores/collectionStore";
-  import { tabStore } from "../stores/tabStore";
-  import { notifications } from "../stores/notificationStore";
-  import Button from "./base/Button.svelte";
-  import Modal from "./base/Modal.svelte";
-  import Tabs from "./base/Tabs.svelte";
-  import Tab from "./base/Tab.svelte";
-  import DropZone from "./base/DropZone.svelte";
-  import type { collection } from "../../../wailsjs/go/models";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import DropZone from "$src/lib/components/base/DropZone.svelte";
+  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Tab from "$src/lib/components/base/Tab.svelte";
+  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import GitImportView from "$src/lib/components/GitImportView.svelte";
+  import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
+  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
+  import { tabStore } from "$src/lib/stores/tabStore";
   import {
-    ImportPostmanCollection,
-    SelectFile,
-    ImportBrunoCollection,
-    SelectDirectory,
-    SyncGitCollection,
     GetGitCollectionStatus,
-    GitKeepOurs,
-    GitKeepTheirs,
     GitAbortRebase,
     GitDiscardChanges,
-    OpenCollectionInTerminal
-  } from "../../../wailsjs/go/main/App";
-  import GitImportView from "./GitImportView.svelte";
-  import GitStatusPanel from "./GitStatusPanel.svelte";
+    GitKeepOurs,
+    GitKeepTheirs,
+    ImportBrunoCollection,
+    ImportPostmanCollection,
+    OpenCollectionInTerminal,
+    SelectDirectory,
+    SelectFile,
+    SyncGitCollection
+  } from "$wails/go/main/App";
+  import { collection } from "$wails/go/models";
+  import { onDestroy, onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   interface Props {
@@ -132,7 +132,9 @@
 
   function selectRequest(requestId: string, collectionName: string) {
     // Find the request data to pass metadata to tabStore
-    const coll = $collectionStore.collections.find((c) => c.name === collectionName);
+    const coll = $collectionStore.collections.find(
+      (c: collection.Collection) => c.name === collectionName
+    ) as collection.Collection;
     const req = coll?.requests.find((r) => r.id === requestId);
     if (!req) return;
 

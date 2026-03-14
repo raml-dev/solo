@@ -1,12 +1,12 @@
 <script lang="ts">
+  import Button from "$src/lib/components/base/Button.svelte";
+  import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import {
+    GetGitRemoteBranches,
     IdentifyGitProvider,
-    SetupGitEnvironment,
-    GetGitRemoteBranches
-  } from "../../../wailsjs/go/main/App";
-  import { environmentStore } from "../stores/environmentStore";
-  import Button from "./base/Button.svelte";
-  import { notifications } from "../stores/notificationStore";
+    SetupGitEnvironment
+  } from "$wails/go/main/App";
 
   interface Props {
     onImported?: () => void;

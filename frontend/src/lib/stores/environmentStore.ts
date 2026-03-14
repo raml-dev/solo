@@ -1,15 +1,15 @@
-import { writable, derived } from "svelte/store";
+import { notifications } from "$src/lib/stores/notificationStore";
 import {
   CreateEnvironment,
-  LoadEnvironments,
-  LoadEnvironment,
-  UpdateEnvironment,
   DeleteEnvironment,
   GetSelectedEnvironment,
-  SetSelectedEnvironment
-} from "../../../wailsjs/go/main/App";
-import { environment } from "../../../wailsjs/go/models";
-import { notifications } from "./notificationStore";
+  LoadEnvironment,
+  LoadEnvironments,
+  SetSelectedEnvironment,
+  UpdateEnvironment
+} from "$wails/go/main/App";
+import { environment } from "$wails/go/models";
+import { derived, writable } from "svelte/store";
 
 // Re-export types for convenience
 export type Environment = environment.Environment;

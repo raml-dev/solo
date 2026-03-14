@@ -1,8 +1,8 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
-  import { sessionVarsStore } from "../../stores/sessionVarsStore";
+  import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
+  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
 
   interface Props {
     preRequestScript?: string;
@@ -103,19 +103,11 @@
 
     {#if activeSection === "pre"}
       <div class="editor-wrap">
-        <CodeMirrorEditor
-          value={preRequestScript}
-          language="lua"
-          onChange={onPreChange}
-        />
+        <CodeMirrorEditor value={preRequestScript} language="lua" onChange={onPreChange} />
       </div>
     {:else}
       <div class="editor-wrap">
-        <CodeMirrorEditor
-          value={postResponseScript}
-          language="lua"
-          onChange={onPostChange}
-        />
+        <CodeMirrorEditor value={postResponseScript} language="lua" onChange={onPostChange} />
       </div>
     {/if}
   </div>

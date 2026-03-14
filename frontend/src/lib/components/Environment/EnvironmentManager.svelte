@@ -1,31 +1,31 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { environmentStore } from "../../stores/environmentStore";
-  import { notifications } from "../../stores/notificationStore";
-  import Button from "../base/Button.svelte";
-  import EnvironmentItem from "./EnvironmentItem.svelte";
-  import EnvironmentEditor from "./EnvironmentEditor.svelte";
-  import EnvironmentModals from "./EnvironmentModals.svelte";
-  import Modal from "../base/Modal.svelte";
-  import Tabs from "../base/Tabs.svelte";
-  import Tab from "../base/Tab.svelte";
-  import DropZone from "../base/DropZone.svelte";
+  import Button from "$src/lib/components/base/Button.svelte";
+  import DropZone from "$src/lib/components/base/DropZone.svelte";
+  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Tab from "$src/lib/components/base/Tab.svelte";
+  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import EnvironmentEditor from "$src/lib/components/Environment/EnvironmentEditor.svelte";
+  import EnvironmentItem from "$src/lib/components/Environment/EnvironmentItem.svelte";
+  import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
+  import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
+  import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
+  import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import {
-    ImportPostmanEnvironment,
-    ImportBrunoEnvironment,
-    SelectFile,
-    SyncGitEnvironment,
     GetGitEnvironmentStatus,
-    GitEnvKeepOurs,
-    GitEnvKeepTheirs,
     GitEnvAbortRebase,
     GitEnvDiscardChanges,
-    OpenEnvironmentInTerminal
-  } from "../../../../wailsjs/go/main/App";
-  import { environment } from "../../../../wailsjs/go/models";
-  import GitEnvImportView from "../GitEnvImportView.svelte";
-  import GitStatusPanel from "../GitStatusPanel.svelte";
+    GitEnvKeepOurs,
+    GitEnvKeepTheirs,
+    ImportBrunoEnvironment,
+    ImportPostmanEnvironment,
+    OpenEnvironmentInTerminal,
+    SelectFile,
+    SyncGitEnvironment
+  } from "$wails/go/main/App";
+  import { environment } from "$wails/go/models";
   import { SvelteSet } from "svelte/reactivity";
 
   let showNewEnvironmentDialog = $state(false);

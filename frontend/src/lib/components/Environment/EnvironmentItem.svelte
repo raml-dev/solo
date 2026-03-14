@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { environment } from "../../../../wailsjs/go/models";
+  import type { environment } from "$wails/go/models";
 
   interface Props {
     env: environment.Environment;

@@ -1,8 +1,8 @@
-import { writable, derived, get } from "svelte/store";
-import type { configuration as conf } from "../../../wailsjs/go/models";
-import { collection } from "../../../wailsjs/go/models";
-import { notifications } from "./notificationStore";
-import { collectionStore } from "./collectionStore";
+import { collectionStore } from "$src/lib/stores/collectionStore";
+import { notifications } from "$src/lib/stores/notificationStore";
+import type { configuration as conf } from "$wails/go/models";
+import { collection } from "$wails/go/models";
+import { derived, get, writable } from "svelte/store";
 
 export interface TabHeader {
   id: string;

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { environment } from "../../../../wailsjs/go/models";
-  import { debounce } from "../../utils/debounce";
-  import { createStableId, mapRecordToRowsWithStableIds } from "../../utils/stableKeyValueRows";
+  import { debounce } from "$src/lib/utils/debounce";
+  import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
+  import { environment } from "$wails/go/models";
 
   interface Props {
     env?: environment.Environment | null;
