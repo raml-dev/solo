@@ -43,7 +43,7 @@
 </div>
 
 {#if showEnvironmentManager}
-  <Modal toggleFn={toggleEnvironmentManager} size="settings">
+  <Modal toggleFn={toggleEnvironmentManager} size="fullpage">
     <EnvironmentManager />
   </Modal>
 {/if}

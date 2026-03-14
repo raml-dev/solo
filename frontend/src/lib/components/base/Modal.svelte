@@ -1,7 +1,7 @@
 <script lang="ts">
   export let title: string = "Dialog";
   export let toggleFn: () => void;
-  export let size: "default" | "wide" | "settings" = "default";
+  export let size: "default" | "wide" | "settings" | "fullpage" = "default";
 </script>
 
 <div
@@ -10,8 +10,8 @@
   on:click={toggleFn}
   on:keydown={(e) => e.key === "Escape" && toggleFn()}
 >
-  <div class="dialog" class:wide={size === "wide"} class:settings={size === "settings"} role="dialog" aria-modal="true" on:click|stopPropagation>
-    {#if size === "settings"}
+  <div class="dialog" class:wide={size === "wide"} class:settings={size === "settings"} class:fullpage={size === "fullpage"} role="dialog" aria-modal="true" on:click|stopPropagation>
+    {#if size === "settings" || size === "fullpage"}
       <div class="settings-close-btn-wrapper">
         <button class="btn-close" on:click={toggleFn}>&times;</button>
       </div>
@@ -21,10 +21,10 @@
         <button class="btn-close" on:click={toggleFn}>&times;</button>
       </header>
     {/if}
-    <div class="dialog-content" class:no-padding={size === "settings"}>
+    <div class="dialog-content" class:no-padding={size === "settings" || size === "fullpage"}>
       <slot />
     </div>
-    {#if size !== "settings"}
+    {#if size !== "settings" && size !== "fullpage"}
       <footer class="dialog-footer">
         <div class="additional-buttons">
           <slot name="additional-buttons" />
@@ -73,6 +73,14 @@
     width: 860px;
     height: 600px;
     max-height: 90vh;
+  }
+
+  .dialog.fullpage {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
   }
 
   .settings-close-btn-wrapper {

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	fs "yapla/internal/tools"
 )
 
@@ -54,7 +55,12 @@ func (em *EnvironmentManager) CreateEnvironment(name string) error {
 		return err
 	}
 
-	err = os.WriteFile(em.buildEnvironmentFileName(name), bytes, 0600)
+	fileName := name
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	err = os.WriteFile(filepath.Join(em.path, fileName), bytes, 0600)
 
 	if err != nil {
 		slog.Error("Failed to create environment file", "name", name, "error", err)
@@ -75,10 +81,35 @@ func (em *EnvironmentManager) LoadEnvironments() (*[]string, error) {
 	names := make([]string, 0, len(dirEntry))
 
 	for _, e := range dirEntry {
-		names = append(names, e.Name())
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		names = append(names, strings.TrimSuffix(e.Name(), ".json"))
 	}
 
 	return &names, nil
+}
+
+func (em *EnvironmentManager) LoadEnvironmentsContent() (*[]Environment, error) {
+	dirEntry, err := fs.ReadConfigDirectory(em.path)
+	if err != nil {
+		return nil, err
+	}
+
+	environments := make([]Environment, 0, len(dirEntry))
+	for _, e := range dirEntry {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		envName := strings.TrimSuffix(e.Name(), ".json")
+		env, err := em.LoadEnvironment(envName)
+		if err != nil {
+			slog.Warn("Failed to load environment in batch", "name", envName, "error", err)
+			continue
+		}
+		environments = append(environments, *env)
+	}
+	return &environments, nil
 }
 
 func (em *EnvironmentManager) LoadEnvironment(name string) (*Environment, error) {
@@ -88,7 +119,12 @@ func (em *EnvironmentManager) LoadEnvironment(name string) (*Environment, error)
 
 	slog.Debug("Loading environment", "name", name)
 
-	fileBytes, err := os.ReadFile(em.buildEnvironmentFileName(name))
+	fileName := name
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	fileBytes, err := os.ReadFile(filepath.Join(em.path, fileName))
 
 	if err != nil {
 		slog.Debug("Failed to read environment file", "name", name, "error", err)
@@ -117,7 +153,17 @@ func (em *EnvironmentManager) UpdateEnvironment(updated *Environment) error {
 		return err
 	}
 
-	fName := em.buildEnvironmentFileName(updated.Name)
+	if err := os.MkdirAll(em.path, 0700); err != nil {
+		slog.Error("Failed to create environment directory", "path", em.path, "error", err)
+		return err
+	}
+
+	fileName := updated.Name
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	fName := filepath.Join(em.path, fileName)
 	return os.WriteFile(fName, bytes, 0666)
 }
 
@@ -125,7 +171,13 @@ func (em *EnvironmentManager) DeleteEnvironment(name string) error {
 	if name == "" {
 		return errors.New("no environment name specified")
 	}
-	err := os.Remove(em.buildEnvironmentFileName(name))
+
+	fileName := name
+	if !strings.HasSuffix(fileName, ".json") {
+		fileName += ".json"
+	}
+
+	err := os.Remove(filepath.Join(em.path, fileName))
 	if err != nil {
 		slog.Error("Failed to delete environment", "name", name, "error", err)
 		return err
@@ -135,7 +187,6 @@ func (em *EnvironmentManager) DeleteEnvironment(name string) error {
 	return nil
 }
 
-// environments
 func (em *EnvironmentManager) GetValues(name string) (*map[string]ValueType, error) {
 	if name == "" {
 		return nil, errors.New("no environment name specified")
@@ -218,27 +269,17 @@ func (em *EnvironmentManager) UpdateValue(environmentName, valueName string, upd
 	return nil
 }
 
-// utilities
-
 func (em *EnvironmentManager) environmentExists(name string) (bool, error) {
-	// check if an environment with name already exists
 	c, err := em.LoadEnvironment(name)
-
 	if err != nil {
-		// error in reading environment with name
 		return false, err
 	}
 	if c != nil {
 		return true, nil
 	}
-
 	return false, nil
 }
 
 func (em *EnvironmentManager) buildEnvironmentFileName(name string) string {
-	// The fs directory tree will be:
-	// c.fsPath (is the main path)
-	// c.Name (the name of the json file containg environment)
-
-	return fmt.Sprintf("%s/%s.json", em.path, name)
+	return filepath.Join(em.path, name+".json")
 }
