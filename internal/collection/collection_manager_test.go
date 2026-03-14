@@ -315,5 +315,5 @@ func cleanupTestDir(path string) {
 }
 
 func buildCollectionFileName(configPath, collectionName string) string {
-	return fmt.Sprintf("%s/%s", configPath, collectionName)
+	return fmt.Sprintf("%s/%s.json", configPath, collectionName)
 }
