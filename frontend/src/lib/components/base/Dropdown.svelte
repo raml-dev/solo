@@ -23,9 +23,7 @@
 
   let isOpen = $state(false);
   let dropdownElement: HTMLDivElement | undefined = $state();
-  let selectedLabel = $derived(
-    options.find((opt) => opt.value === value)?.label ?? placeholder
-  );
+  let selectedLabel = $derived(options.find((opt) => opt.value === value)?.label ?? placeholder);
 
   function toggleDropdown() {
     if (!disabled) {
