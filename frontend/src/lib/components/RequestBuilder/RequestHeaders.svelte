@@ -1,16 +1,14 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import { selectedEnvironment } from "../../../lib/stores/environmentStore";
   import Button from "../base/Button.svelte";
   import TokenInput from "./TokenInput.svelte";
 
   interface Props {
     headers: Header[];
+    onChange?: () => void;
   }
 
-  let { headers = $bindable() }: Props = $props();
-
-  const dispatch = createEventDispatcher();
+  let { headers = $bindable(), onChange }: Props = $props();
 
   type Header = {
     id: string;
@@ -21,12 +19,12 @@
 
   function toggleHeader(id: string) {
     headers = headers.map((h) => (h.id === id ? { ...h, enabled: !h.enabled } : h));
-    dispatch("change");
+    onChange?.();
   }
 
   function removeHeader(id: string) {
     headers = headers.filter((h) => h.id !== id);
-    dispatch("change");
+    onChange?.();
   }
 
   function addHeader() {
@@ -37,7 +35,7 @@
       enabled: true
     };
     headers = [...headers, newHeader];
-    dispatch("change");
+    onChange?.();
   }
 
   let environmentEntries = $derived(
@@ -63,7 +61,7 @@
         placeholder="Header name"
         bind:value={header.key}
         disabled={!header.enabled}
-        oninput={() => dispatch("change")}
+        oninput={() => onChange?.()}
       />
       <div class="header-value-wrapper">
         <TokenInput
@@ -72,7 +70,7 @@
           disabled={!header.enabled}
           {environmentEntries}
           wrapperClass="input header-input"
-          on:change={() => dispatch("change")}
+          onChange={() => onChange?.()}
         />
       </div>
       <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>

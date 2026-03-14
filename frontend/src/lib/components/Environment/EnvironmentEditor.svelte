@@ -1,15 +1,16 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { createEventDispatcher } from "svelte";
   import { environment } from "../../../../wailsjs/go/models";
   import { debounce } from "../../utils/debounce";
+  import { createStableId, mapRecordToRowsWithStableIds } from "../../utils/stableKeyValueRows";
 
   interface Props {
     env?: environment.Environment | null;
+    onUpdate?: (data: { name: string; values: Record<string, environment.ValueType> }) => void;
   }
 
-  let { env = null }: Props = $props();
+  let { env = null, onUpdate }: Props = $props();
 
   type EnvVar = {
     id: string;
@@ -33,22 +34,19 @@
       variables = [];
       lastLoadedSignature = null;
     } else {
+      const valuesRecord = Object.fromEntries(
+        Object.entries(env.values ?? {}).map(([key, val]) => [key, String(val?.value ?? "")])
+      );
       const sig = `${env.name}::${computeValuesSignature(env.values ?? {})}`;
       if (sig !== lastLoadedSignature) {
-        variables = Object.entries(env.values ?? {}).map(([key, value], i) => ({
-          id: `${i}-${key}`,
-          key,
-          value: value?.value ?? "",
+        variables = mapRecordToRowsWithStableIds(valuesRecord, variables).map((row) => ({
+          ...row,
           enabled: true
         }));
         lastLoadedSignature = sig;
       }
     }
   });
-
-  const dispatch = createEventDispatcher<{
-    update: { name: string; values: Record<string, environment.ValueType> };
-  }>();
 
   const debouncedUpdate = debounce(() => {
     if (!env) return;
@@ -64,11 +62,11 @@
       },
       {} as Record<string, environment.ValueType>
     );
-    dispatch("update", { name: env.name, values: updatedValues });
+    onUpdate?.({ name: env.name, values: updatedValues });
   }, 500);
 
   function addVariable() {
-    variables = [...variables, { id: Date.now().toString(), key: "", value: "", enabled: true }];
+    variables = [...variables, { id: createStableId(), key: "", value: "", enabled: true }];
   }
 
   function removeVariable(id: string) {

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import { envAutocomplete } from "../../actions/envAutocomplete";
   import { splitTextSegments } from "../../utils/tokens";
   import { showTokenTooltip, hideTokenTooltipDelay } from "../../stores/tokenTooltipStore";
@@ -12,6 +11,7 @@
     environmentEntries?: { key: string; value: string }[];
     inputClass?: string;
     wrapperClass?: string;
+    onChange?: () => void;
   }
 
   let {
@@ -20,10 +20,9 @@
     disabled = false,
     environmentEntries = [],
     inputClass = "",
-    wrapperClass = ""
+    wrapperClass = "",
+    onChange
   }: Props = $props();
-
-  const dispatch = createEventDispatcher();
 
   let inputEl: HTMLInputElement | undefined = $state();
   let scrollLeft = $state(0);
@@ -76,7 +75,7 @@
     {disabled}
     oninput={() => {
       scrollLeft = inputEl?.scrollLeft ?? 0;
-      dispatch("change");
+      onChange?.();
     }}
     onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
     use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}

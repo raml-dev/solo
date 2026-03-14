@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
   import type { InputFormat } from "./types";
   import { selectedEnvironment } from "../../../lib/stores/environmentStore";
@@ -7,11 +6,10 @@
   interface Props {
     requestBody: string;
     format: InputFormat;
+    onChange?: () => void;
   }
 
-  let { requestBody = $bindable(), format = $bindable() }: Props = $props();
-
-  const dispatch = createEventDispatcher();
+  let { requestBody = $bindable(), format = $bindable(), onChange }: Props = $props();
 
   let environmentEntries = $derived(
     Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
@@ -26,9 +24,9 @@
     bind:value={requestBody}
     bind:format
     {environmentEntries}
-    on:change={(e) => {
-      requestBody = e.detail;
-      dispatch("change");
+    onChange={(value) => {
+      requestBody = value;
+      onChange?.();
     }}
   />
 </div>

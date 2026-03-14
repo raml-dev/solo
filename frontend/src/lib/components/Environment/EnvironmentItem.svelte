@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import type { environment } from "../../../../wailsjs/go/models";
 
   interface Props {
@@ -8,45 +7,54 @@
     isActive?: boolean;
     isFocused?: boolean;
     isSyncing?: boolean;
+    onDelete?: (name: string) => void;
+    onOpen?: (name: string) => void;
+    onActivate?: (name: string) => void;
+    onToggleMenu?: (name: string) => void;
+    onSync?: (id: string) => void;
+    onGitStatus?: (id: string) => void;
   }
 
-  let { env, menuOpen, isActive = false, isFocused = false, isSyncing = false }: Props = $props();
-
-  const dispatch = createEventDispatcher<{
-    delete: string;
-    open: string;
-    activate: string;
-    toggleMenu: string;
-    sync: string;
-    gitStatus: string;
-  }>();
+  let {
+    env,
+    menuOpen,
+    isActive = false,
+    isFocused = false,
+    isSyncing = false,
+    onDelete,
+    onOpen,
+    onActivate,
+    onToggleMenu,
+    onSync,
+    onGitStatus
+  }: Props = $props();
 
   function openEnvironment() {
-    dispatch("open", env.name);
+    onOpen?.(env.name);
   }
 
   function activateEnvironment() {
-    dispatch("activate", env.name);
+    onActivate?.(env.name);
   }
 
   function toggleMenu(e: Event) {
     e.stopPropagation();
-    dispatch("toggleMenu", env.name);
+    onToggleMenu?.(env.name);
   }
 
   function handleDeleteEnvironment(e: Event) {
     e.stopPropagation();
-    dispatch("delete", env.name);
+    onDelete?.(env.name);
   }
 
   function handleSync(e: Event) {
     e.stopPropagation();
-    dispatch("sync", env.id);
+    onSync?.(env.id);
   }
 
   function handleGitStatus(e: Event) {
     e.stopPropagation();
-    dispatch("gitStatus", env.id);
+    onGitStatus?.(env.id);
   }
 
   function getProviderIconPath(provider: string) {

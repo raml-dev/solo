@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import {
     IdentifyGitProvider,
     SetupGitEnvironment,
@@ -9,7 +8,11 @@
   import Button from "./base/Button.svelte";
   import { notifications } from "../stores/notificationStore";
 
-  const dispatch = createEventDispatcher();
+  interface Props {
+    onImported?: () => void;
+  }
+
+  let { onImported }: Props = $props();
 
   let gitUrl = $state("");
   let remotePath = $state("");
@@ -70,7 +73,7 @@
       await environmentStore.loadEnvironments();
 
       notifications.success("Git environment imported successfully");
-      dispatch("imported");
+      onImported?.();
     } catch (err) {
       console.error("[GitEnvImport] Import failed:", err);
       errorMessage = String(err);

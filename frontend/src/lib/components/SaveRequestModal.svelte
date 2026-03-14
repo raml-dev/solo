@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
+  import { onMount } from "svelte";
   import { collectionStore } from "../stores/collectionStore";
   import Button from "./base/Button.svelte";
   import { slide } from "svelte/transition";
@@ -7,11 +7,11 @@
   interface Props {
     show?: boolean;
     requestName?: string;
+    onSave?: (data: { name: string; collection: string | null }) => void;
+    onCancel?: () => void;
   }
 
-  let { show = $bindable(false), requestName = $bindable("") }: Props = $props();
-
-  const dispatch = createEventDispatcher();
+  let { show = $bindable(false), requestName = $bindable(""), onSave, onCancel }: Props = $props();
 
   let selectedCollectionName: string | null = $state(null);
   let showCollectionList = $state(false);
@@ -24,14 +24,14 @@
   });
 
   function handleSave() {
-    dispatch("save", {
+    onSave?.({
       name: requestName,
       collection: selectedCollectionName
     });
   }
 
   function handleCancel() {
-    dispatch("cancel");
+    onCancel?.();
   }
 
   function handleSelectCollection(name: string) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { OnFileDrop, OnFileDropOff } from "../../../../wailsjs/runtime/runtime";
 
   interface Props {
@@ -8,11 +8,10 @@
     /** Sottotitolo descrittivo */
     subtitle?: string;
     icon?: import("svelte").Snippet;
+    onDrop?: (e: { paths: string[] }) => void;
   }
 
-  let { title = "Drop file here", subtitle = "", icon }: Props = $props();
-
-  const dispatch = createEventDispatcher<{ drop: { paths: string[] } }>();
+  let { title = "Drop file here", subtitle = "", icon, onDrop }: Props = $props();
 
   let dragOver = $state(false);
   let el: HTMLDivElement | undefined = $state();
@@ -27,7 +26,7 @@
         const rect = el.getBoundingClientRect();
         if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
           dragOver = false;
-          dispatch("drop", { paths });
+          onDrop?.({ paths });
         }
       }, true);
     } catch {
@@ -55,7 +54,7 @@
   function onDragOver(e: DragEvent) {
     e.preventDefault();
   }
-  function onDrop(e: DragEvent) {
+  function handleDrop(e: DragEvent) {
     e.preventDefault();
   }
 </script>
@@ -74,8 +73,8 @@
   ondragenter={onDragEnter}
   ondragleave={onDragLeave}
   ondragover={onDragOver}
-  ondrop={onDrop}
-  onkeydown={(e) => e.key === "Enter" && dispatch("drop", { paths: [] })}
+  ondrop={handleDrop}
+  onkeydown={(e) => e.key === "Enter" && onDrop?.({ paths: [] })}
 >
   <div class="dropzone-icon">
     {#if icon}{@render icon()}{:else}

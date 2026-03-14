@@ -1,7 +1,7 @@
 <script lang="ts">
   import { run } from "svelte/legacy";
 
-  import { onMount, onDestroy, createEventDispatcher } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { EditorState, Compartment, Annotation } from "@codemirror/state";
   import {
     EditorView,
@@ -41,6 +41,7 @@
     language?: "json" | "xml" | "lua" | "text" | "none" | "";
     environmentEntries?: { key: string; value: string }[];
     readOnly?: boolean;
+    onChange?: (value: string) => void;
   }
 
   let {
@@ -48,10 +49,9 @@
     format = $bindable("json"),
     language = "",
     environmentEntries = [],
-    readOnly = false
+    readOnly = false,
+    onChange
   }: Props = $props();
-
-  const dispatch = createEventDispatcher();
 
   // Annotation to mark transactions initiated by us (external sync) so the
   // updateListener does NOT re-emit "change" and cause an infinite loop.
@@ -87,9 +87,9 @@
                 update.docChanged &&
                 !update.transactions.some((tr) => tr.annotation(externalUpdate))
               ) {
-                dispatch("change", update.state.doc.toString());
-              }
-            })
+                  onChange?.(update.state.doc.toString());
+                }
+              })
           ]
         : [EditorState.readOnly.of(true), EditorView.editable.of(false)])
     ];

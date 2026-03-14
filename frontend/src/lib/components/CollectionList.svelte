@@ -738,8 +738,8 @@
           <DropZone
             title="Drop your Postman collection here"
             subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
-            on:drop={async (e) => {
-              const paths = e.detail.paths;
+            onDrop={async (e) => {
+              const paths = e.paths;
               showImportSelector = false;
               if (paths.length > 0) {
                 await ImportPostmanCollection(paths[0]);
@@ -772,8 +772,8 @@
           <DropZone
             title="Drop your Bruno collection folder here"
             subtitle="Supports Bruno collection folders (.bru files)"
-            on:drop={async (e) => {
-              const paths = e.detail.paths;
+            onDrop={async (e) => {
+              const paths = e.paths;
               showImportSelector = false;
               if (paths.length > 0) {
                 await ImportBrunoCollection(paths[0]);
@@ -802,7 +802,7 @@
         </Tab>
 
         <Tab title="Git" value="git">
-          <GitImportView on:imported={() => (showImportSelector = false)} />
+          <GitImportView onImported={() => (showImportSelector = false)} />
         </Tab>
       </Tabs>
     </div>
@@ -833,7 +833,7 @@
     fnDiscard={GitDiscardChanges}
     fnOpenTerminal={OpenCollectionInTerminal}
     onReload={collectionStore.loadCollections}
-    on:close={() => {
+    onClose={() => {
       gitStatusCollectionId = null;
       gitStatusCollectionName = null;
     }}

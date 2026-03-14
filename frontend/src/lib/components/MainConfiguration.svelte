@@ -14,6 +14,7 @@
     SelectFile
   } from "../../../wailsjs/go/main/App";
   import { debounce } from "../utils/debounce";
+  import { createStableId, mapRecordToRowsWithStableIds } from "../utils/stableKeyValueRows";
   import ThemePreview from "./Settings/ThemePreview.svelte";
 
   // --- Nav ---
@@ -155,8 +156,11 @@
           const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
           if (!copy.general) copy.general = new configuration.GeneralSettings();
           if (!copy.request) copy.request = new configuration.RequestSettings();
-          editableConfig = copy;
-          lastPersistedSignature = toSignature(copy);
+          const sig = toSignature(copy);
+          if (sig !== lastPersistedSignature) {
+            editableConfig = copy;
+            lastPersistedSignature = sig;
+          }
         }
       });
       return () => unsub();
@@ -166,13 +170,21 @@
   async function persistRequestSettings() {
     try {
       saveStatus = "saving";
-      editableConfig.request.timeoutSeconds =
-        parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
-      editableConfig.request.maxRedirects =
-        parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
-      const current = $config;
+      const timeoutSeconds = parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
+      const maxRedirects = parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
+
+      // Work on a detached copy to avoid mutating $config in-place (deep proxy).
+      const current = new configuration.Configuration(JSON.parse(JSON.stringify($config)));
+      if (!current.general) current.general = new configuration.GeneralSettings();
+      if (!current.request) current.request = new configuration.RequestSettings();
+
       current.general.checkForUpdates = editableConfig.general.checkForUpdates;
-      current.request = editableConfig.request;
+      current.request = new configuration.RequestSettings({
+        ...editableConfig.request,
+        timeoutSeconds,
+        maxRedirects
+      });
+
       const sig = toSignature(current);
       if (sig === lastPersistedSignature) {
         saveStatus = "idle";
@@ -195,9 +207,11 @@
   });
 
   // --- Hosts ---
+  type HostCookieRow = { id: string; key: string; value: string };
+
   let hostsList: host.Host[] = $state([]);
   let editingHost: host.Host | null = $state(null);
-  let editingCookies: { key: string; value: string }[] = $state([]);
+  let editingCookies: HostCookieRow[] = $state([]);
 
   async function fetchHosts() {
     try {
@@ -226,15 +240,18 @@
   function editExistingHost(h: host.Host) {
     editingHost = JSON.parse(JSON.stringify(h)) as host.Host;
     if (!editingHost.cookies) editingHost.cookies = {};
-    editingCookies = Object.entries(editingHost.cookies).map(([key, value]) => ({ key, value }));
+    const cookieRecord = Object.fromEntries(
+      Object.entries(editingHost.cookies).map(([key, value]) => [key, String(value ?? "")])
+    );
+    editingCookies = mapRecordToRowsWithStableIds(cookieRecord);
   }
 
   function addCookieRow() {
-    editingCookies = [...editingCookies, { key: "", value: "" }];
+    editingCookies = [...editingCookies, { id: createStableId(), key: "", value: "" }];
   }
 
-  function removeCookieRow(index: number) {
-    editingCookies = editingCookies.filter((_, i) => i !== index);
+  function removeCookieRow(id: string) {
+    editingCookies = editingCookies.filter((cookie) => cookie.id !== id);
   }
 
   async function pickCertFile(
@@ -583,11 +600,11 @@
               </p>
 
               <div class="cookies-list">
-                {#each editingCookies as cookie, i (cookie.key + i)}
+                {#each editingCookies as cookie (cookie.id)}
                   <div class="cookie-row">
                     <input type="text" bind:value={cookie.key} placeholder="Cookie Name" />
                     <input type="text" bind:value={cookie.value} placeholder="Value" />
-                    <button class="btn-icon btn-danger" onclick={() => removeCookieRow(i)}
+                    <button class="btn-icon btn-danger" onclick={() => removeCookieRow(cookie.id)}
                       >Remove</button
                     >
                   </div>

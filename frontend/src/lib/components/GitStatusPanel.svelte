@@ -1,7 +1,7 @@
 <script lang="ts">
   import { self } from "svelte/legacy";
 
-  import { onMount, createEventDispatcher } from "svelte";
+  import { onMount } from "svelte";
   import { notifications } from "../stores/notificationStore";
   import Button from "./base/Button.svelte";
 
@@ -19,6 +19,7 @@
     fnOpenTerminal: (id: string) => Promise<void>;
     // Called after a successful action so the parent can reload its store.
     onReload?: () => Promise<void>;
+    onClose?: () => void;
   }
 
   let {
@@ -31,7 +32,8 @@
     fnAbortRebase,
     fnDiscard,
     fnOpenTerminal,
-    onReload = async () => {}
+    onReload = async () => {},
+    onClose
   }: Props = $props();
 
   // ── Types ────────────────────────────────────────────────────────────────
@@ -53,8 +55,6 @@
     behind: number;
     recentLog: GitLogEntry[];
   }
-
-  const dispatch = createEventDispatcher();
 
   // ── State ────────────────────────────────────────────────────────────────
   let status: CollectionStatus | null = $state(null);
@@ -145,7 +145,7 @@
 </script>
 
 <!-- ── Overlay ──────────────────────────────────────────────────────────── -->
-<div class="overlay" role="presentation" onclick={self(() => dispatch("close"))}>
+<div class="overlay" role="presentation" onclick={self(() => onClose?.())}>
   <div class="panel" role="dialog" aria-modal="true" aria-label="Git Status">
     <!-- Header -->
     <header class="panel-header">
@@ -207,7 +207,7 @@
             <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
           </svg>
         </button>
-        <button class="icon-btn close-btn" onclick={() => dispatch("close")} title="Close">✕</button
+        <button class="icon-btn close-btn" onclick={() => onClose?.()} title="Close">✕</button
         >
       </div>
     </header>
@@ -382,7 +382,7 @@
           {/if}
         {/if}
       </div>
-      <Button variant="secondary" size="sm" click={() => dispatch("close")}>Close</Button>
+      <Button variant="secondary" size="sm" click={() => onClose?.()}>Close</Button>
     </footer>
   </div>
 </div>

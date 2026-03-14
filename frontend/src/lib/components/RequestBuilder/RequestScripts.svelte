@@ -106,7 +106,7 @@
         <CodeMirrorEditor
           value={preRequestScript}
           language="lua"
-          on:change={(e) => onPreChange(e.detail)}
+          onChange={onPreChange}
         />
       </div>
     {:else}
@@ -114,7 +114,7 @@
         <CodeMirrorEditor
           value={postResponseScript}
           language="lua"
-          on:change={(e) => onPostChange(e.detail)}
+          onChange={onPostChange}
         />
       </div>
     {/if}

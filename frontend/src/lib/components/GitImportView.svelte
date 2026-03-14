@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import {
     IdentifyGitProvider,
     SetupGitCollection,
@@ -9,7 +8,11 @@
   import Button from "./base/Button.svelte";
   import { notifications } from "../stores/notificationStore";
 
-  const dispatch = createEventDispatcher();
+  interface Props {
+    onImported?: () => void;
+  }
+
+  let { onImported }: Props = $props();
 
   let gitUrl = $state("");
   let remotePath = $state("");
@@ -71,7 +74,7 @@
       await collectionStore.loadCollections();
 
       notifications.success("Git collection imported successfully");
-      dispatch("imported");
+      onImported?.();
     } catch (err) {
       console.error("[GitImport] Import failed:", err);
       errorMessage = String(err);

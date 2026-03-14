@@ -23,7 +23,7 @@
     GitEnvDiscardChanges,
     OpenEnvironmentInTerminal
   } from "../../../../wailsjs/go/main/App";
-  import type { environment } from "../../../../wailsjs/go/models";
+  import { environment } from "../../../../wailsjs/go/models";
   import GitEnvImportView from "../GitEnvImportView.svelte";
   import GitStatusPanel from "../GitStatusPanel.svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -64,23 +64,27 @@
     environmentStore.selectEnvironment(name);
   }
 
-  async function handleUpdateEnvironment(
-    event: CustomEvent<{ name: string; values: Record<string, environment.ValueType> }>
-  ) {
+  async function handleUpdateEnvironment(data: {
+    name: string;
+    values: Record<string, environment.ValueType>;
+  }) {
     try {
-      const { name, values } = event.detail;
+      const { name, values } = data;
       const env = environments.find((e) => e.name === name);
       if (env) {
-        env.values = values;
-        await environmentStore.updateEnvironment(env);
+        const updated = new environment.Environment({
+          ...env,
+          values
+        });
+        await environmentStore.updateEnvironment(updated);
       }
     } catch (err) {
       notifications.error("Failed to update environment", String(err));
     }
   }
 
-  async function handleCreateEnvironment(event: CustomEvent<string>) {
-    const trimmed = event.detail.trim();
+  async function handleCreateEnvironment(name: string) {
+    const trimmed = name.trim();
     if (!trimmed) return;
 
     const exists = environments.some((env) => env.name.toLowerCase() === trimmed.toLowerCase());
@@ -97,8 +101,8 @@
     }
   }
 
-  function handleDeleteEnvironment(event: CustomEvent<string>) {
-    deleteTarget = event.detail;
+  function handleDeleteEnvironment(name: string) {
+    deleteTarget = name;
     showDeleteConfirmDialog = true;
     activeMenu = null;
   }
@@ -118,8 +122,7 @@
     }
   }
 
-  function toggleMenu(event: CustomEvent<string>) {
-    const environmentName = event.detail;
+  function toggleMenu(environmentName: string) {
     activeMenu = activeMenu === environmentName ? null : environmentName;
   }
 
@@ -243,12 +246,12 @@
           isActive={environment.name === $environmentStore.selectedEnvironmentName}
           isFocused={environment.name === focusedEnvironmentName}
           isSyncing={syncingEnvironments.has(environment.id)}
-          on:open={(e) => openEnvironment(e.detail)}
-          on:activate={(e) => activateEnvironment(e.detail)}
-          on:delete={handleDeleteEnvironment}
-          on:toggleMenu={toggleMenu}
-          on:sync={(e) => handleSync(e.detail)}
-          on:gitStatus={(e) => handleGitStatus(e.detail)}
+          onOpen={openEnvironment}
+          onActivate={activateEnvironment}
+          onDelete={handleDeleteEnvironment}
+          onToggleMenu={toggleMenu}
+          onSync={handleSync}
+          onGitStatus={handleGitStatus}
         />
       {/each}
     </div>
@@ -260,7 +263,7 @@
     {/if}
   </div>
   <div class="environment-editor-pane">
-    <EnvironmentEditor env={selectedEnvironment} on:update={handleUpdateEnvironment} />
+    <EnvironmentEditor env={selectedEnvironment} onUpdate={handleUpdateEnvironment} />
   </div>
 </div>
 
@@ -268,10 +271,10 @@
   bind:showNewEnvironmentDialog
   bind:showDeleteConfirmDialog
   bind:deleteTarget
-  on:create={handleCreateEnvironment}
-  on:confirmDelete={confirmDelete}
-  on:closeNew={() => (showNewEnvironmentDialog = false)}
-  on:closeDelete={() => (showDeleteConfirmDialog = false)}
+  onCreate={handleCreateEnvironment}
+  onConfirmDelete={confirmDelete}
+  onCloseNew={() => (showNewEnvironmentDialog = false)}
+  onCloseDelete={() => (showDeleteConfirmDialog = false)}
 />
 
 {#if showImportSelector}
@@ -282,8 +285,8 @@
           <DropZone
             title="Drop your Postman environment here"
             subtitle="Supports Postman Environment JSON"
-            on:drop={async (e) => {
-              const paths = e.detail.paths;
+            onDrop={async (e) => {
+              const paths = e.paths;
               showImportSelector = false;
               if (paths.length > 0) {
                 await handleImportPostman(paths[0]);
@@ -315,8 +318,8 @@
           <DropZone
             title="Drop your Bruno environment here"
             subtitle="Supports Bruno environment .bru files"
-            on:drop={async (e) => {
-              const paths = e.detail.paths;
+            onDrop={async (e) => {
+              const paths = e.paths;
               showImportSelector = false;
               if (paths.length > 0) {
                 await handleImportBruno(paths[0]);
@@ -344,7 +347,7 @@
         </Tab>
 
         <Tab title="Git" value="git">
-          <GitEnvImportView on:imported={() => (showImportSelector = false)} />
+          <GitEnvImportView onImported={() => (showImportSelector = false)} />
         </Tab>
       </Tabs>
     </div>
@@ -386,7 +389,7 @@
     fnDiscard={GitEnvDiscardChanges}
     fnOpenTerminal={OpenEnvironmentInTerminal}
     onReload={environmentStore.loadEnvironments}
-    on:close={() => {
+    onClose={() => {
       gitStatusEnvId = null;
       gitStatusEnvName = null;
     }}

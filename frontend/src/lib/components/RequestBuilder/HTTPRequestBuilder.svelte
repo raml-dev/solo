@@ -45,8 +45,10 @@
   let preRequestScript = $state("");
   let postResponseScript = $state("");
 
-  // Tracks which tab is currently loaded — prevents re-loading same tab
+  // Tracks which tab request is currently loaded — prevents re-loading while typing,
+  // but still reloads when a preview tab is recycled to another request.
   let activeBuilderTabId: string | null = $state(null);
+  let activeBuilderRequestId: string | null = $state(null);
 
   // UI state
   let requestPaneTab = $state("Body");
@@ -74,6 +76,7 @@
 
   function loadTabIntoForm(tab: NonNullable<typeof $activeTabState>) {
     activeBuilderTabId = tab.id;
+    activeBuilderRequestId = tab.requestId;
     method = tab.verb || "GET";
     url = tab.url || "";
     requestBody = tab.body || "";
@@ -89,6 +92,7 @@
 
   function resetForm() {
     activeBuilderTabId = null;
+    activeBuilderRequestId = null;
     method = "GET";
     url = "";
     requestBody = "";
@@ -356,8 +360,8 @@
     return detectResponseFormat(currentResponse.headers);
   }
 
-  async function handleSaveRequest(event: CustomEvent<{ name: string; collection: string }>) {
-    const { name, collection: targetCollection } = event.detail;
+  async function handleSaveRequest(data: { name: string; collection: string | null }) {
+    const { name, collection: targetCollection } = data;
     if (!targetCollection || !activeBuilderTabId) return;
     try {
       const headersObj = headers
@@ -391,10 +395,12 @@
     }));
   });
   // --- Tab switching: ONE-WAY, store → form only ---
-  // Only fires when a different tab becomes active
+  // Reload when active tab changes OR when the same preview tab id is recycled
+  // to point at a different request.
   run(() => {
     const nextTabId = $activeTabState?.id ?? null;
-    if (nextTabId !== activeBuilderTabId) {
+    const nextRequestId = $activeTabState?.requestId ?? null;
+    if (nextTabId !== activeBuilderTabId || nextRequestId !== activeBuilderRequestId) {
       if ($activeTabState) {
         loadTabIntoForm($activeTabState);
       } else {
@@ -458,7 +464,7 @@
           placeholder="Enter request URL"
           {environmentEntries}
           wrapperClass="url-bar-input"
-          on:change={onFieldChange}
+          onChange={onFieldChange}
         />
         <div class="url-bar-divider"></div>
         <Button
@@ -525,7 +531,7 @@
     <div class="request-content-body">
       {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
-          <RequestHeaders {headers} on:change={onFieldChange} />
+          <RequestHeaders {headers} onChange={onFieldChange} />
         {/key}
       {:else if requestPaneTab === "Body"}
         {#key $activeTabState.id}
@@ -535,7 +541,7 @@
             <RequestBody
               bind:requestBody
               bind:format={requestBodyFormat}
-              on:change={onFieldChange}
+              onChange={onFieldChange}
             />
           {/if}
         {/key}
@@ -559,7 +565,7 @@
           <RequestSettings
             bind:requestSettings
             globalConfig={$globalConfig}
-            on:change={onFieldChange}
+            onChange={onFieldChange}
           />
         {/key}
       {:else if requestPaneTab === "Runner"}
@@ -635,8 +641,8 @@
 <SaveRequestModal
   bind:show={showSaveDialog}
   bind:requestName
-  on:save={handleSaveRequest}
-  on:cancel={() => (showSaveDialog = false)}
+  onSave={handleSaveRequest}
+  onCancel={() => (showSaveDialog = false)}
 />
 
 <style>

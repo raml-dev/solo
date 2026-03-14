@@ -1,46 +1,46 @@
 <script lang="ts">
   import Button from "../base/Button.svelte";
   import Modal from "../base/Modal.svelte";
-  import { createEventDispatcher } from "svelte";
 
   interface Props {
     showNewEnvironmentDialog?: boolean;
     showDeleteConfirmDialog?: boolean;
     deleteTarget: string | null;
+    onCloseDelete?: () => void;
+    onCloseNew?: () => void;
+    onConfirmDelete?: (name: string) => void;
+    onCreate?: (name: string) => void;
   }
 
   let {
     showNewEnvironmentDialog = $bindable(false),
     showDeleteConfirmDialog = $bindable(false),
-    deleteTarget = $bindable(null)
+    deleteTarget = $bindable(null),
+    onCloseDelete,
+    onCloseNew,
+    onConfirmDelete,
+    onCreate
   }: Props = $props();
 
   let newEnvironmentName = $state("");
 
-  const dispatch = createEventDispatcher<{
-    closeDelete: null;
-    closeNew: null;
-    confirmDelete: string;
-    create: string;
-  }>();
-
   function closeNewEnvironmentDialog() {
     showNewEnvironmentDialog = false;
     newEnvironmentName = "";
-    dispatch("closeNew");
+    onCloseNew?.();
   }
 
   function handleCreateEnvironment() {
-    dispatch("create", newEnvironmentName);
+    onCreate?.(newEnvironmentName);
   }
 
   function closeDeleteConfirmDialog() {
     showDeleteConfirmDialog = false;
-    dispatch("closeDelete");
+    onCloseDelete?.();
   }
 
   function confirmDelete() {
-    dispatch("confirmDelete", deleteTarget || "");
+    onConfirmDelete?.(deleteTarget || "");
   }
 </script>
 
