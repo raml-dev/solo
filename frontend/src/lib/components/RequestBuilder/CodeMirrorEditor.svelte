@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import {
     autocompletion,
@@ -237,7 +235,7 @@
     }
   });
   // When value prop changes from outside, sync to editor WITHOUT triggering change event
-  run(() => {
+  $effect(() => {
     if (view && value !== view.state.doc.toString()) {
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: value ?? "" },
@@ -245,7 +243,7 @@
       });
     }
   });
-  run(() => {
+  $effect(() => {
     const effectiveLang = language || format;
     if (view && effectiveLang !== _lastLang) {
       _lastLang = effectiveLang;

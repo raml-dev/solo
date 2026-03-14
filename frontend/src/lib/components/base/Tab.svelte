@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import { getContext, onMount } from "svelte";
   import type { Writable } from "svelte/store";
 
@@ -37,7 +35,7 @@
   });
 
   // Keep badge in sync if it changes reactively
-  run(() => {
+  $effect(() => {
     const existing = $tabsStore.find((t) => t.value === value);
     if (existing && existing.badge !== badge) {
       $tabsStore = $tabsStore.map((t) => (t.value === value ? { ...t, badge } : t));

@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
 
@@ -22,10 +20,9 @@
   type ScriptSection = "pre" | "post";
   let activeSection: ScriptSection = $state("pre");
 
-  let sessionEntries: [string, string][] = $state([]);
-  run(() => {
-    sessionEntries = Object.entries($sessionVarsStore);
-  });
+  let sessionEntries: [string, string][] = $derived(
+    Object.entries($sessionVarsStore) as [string, string][]
+  );
 
   const LUA_HINT = `-- Available globals:
 -- request.method, request.url, request.headers, request.body  (pre only, mutable)

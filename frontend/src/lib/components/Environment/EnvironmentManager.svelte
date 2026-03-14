@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import Button from "$src/lib/components/base/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
@@ -37,14 +35,13 @@
   let showOverwriteConfirmDialog = $state(false);
   let pendingImport: { format: "postman" | "bruno"; path: string } | null = null;
   let overwriteTargetName: string | null = $state(null);
-  let selectedEnvironment: environment.Environment | null = $state(null);
   let focusedEnvironmentName: string | null = $state(null);
   let syncingEnvironments: Set<string> = $state(new Set());
   let gitStatusEnvId: string | null = $state(null);
   let gitStatusEnvName: string | null = $state(null);
 
   let environments = $derived($environmentStore.environments);
-  run(() => {
+  $effect(() => {
     const exists =
       focusedEnvironmentName && environments.some((e) => e.name === focusedEnvironmentName);
     if (!exists) {
@@ -52,9 +49,9 @@
         $environmentStore.selectedEnvironmentName || environments[0]?.name || null;
     }
   });
-  run(() => {
-    selectedEnvironment = environments.find((env) => env.name === focusedEnvironmentName) || null;
-  });
+  let selectedEnvironment = $derived(
+    environments.find((env) => env.name === focusedEnvironmentName) || null
+  );
 
   function openEnvironment(name: string) {
     focusedEnvironmentName = name;
@@ -112,9 +109,6 @@
 
     try {
       await environmentStore.deleteEnvironment(deleteTarget);
-      if (selectedEnvironment && selectedEnvironment.name === deleteTarget) {
-        selectedEnvironment = null;
-      }
       showDeleteConfirmDialog = false;
       deleteTarget = null;
     } catch {

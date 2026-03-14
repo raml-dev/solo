@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -46,7 +44,7 @@
 
   // Inizializza da config (una volta sola, appena config+temi sono pronti)
   let initialized = $state(false);
-  run(() => {
+  $effect(() => {
     if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
       activeThemeName = $config.general.activeTheme;
       themeMode = ($config.general.themeMode as "sync" | "manual") || "manual";
@@ -202,7 +200,7 @@
   }
 
   const debouncedSave = debounce(persistRequestSettings, 800);
-  run(() => {
+  $effect(() => {
     if (editableConfig.request || editableConfig.general) debouncedSave();
   });
 
@@ -298,7 +296,7 @@
     }
   }
 
-  run(() => {
+  $effect(() => {
     if (activeSection === "hosts" && hostsList.length === 0) {
       fetchHosts();
     }

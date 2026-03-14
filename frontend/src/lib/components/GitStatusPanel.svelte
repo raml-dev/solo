@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { self } from "svelte/legacy";
-
   import Button from "$src/lib/components/base/Button.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { onMount } from "svelte";
@@ -145,7 +143,13 @@
 </script>
 
 <!-- ── Overlay ──────────────────────────────────────────────────────────── -->
-<div class="overlay" role="presentation" onclick={self(() => onClose?.())}>
+<div
+  class="overlay"
+  role="presentation"
+  onclick={(e) => {
+    if (e.target === e.currentTarget) onClose?.();
+  }}
+>
   <div class="panel" role="dialog" aria-modal="true" aria-label="Git Status">
     <!-- Header -->
     <header class="panel-header">

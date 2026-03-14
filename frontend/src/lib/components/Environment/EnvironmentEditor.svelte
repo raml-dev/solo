@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import { debounce } from "$src/lib/utils/debounce";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import { environment } from "$wails/go/models";
@@ -29,7 +27,7 @@
     return JSON.stringify(entries);
   }
 
-  run(() => {
+  $effect(() => {
     if (!env) {
       variables = [];
       lastLoadedSignature = null;

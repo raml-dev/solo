@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import Button from "$src/lib/components/base/Button.svelte";
   import Dropdown from "$src/lib/components/base/Dropdown.svelte";
   import EmptyState from "$src/lib/components/base/EmptyState.svelte";
@@ -64,7 +62,12 @@
   let responseHeight = $state(300);
   let isResizing = $state(false);
   let builderElement: HTMLElement | undefined = $state();
-  let environmentEntries: { key: string; value: string }[] = $state([]);
+  let environmentEntries: { key: string; value: string }[] = $derived(
+    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+      key,
+      value: String(val?.value ?? "")
+    }))
+  );
 
   const { config: globalConfig } = configurationStore;
 
@@ -392,16 +395,10 @@
     if (status >= 400 && status < 500) return "status-warning";
     return "status-error";
   }
-  run(() => {
-    environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-      key,
-      value: String(val?.value ?? "")
-    }));
-  });
   // --- Tab switching: ONE-WAY, store → form only ---
   // Reload when active tab changes OR when the same preview tab id is recycled
   // to point at a different request.
-  run(() => {
+  $effect(() => {
     const nextTabId = $activeTabState?.id ?? null;
     const nextRequestId = $activeTabState?.requestId ?? null;
     if (nextTabId !== activeBuilderTabId || nextRequestId !== activeBuilderRequestId) {

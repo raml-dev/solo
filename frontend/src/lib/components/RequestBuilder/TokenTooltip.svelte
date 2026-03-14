@@ -1,8 +1,6 @@
 <!-- @migration-task Error while migrating Svelte code: can't migrate `let isEditing = false;` to `$state` because there's a variable named state.
      Rename the variable and try again or migrate by hand. -->
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import { environmentStore, selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
@@ -30,14 +28,14 @@
   let exists = $derived(hasSessionValue || hasEnvValue);
   let valueSource = $derived(hasSessionValue ? "session" : hasEnvValue ? "environment" : "none");
 
-  run(() => {
+  $effect(() => {
     if (visible && !isEditing) {
       // Editing always targets the persisted environment value, not the session override.
       editValue = envValue;
     }
   });
 
-  run(() => {
+  $effect(() => {
     if (!visible) {
       isEditing = false;
     }

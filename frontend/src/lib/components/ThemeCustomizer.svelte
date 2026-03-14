@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import Button from "$src/lib/components/base/Button.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -49,7 +47,7 @@
     "text-light": "#9ca3af"
   });
 
-  run(() => {
+  $effect(() => {
     if (baseTheme) {
       themeName = `${baseTheme.name}-custom`;
       colors = { ...baseTheme.colors } as Colors;
@@ -118,7 +116,7 @@
     });
   }
 
-  run(() => {
+  $effect(() => {
     previewColor(colors);
   });
 </script>

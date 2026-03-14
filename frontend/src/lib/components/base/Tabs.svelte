@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import { setContext } from "svelte";
   import type { Writable } from "svelte/store";
   import { writable } from "svelte/store";
@@ -25,7 +23,7 @@
   setContext("activeTab", activeTabStore);
 
   // Two-way binding.
-  run(() => {
+  $effect(() => {
     $activeTabStore = activeValue;
   });
 </script>

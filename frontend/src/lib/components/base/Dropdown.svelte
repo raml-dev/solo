@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from "svelte/legacy";
-
   import { onDestroy, onMount } from "svelte";
 
   interface Props {
@@ -25,12 +23,9 @@
 
   let isOpen = $state(false);
   let dropdownElement: HTMLDivElement | undefined = $state();
-  let selectedLabel = $state("");
-
-  run(() => {
-    const selected = options.find((opt) => opt.value === value);
-    selectedLabel = selected ? selected.label : placeholder;
-  });
+  let selectedLabel = $derived(
+    options.find((opt) => opt.value === value)?.label ?? placeholder
+  );
 
   function toggleDropdown() {
     if (!disabled) {
@@ -40,7 +35,6 @@
 
   function selectOption(option: { value: string; label: string; color?: string }) {
     value = option.value;
-    selectedLabel = option.label;
     isOpen = false;
     change(option.value);
   }

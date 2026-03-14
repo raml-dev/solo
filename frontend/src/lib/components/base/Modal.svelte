@@ -1,7 +1,4 @@
 <script lang="ts">
-  import { createBubbler, stopPropagation } from "svelte/legacy";
-
-  const bubble = createBubbler();
   interface Props {
     title?: string;
     toggleFn: () => void;
@@ -32,7 +29,7 @@
     class:fullpage={size === "fullpage"}
     role="dialog"
     aria-modal="true"
-    onclick={stopPropagation(bubble("click"))}
+    onclick={(e) => e.stopPropagation()}
   >
     {#if size === "settings" || size === "fullpage"}
       <div class="settings-close-btn-wrapper">
