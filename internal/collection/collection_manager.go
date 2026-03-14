@@ -102,10 +102,6 @@ func (cm *CollectionManager) LoadCollectionsContent() (*[]Collection, error) {
 		collections = append(collections, *coll)
 	}
 
-	if len(collections) == 0 {
-		return nil, fmt.Errorf("no collection found in %s", cm.config)
-	}
-
 	return &collections, nil
 }
 

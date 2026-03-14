@@ -66,7 +66,7 @@ func (em *EnvironmentManager) CreateEnvironment(name string) error {
 }
 
 func (em *EnvironmentManager) LoadEnvironments() (*[]string, error) {
-	dirEntry, err := os.ReadDir(em.path)
+	dirEntry, err := fs.ReadConfigDirectory(em.path)
 
 	if err != nil {
 		return nil, err

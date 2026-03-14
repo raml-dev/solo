@@ -29,7 +29,11 @@ func GetMainConfig(name string) (string, error) {
 }
 
 func ReadConfigDirectory(configPath string) ([]os.DirEntry, error) {
-	return os.ReadDir(configPath)
+	entries, err := os.ReadDir(configPath)
+	if os.IsNotExist(err) {
+		return []os.DirEntry{}, nil
+	}
+	return entries, err
 }
 
 func CreateConfigFile(configPath, fileName string, content []byte) error {
