@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { onMount } from "svelte";
   import { Execute, GetSessionVars } from "../../../../wailsjs/go/main/App";
-  import { collection, main } from "../../../../wailsjs/go/models";
+  import { main } from "../../../../wailsjs/go/models";
   import Button from "../base/Button.svelte";
   import Dropdown from "../base/Dropdown.svelte";
   import EmptyState from "../base/EmptyState.svelte";
@@ -26,39 +28,37 @@
   import { sessionVarsStore } from "../../stores/sessionVarsStore";
 
   interface Header {
-
     id: string;
     key: string;
     value: string;
     enabled: boolean;
   }
 
-
   // --- Local form state ---
-  let method = "GET";
-  let url = "";
-  let requestBody = "";
-  let requestBodyFormat: InputFormat = "none";
-  let headers: Header[] = [];
-  let requestSettings: conf.RequestSettingsOverride = {};
-  let requestName = "";
-  let preRequestScript = "";
-  let postResponseScript = "";
+  let method = $state("GET");
+  let url = $state("");
+  let requestBody = $state("");
+  let requestBodyFormat: InputFormat = $state("none");
+  let headers: Header[] = $state([]);
+  let requestSettings: conf.RequestSettingsOverride = $state({});
+  let requestName = $state("");
+  let preRequestScript = $state("");
+  let postResponseScript = $state("");
 
   // Tracks which tab is currently loaded — prevents re-loading same tab
-  let activeBuilderTabId: string | null = null;
+  let activeBuilderTabId: string | null = $state(null);
 
   // UI state
-  let requestPaneTab = "Body";
-  let response: TabResponse | null = null;
-  let requestError: string | null = null;
-  let loading = false;
-  let responseTab = "body";
-  let showSaveDialog = false;
-  let responseHeight = 300;
-  let isResizing = false;
-  let builderElement: HTMLElement;
-  let environmentEntries: { key: string; value: string }[] = [];
+  let requestPaneTab = $state("Body");
+  let response: TabResponse | null = $state(null);
+  let requestError: string | null = $state(null);
+  let loading = $state(false);
+  let responseTab = $state("body");
+  let showSaveDialog = $state(false);
+  let responseHeight = $state(300);
+  let isResizing = $state(false);
+  let builderElement: HTMLElement | undefined = $state();
+  let environmentEntries: { key: string; value: string }[] = $state([]);
 
   const { config: globalConfig } = configurationStore;
 
@@ -72,44 +72,34 @@
     };
   });
 
-  $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-    key,
-    value: String(val?.value ?? "")
-  }));
-
-  // --- Tab switching: ONE-WAY, store → form only ---
-  // Only fires when a different tab becomes active
-  $: {
-    const nextTabId = $activeTabState?.id ?? null;
-    if (nextTabId !== activeBuilderTabId) {
-      if ($activeTabState) {
-        loadTabIntoForm($activeTabState);
-      } else {
-        resetForm();
-      }
-    }
-  }
-
   function loadTabIntoForm(tab: NonNullable<typeof $activeTabState>) {
     activeBuilderTabId = tab.id;
-    method            = tab.verb              || "GET";
-    url               = tab.url               || "";
-    requestBody       = tab.body              || "";
+    method = tab.verb || "GET";
+    url = tab.url || "";
+    requestBody = tab.body || "";
     requestBodyFormat = (tab.bodyFormat as InputFormat) || "none";
-    headers           = tab.headers           ? [...tab.headers] : [];
-    requestSettings   = { ...(tab.settings   || {}) };
-    requestName       = tab.label             || "";
-    preRequestScript  = tab.preRequestScript  || "";
-    postResponseScript= tab.postResponseScript|| "";
-    response          = tab.response ?? null;
-    requestError      = tab.requestError ?? null;
+    headers = tab.headers ? [...tab.headers] : [];
+    requestSettings = { ...(tab.settings || {}) };
+    requestName = tab.label || "";
+    preRequestScript = tab.preRequestScript || "";
+    postResponseScript = tab.postResponseScript || "";
+    response = tab.response ?? null;
+    requestError = tab.requestError ?? null;
   }
 
   function resetForm() {
     activeBuilderTabId = null;
-    method = "GET"; url = ""; requestBody = ""; requestBodyFormat = "json";
-    headers = []; requestSettings = {}; requestName = "";
-    preRequestScript = ""; postResponseScript = ""; response = null; requestError = null;
+    method = "GET";
+    url = "";
+    requestBody = "";
+    requestBodyFormat = "json";
+    headers = [];
+    requestSettings = {};
+    requestName = "";
+    preRequestScript = "";
+    postResponseScript = "";
+    response = null;
+    requestError = null;
   }
 
   async function handleSave() {
@@ -126,8 +116,14 @@
     // Sync in-memory tab state
     if (!activeBuilderTabId) return;
     tabStore.updateTabFormState(activeBuilderTabId, {
-      verb: method, url, body: requestBody, bodyFormat: requestBodyFormat,
-      headers, settings: requestSettings, preRequestScript, postResponseScript
+      verb: method,
+      url,
+      body: requestBody,
+      bodyFormat: requestBodyFormat,
+      headers,
+      settings: requestSettings,
+      preRequestScript,
+      postResponseScript
     });
   }
 
@@ -141,10 +137,14 @@
     // Also update Content-Type header
     const ct = headers.find((h) => h.key.toLowerCase() === "content-type");
     if (ct) {
-      ct.value = value === "json" ? "application/json"
-               : value === "xml"  ? "application/xml"
-               : value === "text" ? "text/plain"
-               : "";
+      ct.value =
+        value === "json"
+          ? "application/json"
+          : value === "xml"
+            ? "application/xml"
+            : value === "text"
+              ? "text/plain"
+              : "";
       headers = [...headers];
     }
     onFieldChange();
@@ -171,21 +171,30 @@
 
   // --- Methods / Body format options ---
   const methodOptions = [
-    { value: "GET", label: "GET" }, { value: "POST", label: "POST" },
-    { value: "PUT", label: "PUT" }, { value: "DELETE", label: "DELETE" },
-    { value: "PATCH", label: "PATCH" }, { value: "HEAD", label: "HEAD" },
+    { value: "GET", label: "GET" },
+    { value: "POST", label: "POST" },
+    { value: "PUT", label: "PUT" },
+    { value: "DELETE", label: "DELETE" },
+    { value: "PATCH", label: "PATCH" },
+    { value: "HEAD", label: "HEAD" },
     { value: "OPTIONS", label: "OPTIONS" }
   ];
   const bodyFormatOptions = [
-    { value: "none", label: "None" }, { value: "json", label: "JSON" },
-    { value: "xml",  label: "XML"  }, { value: "text", label: "Text" }
+    { value: "none", label: "None" },
+    { value: "json", label: "JSON" },
+    { value: "xml", label: "XML" },
+    { value: "text", label: "Text" }
   ];
 
   // --- Beautify ---
   function formatBody() {
     if (!requestBody?.trim()) return;
     if (requestBodyFormat === "json") {
-      try { requestBody = JSON.stringify(JSON.parse(requestBody), null, 2); } catch {}
+      try {
+        requestBody = JSON.stringify(JSON.parse(requestBody), null, 2);
+      } catch {
+        // do nothing
+      }
     } else if (requestBodyFormat === "xml") {
       requestBody = prettifyXml(requestBody);
     }
@@ -194,7 +203,8 @@
 
   function prettifyXml(xmlStr: string): string {
     const INDENT = "  ";
-    let formatted = "", depth = 0;
+    let formatted = "",
+      depth = 0;
     const parts = xmlStr.replace(/>\s*</g, "><").split(/(<[^>]+>)/);
     for (const part of parts) {
       if (!part.trim()) continue;
@@ -223,7 +233,10 @@
   }
 
   // --- Environment token resolution ---
-  function resolveEnvironmentTokens(value: string, sessionVars: Record<string, string> = {}): string {
+  function resolveEnvironmentTokens(
+    value: string,
+    sessionVars: Record<string, string> = {}
+  ): string {
     if (!value) return value;
 
     const envMap = new Map(environmentEntries.map((e) => [e.key, e.value]));
@@ -239,24 +252,33 @@
 
   // --- Send request ---
   async function sendRequest() {
-    if (!$activeTabState?.requestId) { showSaveDialog = true; return; }
+    if (!$activeTabState?.requestId) {
+      showSaveDialog = true;
+      return;
+    }
     loading = true;
 
     // Keep token resolution aligned with backend env.get precedence:
     // session vars first, then selected environment.
-    const sessionVars = await GetSessionVars().catch(() => ({} as Record<string, string>));
+    const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
     const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
     const resolvedBody = resolveEnvironmentTokens(requestBody, sessionVars);
     const resolvedHeaders = headers
       .filter((h) => h.enabled)
-      .reduce((acc, { key, value }) => ({
-        ...acc,
-        [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
-      }), {} as Record<string, string>);
+      .reduce(
+        (acc, { key, value }) => ({
+          ...acc,
+          [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
+        }),
+        {} as Record<string, string>
+      );
 
     const requestOptions = new main.RequestOptions({
-      body: resolvedBody, headers: resolvedHeaders, method, url: resolvedUrl,
+      body: resolvedBody,
+      headers: resolvedHeaders,
+      method,
+      url: resolvedUrl,
       settings: requestSettings,
       preRequestScript: preRequestScript || "",
       postResponseScript: postResponseScript || ""
@@ -269,8 +291,10 @@
       const rawBody = responseData.body ?? "";
       const fmt = detectResponseFormat(responseData.headers ?? {});
       response = {
-        status: responseData.statusCode, statusText: "TBD",
-        time: responseData.duration, headers: responseData.headers,
+        status: responseData.statusCode,
+        statusText: "TBD",
+        time: responseData.duration,
+        headers: responseData.headers,
         body: prettyPrint(rawBody, fmt)
       };
       if (activeBuilderTabId) {
@@ -280,7 +304,12 @@
         collectionName: $activeTabState?.collectionName ?? null,
         requestName: requestName || null,
         request: { method, url: resolvedUrl, headers: resolvedHeaders, body: resolvedBody },
-        response: { status: responseData.statusCode, time: responseData.duration, headers: responseData.headers, body: rawBody },
+        response: {
+          status: responseData.statusCode,
+          time: responseData.duration,
+          headers: responseData.headers,
+          body: rawBody
+        },
         error: null
       });
     } catch (error) {
@@ -293,7 +322,8 @@
         collectionName: $activeTabState?.collectionName ?? null,
         requestName: requestName || null,
         request: { method, url: resolvedUrl, headers: resolvedHeaders, body: resolvedBody },
-        response: null, error: requestError
+        response: null,
+        error: requestError
       });
     } finally {
       loading = false;
@@ -302,19 +332,29 @@
 
   function prettyPrint(body: string, fmt: "json" | "xml" | "text"): string {
     if (!body?.trim()) return body;
-    if (fmt === "json") { try { return JSON.stringify(JSON.parse(body), null, 2); } catch {} }
+    if (fmt === "json") {
+      try {
+        return JSON.stringify(JSON.parse(body), null, 2);
+      } catch {
+        // do nothing
+      }
+    }
     if (fmt === "xml") return prettifyXml(body);
     return body;
   }
 
   function detectResponseFormat(hdrs: Record<string, string>): "json" | "xml" | "text" {
-    const ct = Object.entries(hdrs ?? {}).find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "";
+    const ct =
+      Object.entries(hdrs ?? {}).find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "";
     if (ct.includes("json")) return "json";
     if (ct.includes("xml") || ct.includes("html")) return "xml";
     return "text";
   }
 
-  $: responseFormat = response ? detectResponseFormat(response.headers) : "text";
+  function getResponseFormat(currentResponse: TabResponse | null): "json" | "xml" | "text" {
+    if (!currentResponse) return "text";
+    return detectResponseFormat(currentResponse.headers);
+  }
 
   async function handleSaveRequest(event: CustomEvent<{ name: string; collection: string }>) {
     const { name, collection: targetCollection } = event.detail;
@@ -324,12 +364,18 @@
         .filter((h) => h.enabled && h.key)
         .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
       await collectionStore.addRequest(targetCollection, {
-        name: name || "Untitled Request", url, verb: method, body: requestBody,
-        headers: headersObj, settings: requestSettings
+        name: name || "Untitled Request",
+        url,
+        verb: method,
+        body: requestBody,
+        headers: headersObj,
+        settings: requestSettings
       });
       showSaveDialog = false;
       await sendRequest();
-    } catch { /* shown by store */ }
+    } catch {
+      /* shown by store */
+    }
   }
 
   function getStatusClass(status: number): string {
@@ -338,6 +384,25 @@
     if (status >= 400 && status < 500) return "status-warning";
     return "status-error";
   }
+  run(() => {
+    environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+      key,
+      value: String(val?.value ?? "")
+    }));
+  });
+  // --- Tab switching: ONE-WAY, store → form only ---
+  // Only fires when a different tab becomes active
+  run(() => {
+    const nextTabId = $activeTabState?.id ?? null;
+    if (nextTabId !== activeBuilderTabId) {
+      if ($activeTabState) {
+        loadTabIntoForm($activeTabState);
+      } else {
+        resetForm();
+      }
+    }
+  });
+  let responseFormat = $derived(getResponseFormat(response));
 </script>
 
 {#if $activeTabState}
@@ -351,11 +416,20 @@
         {#if $activeTabState.isDirty}
           <button
             class="save-btn"
-            on:click={handleSave}
+            onclick={handleSave}
             title="Save Request (Ctrl+S)"
             aria-label="Save Request"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
               <polyline points="17 21 17 13 7 13 7 21"></polyline>
               <polyline points="7 3 7 8 15 8"></polyline>
@@ -370,9 +444,15 @@
     <div class="request-line">
       <div class="url-bar">
         <div class="url-bar-method">
-          <Dropdown bind:value={method} options={methodOptions} change={handleMethodChange} variant="url-method" square />
+          <Dropdown
+            bind:value={method}
+            options={methodOptions}
+            change={handleMethodChange}
+            variant="url-method"
+            square
+          />
         </div>
-        <div class="url-bar-divider" />
+        <div class="url-bar-divider"></div>
         <TokenInput
           bind:value={url}
           placeholder="Enter request URL"
@@ -380,14 +460,15 @@
           wrapperClass="url-bar-input"
           on:change={onFieldChange}
         />
-        <div class="url-bar-divider" />
+        <div class="url-bar-divider"></div>
         <Button
           variant="primary"
           click={sendRequest}
           disabled={loading}
           square
           style="padding: 0 var(--space-xl); font-weight: var(--font-weight-semibold); align-self: stretch; border-radius: 0 var(--radius-md) var(--radius-md) 0;"
-        >{loading ? "Sending…" : "Send"}</Button>
+          >{loading ? "Sending…" : "Send"}</Button
+        >
       </div>
     </div>
 
@@ -395,22 +476,37 @@
       <Tabs bind:activeValue={requestPaneTab} variant="minimal">
         <Tab title="Headers" value="Headers" />
         <Tab title="Body" value="Body" />
-        <Tab title="Scripts" value="Scripts" badge={preRequestScript.trim() || postResponseScript.trim() ? "●" : undefined} />
+        <Tab
+          title="Scripts"
+          value="Scripts"
+          badge={preRequestScript.trim() || postResponseScript.trim() ? "●" : undefined}
+        />
         <Tab title="Settings" value="Settings" />
         <Tab title="Runner" value="Runner" />
       </Tabs>
 
-      {#if requestPaneTab === 'Body'}
+      {#if requestPaneTab === "Body"}
         <div class="body-format-selector">
-          {#if requestBodyFormat !== 'none'}
+          {#if requestBodyFormat !== "none"}
             <button
               class="beautify-btn"
               title="Prettify / Format body"
-              on:click={formatBody}
-              disabled={requestBodyFormat === 'text'}
+              onclick={formatBody}
+              disabled={requestBodyFormat === "text"}
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 4h12M2 8h8M2 12h10"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
               </svg>
               Beautify
             </button>
@@ -427,41 +523,55 @@
     </div>
 
     <div class="request-content-body">
-      {#if requestPaneTab === 'Headers'}
+      {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
           <RequestHeaders {headers} on:change={onFieldChange} />
         {/key}
-      {:else if requestPaneTab === 'Body'}
+      {:else if requestPaneTab === "Body"}
         {#key $activeTabState.id}
-          {#if requestBodyFormat === 'none'}
+          {#if requestBodyFormat === "none"}
             <EmptyState message="This request does not have a body" />
           {:else}
-            <RequestBody bind:requestBody bind:format={requestBodyFormat} on:change={onFieldChange} />
+            <RequestBody
+              bind:requestBody
+              bind:format={requestBodyFormat}
+              on:change={onFieldChange}
+            />
           {/if}
         {/key}
-      {:else if requestPaneTab === 'Scripts'}
+      {:else if requestPaneTab === "Scripts"}
         {#key $activeTabState.id}
           <RequestScripts
             bind:preRequestScript
             bind:postResponseScript
-            onPreChange={(val) => { preRequestScript = val; onFieldChange(); }}
-            onPostChange={(val) => { postResponseScript = val; onFieldChange(); }}
+            onPreChange={(val) => {
+              preRequestScript = val;
+              onFieldChange();
+            }}
+            onPostChange={(val) => {
+              postResponseScript = val;
+              onFieldChange();
+            }}
           />
         {/key}
-      {:else if requestPaneTab === 'Settings'}
+      {:else if requestPaneTab === "Settings"}
         {#key $activeTabState.id}
-          <RequestSettings bind:requestSettings globalConfig={$globalConfig} on:change={onFieldChange} />
+          <RequestSettings
+            bind:requestSettings
+            globalConfig={$globalConfig}
+            on:change={onFieldChange}
+          />
         {/key}
-      {:else if requestPaneTab === 'Runner'}
+      {:else if requestPaneTab === "Runner"}
         {#key $activeTabState.id}
-          <RequestRunner 
-            {method} 
-            {url} 
-            body={requestBody} 
-            {headers} 
-            settings={requestSettings} 
-            {preRequestScript} 
-            {postResponseScript} 
+          <RequestRunner
+            {method}
+            {url}
+            body={requestBody}
+            {headers}
+            settings={requestSettings}
+            {preRequestScript}
+            {postResponseScript}
           />
         {/key}
       {/if}
@@ -469,7 +579,7 @@
 
     <!-- Response Section -->
     <div class="response-section" style="height: {responseHeight}px">
-      <div class="resize-handle" class:resizing={isResizing} on:mousedown={startResize}></div>
+      <div class="resize-handle" class:resizing={isResizing} onmousedown={startResize}></div>
 
       <div class="response-content-bar">
         <Tabs bind:activeValue={responseTab} variant="minimal">
@@ -504,7 +614,7 @@
             </div>
           {:else}
             <div class="response-headers">
-              {#each Object.entries(response.headers) as [key, value] ([key])}
+              {#each Object.entries(response.headers) as [key, value] (key)}
                 <div class="response-header-row">
                   <span class="header-key">{key}:</span>
                   <span class="header-value">{value}</span>
@@ -683,7 +793,9 @@
     padding: 2px var(--space-xs);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: color var(--transition-fast), background var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast);
     white-space: nowrap;
   }
   .beautify-btn:hover:not(:disabled) {
@@ -713,7 +825,6 @@
     flex-direction: column;
     min-height: 0;
   }
-
 
   .response-section {
     border-top: 1px solid var(--border);
@@ -757,10 +868,22 @@
     font-weight: var(--font-weight-semibold);
   }
 
-  .status-success { background: var(--success); color: var(--bg-primary); }
-  .status-info    { background: var(--info);    color: var(--bg-primary); }
-  .status-warning { background: var(--warning); color: var(--bg-primary); }
-  .status-error   { background: var(--danger);  color: var(--bg-primary); }
+  .status-success {
+    background: var(--success);
+    color: var(--bg-primary);
+  }
+  .status-info {
+    background: var(--info);
+    color: var(--bg-primary);
+  }
+  .status-warning {
+    background: var(--warning);
+    color: var(--bg-primary);
+  }
+  .status-error {
+    background: var(--danger);
+    color: var(--bg-primary);
+  }
 
   .time-badge {
     font-size: var(--font-size-sm);
@@ -826,9 +949,9 @@
     flex-direction: column;
   }
 
-  .response-body code { font-family: inherit; }
-
-  .response-headers { padding: var(--space-md); }
+  .response-headers {
+    padding: var(--space-md);
+  }
 
   .response-header-row {
     display: flex;
@@ -852,7 +975,6 @@
     overflow-wrap: break-word;
     flex: 1;
   }
-
 
   :global(.env-autocomplete-menu) {
     position: absolute;

@@ -3,11 +3,19 @@
   import Modal from "../base/Modal.svelte";
   import { createEventDispatcher } from "svelte";
 
-  export let showNewEnvironmentDialog: boolean = false;
-  export let showDeleteConfirmDialog: boolean = false;
-  export let deleteTarget: string | null = null;
+  interface Props {
+    showNewEnvironmentDialog?: boolean;
+    showDeleteConfirmDialog?: boolean;
+    deleteTarget: string | null;
+  }
 
-  let newEnvironmentName = "";
+  let {
+    showNewEnvironmentDialog = $bindable(false),
+    showDeleteConfirmDialog = $bindable(false),
+    deleteTarget = $bindable(null)
+  }: Props = $props();
+
+  let newEnvironmentName = $state("");
 
   const dispatch = createEventDispatcher<{
     closeDelete: null;
@@ -32,24 +40,24 @@
   }
 
   function confirmDelete() {
-    dispatch("confirmDelete", deleteTarget);
+    dispatch("confirmDelete", deleteTarget || "");
   }
 </script>
 
 {#if showNewEnvironmentDialog}
   <Modal toggleFn={closeNewEnvironmentDialog}>
     <h3>New Environment</h3>
-    <!-- svelte-ignore a11y-autofocus -->
+    <!-- svelte-ignore a11y_autofocus -->
     <input
       type="text"
       bind:value={newEnvironmentName}
       placeholder="Environment name"
-      on:keydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
+      onkeydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
       autofocus
     />
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="primary" click={handleCreateEnvironment}>Create</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 
@@ -58,9 +66,9 @@
     <h3>Delete Environment</h3>
     <p>Are you sure you want to delete "{deleteTarget}"?</p>
     <p class="warning">This action cannot be undone.</p>
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="danger" click={confirmDelete}>Delete</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 

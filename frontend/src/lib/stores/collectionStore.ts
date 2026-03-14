@@ -24,7 +24,7 @@ const initialState: CollectionState = {
   collections: [],
   selectedCollectionName: null,
   selectedRequestId: null,
-  loading: false,
+  loading: false
 };
 
 // Create the main store
@@ -131,7 +131,10 @@ function createCollectionStore() {
     },
 
     // Add a request to a collection
-    async addRequest(collectionName: string, request: Partial<collection.Request>): Promise<collection.Request> {
+    async addRequest(
+      collectionName: string,
+      request: Partial<collection.Request>
+    ): Promise<collection.Request> {
       update((state) => ({ ...state }));
       try {
         const newRequestPayload = collection.Request.createFrom({
@@ -227,7 +230,7 @@ function createCollectionStore() {
     // Select a request
     selectRequest(requestId: string | null) {
       update((state) => ({ ...state, selectedRequestId: requestId }));
-    },
+    }
   };
 }
 

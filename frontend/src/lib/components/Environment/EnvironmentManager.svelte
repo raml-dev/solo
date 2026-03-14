@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { environmentStore } from "../../stores/environmentStore";
   import { notifications } from "../../stores/notificationStore";
   import Button from "../base/Button.svelte";
@@ -19,35 +21,40 @@
     GitEnvKeepTheirs,
     GitEnvAbortRebase,
     GitEnvDiscardChanges,
-    OpenEnvironmentInTerminal,
+    OpenEnvironmentInTerminal
   } from "../../../../wailsjs/go/main/App";
   import type { environment } from "../../../../wailsjs/go/models";
   import GitEnvImportView from "../GitEnvImportView.svelte";
   import GitStatusPanel from "../GitStatusPanel.svelte";
+  import { SvelteSet } from "svelte/reactivity";
 
-  let showNewEnvironmentDialog = false;
-  let showDeleteConfirmDialog = false;
-  let deleteTarget: string | null = null;
-  let activeMenu: string | null = null;
-  let showImportSelector = false;
-  let importActiveTab = "postman";
-  let showOverwriteConfirmDialog = false;
+  let showNewEnvironmentDialog = $state(false);
+  let showDeleteConfirmDialog = $state(false);
+  let deleteTarget: string | null = $state(null);
+  let activeMenu: string | null = $state(null);
+  let showImportSelector = $state(false);
+  let importActiveTab = $state("postman");
+  let showOverwriteConfirmDialog = $state(false);
   let pendingImport: { format: "postman" | "bruno"; path: string } | null = null;
-  let overwriteTargetName: string | null = null;
-  let selectedEnvironment: environment.Environment | null = null;
-  let focusedEnvironmentName: string | null = null;
-  let syncingEnvironments: Set<string> = new Set();
-  let gitStatusEnvId: string | null = null;
-  let gitStatusEnvName: string | null = null;
+  let overwriteTargetName: string | null = $state(null);
+  let selectedEnvironment: environment.Environment | null = $state(null);
+  let focusedEnvironmentName: string | null = $state(null);
+  let syncingEnvironments: Set<string> = $state(new Set());
+  let gitStatusEnvId: string | null = $state(null);
+  let gitStatusEnvName: string | null = $state(null);
 
-  $: environments = $environmentStore.environments;
-  $: {
-    const exists = focusedEnvironmentName && environments.some((e) => e.name === focusedEnvironmentName);
+  let environments = $derived($environmentStore.environments);
+  run(() => {
+    const exists =
+      focusedEnvironmentName && environments.some((e) => e.name === focusedEnvironmentName);
     if (!exists) {
-      focusedEnvironmentName = $environmentStore.selectedEnvironmentName || environments[0]?.name || null;
+      focusedEnvironmentName =
+        $environmentStore.selectedEnvironmentName || environments[0]?.name || null;
     }
-  }
-  $: selectedEnvironment = environments.find((env) => env.name === focusedEnvironmentName) || null;
+  });
+  run(() => {
+    selectedEnvironment = environments.find((env) => env.name === focusedEnvironmentName) || null;
+  });
 
   function openEnvironment(name: string) {
     focusedEnvironmentName = name;
@@ -57,7 +64,9 @@
     environmentStore.selectEnvironment(name);
   }
 
-  async function handleUpdateEnvironment(event: CustomEvent<{ name: string; values: Record<string, environment.ValueType> }>) {
+  async function handleUpdateEnvironment(
+    event: CustomEvent<{ name: string; values: Record<string, environment.ValueType> }>
+  ) {
     try {
       const { name, values } = event.detail;
       const env = environments.find((e) => e.name === name);
@@ -83,7 +92,7 @@
     try {
       await environmentStore.createEnvironment(trimmed);
       showNewEnvironmentDialog = false;
-    } catch (err) {
+    } catch {
       // error already shown by store
     }
   }
@@ -104,7 +113,7 @@
       }
       showDeleteConfirmDialog = false;
       deleteTarget = null;
-    } catch (err) {
+    } catch {
       // error already shown by store
     }
   }
@@ -120,7 +129,7 @@
 
   async function handleSync(environmentId: string) {
     syncingEnvironments.add(environmentId);
-    syncingEnvironments = new Set(syncingEnvironments);
+    syncingEnvironments = new SvelteSet(syncingEnvironments);
     try {
       await SyncGitEnvironment(environmentId);
       notifications.success("Git environment synced successfully");
@@ -129,7 +138,7 @@
       notifications.error("Sync failed", String(err));
     } finally {
       syncingEnvironments.delete(environmentId);
-      syncingEnvironments = new Set(syncingEnvironments);
+      syncingEnvironments = new SvelteSet(syncingEnvironments);
     }
   }
 
@@ -180,8 +189,7 @@
   }
 
   async function handleImportBruno(path?: string) {
-    const filePath =
-      path ?? (await SelectFile("Select Bruno Environment", "*.bru", "Bruno Files"));
+    const filePath = path ?? (await SelectFile("Select Bruno Environment", "*.bru", "Bruno Files"));
     if (!filePath) return;
     await executeImport("bruno", filePath, false);
   }
@@ -210,7 +218,7 @@
   }
 </script>
 
-<div class="environment-manager-layout" on:click={handleLayoutClick}>
+<div class="environment-manager-layout" onclick={handleLayoutClick}>
   <div class="environment-list">
     <div class="header">
       <div class="header-title">
@@ -244,12 +252,12 @@
         />
       {/each}
     </div>
-     {#if environments.length === 0 && !$environmentStore.loading}
-        <div class="empty-state">
-            <p>No environments yet</p>
-            <p class="hint">Create your first environment to get started</p>
-        </div>
-     {/if}
+    {#if environments.length === 0 && !$environmentStore.loading}
+      <div class="empty-state">
+        <p>No environments yet</p>
+        <p class="hint">Create your first environment to get started</p>
+      </div>
+    {/if}
   </div>
   <div class="environment-editor-pane">
     <EnvironmentEditor env={selectedEnvironment} on:update={handleUpdateEnvironment} />
@@ -284,13 +292,22 @@
               }
             }}
           >
-            <svelte:fragment slot="icon">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-            </svelte:fragment>
+            {/snippet}
           </DropZone>
         </Tab>
 
@@ -308,12 +325,21 @@
               }
             }}
           >
-            <svelte:fragment slot="icon">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
-            </svelte:fragment>
+            {/snippet}
           </DropZone>
         </Tab>
 
@@ -323,13 +349,17 @@
       </Tabs>
     </div>
 
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       {#if importActiveTab === "postman"}
-        <Button variant="primary" click={() => handleSelectImportFormat("postman")}>Select file…</Button>
+        <Button variant="primary" click={() => handleSelectImportFormat("postman")}
+          >Select file…</Button
+        >
       {:else if importActiveTab === "bruno"}
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>Select file…</Button>
+        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}
+          >Select file…</Button
+        >
       {/if}
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 
@@ -338,9 +368,9 @@
     <h3>Overwrite environment?</h3>
     <p>Environment "{overwriteTargetName}" already exists.</p>
     <p class="warning">Do you want to overwrite it?</p>
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="danger" click={confirmOverwrite}>Overwrite</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 

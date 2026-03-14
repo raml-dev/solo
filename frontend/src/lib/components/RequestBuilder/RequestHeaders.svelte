@@ -4,7 +4,11 @@
   import Button from "../base/Button.svelte";
   import TokenInput from "./TokenInput.svelte";
 
-  export let headers: Header[];
+  interface Props {
+    headers: Header[];
+  }
+
+  let { headers = $bindable() }: Props = $props();
 
   const dispatch = createEventDispatcher();
 
@@ -36,10 +40,12 @@
     dispatch("change");
   }
 
-  $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-    key,
-    value: String(val?.value ?? "")
-  }));
+  let environmentEntries = $derived(
+    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+      key,
+      value: String(val?.value ?? "")
+    }))
+  );
 </script>
 
 <div class="headers-editor">
@@ -49,7 +55,7 @@
         type="checkbox"
         class="header-checkbox"
         checked={header.enabled}
-        on:change={() => toggleHeader(header.id)}
+        onchange={() => toggleHeader(header.id)}
       />
       <input
         type="text"
@@ -57,7 +63,7 @@
         placeholder="Header name"
         bind:value={header.key}
         disabled={!header.enabled}
-        on:input={() => dispatch("change")}
+        oninput={() => dispatch("change")}
       />
       <div class="header-value-wrapper">
         <TokenInput
@@ -72,7 +78,7 @@
       <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>
     </div>
   {/each}
-  <button class="btn-add-header" on:click={addHeader}> + Add Header </button>
+  <button class="btn-add-header" onclick={addHeader}> + Add Header </button>
 </div>
 
 <style>
@@ -87,15 +93,8 @@
     align-items: stretch;
   }
 
-  .header-row .input,
-  .header-row .token-input-wrapper.input {
+  .header-row .input {
     height: 34px;
-  }
-
-  .header-row .token-input-wrapper.input .real-input,
-  .header-row .token-input-wrapper.input .token-input-overlay {
-    padding: 0 var(--space-md);
-    line-height: 34px;
   }
 
   .header-checkbox {

@@ -228,9 +228,9 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
     refreshFromCaret();
   }
 
-  function onKeyDown(event: KeyboardEvent) {
+  function onKeyDown(event: Event) {
     if (!open || filtered.length === 0) return;
-
+    if (event instanceof KeyboardEvent === false) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
       activeIndex = (activeIndex + 1) % filtered.length;

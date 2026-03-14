@@ -41,9 +41,10 @@ function createNotificationStore() {
     dismiss,
     dismissAll,
     success: (message: string, detail?: string) => notify("success", message, detail),
-    error:   (message: string, detail?: string, persistent = false) => notify("error", message, detail, persistent),
+    error: (message: string, detail?: string, persistent = false) =>
+      notify("error", message, detail, persistent),
     warning: (message: string, detail?: string) => notify("warning", message, detail),
-    info:    (message: string, detail?: string) => notify("info", message, detail),
+    info: (message: string, detail?: string) => notify("info", message, detail)
   };
 }
 

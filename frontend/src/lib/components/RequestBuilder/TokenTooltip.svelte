@@ -1,34 +1,47 @@
+<!-- @migration-task Error while migrating Svelte code: can't migrate `let isEditing = false;` to `$state` because there's a variable named state.
+     Rename the variable and try again or migrate by hand. -->
 <script lang="ts">
-  import { tokenTooltipStore, cancelHideTokenTooltip, tooltipMouseLeave, forceHideTokenTooltip } from "../../stores/tokenTooltipStore";
+  import { run } from "svelte/legacy";
+
+  import {
+    tokenTooltipStore,
+    cancelHideTokenTooltip,
+    tooltipMouseLeave,
+    forceHideTokenTooltip
+  } from "../../stores/tokenTooltipStore";
   import { selectedEnvironment, environmentStore } from "../../stores/environmentStore";
   import { sessionVarsStore } from "../../stores/sessionVarsStore";
   import { environment } from "../../../../wailsjs/go/models";
   import { tick } from "svelte";
 
-  let isEditing = false;
-  let editValue = "";
-  let inputElement: HTMLInputElement;
+  let isEditing = $state(false);
+  let editValue = $state("");
+  let inputElement: HTMLInputElement | undefined = $state();
 
-  $: state = $tokenTooltipStore;
-  $: tokenKey = state.tokenKey;
-  $: visible = state.visible;
-  
-  $: sessionValue = tokenKey ? $sessionVarsStore[tokenKey] : undefined;
-  $: envValue = $selectedEnvironment?.values[tokenKey]?.value ?? "";
-  $: hasSessionValue = sessionValue !== undefined;
-  $: hasEnvValue = $selectedEnvironment?.values[tokenKey] !== undefined;
-  $: displayValue = hasSessionValue ? String(sessionValue) : envValue;
-  $: exists = hasSessionValue || hasEnvValue;
-  $: valueSource = hasSessionValue ? "session" : (hasEnvValue ? "environment" : "none");
+  let tooltipState = $derived($tokenTooltipStore);
+  let tokenKey = $derived(tooltipState.tokenKey);
+  let visible = $derived(tooltipState.visible);
 
-  $: if (visible && !isEditing) {
-    // Editing always targets the persisted environment value, not the session override.
-    editValue = envValue;
-  }
+  let sessionValue = $derived(tokenKey ? $sessionVarsStore[tokenKey] : undefined);
+  let envValue = $derived($selectedEnvironment?.values[tokenKey]?.value ?? "");
+  let hasSessionValue = $derived(sessionValue !== undefined);
+  let hasEnvValue = $derived($selectedEnvironment?.values[tokenKey] !== undefined);
+  let displayValue = $derived(hasSessionValue ? String(sessionValue) : envValue);
+  let exists = $derived(hasSessionValue || hasEnvValue);
+  let valueSource = $derived(hasSessionValue ? "session" : hasEnvValue ? "environment" : "none");
 
-  $: if (!visible) {
-    isEditing = false;
-  }
+  run(() => {
+    if (visible && !isEditing) {
+      // Editing always targets the persisted environment value, not the session override.
+      editValue = envValue;
+    }
+  });
+
+  run(() => {
+    if (!visible) {
+      isEditing = false;
+    }
+  });
 
   async function handleEditClick() {
     isEditing = true;
@@ -67,25 +80,25 @@
 </script>
 
 {#if visible}
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="token-tooltip"
-    style="left: {state.x}px; top: {state.y}px;"
-    on:mouseenter={cancelHideTokenTooltip}
-    on:mouseleave={tooltipMouseLeave}
+    style="left: {tooltipState.x}px; top: {tooltipState.y}px;"
+    onmouseenter={cancelHideTokenTooltip}
+    onmouseleave={tooltipMouseLeave}
   >
     {#if isEditing}
       <div class="edit-mode">
-        <input 
+        <input
           bind:this={inputElement}
-          type="text" 
-          bind:value={editValue} 
-          on:keydown={handleKeydown} 
+          type="text"
+          bind:value={editValue}
+          onkeydown={handleKeydown}
           class="tooltip-input"
         />
         <div class="edit-actions">
-          <button class="btn-save" on:click={save}>Save</button>
-          <button class="btn-cancel" on:click={() => isEditing = false}>Cancel</button>
+          <button class="btn-save" onclick={save}>Save</button>
+          <button class="btn-cancel" onclick={() => (isEditing = false)}>Cancel</button>
         </div>
       </div>
     {:else}
@@ -100,18 +113,17 @@
             </span>
           {/if}
         </div>
-        <button
-          class="edit-btn"
-          on:click={handleEditClick}
-          title="Edit environment value"
-        >
+        <button class="edit-btn" onclick={handleEditClick} title="Edit environment value">
           ✎
         </button>
       </div>
       {#if valueSource === "session"}
         <div class="session-hint-wrap">
-          <div class="session-hint">Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo resta quello di sessione finché non la svuoti.</div>
-          <button class="session-clear-btn" on:click={clearSessionOverride}>Use env value</button>
+          <div class="session-hint">
+            Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo
+            resta quello di sessione finché non la svuoti.
+          </div>
+          <button class="session-clear-btn" onclick={clearSessionOverride}>Use env value</button>
         </div>
       {/if}
     {/if}
@@ -225,7 +237,6 @@
     color: var(--primary);
     background: var(--bg-tertiary);
   }
-
 
   .edit-mode {
     display: flex;

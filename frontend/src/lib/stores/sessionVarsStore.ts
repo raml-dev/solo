@@ -11,7 +11,9 @@ function createSessionVarsStore() {
     /** Called once at app startup to load existing vars and listen for updates */
     init() {
       // Load current vars from backend
-      GetSessionVars().then((vars) => set(vars ?? {})).catch(() => {});
+      GetSessionVars()
+        .then((vars) => set(vars ?? {}))
+        .catch(() => {});
 
       // Listen for real-time updates emitted by env.set() in Lua
       EventsOn("session_vars_updated", (vars: Record<string, string>) => {
@@ -24,7 +26,9 @@ function createSessionVarsStore() {
       try {
         const vars = await GetSessionVars();
         set(vars ?? {});
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     },
 
     /** Remove one session var by key */
@@ -33,7 +37,9 @@ function createSessionVarsStore() {
         await RemoveSessionVar(key);
         const vars = await GetSessionVars();
         set(vars ?? {});
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     },
 
     /** Clear all session vars */
@@ -41,7 +47,9 @@ function createSessionVarsStore() {
       try {
         await ClearSessionVars();
         set({});
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     }
   };
 }

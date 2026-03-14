@@ -20,37 +20,41 @@
     GitKeepTheirs,
     GitAbortRebase,
     GitDiscardChanges,
-    OpenCollectionInTerminal,
+    OpenCollectionInTerminal
   } from "../../../wailsjs/go/main/App";
   import GitImportView from "./GitImportView.svelte";
   import GitStatusPanel from "./GitStatusPanel.svelte";
+  import { SvelteSet } from "svelte/reactivity";
 
-  export let onRequestSelect: (requestId: string) => void = () => {};
+  interface Props {
+    onRequestSelect?: (requestId: string) => void;
+  }
 
-  let showNewCollectionDialog = false;
-  let showRenameCollectionDialog = false;
-  let showDeleteConfirmDialog = false;
-  let showDeleteRequestConfirmDialog = false;
-  let showImportSelector = false;
+  let { onRequestSelect = () => {} }: Props = $props();
 
-  let importActiveTab = "postman";
+  let showNewCollectionDialog = $state(false);
+  let showRenameCollectionDialog = $state(false);
+  let showDeleteConfirmDialog = $state(false);
+  let showDeleteRequestConfirmDialog = $state(false);
+  let showImportSelector = $state(false);
 
+  let importActiveTab = $state("postman");
 
-  let newCollectionName = "";
-  let renameCollectionName = "";
+  let newCollectionName = $state("");
+  let renameCollectionName = $state("");
   let renameTarget: string | null = null;
-  let deleteTarget: string | null = null;
+  let deleteTarget: string | null = $state(null);
   let deleteRequestTarget: string | null = null;
   let deleteRequestCollectionName: string | null = null;
-  let expandedCollections: Set<string> = new Set();
-  let searchQuery = "";
-  let activeMenu: string | null = null;
-  let isCollapsed = false;
-  let gitStatusCollectionId: string | null = null;
-  let gitStatusCollectionName: string | null = null;
-  let syncingCollections: Set<string> = new Set();
+  let expandedCollections: Set<string> = new SvelteSet();
+  let searchQuery = $state("");
+  let activeMenu: string | null = $state(null);
+  let isCollapsed = $state(false);
+  let gitStatusCollectionId: string | null = $state(null);
+  let gitStatusCollectionName: string | null = $state(null);
+  let syncingCollections: Set<string> = $state(new Set());
 
-  let sidebarWidth = 280; // Default width
+  let sidebarWidth = $state(280); // Default width
   let isResizing = false;
 
   function startResize(e: MouseEvent) {
@@ -78,16 +82,6 @@
     document.body.style.cursor = "";
     localStorage.setItem("sidebar_width", String(sidebarWidth));
   }
-
-  $: collections = $collectionStore.collections;
-  $: selectedCollectionName = $collectionStore.selectedCollectionName;
-  // Highlight in sidebar is driven by the active tab, not the collectionStore selection
-  $: selectedRequestId = $tabStore.tabs.find((t) => t.id === $tabStore.activeTabId)?.requestId ?? null;
-  $: normalizedQuery = searchQuery.trim().toLowerCase();
-  $: isSearching = normalizedQuery.length > 0;
-  $: filteredCollections = collections.filter((collection) =>
-    shouldShowCollection(collection, normalizedQuery)
-  );
 
   function normalize(value: string | undefined | null): string {
     return (value || "").toLowerCase();
@@ -129,7 +123,7 @@
     } else {
       expandedCollections.add(collectionName);
     }
-    expandedCollections = new Set(expandedCollections);
+    expandedCollections = new SvelteSet(expandedCollections);
   }
 
   function selectCollection(name: string) {
@@ -199,7 +193,7 @@
     try {
       await collectionStore.createCollection(trimmed);
       closeNewCollectionDialog();
-    } catch (err) {
+    } catch {
       // error already shown by store
     }
   }
@@ -225,10 +219,10 @@
       if (expandedCollections.has(renameTarget)) {
         expandedCollections.delete(renameTarget);
         expandedCollections.add(trimmed);
-        expandedCollections = new Set(expandedCollections);
+        expandedCollections = new SvelteSet(expandedCollections);
       }
       closeRenameDialog();
-    } catch (err) {
+    } catch {
       // error already shown by store
     }
   }
@@ -250,7 +244,7 @@
     try {
       await collectionStore.deleteCollection(deleteTarget);
       expandedCollections.delete(deleteTarget);
-      expandedCollections = new Set(expandedCollections);
+      expandedCollections = new SvelteSet(expandedCollections);
       closeDeleteConfirmDialog();
     } catch (err) {
       console.error("Error deleting collection:", err);
@@ -268,7 +262,7 @@
       });
 
       expandedCollections.add(collectionName);
-      expandedCollections = new Set(expandedCollections);
+      expandedCollections = new SvelteSet(expandedCollections);
 
       if (newReq?.id) {
         tabStore.openTab(newReq.id, collectionName, {
@@ -281,7 +275,7 @@
           settings: {}
         });
       }
-    } catch (err) {
+    } catch {
       // error already shown by store
     }
   }
@@ -293,12 +287,12 @@
   }
 
   async function confirmDeleteRequest() {
-    if (!deleteRequestTarget) return;
+    if (!deleteRequestTarget || !deleteRequestCollectionName) return;
 
     try {
       await collectionStore.removeRequest(deleteRequestCollectionName, deleteRequestTarget);
       closeDeleteRequestConfirmDialog();
-    } catch (err) {
+    } catch {
       // error already shown by store
     }
   }
@@ -364,7 +358,7 @@
 
   async function handleSync(collectionId: string) {
     syncingCollections.add(collectionId);
-    syncingCollections = new Set(syncingCollections);
+    syncingCollections = new SvelteSet(syncingCollections);
     try {
       await SyncGitCollection(collectionId);
       notifications.success("Git collection synced successfully");
@@ -373,15 +367,18 @@
       notifications.error("Sync failed", String(err));
     } finally {
       syncingCollections.delete(collectionId);
-      syncingCollections = new Set(syncingCollections);
+      syncingCollections = new SvelteSet(syncingCollections);
     }
   }
 
   function getProviderIconPath(provider: string) {
     switch (provider) {
-      case "github": return "M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.003-.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z";
-      case "gitlab": return "M12 1L9 11h6L12 1zm0 0L3 11l9 12 9-12-9-10z";
-      default: return "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
+      case "github":
+        return "M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.003-.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z";
+      case "gitlab":
+        return "M12 1L9 11h6L12 1zm0 0L3 11l9 12 9-12-9-10z";
+      default:
+        return "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
     }
   }
 
@@ -408,10 +405,25 @@
   onDestroy(async () => {
     document.removeEventListener("click", clearMenu);
   });
+  let collections = $derived($collectionStore.collections);
+  let selectedCollectionName = $derived($collectionStore.selectedCollectionName);
+  // Highlight in sidebar is driven by the active tab, not the collectionStore selection
+  let selectedRequestId = $derived(
+    $tabStore.tabs.find((t) => t.id === $tabStore.activeTabId)?.requestId ?? null
+  );
+  let normalizedQuery = $derived(searchQuery.trim().toLowerCase());
+  let isSearching = $derived(normalizedQuery.length > 0);
+  let filteredCollections = $derived(
+    collections.filter((collection) => shouldShowCollection(collection, normalizedQuery))
+  );
 </script>
 
-<div class="collection-list" class:collapsed={isCollapsed} style={`width: ${isCollapsed ? 'auto' : sidebarWidth + 'px'};`}>
-  <div class="resize-handle" on:mousedown={startResize} />
+<div
+  class="collection-list"
+  class:collapsed={isCollapsed}
+  style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
+>
+  <div class="resize-handle" onmousedown={startResize}></div>
   <div class="header">
     <div class="header-title">
       {#if !isCollapsed}
@@ -419,9 +431,7 @@
       {/if}
       <div class="header-actions">
         {#if !isCollapsed}
-          <Button variant="secondary" size="small" click={openImportModal}>
-            Import
-          </Button>
+          <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
           <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
             New
           </Button>
@@ -443,11 +453,7 @@
           bind:value={searchQuery}
         />
         {#if searchQuery}
-          <button
-            class="clear-search"
-            on:click={() => (searchQuery = "")}
-            aria-label="Clear search"
-          >
+          <button class="clear-search" onclick={() => (searchQuery = "")} aria-label="Clear search">
             x
           </button>
         {/if}
@@ -469,12 +475,12 @@
         >
           <div
             class="collection-header"
-            on:click={(e) => {
+            onclick={(e) => {
               e.stopPropagation();
               selectCollection(collection.name);
               toggleCollection(collection.name);
             }}
-            on:keypress={(e) => {
+            onkeypress={(e) => {
               if (e.key === "Enter") {
                 selectCollection(collection.name);
                 toggleCollection(collection.name);
@@ -485,7 +491,7 @@
           >
             <button
               class="expand-btn"
-              on:click={(e) => {
+              onclick={(e) => {
                 e.stopPropagation();
                 toggleCollection(collection.name);
               }}
@@ -506,7 +512,7 @@
                   class="provider-icon"
                   aria-label={`Git remote: ${collection.gitRemote}`}
                 >
-                  <path d={getProviderIconPath(collection.gitProvider || 'git')} />
+                  <path d={getProviderIconPath(collection.gitProvider || "git")} />
                 </svg>
               {/if}
               <span class="collection-name">{collection.name}</span>
@@ -517,22 +523,33 @@
               {#if collection.gitRemote}
                 <button
                   class="icon-btn"
-                  on:click={(e) => {
+                  onclick={(e) => {
                     e.stopPropagation();
                     gitStatusCollectionId = collection.id;
                     gitStatusCollectionName = collection.name;
                   }}
                   title="Git status & actions"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
-                    <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
-                    <line x1="12" y1="12" x2="12" y2="15"/>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
+                      cx="18"
+                      cy="6"
+                      r="3"
+                    />
+                    <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
+                    <line x1="12" y1="12" x2="12" y2="15" />
                   </svg>
                 </button>
                 <button
                   class="icon-btn"
-                  on:click={(e) => {
+                  onclick={(e) => {
                     e.stopPropagation();
                     handleSync(collection.id);
                   }}
@@ -540,17 +557,26 @@
                   disabled={syncingCollections.has(collection.id)}
                 >
                   {#if syncingCollections.has(collection.id)}
-                    <span class="sync-spinner" />
+                    <span class="sync-spinner"></span>
                   {:else}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"></path>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
+                      ></path>
                     </svg>
                   {/if}
                 </button>
               {/if}
               <button
                 class="icon-btn"
-                on:click={(e) => handleAddRequest(e, collection.name)}
+                onclick={(e) => handleAddRequest(e, collection.name)}
                 title="Add request"
                 aria-label="Add request"
               >
@@ -558,7 +584,7 @@
               </button>
               <button
                 class="icon-btn"
-                on:click={(e) => toggleMenu(e, collection.name)}
+                onclick={(e) => toggleMenu(e, collection.name)}
                 title="More actions"
                 aria-label="More actions"
               >
@@ -570,7 +596,7 @@
               <div class="collection-menu">
                 <button
                   class="menu-item"
-                  on:click={(e) => {
+                  onclick={(e) => {
                     e.stopPropagation();
                     openRenameCollection(collection.name);
                   }}
@@ -579,7 +605,7 @@
                 </button>
                 <button
                   class="menu-item danger"
-                  on:click={(e) => {
+                  onclick={(e) => {
                     e.stopPropagation();
                     handleDeleteCollection(collection.name);
                   }}
@@ -601,8 +627,9 @@
                   <div
                     class="request-item"
                     class:selected={selectedRequestId === request.id}
-                    on:click={() => selectRequest(request.id, collection.name)}
-                    on:keypress={(e) => e.key === "Enter" && selectRequest(request.id, collection.name)}
+                    onclick={() => selectRequest(request.id, collection.name)}
+                    onkeypress={(e) =>
+                      e.key === "Enter" && selectRequest(request.id, collection.name)}
                     role="button"
                     tabindex="0"
                   >
@@ -612,7 +639,7 @@
                     <span class="request-name">{request.name}</span>
                     <button
                       class="icon-btn subtle"
-                      on:click={() => handleDeleteRequest(collection.name, request.id)}
+                      onclick={() => handleDeleteRequest(collection.name, request.id)}
                       title="Delete request"
                       aria-label="Delete request"
                     >
@@ -644,18 +671,18 @@
   <Modal toggleFn={closeNewCollectionDialog}>
     <div class="dialog">
       <h3>New Collection</h3>
-      <!-- svelte-ignore a11y-autofocus -->
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
         bind:value={newCollectionName}
         placeholder="Collection name"
-        on:keydown={(e) => e.key === "Enter" && handleCreateCollection()}
+        onkeydown={(e) => e.key === "Enter" && handleCreateCollection()}
         autofocus
       />
     </div>
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="primary" click={handleCreateCollection}>Create</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 
@@ -663,18 +690,18 @@
   <Modal toggleFn={closeRenameDialog}>
     <div class="dialog">
       <h3>Rename Collection</h3>
-      <!-- svelte-ignore a11y-autofocus -->
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
         bind:value={renameCollectionName}
         placeholder="Collection name"
-        on:keydown={(e) => e.key === "Enter" && handleRenameCollection()}
+        onkeydown={(e) => e.key === "Enter" && handleRenameCollection()}
         autofocus
       />
     </div>
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="primary" click={handleRenameCollection}>Save</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 
@@ -685,9 +712,9 @@
       <p>Are you sure you want to delete "{deleteTarget}"?</p>
       <p class="warning">This action cannot be undone.</p>
     </div>
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="danger" click={confirmDelete}>Delete</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 {#if showDeleteRequestConfirmDialog}
@@ -697,9 +724,9 @@
       <p>Are you sure you want to delete this request?</p>
       <p class="warning">This action cannot be undone.</p>
     </div>
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       <Button variant="danger" click={confirmDeleteRequest}>Delete</Button>
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 
@@ -722,13 +749,22 @@
               }
             }}
           >
-            <svelte:fragment slot="icon">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-            </svelte:fragment>
+            {/snippet}
           </DropZone>
         </Tab>
 
@@ -747,12 +783,21 @@
               }
             }}
           >
-            <svelte:fragment slot="icon">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
-            </svelte:fragment>
+            {/snippet}
           </DropZone>
         </Tab>
 
@@ -762,7 +807,7 @@
       </Tabs>
     </div>
 
-    <svelte:fragment slot="additional-buttons">
+    {#snippet additional_buttons()}
       {#if importActiveTab === "postman"}
         <Button variant="primary" click={() => handleSelectImportFormat("postman")}>
           Select file…
@@ -772,7 +817,7 @@
           Select folder…
         </Button>
       {/if}
-    </svelte:fragment>
+    {/snippet}
   </Modal>
 {/if}
 
@@ -889,15 +934,6 @@
     justify-content: space-between;
     align-items: center;
     font-size: var(--font-size-sm);
-  }
-
-  .error button {
-    background: none;
-    border: none;
-    color: inherit;
-    font-size: var(--font-size-lg);
-    cursor: pointer;
-    padding: 0 var(--space-xs);
   }
 
   .collections {
@@ -1031,7 +1067,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .icon-btn.subtle {

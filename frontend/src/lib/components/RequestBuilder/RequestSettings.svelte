@@ -2,11 +2,17 @@
   import { createEventDispatcher } from "svelte";
   import type { configuration as conf } from "../../../../wailsjs/go/models";
 
-  export let requestSettings: conf.RequestSettingsOverride;
-  export let globalConfig: conf.Configuration;
+  interface Props {
+    requestSettings: conf.RequestSettingsOverride;
+    globalConfig: conf.Configuration;
+  }
+
+  let { requestSettings = $bindable(), globalConfig }: Props = $props();
 
   const dispatch = createEventDispatcher();
-  function onChange() { dispatch("change"); }
+  function onChange() {
+    dispatch("change");
+  }
 </script>
 
 <div class="settings-form-container">
@@ -18,7 +24,8 @@
       min="0"
       step="1"
       placeholder={`Global: ${globalConfig.request.timeoutSeconds || "30"}`}
-      bind:value={requestSettings.timeoutSeconds} on:input={onChange}
+      bind:value={requestSettings.timeoutSeconds}
+      oninput={onChange}
     />
   </div>
   <div class="form-group">
@@ -27,12 +34,13 @@
       id="user-agent"
       type="text"
       placeholder={`Global: ${globalConfig.request.defaultUserAgent || "Yapla/1.0"}`}
-      bind:value={requestSettings.defaultUserAgent} on:input={onChange}
+      bind:value={requestSettings.defaultUserAgent}
+      oninput={onChange}
     />
   </div>
   <div class="form-group-row">
     <label class="checkbox-group">
-      <input type="checkbox" bind:checked={requestSettings.followRedirects} on:change={onChange} />
+      <input type="checkbox" bind:checked={requestSettings.followRedirects} onchange={onChange} />
       Follow Redirects
     </label>
     <div class="form-group">
@@ -43,14 +51,15 @@
         min="0"
         step="1"
         placeholder={`Global: ${globalConfig.request.maxRedirects || "10"}`}
-        bind:value={requestSettings.maxRedirects} on:input={onChange}
+        bind:value={requestSettings.maxRedirects}
+        oninput={onChange}
         disabled={!requestSettings.followRedirects}
       />
     </div>
   </div>
   <div class="form-group">
     <label class="checkbox-group">
-      <input type="checkbox" bind:checked={requestSettings.validateSSL} on:change={onChange} />
+      <input type="checkbox" bind:checked={requestSettings.validateSSL} onchange={onChange} />
       Validate SSL Certificates
     </label>
   </div>
@@ -60,7 +69,8 @@
       id="proxy"
       type="text"
       placeholder={`Global: ${globalConfig.request.proxyUrl || "Use system settings"}`}
-      bind:value={requestSettings.proxyUrl} on:input={onChange}
+      bind:value={requestSettings.proxyUrl}
+      oninput={onChange}
     />
   </div>
 </div>

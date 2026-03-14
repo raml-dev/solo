@@ -5,19 +5,30 @@
   import { showTokenTooltip, hideTokenTooltipDelay } from "../../stores/tokenTooltipStore";
   import type { TextSegment } from "../../utils/tokens";
 
-  export let value = "";
-  export let placeholder = "";
-  export let disabled = false;
-  export let environmentEntries: any[] = [];
-  export let inputClass = "";
-  export let wrapperClass = "";
+  interface Props {
+    value?: string;
+    placeholder?: string;
+    disabled?: boolean;
+    environmentEntries?: { key: string; value: string }[];
+    inputClass?: string;
+    wrapperClass?: string;
+  }
+
+  let {
+    value = $bindable(""),
+    placeholder = "",
+    disabled = false,
+    environmentEntries = [],
+    inputClass = "",
+    wrapperClass = ""
+  }: Props = $props();
 
   const dispatch = createEventDispatcher();
 
-  let inputEl: HTMLInputElement;
-  let scrollLeft = 0;
+  let inputEl: HTMLInputElement | undefined = $state();
+  let scrollLeft = $state(0);
 
-  $: segments = splitTextSegments(value);
+  let segments = $derived(splitTextSegments(value));
 
   function handleTokenEnter(e: MouseEvent, segment: TextSegment) {
     if (!segment.tokenKey) return;
@@ -35,24 +46,21 @@
   }
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="token-input-wrapper {wrapperClass}" on:click={focusInput}>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="token-input-wrapper {wrapperClass}" onclick={focusInput}>
   <div class="token-input-overlay" aria-hidden="true">
-    <div
-      class="token-input-overlay-content"
-      style={`transform: translateX(-${scrollLeft}px);`}
-    >
+    <div class="token-input-overlay-content" style={`transform: translateX(-${scrollLeft}px);`}>
       {#if !value && placeholder}
         <span class="placeholder">{placeholder}</span>
       {:else}
-        {#each segments as segment}
+        {#each segments as segment (segment.tokenKey)}
           {#if segment.isToken}
-            <span 
-              class="token" 
-              on:mouseenter={(e) => handleTokenEnter(e, segment)}
-              on:mouseleave={handleTokenLeave}
-            >{segment.text}</span>
+            <span
+              class="token"
+              onmouseenter={(e) => handleTokenEnter(e, segment)}
+              onmouseleave={handleTokenLeave}>{segment.text}</span
+            >
           {:else}
             <span class="text">{segment.text}</span>
           {/if}
@@ -66,8 +74,11 @@
     class="real-input {inputClass}"
     bind:value
     {disabled}
-    on:input={() => { scrollLeft = inputEl?.scrollLeft ?? 0; dispatch("change"); }}
-    on:scroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
+    oninput={() => {
+      scrollLeft = inputEl?.scrollLeft ?? 0;
+      dispatch("change");
+    }}
+    onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
     use:envAutocomplete={{ entries: environmentEntries, insertMode: "token" }}
   />
 </div>

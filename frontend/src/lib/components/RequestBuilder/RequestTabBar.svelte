@@ -3,13 +3,13 @@
   import Modal from "../base/Modal.svelte";
   import Button from "../base/Button.svelte";
 
-  $: tabs = $tabStore.tabs;
-  $: activeTabId = $tabStore.activeTabId;
+  let tabs = $derived($tabStore.tabs);
+  let activeTabId = $derived($tabStore.activeTabId);
 
-  let tabToCloseId: string | null = null;
-  let showConfirmClose = false;
+  let tabToCloseId: string | null = $state(null);
+  let showConfirmClose = $state(false);
 
-  $: tabToClose = tabs.find(t => t.id === tabToCloseId);
+  let tabToClose = $derived(tabs.find((t) => t.id === tabToCloseId));
 
   function getMethodClass(verb: string): string {
     return `method-${(verb || "get").toLowerCase()}`;
@@ -56,14 +56,14 @@
 <div class="tab-bar">
   <div class="tab-list">
     {#each tabs as tab (tab.id)}
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="tab"
         class:active={tab.id === activeTabId}
         class:preview-tab={tab.isPreview}
-        on:click={() => tabStore.setActiveTab(tab.id)}
-        on:dblclick={() => tabStore.fixTab(tab.id)}
+        onclick={() => tabStore.setActiveTab(tab.id)}
+        ondblclick={() => tabStore.fixTab(tab.id)}
         title={tab.label}
       >
         <span class="method-badge {getMethodClass(tab.verb)}">{tab.verb}</span>
@@ -71,32 +71,30 @@
         {#if tab.isDirty}
           <span class="dirty-dot" title="Unsaved changes"></span>
         {/if}
-        <button
-          class="close-btn"
-          on:click={(e) => handleClose(e, tab.id)}
-          aria-label="Close tab"
-        >×</button>
+        <button class="close-btn" onclick={(e) => handleClose(e, tab.id)} aria-label="Close tab"
+          >×</button
+        >
       </div>
     {/each}
   </div>
 
   <button
     class="new-tab-btn"
-    on:click={() => tabStore.newEmptyTab()}
+    onclick={() => tabStore.newEmptyTab()}
     title="New request"
-    aria-label="New request"
-  >+</button>
+    aria-label="New request">+</button
+  >
 </div>
 
 {#if showConfirmClose}
-  <Modal title="Unsaved Changes" toggleFn={closeConfirmModal} size="sm">
+  <Modal title="Unsaved Changes" toggleFn={closeConfirmModal} size="default">
     <div class="confirm-modal-body">
       <p>Do you want to save the changes to <strong>{tabToClose?.label}</strong>?</p>
       <p class="text-muted">Your changes will be lost if you don't save them.</p>
 
       <div class="confirm-modal-actions">
         <Button variant="secondary" click={confirmCloseDiscard}>Don't Save</Button>
-        <div class="flex-spacer" />
+        <div class="flex-spacer"></div>
         <Button variant="secondary" click={closeConfirmModal}>Cancel</Button>
         <Button variant="primary" click={confirmCloseSave}>Save</Button>
       </div>
@@ -199,13 +197,34 @@
     flex-shrink: 0;
   }
 
-  .method-get    { background: var(--method-get-bg);    color: var(--method-get-text); }
-  .method-post   { background: var(--method-post-bg);   color: var(--method-post-text); }
-  .method-put    { background: var(--method-put-bg);    color: var(--method-put-text); }
-  .method-delete { background: var(--method-delete-bg); color: var(--method-delete-text); }
-  .method-patch  { background: var(--method-patch-bg);  color: var(--method-patch-text); }
-  .method-head   { background: var(--bg-tertiary);      color: var(--text-muted); }
-  .method-options{ background: var(--bg-tertiary);      color: var(--text-muted); }
+  .method-get {
+    background: var(--method-get-bg);
+    color: var(--method-get-text);
+  }
+  .method-post {
+    background: var(--method-post-bg);
+    color: var(--method-post-text);
+  }
+  .method-put {
+    background: var(--method-put-bg);
+    color: var(--method-put-text);
+  }
+  .method-delete {
+    background: var(--method-delete-bg);
+    color: var(--method-delete-text);
+  }
+  .method-patch {
+    background: var(--method-patch-bg);
+    color: var(--method-patch-text);
+  }
+  .method-head {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+  }
+  .method-options {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+  }
 
   .tab-label {
     overflow: hidden;
@@ -243,7 +262,9 @@
     width: 18px;
     height: 18px;
     opacity: 0;
-    transition: opacity var(--transition-fast), background var(--transition-fast);
+    transition:
+      opacity var(--transition-fast),
+      background var(--transition-fast);
   }
 
   .tab:hover .close-btn,
@@ -268,7 +289,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
   }
 
   .new-tab-btn:hover {

@@ -1,33 +1,38 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { SaveCustomTheme } from "../../../wailsjs/go/main/App";
   import { configurationStore } from "../stores/configurationStore";
   import { notifications } from "../stores/notificationStore";
   import type { theme } from "../../../wailsjs/go/models";
   import Button from "./base/Button.svelte";
 
-  export let baseTheme: theme.Theme | null = null;
-  export let saved: (theme: theme.Theme) => void;
-  export let close: () => void;
+  interface Props {
+    baseTheme?: theme.Theme | null;
+    saved: (theme: theme.Theme) => void;
+    close: () => void;
+  }
 
-  type Colors = {
-    primary: string;
-    "primary-dark": string;
-    success: string;
-    warning: string;
-    danger: string;
-    info: string;
-    "bg-primary": string;
-    "bg-secondary": string;
-    "bg-tertiary": string;
-    border: string;
-    "border-dark": string;
-    text: string;
-    "text-muted": string;
-    "text-light": string;
-  };
+  let { baseTheme = null, saved, close }: Props = $props();
+  type ColorStrings =
+    | "primary"
+    | "primary-dark"
+    | "success"
+    | "warning"
+    | "danger"
+    | "info"
+    | "bg-primary"
+    | "bg-secondary"
+    | "bg-tertiary"
+    | "border"
+    | "border-dark"
+    | "text"
+    | "text-muted"
+    | "text-light";
+  type Colors = Record<ColorStrings, string>;
 
-  let themeName = "";
-  let colors: Colors = {
+  let themeName = $state("");
+  let colors: Colors = $state({
     primary: "#2563eb",
     "primary-dark": "#1e40af",
     success: "#10b981",
@@ -42,14 +47,16 @@
     text: "#111827",
     "text-muted": "#6b7280",
     "text-light": "#9ca3af"
-  };
+  });
 
-  $: if (baseTheme) {
-    themeName = `${baseTheme.name}-custom`;
-    colors = { ...baseTheme.colors } as Colors;
-  }
+  run(() => {
+    if (baseTheme) {
+      themeName = `${baseTheme.name}-custom`;
+      colors = { ...baseTheme.colors } as Colors;
+    }
+  });
 
-  const colorLabels = {
+  const colorLabels: Record<ColorStrings, string> = {
     primary: "Primary Color",
     "primary-dark": "Primary Dark",
     success: "Success",
@@ -65,6 +72,18 @@
     "text-muted": "Text Muted",
     "text-light": "Text Light"
   };
+
+  const primaryColorKeys: ColorStrings[] = [
+    "primary",
+    "primary-dark",
+    "success",
+    "warning",
+    "danger",
+    "info"
+  ];
+  const backgroundColorKeys: ColorStrings[] = ["bg-primary", "bg-secondary", "bg-tertiary"];
+  const borderColorKeys: ColorStrings[] = ["border", "border-dark"];
+  const textColorKeys: ColorStrings[] = ["text", "text-muted", "text-light"];
 
   async function saveTheme() {
     if (!themeName.trim()) {
@@ -99,7 +118,9 @@
     });
   }
 
-  $: previewColor(colors);
+  run(() => {
+    previewColor(colors);
+  });
 </script>
 
 <div class="customizer">
@@ -127,7 +148,7 @@
       <div class="color-section">
         <h4 class="section-title">Primary Colors</h4>
         <div class="color-grid">
-          {#each ["primary", "primary-dark", "success", "warning", "danger", "info"] as colorKey (colorKey)}
+          {#each primaryColorKeys as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -153,7 +174,7 @@
       <div class="color-section">
         <h4 class="section-title">Background Colors</h4>
         <div class="color-grid">
-          {#each ["bg-primary", "bg-secondary", "bg-tertiary"] as colorKey (colorKey)}
+          {#each backgroundColorKeys as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -179,7 +200,7 @@
       <div class="color-section">
         <h4 class="section-title">Border Colors</h4>
         <div class="color-grid">
-          {#each ["border", "border-dark"] as colorKey (colorKey)}
+          {#each borderColorKeys as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">
@@ -205,7 +226,7 @@
       <div class="color-section">
         <h4 class="section-title">Text Colors</h4>
         <div class="color-grid">
-          {#each ["text", "text-muted", "text-light"] as colorKey (colorKey)}
+          {#each textColorKeys as colorKey (colorKey)}
             <div class="color-input-group">
               <label for={colorKey} class="color-label">{colorLabels[colorKey]}</label>
               <div class="color-input-wrapper">

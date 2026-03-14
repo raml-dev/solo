@@ -82,13 +82,23 @@ function createTabStore() {
   return {
     subscribe,
 
-    /** Open a tab for an existing saved request. If already open, just activate it. 
+    /** Open a tab for an existing saved request. If already open, just activate it.
      *  Implements "preview tab" logic: replaces an existing tab if it's in preview mode.
      */
     openTab(
       requestId: string,
       collectionName: string,
-      meta: { label: string; verb: string; url: string; body: string; bodyFormat: string; headers: TabHeader[]; settings: conf.RequestSettingsOverride; preRequestScript?: string; postResponseScript?: string }
+      meta: {
+        label: string;
+        verb: string;
+        url: string;
+        body: string;
+        bodyFormat: string;
+        headers: TabHeader[];
+        settings: conf.RequestSettingsOverride;
+        preRequestScript?: string;
+        postResponseScript?: string;
+      }
     ) {
       update((state) => {
         // 1. If already open, just activate it
@@ -99,37 +109,41 @@ function createTabStore() {
 
         // 2. Look for a replaceable tab (isPreview mode)
         // We prioritize the active tab if it's replaceable, otherwise the first replaceable one.
-        const activeTab = state.tabs.find(t => t.id === state.activeTabId);
-        
+        const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
+
         let tabToReplace: TabState | undefined;
         if (activeTab && activeTab.isPreview) {
           tabToReplace = activeTab;
         } else {
-          tabToReplace = state.tabs.find(t => t.isPreview);
+          tabToReplace = state.tabs.find((t) => t.isPreview);
         }
 
         if (tabToReplace) {
           return {
             ...state,
             activeTabId: tabToReplace.id,
-            tabs: state.tabs.map(t => t.id === tabToReplace?.id ? {
-              ...t,
-              requestId,
-              collectionName,
-              label: meta.label,
-              verb: meta.verb,
-              isDirty: false,
-              isPreview: true, // Remains in preview until interacted with
-              url: meta.url,
-              body: meta.body,
-              bodyFormat: meta.bodyFormat,
-              headers: meta.headers,
-              settings: meta.settings,
-              preRequestScript: meta.preRequestScript ?? "",
-              postResponseScript: meta.postResponseScript ?? "",
-              response: null,
-              requestError: null
-            } : t)
+            tabs: state.tabs.map((t) =>
+              t.id === tabToReplace?.id
+                ? {
+                    ...t,
+                    requestId,
+                    collectionName,
+                    label: meta.label,
+                    verb: meta.verb,
+                    isDirty: false,
+                    isPreview: true, // Remains in preview until interacted with
+                    url: meta.url,
+                    body: meta.body,
+                    bodyFormat: meta.bodyFormat,
+                    headers: meta.headers,
+                    settings: meta.settings,
+                    preRequestScript: meta.preRequestScript ?? "",
+                    postResponseScript: meta.postResponseScript ?? "",
+                    response: null,
+                    requestError: null
+                  }
+                : t
+            )
           };
         }
 
@@ -138,7 +152,7 @@ function createTabStore() {
           notifications.warning(`Maximum ${MAX_OPEN_TABS} tabs open. Close a tab to open another.`);
           return state;
         }
-        
+
         const newTab: TabState = {
           id: crypto.randomUUID(),
           requestId,
@@ -202,16 +216,34 @@ function createTabStore() {
     /** Update persisted form state for the active tab (called by the builder on every change) */
     updateTabFormState(
       tabId: string,
-      partial: Partial<Pick<TabState, "url" | "body" | "bodyFormat" | "headers" | "settings" | "verb" | "label" | "isDirty" | "preRequestScript" | "postResponseScript">>
+      partial: Partial<
+        Pick<
+          TabState,
+          | "url"
+          | "body"
+          | "bodyFormat"
+          | "headers"
+          | "settings"
+          | "verb"
+          | "label"
+          | "isDirty"
+          | "preRequestScript"
+          | "postResponseScript"
+        >
+      >
     ) {
       update((state) => ({
         ...state,
-        tabs: state.tabs.map((t) => (t.id === tabId ? { 
-          ...t, 
-          ...partial, 
-          isDirty: partial.isDirty ?? true,
-          isPreview: false // Interaction fixes the tab
-        } : t))
+        tabs: state.tabs.map((t) =>
+          t.id === tabId
+            ? {
+                ...t,
+                ...partial,
+                isDirty: partial.isDirty ?? true,
+                isPreview: false // Interaction fixes the tab
+              }
+            : t
+        )
       }));
     },
 
@@ -220,7 +252,9 @@ function createTabStore() {
       update((state) => ({
         ...state,
         tabs: state.tabs.map((t) =>
-          t.id === tabId ? { ...t, requestId, collectionName, label, isDirty: false, isPreview: false } : t
+          t.id === tabId
+            ? { ...t, requestId, collectionName, label, isDirty: false, isPreview: false }
+            : t
         )
       }));
     },
@@ -281,7 +315,9 @@ function createTabStore() {
     markDirty(tabId: string, isDirty: boolean) {
       update((state) => ({
         ...state,
-        tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isDirty, isPreview: isDirty ? false : t.isPreview } : t))
+        tabs: state.tabs.map((t) =>
+          t.id === tabId ? { ...t, isDirty, isPreview: isDirty ? false : t.isPreview } : t
+        )
       }));
     },
 
@@ -308,6 +344,7 @@ function createTabStore() {
 
 export const tabStore = createTabStore();
 
-export const activeTab = derived(tabStore, ($s) =>
-  $s.tabs.find((t) => t.id === $s.activeTabId) ?? null
+export const activeTab = derived(
+  tabStore,
+  ($s) => $s.tabs.find((t) => t.id === $s.activeTabId) ?? null
 );

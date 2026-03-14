@@ -2,15 +2,20 @@
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
   import { OnFileDrop, OnFileDropOff } from "../../../../wailsjs/runtime/runtime";
 
-  /** Titolo grande al centro della zona */
-  export let title: string = "Drop file here";
-  /** Sottotitolo descrittivo */
-  export let subtitle: string = "";
+  interface Props {
+    /** Titolo grande al centro della zona */
+    title?: string;
+    /** Sottotitolo descrittivo */
+    subtitle?: string;
+    icon?: import("svelte").Snippet;
+  }
+
+  let { title = "Drop file here", subtitle = "", icon }: Props = $props();
 
   const dispatch = createEventDispatcher<{ drop: { paths: string[] } }>();
 
-  let dragOver = false;
-  let el: HTMLDivElement;
+  let dragOver = $state(false);
+  let el: HTMLDivElement | undefined = $state();
 
   // Wails OnFileDrop fornisce i path reali del filesystem.
   // useDropTarget=true limita il callback agli elementi CSS marcati come drop target.
@@ -40,11 +45,19 @@
 
   // Visual feedback durante il drag — usiamo gli eventi del webview
   // solo per l'highlight visivo (il drop effettivo viene da Wails)
-  function onDragEnter() { dragOver = true; }
-  function onDragLeave() { dragOver = false; }
+  function onDragEnter() {
+    dragOver = true;
+  }
+  function onDragLeave() {
+    dragOver = false;
+  }
   // Preveniamo il comportamento default del webview (apertura file)
-  function onDragOver(e: DragEvent) { e.preventDefault(); }
-  function onDrop(e: DragEvent) { e.preventDefault(); }
+  function onDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+  }
 </script>
 
 <!--
@@ -58,14 +71,14 @@
   role="button"
   tabindex="0"
   style="--wails-drop-target: drop"
-  on:dragenter={onDragEnter}
-  on:dragleave={onDragLeave}
-  on:dragover={onDragOver}
-  on:drop={onDrop}
-  on:keydown={(e) => e.key === "Enter" && dispatch("drop", { paths: [] })}
+  ondragenter={onDragEnter}
+  ondragleave={onDragLeave}
+  ondragover={onDragOver}
+  ondrop={onDrop}
+  onkeydown={(e) => e.key === "Enter" && dispatch("drop", { paths: [] })}
 >
   <div class="dropzone-icon">
-    <slot name="icon">
+    {#if icon}{@render icon()}{:else}
       <!-- icona upload di default -->
       <svg
         width="44"
@@ -81,7 +94,7 @@
         <polyline points="17 8 12 3 7 8" />
         <line x1="12" y1="3" x2="12" y2="15" />
       </svg>
-    </slot>
+    {/if}
   </div>
 
   <p class="dropzone-title">{title}</p>

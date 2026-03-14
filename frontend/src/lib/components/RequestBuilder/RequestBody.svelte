@@ -4,23 +4,32 @@
   import type { InputFormat } from "./types";
   import { selectedEnvironment } from "../../../lib/stores/environmentStore";
 
-  export let requestBody: string;
-  export let format: InputFormat;
+  interface Props {
+    requestBody: string;
+    format: InputFormat;
+  }
+
+  let { requestBody = $bindable(), format = $bindable() }: Props = $props();
 
   const dispatch = createEventDispatcher();
 
-  $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-    key,
-    value: String(val?.value ?? "")
-  }));
+  let environmentEntries = $derived(
+    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+      key,
+      value: String(val?.value ?? "")
+    }))
+  );
 </script>
 
 <div class="body-editor-wrapper">
   <CodeMirrorEditor
     bind:value={requestBody}
-    bind:format={format}
+    bind:format
     {environmentEntries}
-    on:change={(e) => { requestBody = e.detail; dispatch("change"); }}
+    on:change={(e) => {
+      requestBody = e.detail;
+      dispatch("change");
+    }}
   />
 </div>
 

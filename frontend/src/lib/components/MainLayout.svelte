@@ -4,9 +4,16 @@
   import EnvironmentManager from "./Environment/EnvironmentManager.svelte";
   import MainConfiguration from "./MainConfiguration.svelte";
 
-  export let title = "Yapla";
-  let showEnvironmentManager = false;
-  let showMainConfiguration = false;
+  interface Props {
+    title?: string;
+    navbar_actions?: import("svelte").Snippet;
+    children?: import("svelte").Snippet;
+    bottom_bar?: import("svelte").Snippet;
+  }
+
+  let { title = "Yapla", navbar_actions, children, bottom_bar }: Props = $props();
+  let showEnvironmentManager = $state(false);
+  let showMainConfiguration = $state(false);
 
   function toggleEnvironmentManager() {
     showEnvironmentManager = !showEnvironmentManager;
@@ -24,7 +31,7 @@
       <h1 class="text-lg font-semibold">{title}</h1>
     </div>
     <div class="flex items-center gap-sm">
-      <slot name="navbar-actions" />
+      {@render navbar_actions?.()}
       <Button variant="secondary" click={toggleEnvironmentManager}>Environments</Button>
       <Button variant="secondary" click={toggleMainConfiguration}>Settings</Button>
       <Button variant="secondary" click={() => {}}>Help</Button>
@@ -33,12 +40,12 @@
 
   <!-- Main Content Area -->
   <div class="main-content">
-    <slot />
+    {@render children?.()}
   </div>
 
   <!-- Bottom Bar (always visible) -->
-  <div class="bottom-bar">
-    <slot name="bottom-bar" />
+  <div class="bottom_bar">
+    {@render bottom_bar?.()}
   </div>
 </div>
 
@@ -50,7 +57,7 @@
 
 {#if showMainConfiguration}
   <Modal title="Settings" toggleFn={toggleMainConfiguration} size="settings">
-    <MainConfiguration toggleFn={toggleMainConfiguration} />
+    <MainConfiguration />
   </Modal>
 {/if}
 
@@ -81,7 +88,7 @@
     min-height: 0;
   }
 
-  .bottom-bar {
+  .bottom_bar {
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -90,6 +97,6 @@
     border-top: 1px solid var(--border);
     padding: 0 var(--space-md);
     gap: 2px;
-    position: relative;  /* anchor for console-panel */
+    position: relative; /* anchor for console-panel */
   }
 </style>

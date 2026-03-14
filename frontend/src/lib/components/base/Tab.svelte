@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { getContext, onMount } from "svelte";
   import type { Writable } from "svelte/store";
 
@@ -8,9 +10,14 @@
     badge?: string;
   };
 
-  export let title = "";
-  export let value: string;
-  export let badge: string | undefined = undefined;
+  interface Props {
+    title?: string;
+    value: string;
+    badge?: string | undefined;
+    children?: import("svelte").Snippet;
+  }
+
+  let { title = "", value, badge = undefined, children }: Props = $props();
 
   const tabsStore = getContext<Writable<TabItem[]>>("tabs");
   const activeTabStore = getContext<Writable<string>>("activeTab");
@@ -25,19 +32,19 @@
     $tabsStore = [...$tabsStore, item];
     return () => {
       // Clean up when the tab is destroyed
-      $tabsStore = $tabsStore.filter(t => t.value !== value);
+      $tabsStore = $tabsStore.filter((t) => t.value !== value);
     };
   });
 
   // Keep badge in sync if it changes reactively
-  $: {
-    const existing = $tabsStore.find(t => t.value === value);
+  run(() => {
+    const existing = $tabsStore.find((t) => t.value === value);
     if (existing && existing.badge !== badge) {
-      $tabsStore = $tabsStore.map(t => t.value === value ? { ...t, badge } : t);
+      $tabsStore = $tabsStore.map((t) => (t.value === value ? { ...t, badge } : t));
     }
-  }
+  });
 </script>
 
 {#if $activeTabStore === value}
-  <slot />
+  {@render children?.()}
 {/if}

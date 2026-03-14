@@ -1,9 +1,15 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { createEventDispatcher } from "svelte";
   import { environment } from "../../../../wailsjs/go/models";
   import { debounce } from "../../utils/debounce";
 
-  export let env: environment.Environment | null = null;
+  interface Props {
+    env?: environment.Environment | null;
+  }
+
+  let { env = null }: Props = $props();
 
   type EnvVar = {
     id: string;
@@ -12,8 +18,8 @@
     enabled: boolean;
   };
 
-  let variables: EnvVar[] = [];
-  let lastLoadedSignature: string | null = null;
+  let variables: EnvVar[] = $state([]);
+  let lastLoadedSignature: string | null = $state(null);
 
   function computeValuesSignature(values: Record<string, environment.ValueType> = {}) {
     const entries = Object.entries(values)
@@ -22,7 +28,7 @@
     return JSON.stringify(entries);
   }
 
-  $: {
+  run(() => {
     if (!env) {
       variables = [];
       lastLoadedSignature = null;
@@ -33,12 +39,12 @@
           id: `${i}-${key}`,
           key,
           value: value?.value ?? "",
-          enabled: true,
+          enabled: true
         }));
         lastLoadedSignature = sig;
       }
     }
-  }
+  });
 
   const dispatch = createEventDispatcher<{
     update: { name: string; values: Record<string, environment.ValueType> };
@@ -46,15 +52,18 @@
 
   const debouncedUpdate = debounce(() => {
     if (!env) return;
-    const updatedValues = variables.reduce((acc, v) => {
-      if (v.key.trim()) {
-        acc[v.key.trim()] = new environment.ValueType({
-          value: v.value,
-          type: "default",
-        });
-      }
-      return acc;
-    }, {} as Record<string, environment.ValueType>);
+    const updatedValues = variables.reduce(
+      (acc, v) => {
+        if (v.key.trim()) {
+          acc[v.key.trim()] = new environment.ValueType({
+            value: v.value,
+            type: "default"
+          });
+        }
+        return acc;
+      },
+      {} as Record<string, environment.ValueType>
+    );
     dispatch("update", { name: env.name, values: updatedValues });
   }, 500);
 
@@ -66,7 +75,6 @@
     variables = variables.filter((v) => v.id !== id);
     debouncedUpdate();
   }
-
 </script>
 
 <div class="variable-editor">
@@ -77,23 +85,32 @@
     <div class="variable-grid">
       <div class="grid-header">Key</div>
       <div class="grid-header">Value</div>
-      <div class="grid-header" />
+      <div class="grid-header"></div>
 
       {#each variables as variable (variable.id)}
-        <input type="text" placeholder="Key" bind:value={variable.key} on:input={debouncedUpdate} />
+        <input type="text" placeholder="Key" bind:value={variable.key} oninput={debouncedUpdate} />
         <input
           type="text"
           placeholder="Value"
           bind:value={variable.value}
-          on:input={debouncedUpdate}
+          oninput={debouncedUpdate}
         />
-        <button class="remove-btn" on:click={() => removeVariable(variable.id)}>
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        <button class="remove-btn" onclick={() => removeVariable(variable.id)}>
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+          >
         </button>
       {/each}
     </div>
     <div class="actions">
-      <button class="add-btn" on:click={addVariable}>Add Variable</button>
+      <button class="add-btn" onclick={addVariable}>Add Variable</button>
     </div>
   {:else}
     <div class="no-selection">

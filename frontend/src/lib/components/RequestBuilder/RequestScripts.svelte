@@ -1,19 +1,31 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import CodeMirrorEditor from "./CodeMirrorEditor.svelte";
   import { sessionVarsStore } from "../../stores/sessionVarsStore";
 
-  export let preRequestScript: string = "";
-  export let postResponseScript: string = "";
+  interface Props {
+    preRequestScript?: string;
+    postResponseScript?: string;
+    // Callbacks per notificare il parent dei cambiamenti
+    onPreChange?: (val: string) => void;
+    onPostChange?: (val: string) => void;
+  }
 
-  // Callbacks per notificare il parent dei cambiamenti
-  export let onPreChange: (val: string) => void = () => {};
-  export let onPostChange: (val: string) => void = () => {};
+  let {
+    preRequestScript = $bindable(""),
+    postResponseScript = $bindable(""),
+    onPreChange = () => {},
+    onPostChange = () => {}
+  }: Props = $props();
 
   type ScriptSection = "pre" | "post";
-  let activeSection: ScriptSection = "pre";
+  let activeSection: ScriptSection = $state("pre");
 
-  let sessionEntries: [string, string][] = [];
-  $: sessionEntries = Object.entries($sessionVarsStore);
+  let sessionEntries: [string, string][] = $state([]);
+  run(() => {
+    sessionEntries = Object.entries($sessionVarsStore);
+  });
 
   const LUA_HINT = `-- Available globals:
 -- request.method, request.url, request.headers, request.body  (pre only, mutable)
@@ -28,7 +40,7 @@
     <button
       class="script-nav-item"
       class:active={activeSection === "pre"}
-      on:click={() => (activeSection = "pre")}
+      onclick={() => (activeSection = "pre")}
     >
       <span class="script-nav-label">Pre-request</span>
       {#if preRequestScript.trim()}
@@ -39,7 +51,7 @@
     <button
       class="script-nav-item"
       class:active={activeSection === "post"}
-      on:click={() => (activeSection = "post")}
+      onclick={() => (activeSection = "post")}
     >
       <span class="script-nav-label">Post-response</span>
       {#if postResponseScript.trim()}
@@ -54,16 +66,18 @@
         {#if sessionEntries.length > 0}
           <button
             class="session-vars-clear"
-            on:click={() => sessionVarsStore.clear()}
-            title="Clear all session variables"
-          >Clear</button>
+            onclick={() => sessionVarsStore.clear()}
+            title="Clear all session variables">Clear</button
+          >
         {/if}
       </div>
       {#if sessionEntries.length === 0}
-        <p class="session-vars-empty">No session vars yet.<br/>Use <code>env.set()</code> in a script.</p>
+        <p class="session-vars-empty">
+          No session vars yet.<br />Use <code>env.set()</code> in a script.
+        </p>
       {:else}
         <ul class="session-vars-list">
-          {#each sessionEntries as [key, value]}
+          {#each sessionEntries as [key, value] (key)}
             <li class="session-var-item">
               <span class="session-var-key">{key}</span>
               <span class="session-var-value">{value}</span>
@@ -138,18 +152,25 @@
     color: var(--text-muted);
     font-size: var(--font-size-sm);
     text-align: left;
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s;
     font-family: inherit;
     width: 100%;
   }
-  .script-nav-item:hover { background: var(--bg-tertiary); color: var(--text); }
+  .script-nav-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text);
+  }
   .script-nav-item.active {
     background: var(--bg-tertiary);
     color: var(--text);
     font-weight: var(--font-weight-semibold);
   }
 
-  .script-nav-label { flex: 1; }
+  .script-nav-label {
+    flex: 1;
+  }
 
   .script-dot {
     width: 7px;
@@ -192,7 +213,9 @@
     padding: 0;
     font-family: inherit;
   }
-  .session-vars-clear:hover { text-decoration: underline; }
+  .session-vars-clear:hover {
+    text-decoration: underline;
+  }
 
   .session-vars-empty {
     font-size: 0.7rem;

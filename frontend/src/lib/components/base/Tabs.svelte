@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { setContext } from "svelte";
   import { writable } from "svelte/store";
   import type { Writable } from "svelte/store";
@@ -9,8 +11,13 @@
     badge?: string;
   };
 
-  export let activeValue: string;
-  export let variant: "default" | "minimal" = "default";
+  interface Props {
+    activeValue: string;
+    variant?: "default" | "minimal";
+    children?: import("svelte").Snippet;
+  }
+
+  let { activeValue = $bindable(), variant = "default", children }: Props = $props();
 
   const tabs: Writable<TabItem[]> = writable([]);
   const activeTabStore = writable(activeValue);
@@ -18,7 +25,9 @@
   setContext("activeTab", activeTabStore);
 
   // Two-way binding.
-  $: $activeTabStore = activeValue;
+  run(() => {
+    $activeTabStore = activeValue;
+  });
 </script>
 
 <div class="tabs" class:variant-minimal={variant === "minimal"}>
@@ -26,7 +35,7 @@
     <button
       class="tab"
       class:active={activeValue === tab.value}
-      on:click={() => (activeValue = tab.value)}
+      onclick={() => (activeValue = tab.value)}
     >
       <span>{tab.title}</span>
       {#if tab.badge}
@@ -36,7 +45,7 @@
   {/each}
 </div>
 
-<slot />
+{@render children?.()}
 
 <style>
   .tabs {

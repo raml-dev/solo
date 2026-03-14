@@ -1,30 +1,33 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { onMount } from "svelte";
   import { configurationStore } from "../stores/configurationStore";
   import { notifications } from "../stores/notificationStore";
   import type { theme } from "../../../wailsjs/go/models";
   import { configuration, host } from "../../../wailsjs/go/models";
-  import { GetDefaultConfiguration, GetAllHosts, UpsertHost, DeleteHost, SelectFile } from "../../../wailsjs/go/main/App";
+  import {
+    GetDefaultConfiguration,
+    GetAllHosts,
+    UpsertHost,
+    DeleteHost,
+    SelectFile
+  } from "../../../wailsjs/go/main/App";
   import { debounce } from "../utils/debounce";
-  import Dropdown from "./base/Dropdown.svelte";
   import ThemePreview from "./Settings/ThemePreview.svelte";
-
-  export let toggleFn: () => void;
 
   // --- Nav ---
   type SettingsSection = "general" | "themes" | "hosts";
-  let activeSection: SettingsSection = "themes";
+  let activeSection: SettingsSection = $state("themes");
 
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
-    { id: "themes",  label: "Themes"  },
-    { id: "hosts",   label: "Hosts"   },
+    { id: "themes", label: "Themes" },
+    { id: "hosts", label: "Hosts" }
   ];
 
   // --- Store ---
   const { config, allThemes } = configurationStore;
-
-  $: themeOptions = ($allThemes || []).map((t) => ({ value: t.name, label: formatThemeName(t.name) }));
 
   function findTheme(name: string) {
     return ($allThemes || []).find((t) => t.name === name) || null;
@@ -35,20 +38,22 @@
   }
 
   // --- Theme UI state (letti dal config al mount) ---
-  let themeMode: "sync" | "manual" = "manual";
-  let activeThemeName = "";
-  let dayTheme   = "zinc-light";
-  let nightTheme = "zinc-dark";
+  let themeMode: "sync" | "manual" = $state("manual");
+  let activeThemeName = $state("");
+  let dayTheme = $state("zinc-light");
+  let nightTheme = $state("zinc-dark");
 
   // Inizializza da config (una volta sola, appena config+temi sono pronti)
-  let initialized = false;
-  $: if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
-    activeThemeName = $config.general.activeTheme;
-    themeMode       = ($config.general.themeMode as "sync" | "manual") || "manual";
-    dayTheme        = $config.general.dayTheme   || "zinc-light";
-    nightTheme      = $config.general.nightTheme || "zinc-dark";
-    initialized = true;
-  }
+  let initialized = $state(false);
+  run(() => {
+    if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
+      activeThemeName = $config.general.activeTheme;
+      themeMode = ($config.general.themeMode as "sync" | "manual") || "manual";
+      dayTheme = $config.general.dayTheme || "zinc-light";
+      nightTheme = $config.general.nightTheme || "zinc-dark";
+      initialized = true;
+    }
+  });
 
   // --- System preference ---
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
@@ -64,13 +69,15 @@
       // Salva activeTheme, themeMode, dayTheme, nightTheme in un'unica write
       const current = $config;
       current.general.activeTheme = themeName;
-      current.general.themeMode   = themeMode;
-      current.general.dayTheme    = dayTheme;
-      current.general.nightTheme  = nightTheme;
+      current.general.themeMode = themeMode;
+      current.general.dayTheme = dayTheme;
+      current.general.nightTheme = nightTheme;
       await configurationStore.save(current);
       // Applica colori al DOM (changeTheme li applica già via derived store)
       await configurationStore.changeTheme(themeName);
-    } catch { /* shown by store */ }
+    } catch {
+      /* shown by store */
+    }
   }
 
   // In sync mode: applica il tema giusto per il sistema corrente
@@ -97,7 +104,9 @@
 
   // Listener per cambi OS in sync mode
   onMount(() => {
-    const listener = () => { if (themeMode === "sync") applySync(); };
+    const listener = () => {
+      if (themeMode === "sync") applySync();
+    };
     prefersDark.addEventListener("change", listener);
     return () => prefersDark.removeEventListener("change", listener);
   });
@@ -111,71 +120,84 @@
     return cfg;
   }
 
-  let defaultConfig = createEmptyConfig();
-  let editableConfig = createEmptyConfig();
-  let saveStatus: "idle" | "saving" | "saved" = "idle";
+  let defaultConfig = $state(createEmptyConfig());
+  let editableConfig = $state(createEmptyConfig());
+  let saveStatus: "idle" | "saving" | "saved" = $state("idle");
   let lastPersistedSignature: string | null = null;
 
   function toSignature(cfg: configuration.Configuration): string {
     return JSON.stringify({
       checkForUpdates: cfg.general?.checkForUpdates ?? false,
       request: {
-        timeoutSeconds:   cfg.request?.timeoutSeconds   ?? 0,
+        timeoutSeconds: cfg.request?.timeoutSeconds ?? 0,
         defaultUserAgent: cfg.request?.defaultUserAgent ?? "",
-        followRedirects:  cfg.request?.followRedirects  ?? true,
-        maxRedirects:     cfg.request?.maxRedirects      ?? 0,
-        validateSSL:      cfg.request?.validateSSL       ?? true,
-        proxyUrl:         cfg.request?.proxyUrl          ?? "",
+        followRedirects: cfg.request?.followRedirects ?? true,
+        maxRedirects: cfg.request?.maxRedirects ?? 0,
+        validateSSL: cfg.request?.validateSSL ?? true,
+        proxyUrl: cfg.request?.proxyUrl ?? ""
       }
     });
   }
 
-  onMount(async () => {
-    try {
-      const loaded = await GetDefaultConfiguration();
-      defaultConfig = new configuration.Configuration(loaded);
-      if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
-      if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
-    } catch (err) {
-      notifications.error("Failed to load default configuration", String(err));
-    }
-
-    const unsub = config.subscribe((value) => {
-      if (value?.request) {
-        const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
-        if (!copy.general) copy.general = new configuration.GeneralSettings();
-        if (!copy.request) copy.request = new configuration.RequestSettings();
-        editableConfig = copy;
-        lastPersistedSignature = toSignature(copy);
+  onMount(() => {
+    (async () => {
+      try {
+        const loaded = await GetDefaultConfiguration();
+        defaultConfig = new configuration.Configuration(loaded);
+        if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
+        if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
+      } catch (err) {
+        notifications.error("Failed to load default configuration", String(err));
       }
-    });
-    return () => unsub();
+
+      const unsub = config.subscribe((value) => {
+        if (value?.request) {
+          const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
+          if (!copy.general) copy.general = new configuration.GeneralSettings();
+          if (!copy.request) copy.request = new configuration.RequestSettings();
+          editableConfig = copy;
+          lastPersistedSignature = toSignature(copy);
+        }
+      });
+      return () => unsub();
+    })();
   });
 
   async function persistRequestSettings() {
     try {
       saveStatus = "saving";
-      editableConfig.request.timeoutSeconds = parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
-      editableConfig.request.maxRedirects   = parseInt(String(editableConfig.request.maxRedirects),   10) || 0;
+      editableConfig.request.timeoutSeconds =
+        parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
+      editableConfig.request.maxRedirects =
+        parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
       const current = $config;
       current.general.checkForUpdates = editableConfig.general.checkForUpdates;
       current.request = editableConfig.request;
       const sig = toSignature(current);
-      if (sig === lastPersistedSignature) { saveStatus = "idle"; return; }
+      if (sig === lastPersistedSignature) {
+        saveStatus = "idle";
+        return;
+      }
       await configurationStore.save(current);
       lastPersistedSignature = sig;
       saveStatus = "saved";
-      setTimeout(() => { saveStatus = "idle"; }, 2000);
-    } catch { saveStatus = "idle"; }
+      setTimeout(() => {
+        saveStatus = "idle";
+      }, 2000);
+    } catch {
+      saveStatus = "idle";
+    }
   }
 
   const debouncedSave = debounce(persistRequestSettings, 800);
-  $: if (editableConfig.request || editableConfig.general) debouncedSave();
+  run(() => {
+    if (editableConfig.request || editableConfig.general) debouncedSave();
+  });
 
   // --- Hosts ---
-  let hostsList: host.Host[] = [];
-  let editingHost: host.Host | null = null;
-  let editingCookies: { key: string; value: string }[] = [];
+  let hostsList: host.Host[] = $state([]);
+  let editingHost: host.Host | null = $state(null);
+  let editingCookies: { key: string; value: string }[] = $state([]);
 
   async function fetchHosts() {
     try {
@@ -202,7 +224,7 @@
   }
 
   function editExistingHost(h: host.Host) {
-    editingHost = JSON.parse(JSON.stringify(h));
+    editingHost = JSON.parse(JSON.stringify(h)) as host.Host;
     if (!editingHost.cookies) editingHost.cookies = {};
     editingCookies = Object.entries(editingHost.cookies).map(([key, value]) => ({ key, value }));
   }
@@ -215,7 +237,9 @@
     editingCookies = editingCookies.filter((_, i) => i !== index);
   }
 
-  async function pickCertFile(field: "publicCertificateFilePath" | "privateKeyFilePath" | "caCertificateFilePath") {
+  async function pickCertFile(
+    field: "publicCertificateFilePath" | "privateKeyFilePath" | "caCertificateFilePath"
+  ) {
     if (!editingHost) return;
     try {
       const path = await SelectFile("Select Certificate/Key File", "*.*", "All Files");
@@ -232,7 +256,7 @@
     try {
       // Map cookie array back to object
       const cookieMap: Record<string, string> = {};
-      editingCookies.forEach(c => {
+      editingCookies.forEach((c) => {
         if (c.key.trim()) cookieMap[c.key.trim()] = c.value;
       });
       editingHost.cookies = cookieMap;
@@ -257,19 +281,21 @@
     }
   }
 
-  $: if (activeSection === "hosts" && hostsList.length === 0) {
-    fetchHosts();
-  }
+  run(() => {
+    if (activeSection === "hosts" && hostsList.length === 0) {
+      fetchHosts();
+    }
+  });
 </script>
 
 <div class="settings-modal">
   <!-- Sidebar -->
   <nav class="settings-nav">
-    {#each NAV_ITEMS as item}
+    {#each NAV_ITEMS as item (item.id)}
       <button
         class="nav-item"
         class:active={activeSection === item.id}
-        on:click={() => (activeSection = item.id)}
+        onclick={() => (activeSection = item.id)}
       >
         {item.label}
       </button>
@@ -278,22 +304,34 @@
 
   <!-- Content -->
   <div class="settings-content">
-
     {#if activeSection === "themes"}
       <div class="section-body">
         <h2 class="section-title">Themes</h2>
-        <p class="section-desc">Personalize your experience with themes that match your style. Manually select a theme or sync with system settings and let the machine set your day and night themes.</p>
+        <p class="section-desc">
+          Personalize your experience with themes that match your style. Manually select a theme or
+          sync with system settings and let the machine set your day and night themes.
+        </p>
 
         <!-- Mode selector -->
         <div class="theme-mode-row">
           <span class="theme-mode-label">Theme selection</span>
           <div class="radio-group">
             <label class="radio-label">
-              <input type="radio" bind:group={themeMode} value="sync" on:change={() => handleThemeModeChange("sync")} />
+              <input
+                type="radio"
+                bind:group={themeMode}
+                value="sync"
+                onchange={() => handleThemeModeChange("sync")}
+              />
               Sync with system
             </label>
             <label class="radio-label">
-              <input type="radio" bind:group={themeMode} value="manual" on:change={() => handleThemeModeChange("manual")} />
+              <input
+                type="radio"
+                bind:group={themeMode}
+                value="manual"
+                onchange={() => handleThemeModeChange("manual")}
+              />
               Manual
             </label>
           </div>
@@ -302,11 +340,11 @@
         {#if themeMode === "manual"}
           <!-- Manual: griglia di tutti i temi, click = applica -->
           <div class="theme-grid-manual">
-            {#each ($allThemes || []) as t (t.name)}
+            {#each $allThemes || [] as t (t.name)}
               <button
                 class="theme-tile"
                 class:active-tile={activeThemeName === t.name}
-                on:click={() => handleManualThemeSelect(t.name)}
+                onclick={() => handleManualThemeSelect(t.name)}
               >
                 <div class="theme-tile-preview">
                   <ThemePreview themeColors={t.colors} />
@@ -318,7 +356,6 @@
               </button>
             {/each}
           </div>
-
         {:else}
           <!-- Sync: mostra solo il tema attivo corrente -->
           <div class="sync-active-theme">
@@ -332,7 +369,6 @@
           </div>
         {/if}
       </div>
-
     {:else if activeSection === "general"}
       <div class="section-body">
         <h2 class="section-title">General</h2>
@@ -350,27 +386,47 @@
         <div class="form-row">
           <div class="form-group">
             <label for="timeout">Timeout (seconds)</label>
-            <input id="timeout" type="number" bind:value={editableConfig.request.timeoutSeconds}
-              min="0" step="1" placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`} />
+            <input
+              id="timeout"
+              type="number"
+              bind:value={editableConfig.request.timeoutSeconds}
+              min="0"
+              step="1"
+              placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`}
+            />
           </div>
           <div class="form-group">
             <label for="max-redirects">Max Redirects</label>
-            <input id="max-redirects" type="number" bind:value={editableConfig.request.maxRedirects}
-              min="0" step="1" placeholder={`Default: ${defaultConfig.request.maxRedirects}`}
-              disabled={!editableConfig.request.followRedirects} />
+            <input
+              id="max-redirects"
+              type="number"
+              bind:value={editableConfig.request.maxRedirects}
+              min="0"
+              step="1"
+              placeholder={`Default: ${defaultConfig.request.maxRedirects}`}
+              disabled={!editableConfig.request.followRedirects}
+            />
           </div>
         </div>
 
         <div class="form-group">
           <label for="user-agent">Default User Agent</label>
-          <input id="user-agent" type="text" bind:value={editableConfig.request.defaultUserAgent}
-            placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`} />
+          <input
+            id="user-agent"
+            type="text"
+            bind:value={editableConfig.request.defaultUserAgent}
+            placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`}
+          />
         </div>
 
         <div class="form-group">
           <label for="proxy">Proxy URL</label>
-          <input id="proxy" type="text" bind:value={editableConfig.request.proxyUrl}
-            placeholder="http://user:pass@host:port (optional)" />
+          <input
+            id="proxy"
+            type="text"
+            bind:value={editableConfig.request.proxyUrl}
+            placeholder="http://user:pass@host:port (optional)"
+          />
         </div>
 
         <div class="checkboxes">
@@ -390,15 +446,16 @@
           <p class="save-status saved">Saved ✓</p>
         {/if}
       </div>
-
     {:else if activeSection === "hosts"}
       <div class="section-body">
         <h2 class="section-title">Hosts</h2>
-        <p class="section-desc">Manage specific TLS and certificate configurations for your target hosts.</p>
+        <p class="section-desc">
+          Manage specific TLS and certificate configurations for your target hosts.
+        </p>
 
         {#if !editingHost}
           <div class="hosts-header">
-            <button class="btn btn-primary" on:click={startAddHost}>Add Host</button>
+            <button class="btn btn-primary" onclick={startAddHost}>Add Host</button>
           </div>
 
           <div class="hosts-list">
@@ -421,17 +478,20 @@
                         <td><strong>{h.name}</strong></td>
                         <td>
                           <span class="badge" class:badge-success={h.tlsConfig.enabled}>
-                            {h.tlsConfig.enabled ? 'Enabled' : 'Disabled'}
+                            {h.tlsConfig.enabled ? "Enabled" : "Disabled"}
                           </span>
                         </td>
                         <td>
                           <span class="badge" class:badge-warning={h.tlsConfig.insecureSkipVerify}>
-                            {h.tlsConfig.insecureSkipVerify ? 'Yes' : 'No'}
+                            {h.tlsConfig.insecureSkipVerify ? "Yes" : "No"}
                           </span>
                         </td>
                         <td class="actions-cell">
-                          <button class="btn-icon" on:click={() => editExistingHost(h)}>Edit</button>
-                          <button class="btn-icon btn-danger" on:click={() => handleDeleteHost(h.name)}>Delete</button>
+                          <button class="btn-icon" onclick={() => editExistingHost(h)}>Edit</button>
+                          <button
+                            class="btn-icon btn-danger"
+                            onclick={() => handleDeleteHost(h.name)}>Delete</button
+                          >
                         </td>
                       </tr>
                     {/each}
@@ -443,8 +503,8 @@
         {:else}
           <!-- Edit Form -->
           <div class="host-form">
-            <h3 class="subsection-title">{editingHost.name ? 'Edit Host' : 'New Host'}</h3>
-            
+            <h3 class="subsection-title">{editingHost.name ? "Edit Host" : "New Host"}</h3>
+
             <div class="form-group">
               <label for="h-name">Hostname (e.g. api.company.com or localhost:8443)</label>
               <input id="h-name" type="text" bind:value={editingHost.name} placeholder="Hostname" />
@@ -461,7 +521,10 @@
               <div class="tls-details">
                 <div class="checkbox-group">
                   <label class="checkbox-label">
-                    <input type="checkbox" bind:checked={editingHost.tlsConfig.insecureSkipVerify} />
+                    <input
+                      type="checkbox"
+                      bind:checked={editingHost.tlsConfig.insecureSkipVerify}
+                    />
                     Insecure Skip Verify (not recommended)
                   </label>
                 </div>
@@ -469,24 +532,45 @@
                 <div class="form-group file-picker">
                   <label>Public Certificate (.crt, .pem)</label>
                   <div class="input-with-action">
-                    <input type="text" bind:value={editingHost.tlsConfig.publicCertificateFilePath} readonly />
-                    <button class="btn btn-secondary" on:click={() => pickCertFile('publicCertificateFilePath')}>Browse</button>
+                    <input
+                      type="text"
+                      bind:value={editingHost.tlsConfig.publicCertificateFilePath}
+                      readonly
+                    />
+                    <button
+                      class="btn btn-secondary"
+                      onclick={() => pickCertFile("publicCertificateFilePath")}>Browse</button
+                    >
                   </div>
                 </div>
 
                 <div class="form-group file-picker">
                   <label>Private Key (.key)</label>
                   <div class="input-with-action">
-                    <input type="text" bind:value={editingHost.tlsConfig.privateKeyFilePath} readonly />
-                    <button class="btn btn-secondary" on:click={() => pickCertFile('privateKeyFilePath')}>Browse</button>
+                    <input
+                      type="text"
+                      bind:value={editingHost.tlsConfig.privateKeyFilePath}
+                      readonly
+                    />
+                    <button
+                      class="btn btn-secondary"
+                      onclick={() => pickCertFile("privateKeyFilePath")}>Browse</button
+                    >
                   </div>
                 </div>
 
                 <div class="form-group file-picker">
                   <label>CA Certificate (Root CA)</label>
                   <div class="input-with-action">
-                    <input type="text" bind:value={editingHost.tlsConfig.caCertificateFilePath} readonly />
-                    <button class="btn btn-secondary" on:click={() => pickCertFile('caCertificateFilePath')}>Browse</button>
+                    <input
+                      type="text"
+                      bind:value={editingHost.tlsConfig.caCertificateFilePath}
+                      readonly
+                    />
+                    <button
+                      class="btn btn-secondary"
+                      onclick={() => pickCertFile("caCertificateFilePath")}>Browse</button
+                    >
                   </div>
                 </div>
               </div>
@@ -494,23 +578,30 @@
 
             <div class="cookies-section">
               <h3 class="subsection-title">Cookies</h3>
-              <p class="section-desc">These cookies will be automatically added to all requests sent to this host.</p>
-              
+              <p class="section-desc">
+                These cookies will be automatically added to all requests sent to this host.
+              </p>
+
               <div class="cookies-list">
-                {#each editingCookies as cookie, i}
+                {#each editingCookies as cookie, i (cookie.key + i)}
                   <div class="cookie-row">
                     <input type="text" bind:value={cookie.key} placeholder="Cookie Name" />
                     <input type="text" bind:value={cookie.value} placeholder="Value" />
-                    <button class="btn-icon btn-danger" on:click={() => removeCookieRow(i)}>Remove</button>
+                    <button class="btn-icon btn-danger" onclick={() => removeCookieRow(i)}
+                      >Remove</button
+                    >
                   </div>
                 {/each}
-                <button class="btn btn-secondary btn-sm" on:click={addCookieRow}>+ Add Cookie</button>
+                <button class="btn btn-secondary btn-sm" onclick={addCookieRow}>+ Add Cookie</button
+                >
               </div>
             </div>
 
             <div class="form-actions">
-              <button class="btn btn-secondary" on:click={() => (editingHost = null)}>Cancel</button>
-              <button class="btn btn-primary" on:click={handleSaveHost} disabled={!editingHost.name}>Save Host</button>
+              <button class="btn btn-secondary" onclick={() => (editingHost = null)}>Cancel</button>
+              <button class="btn btn-primary" onclick={handleSaveHost} disabled={!editingHost.name}
+                >Save Host</button
+              >
             </div>
           </div>
         {/if}
@@ -552,10 +643,19 @@
     color: var(--text-muted);
     font-size: var(--font-size-sm);
     text-align: left;
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s;
   }
-  .nav-item:hover { background: var(--bg-tertiary); color: var(--text); }
-  .nav-item.active { background: var(--bg-tertiary); color: var(--text); font-weight: var(--font-weight-semibold); }
+  .nav-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text);
+  }
+  .nav-item.active {
+    background: var(--bg-tertiary);
+    color: var(--text);
+    font-weight: var(--font-weight-semibold);
+  }
 
   /* ---- Content ---- */
   .settings-content {
@@ -670,11 +770,15 @@
     border-radius: var(--radius-lg);
     background: var(--bg-secondary);
     cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
     text-align: left;
     font-family: inherit;
   }
-  .theme-tile:hover { border-color: var(--border-dark); }
+  .theme-tile:hover {
+    border-color: var(--border-dark);
+  }
   .theme-tile.active-tile {
     border-color: var(--primary);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
@@ -709,14 +813,6 @@
     padding: 1px 6px;
     /* in card header: push to right */
     margin-left: auto;
-  }
-
-  .theme-preview {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    aspect-ratio: 240 / 130;
-    background: var(--bg-tertiary);
   }
 
   /* ---- General form ---- */
@@ -772,8 +868,14 @@
     color: var(--text);
     font-size: var(--font-size-sm);
   }
-  input:focus { outline: none; border-color: var(--primary); }
-  input:disabled { opacity: 0.5; cursor: not-allowed; }
+  input:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .save-status {
     font-size: var(--font-size-xs, 0.72rem);
@@ -781,7 +883,9 @@
     font-style: italic;
     margin: 0;
   }
-  .save-status.saved { color: var(--success); }
+  .save-status.saved {
+    color: var(--success);
+  }
 
   /* ---- Hosts section ---- */
   .hosts-header {
@@ -828,8 +932,14 @@
     background: var(--bg-tertiary);
     color: var(--text-muted);
   }
-  .badge-success { background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); }
-  .badge-warning { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); }
+  .badge-success {
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    color: var(--success);
+  }
+  .badge-warning {
+    background: color-mix(in srgb, var(--warning) 20%, transparent);
+    color: var(--warning);
+  }
 
   .actions-cell {
     display: flex;
@@ -919,13 +1029,27 @@
     background: var(--bg-secondary);
     color: var(--text);
   }
-  .btn:hover:not(:disabled) { background: var(--bg-tertiary); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-  .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-  .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
 
-  .btn-secondary { background: var(--bg-tertiary); border-color: var(--border); }
+  .btn-secondary {
+    background: var(--bg-tertiary);
+    border-color: var(--border);
+  }
 
   .btn-icon {
     background: none;
@@ -935,8 +1059,12 @@
     color: var(--primary);
     padding: 0;
   }
-  .btn-icon:hover { text-decoration: underline; }
-  .btn-icon.btn-danger { color: var(--danger); }
+  .btn-icon:hover {
+    text-decoration: underline;
+  }
+  .btn-icon.btn-danger {
+    color: var(--danger);
+  }
 
   .empty-state {
     padding: var(--space-xl);

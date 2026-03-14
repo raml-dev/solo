@@ -25,7 +25,7 @@ interface EnvironmentState {
 const initialState: EnvironmentState = {
   environments: [],
   selectedEnvironmentName: null,
-  loading: false,
+  loading: false
 };
 
 // Create the main store
@@ -123,7 +123,7 @@ function createEnvironmentStore() {
       SetSelectedEnvironment(name).catch((err) => {
         notifications.error("Failed to persist selected environment", String(err));
       });
-    },
+    }
   };
 }
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { 
-    IdentifyGitProvider, 
+  import {
+    IdentifyGitProvider,
     SetupGitCollection,
     GetGitRemoteBranches
   } from "../../../wailsjs/go/main/App";
@@ -11,14 +11,14 @@
 
   const dispatch = createEventDispatcher();
 
-  let gitUrl = "";
-  let remotePath = "";
-  let loading = false;
-  let fetchingBranches = false;
+  let gitUrl = $state("");
+  let remotePath = $state("");
+  let loading = $state(false);
+  let fetchingBranches = $state(false);
   let detectedProvider = "git";
-  let errorMessage = "";
-  let branches: string[] = [];
-  let selectedBranch = "";
+  let errorMessage = $state("");
+  let branches: string[] = $state([]);
+  let selectedBranch = $state("");
 
   async function handleUrlChange() {
     if (!gitUrl) return;
@@ -55,12 +55,12 @@
       errorMessage = "URL and Remote Path are required";
       return;
     }
-    
+
     loading = true;
     errorMessage = "";
     try {
       await handleUrlChange();
-      
+
       let finalUrl = gitUrl;
       if (selectedBranch) {
         finalUrl = `${gitUrl}#${selectedBranch}`;
@@ -69,7 +69,7 @@
       console.log("[GitImport] Setting up collection from URL:", finalUrl, "path:", remotePath);
       await SetupGitCollection(finalUrl, remotePath, "", detectedProvider);
       await collectionStore.loadCollections();
-      
+
       notifications.success("Git collection imported successfully");
       dispatch("imported");
     } catch (err) {
@@ -86,14 +86,21 @@
   {#if errorMessage}
     <div class="error-box">
       <div class="error-content">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="16" x2="12" y2="12"></line>
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
         <span class="error-text">{errorMessage}</span>
       </div>
-      <button class="dismiss-btn" on:click={() => errorMessage = ""}>✕</button>
+      <button class="dismiss-btn" onclick={() => (errorMessage = "")}>✕</button>
     </div>
   {/if}
 
@@ -104,15 +111,15 @@
         id="git-url"
         type="text"
         bind:value={gitUrl}
-        on:blur={handleUrlChange}
+        onblur={handleUrlChange}
         placeholder="https://github.com/user/repo.git"
         class="form-input"
         disabled={loading || fetchingBranches}
       />
-      <Button 
-        variant="secondary" 
-        size="sm" 
-        disabled={!gitUrl || loading || fetchingBranches} 
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={!gitUrl || loading || fetchingBranches}
         click={fetchBranches}
       >
         {fetchingBranches ? "..." : "Fetch Branches"}
@@ -124,7 +131,7 @@
     <div class="form-group">
       <label for="git-branch">Branch</label>
       <select id="git-branch" bind:value={selectedBranch} class="form-select" disabled={loading}>
-        {#each branches as branch}
+        {#each branches as branch (branch)}
           <option value={branch}>{branch}</option>
         {/each}
       </select>
@@ -145,7 +152,14 @@
   </div>
 
   <div class="info-box">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
       <circle cx="12" cy="12" r="10"></circle>
       <line x1="12" y1="16" x2="12" y2="12"></line>
       <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -154,7 +168,11 @@
   </div>
 
   <div class="actions">
-    <Button variant="primary" disabled={!gitUrl || !remotePath || loading || fetchingBranches} click={handleImport}>
+    <Button
+      variant="primary"
+      disabled={!gitUrl || !remotePath || loading || fetchingBranches}
+      click={handleImport}
+    >
       {loading ? "Importing..." : "Import from Git"}
     </Button>
   </div>
@@ -212,10 +230,21 @@
     flex-shrink: 0;
   }
 
-  .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
-  .form-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
-  
-  .form-input, .form-select {
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .form-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .form-input,
+  .form-select {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -225,8 +254,15 @@
     outline: none;
     width: 100%;
   }
-  .form-input:focus, .form-select:focus { border-color: var(--primary); }
-  .form-input:disabled, .form-select:disabled { opacity: 0.6; cursor: not-allowed; }
+  .form-input:focus,
+  .form-select:focus {
+    border-color: var(--primary);
+  }
+  .form-input:disabled,
+  .form-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
   .field-hint {
     font-size: 0.7rem;
@@ -244,7 +280,10 @@
     color: var(--text-muted);
     line-height: 1.4;
   }
-  .info-box svg { flex-shrink: 0; color: var(--primary); }
+  .info-box svg {
+    flex-shrink: 0;
+    color: var(--primary);
+  }
 
   .actions {
     display: flex;

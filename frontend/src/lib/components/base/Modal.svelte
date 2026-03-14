@@ -1,35 +1,58 @@
 <script lang="ts">
-  export let title: string = "Dialog";
-  export let toggleFn: () => void;
-  export let size: "default" | "wide" | "settings" | "fullpage" = "default";
+  import { createBubbler, stopPropagation } from "svelte/legacy";
+
+  const bubble = createBubbler();
+  interface Props {
+    title?: string;
+    toggleFn: () => void;
+    size?: "default" | "wide" | "settings" | "fullpage";
+    children?: import("svelte").Snippet;
+    additional_buttons?: import("svelte").Snippet;
+  }
+
+  let {
+    title = "Dialog",
+    toggleFn,
+    size = "default",
+    children,
+    additional_buttons
+  }: Props = $props();
 </script>
 
 <div
   class="dialog-overlay"
   role="presentation"
-  on:click={toggleFn}
-  on:keydown={(e) => e.key === "Escape" && toggleFn()}
+  onclick={toggleFn}
+  onkeydown={(e) => e.key === "Escape" && toggleFn()}
 >
-  <div class="dialog" class:wide={size === "wide"} class:settings={size === "settings"} class:fullpage={size === "fullpage"} role="dialog" aria-modal="true" on:click|stopPropagation>
+  <div
+    class="dialog"
+    class:wide={size === "wide"}
+    class:settings={size === "settings"}
+    class:fullpage={size === "fullpage"}
+    role="dialog"
+    aria-modal="true"
+    onclick={stopPropagation(bubble("click"))}
+  >
     {#if size === "settings" || size === "fullpage"}
       <div class="settings-close-btn-wrapper">
-        <button class="btn-close" on:click={toggleFn}>&times;</button>
+        <button class="btn-close" onclick={toggleFn}>&times;</button>
       </div>
     {:else}
       <header class="dialog-header">
         <h3>{title}</h3>
-        <button class="btn-close" on:click={toggleFn}>&times;</button>
+        <button class="btn-close" onclick={toggleFn}>&times;</button>
       </header>
     {/if}
     <div class="dialog-content" class:no-padding={size === "settings" || size === "fullpage"}>
-      <slot />
+      {@render children?.()}
     </div>
     {#if size !== "settings" && size !== "fullpage"}
       <footer class="dialog-footer">
-        <div class="additional-buttons">
-          <slot name="additional-buttons" />
+        <div class="additional_buttons">
+          {@render additional_buttons?.()}
         </div>
-        <button class="btn" on:click={toggleFn}>Close</button>
+        <button class="btn" onclick={toggleFn}>Close</button>
       </footer>
     {/if}
   </div>
@@ -132,7 +155,7 @@
     border-top: 1px solid var(--border);
   }
 
-  .additional-buttons {
+  .additional_buttons {
     margin-right: auto;
     display: flex;
     gap: var(--space-sm);

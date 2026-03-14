@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"yapla/internal/collection"
 	"yapla/internal/configuration"
 	"yapla/internal/environment"
@@ -35,6 +36,8 @@ type App struct {
 	scriptManager      *script.ScriptManager
 	runner             *runner.Runner
 	gitManager         *git.Manager
+  closingMu           sync.Mutex
+  isClosing           bool
 }
 
 type RequestOptions struct {
@@ -80,6 +83,11 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 	return a.runner.Run(a.ctx, opts, onResult), nil
 }
 
+// dummy function to emit RunnerResult
+func (a *App) GetRunnerResult() runner.RunnerResult {
+    return runner.RunnerResult{}
+}
+
 // NewApp creates a new App application struct
 func NewApp() *App {
 	cm, err := configuration.NewConfigurationManager()
@@ -90,7 +98,7 @@ func NewApp() *App {
 	hm := host.NewHostManager()
 
 	// ScriptManager is created without context here; context is set in startup()
-	sm := script.NewScriptManager(nil)
+	sm := script.NewScriptManager(context.TODO())
 	service := requester.NewService(cm, sm, hm)
 
 	return &App{
@@ -102,6 +110,8 @@ func NewApp() *App {
 		scriptManager:      sm,
 		runner:             runner.NewRunner(service),
 		gitManager:         git.NewManager(),
+    closingMu:          sync.Mutex{},
+    isClosing:          false,
 	}
 }
 
@@ -119,15 +129,25 @@ func (a *App) startup(ctx context.Context) {
 // beforeClose is called when the user tries to close the application.
 // We emit an event to the frontend to check for unsaved changes and veto the close.
 func (a *App) beforeClose(ctx context.Context) bool {
-	runtime.EventsEmit(ctx, "app:request-close")
-	return true // Veto the close
+    a.closingMu.Lock()
+    defer a.closingMu.Unlock()
+
+    if a.isClosing {
+        return false // Already confirmed — let it close
+    }
+
+    runtime.EventsEmit(ctx, "app:request-close")
+    return true // Veto the close
 }
 
-// ForceQuit exits the application immediately, bypassing the beforeClose hook.
 func (a *App) ForceQuit() {
-	if a.ctx != nil {
-		runtime.Quit(a.ctx)
-	}
+    a.closingMu.Lock()
+    a.isClosing = true
+    a.closingMu.Unlock()
+
+    if a.ctx != nil {
+        runtime.Quit(a.ctx)
+    }
 }
 
 // Execute performs the HTTP request with the given options.
@@ -272,7 +292,7 @@ func (a *App) SetSelectedEnvironment(name string) error {
 // ImportPostmanCollection imports a Postman v2.1 collection file into Yapla.
 func (a *App) ImportPostmanCollection(path string) error {
 	imp := importer.NewPostmanImporter()
-	
+
 	coll, err := imp.Import(path)
 	if err != nil {
 		return fmt.Errorf("failed to import collection: %w", err)
@@ -555,7 +575,7 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 
 	// Detect format and create/update the local Yapla collection metadata
 	var coll collection.Collection
-	
+
 	// Load the file content to create the metadata
 	fullPath := filepath.Join(targetDir, remotePath)
 	fileInfo, err := os.Stat(fullPath)
@@ -611,7 +631,7 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 	} else {
 		coll.Name = localName
 	}
-	
+
 	coll.GitRemote = url
 	coll.GitPath = remotePath
 	coll.GitProvider = providerType
@@ -683,7 +703,7 @@ func (a *App) SetupGitEnvironment(url, remotePath, localName, providerType strin
 
 	// Detect format and create/update the local Yapla environment metadata
 	var env environment.Environment
-	
+
 	fullPath := filepath.Join(targetDir, remotePath)
 	fileInfo, err := os.Stat(fullPath)
 	if err != nil {
@@ -742,7 +762,7 @@ func (a *App) SetupGitEnvironment(url, remotePath, localName, providerType strin
 	} else {
 		env.Name = localName
 	}
-	
+
 	env.GitRemote = url
 	env.GitPath = remotePath
 	env.GitProvider = providerType

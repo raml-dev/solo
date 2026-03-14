@@ -1,8 +1,13 @@
 <script lang="ts">
-  export let message = "";
-  export let icon = "";
-  export let detail = "";
-  export let type: "default" | "error" = "default";
+  interface Props {
+    message?: string;
+    icon?: string;
+    detail?: string;
+    type?: "default" | "error";
+    children?: import("svelte").Snippet;
+  }
+
+  let { message = "", icon = "", detail = "", type = "default", children }: Props = $props();
 </script>
 
 <div class="empty-state" class:empty-state-error={type === "error"}>
@@ -13,7 +18,7 @@
   {#if detail}
     <p class="empty-state-detail">{detail}</p>
   {/if}
-  <slot />
+  {@render children?.()}
 </div>
 
 <style>

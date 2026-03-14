@@ -2,13 +2,17 @@
   import { notifications } from "../../stores/notificationStore";
   import type { Notification } from "../../stores/notificationStore";
 
-  export let notification: Notification;
+  interface Props {
+    notification: Notification;
+  }
+
+  let { notification }: Props = $props();
 
   const icons: Record<string, string> = {
     success: "✓",
-    error:   "✕",
+    error: "✕",
     warning: "⚠",
-    info:    "ℹ",
+    info: "ℹ"
   };
 </script>
 
@@ -20,9 +24,9 @@
       <span class="toast-detail">{notification.detail}</span>
     {/if}
   </div>
-  <button class="toast-close" on:click={() => notifications.dismiss(notification.id)}>✕</button>
+  <button class="toast-close" onclick={() => notifications.dismiss(notification.id)}>✕</button>
   {#if !notification.persistent}
-    <div class="toast-progress" />
+    <div class="toast-progress"></div>
   {/if}
 </div>
 
@@ -35,17 +39,25 @@
     border-radius: var(--radius-md);
     border: 1px solid transparent;
     background: var(--bg-primary);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     min-width: 280px;
     max-width: 420px;
     position: relative;
     overflow: hidden;
   }
 
-  .toast-success { border-color: var(--success); }
-  .toast-error   { border-color: var(--danger);  }
-  .toast-warning { border-color: var(--warning); }
-  .toast-info    { border-color: var(--info);    }
+  .toast-success {
+    border-color: var(--success);
+  }
+  .toast-error {
+    border-color: var(--danger);
+  }
+  .toast-warning {
+    border-color: var(--warning);
+  }
+  .toast-info {
+    border-color: var(--info);
+  }
 
   .toast-icon {
     font-size: var(--font-size-sm);
@@ -60,10 +72,18 @@
     margin-top: 1px;
   }
 
-  .toast-success .toast-icon { color: var(--success); }
-  .toast-error   .toast-icon { color: var(--danger);  }
-  .toast-warning .toast-icon { color: var(--warning); }
-  .toast-info    .toast-icon { color: var(--info);    }
+  .toast-success .toast-icon {
+    color: var(--success);
+  }
+  .toast-error .toast-icon {
+    color: var(--danger);
+  }
+  .toast-warning .toast-icon {
+    color: var(--warning);
+  }
+  .toast-info .toast-icon {
+    color: var(--info);
+  }
 
   .toast-body {
     flex: 1;
@@ -99,7 +119,9 @@
     opacity: 0.6;
     transition: opacity 0.15s;
   }
-  .toast-close:hover { opacity: 1; }
+  .toast-close:hover {
+    opacity: 1;
+  }
 
   .toast-progress {
     position: absolute;
@@ -110,13 +132,25 @@
     animation: shrink 5s linear forwards;
   }
 
-  .toast-success .toast-progress { background: var(--success); }
-  .toast-error   .toast-progress { background: var(--danger);  }
-  .toast-warning .toast-progress { background: var(--warning); }
-  .toast-info    .toast-progress { background: var(--info);    }
+  .toast-success .toast-progress {
+    background: var(--success);
+  }
+  .toast-error .toast-progress {
+    background: var(--danger);
+  }
+  .toast-warning .toast-progress {
+    background: var(--warning);
+  }
+  .toast-info .toast-progress {
+    background: var(--info);
+  }
 
   @keyframes shrink {
-    from { width: 100%; }
-    to   { width: 0%;   }
+    from {
+      width: 100%;
+    }
+    to {
+      width: 0%;
+    }
   }
 </style>

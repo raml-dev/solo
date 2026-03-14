@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from "svelte/legacy";
+
   import { onMount, onDestroy, createEventDispatcher } from "svelte";
   import { EditorState, Compartment, Annotation } from "@codemirror/state";
   import {
@@ -33,11 +35,21 @@
   } from "@codemirror/autocomplete";
   import { showTokenTooltip, hideTokenTooltipDelay } from "../../stores/tokenTooltipStore";
 
-  export let value: string;
-  export let format: "none" | "json" | "xml" | "text" = "json";
-  export let language: "json" | "xml" | "lua" | "text" | "none" | "" = "";
-  export let environmentEntries: { key: string; value: string }[] = [];
-  export let readOnly = false;
+  interface Props {
+    value: string;
+    format?: "none" | "json" | "xml" | "text";
+    language?: "json" | "xml" | "lua" | "text" | "none" | "";
+    environmentEntries?: { key: string; value: string }[];
+    readOnly?: boolean;
+  }
+
+  let {
+    value = $bindable(""),
+    format = $bindable("json"),
+    language = "",
+    environmentEntries = [],
+    readOnly = false
+  }: Props = $props();
 
   const dispatch = createEventDispatcher();
 
@@ -45,8 +57,8 @@
   // updateListener does NOT re-emit "change" and cause an infinite loop.
   const externalUpdate = Annotation.define<boolean>();
 
-  let editorEl: HTMLDivElement;
-  let view: EditorView;
+  let editorEl: HTMLDivElement | undefined = $state();
+  let view: EditorView | undefined = $state();
 
   let languageCompartment = new Compartment();
 
@@ -64,25 +76,27 @@
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       appTheme,
       // --- edit-only extensions ---
-      ...(!readOnly ? [
-        history(),
-        keymap.of([...historyKeymap, ...completionKeymap]),
-        autocompletion({ override: [envCompletionSource] }),
-        tokenHighlightPlugin,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged && !update.transactions.some(tr => tr.annotation(externalUpdate))) {
-            dispatch("change", update.state.doc.toString());
-          }
-        }),
-      ] : [
-        EditorState.readOnly.of(true),
-        EditorView.editable.of(false),
-      ]),
+      ...(!readOnly
+        ? [
+            history(),
+            keymap.of([...historyKeymap, ...completionKeymap]),
+            autocompletion({ override: [envCompletionSource] }),
+            tokenHighlightPlugin,
+            EditorView.updateListener.of((update) => {
+              if (
+                update.docChanged &&
+                !update.transactions.some((tr) => tr.annotation(externalUpdate))
+              ) {
+                dispatch("change", update.state.doc.toString());
+              }
+            })
+          ]
+        : [EditorState.readOnly.of(true), EditorView.editable.of(false)])
     ];
 
     const state = EditorState.create({
       doc: value ?? "",
-      extensions,
+      extensions
     });
 
     view = new EditorView({ state, parent: editorEl });
@@ -92,25 +106,8 @@
 
   onDestroy(() => view?.destroy());
 
-  // When value prop changes from outside, sync to editor WITHOUT triggering change event
-  $: if (view && value !== view.state.doc.toString()) {
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: value ?? "" },
-      annotations: [externalUpdate.of(true)]
-    });
-  }
-
   // When format/language changes, reconfigure language extension (guarded)
-  let _lastLang = "";
-  $: {
-    const effectiveLang = language || format;
-    if (view && effectiveLang !== _lastLang) {
-      _lastLang = effectiveLang;
-      view.dispatch({
-        effects: languageCompartment.reconfigure(getLangExtension())
-      });
-    }
-  }
+  let _lastLang = $state("");
 
   function getLangExtension() {
     // explicit language prop takes priority
@@ -131,7 +128,9 @@
   const tokenHighlightPlugin = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
-      constructor(v: EditorView) { this.decorations = this.build(v); }
+      constructor(v: EditorView) {
+        this.decorations = this.build(v);
+      }
       update(u: { view: EditorView; docChanged: boolean }) {
         if (u.docChanged) this.decorations = this.build(u.view);
       }
@@ -171,7 +170,7 @@
           const target = e.target as HTMLElement;
           if (target.classList.contains("cm-yapla-token")) hideTokenTooltipDelay();
         },
-        mouseleave: () => hideTokenTooltipDelay(),
+        mouseleave: () => hideTokenTooltipDelay()
       }
     }
   );
@@ -185,7 +184,7 @@
       options: environmentEntries.map((e) => ({
         label: e.key,
         type: "variable",
-        apply: (v, completion, _from, _to) => {
+        apply: (v, completion) => {
           v.dispatch({
             changes: { from: node!.from, to: context.pos, insert: `{{${completion.label}}}` }
           });
@@ -235,6 +234,24 @@
       color: "var(--primary)",
       fontWeight: "var(--font-weight-semibold)",
       cursor: "pointer"
+    }
+  });
+  // When value prop changes from outside, sync to editor WITHOUT triggering change event
+  run(() => {
+    if (view && value !== view.state.doc.toString()) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: value ?? "" },
+        annotations: [externalUpdate.of(true)]
+      });
+    }
+  });
+  run(() => {
+    const effectiveLang = language || format;
+    if (view && effectiveLang !== _lastLang) {
+      _lastLang = effectiveLang;
+      view.dispatch({
+        effects: languageCompartment.reconfigure(getLangExtension())
+      });
     }
   });
 </script>

@@ -4,13 +4,17 @@
   import Button from "./base/Button.svelte";
   import { slide } from "svelte/transition";
 
-  export let show = false;
-  export let requestName = "";
+  interface Props {
+    show?: boolean;
+    requestName?: string;
+  }
+
+  let { show = $bindable(false), requestName = $bindable("") }: Props = $props();
 
   const dispatch = createEventDispatcher();
 
-  let selectedCollectionName: string | null = null;
-  let showCollectionList = false;
+  let selectedCollectionName: string | null = $state(null);
+  let showCollectionList = $state(false);
 
   // If a collection is already selected in the sidebar, use it by default
   onMount(() => {
@@ -50,10 +54,10 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeyDown} />
+<svelte:window onkeydown={handleKeyDown} />
 
 {#if show}
-  <div class="modal-overlay" role="presentation" on:click={handleOverlayClick}>
+  <div class="modal-overlay" role="presentation" onclick={handleOverlayClick}>
     <div class="modal-content" role="dialog" aria-modal="true">
       <header class="modal-header">
         <input
@@ -94,10 +98,7 @@
             <span class="save-to-text">Saving to:</span>
             <div class="selected-collection-badge">
               <span>{selectedCollectionName}</span>
-              <button
-                class="change-btn"
-                on:click={() => (showCollectionList = !showCollectionList)}
-              >
+              <button class="change-btn" onclick={() => (showCollectionList = !showCollectionList)}>
                 (change)
               </button>
             </div>
@@ -111,7 +112,7 @@
                 <li>
                   <button
                     class="collection-item"
-                    on:click={() => handleSelectCollection(collection.name)}
+                    onclick={() => handleSelectCollection(collection.name)}
                   >
                     {collection.name}
                   </button>

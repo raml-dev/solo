@@ -36,7 +36,7 @@ function createHistoryStore() {
       const newEntry: HistoryEntry = {
         ...entry,
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
       update((list) => {
         const next = [newEntry, ...list];
@@ -63,7 +63,7 @@ function createHistoryStore() {
           bodySize: e.request.body?.length ?? 0,
           postData: e.request.body
             ? { mimeType: "application/json", text: e.request.body }
-            : undefined,
+            : undefined
         },
         response: e.response
           ? {
@@ -75,11 +75,11 @@ function createHistoryStore() {
               content: {
                 size: e.response.body?.length ?? 0,
                 mimeType: e.response.headers["content-type"] ?? "text/plain",
-                text: e.response.body,
+                text: e.response.body
               },
               redirectURL: "",
               headersSize: -1,
-              bodySize: e.response.body?.length ?? 0,
+              bodySize: e.response.body?.length ?? 0
             }
           : {
               status: 0,
@@ -90,10 +90,10 @@ function createHistoryStore() {
               content: { size: 0, mimeType: "text/plain", text: e.error ?? "" },
               redirectURL: "",
               headersSize: -1,
-              bodySize: 0,
+              bodySize: 0
             },
         cache: {},
-        timings: { send: 0, wait: e.response?.time ?? 0, receive: 0 },
+        timings: { send: 0, wait: e.response?.time ?? 0, receive: 0 }
       }));
 
       return JSON.stringify(
@@ -101,13 +101,13 @@ function createHistoryStore() {
           log: {
             version: "1.2",
             creator: { name: "yapla", version: "1.0" },
-            entries: harEntries,
-          },
+            entries: harEntries
+          }
         },
         null,
         2
       );
-    },
+    }
   };
 }
 

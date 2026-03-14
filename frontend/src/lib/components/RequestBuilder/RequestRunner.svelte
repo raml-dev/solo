@@ -3,34 +3,51 @@
   import { RunParallel, GetSessionVars } from "../../../../wailsjs/go/main/App";
   import { main, runner } from "../../../../wailsjs/go/models";
   import Button from "../base/Button.svelte";
-  import { activeTab } from "../../stores/tabStore";
   import { selectedEnvironment } from "../../stores/environmentStore";
   import { EventsOn, EventsOff } from "../../../../wailsjs/runtime";
+  import type { configuration as conf } from "../../../../wailsjs/go/models";
 
-  export let method: string;
-  export let url: string;
-  export let body: string;
-  export let headers: any[];
-  export let settings: any;
-  export let preRequestScript: string;
-  export let postResponseScript: string;
+  interface Header {
+    id: string;
+    key: string;
+    value: string;
+    enabled: boolean;
+  }
 
-  let concurrency = 5;
-  let iterations = 20;
-  let stopOnError = false;
-  let running = false;
-  let progress = 0;
-  
-  let stats: runner.RunnerStats | null = null;
-  let lastResults: runner.RunnerResult[] = [];
+  interface Props {
+    method: string;
+    url: string;
+    body: string;
+    headers: Header[];
+    settings: conf.RequestSettingsOverride;
+    preRequestScript: string;
+    postResponseScript: string;
+  }
+
+  let { method, url, body, headers, settings, preRequestScript, postResponseScript }: Props =
+    $props();
+
+  let concurrency = $state(5);
+  let iterations = $state(20);
+  let stopOnError = $state(false);
+  let running = $state(false);
+  let progress = $state(0);
+
+  let stats: runner.RunnerStats | null = $state(null);
+  let lastResults: runner.RunnerResult[] = $state([]);
   const MAX_VISIBLE_RESULTS = 50;
 
-  $: environmentEntries = Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-    key,
-    value: String(val?.value ?? "")
-  }));
+  let environmentEntries = $derived(
+    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+      key,
+      value: String(val?.value ?? "")
+    }))
+  );
 
-  function resolveEnvironmentTokens(value: string, sessionVars: Record<string, string> = {}): string {
+  function resolveEnvironmentTokens(
+    value: string,
+    sessionVars: Record<string, string> = {}
+  ): string {
     if (!value) return value;
     const envMap = new Map(environmentEntries.map((e) => [e.key, e.value]));
     const sessionMap = new Map(Object.entries(sessionVars || {}));
@@ -44,22 +61,25 @@
 
   async function startRun() {
     if (running) return;
-    
+
     running = true;
     progress = 0;
     stats = null;
     lastResults = [];
 
-    const sessionVars = await GetSessionVars().catch(() => ({} as Record<string, string>));
+    const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
     const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
     const resolvedBody = resolveEnvironmentTokens(body, sessionVars);
     const resolvedHeaders = headers
       .filter((h) => h.enabled)
-      .reduce((acc, { key, value }) => ({
-        ...acc,
-        [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
-      }), {} as Record<string, string>);
+      .reduce(
+        (acc, { key, value }) => ({
+          ...acc,
+          [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
+        }),
+        {} as Record<string, string>
+      );
 
     const requestOptions = new main.RequestOptions({
       body: resolvedBody,
@@ -104,15 +124,25 @@
   <div class="runner-config">
     <div class="config-group">
       <label for="concurrency">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg
+        >
         <span>Concurrency</span>
       </label>
-      <input 
-        id="concurrency" 
-        type="number" 
-        bind:value={concurrency} 
-        min="1" 
-        max="100" 
+      <input
+        id="concurrency"
+        type="number"
+        bind:value={concurrency}
+        min="1"
+        max="100"
         disabled={running}
         aria-label="Number of parallel workers"
       />
@@ -120,14 +150,24 @@
 
     <div class="config-group">
       <label for="iterations">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg
+        >
         <span>Iterations</span>
       </label>
-      <input 
-        id="iterations" 
-        type="number" 
-        bind:value={iterations} 
-        min="1" 
+      <input
+        id="iterations"
+        type="number"
+        bind:value={iterations}
+        min="1"
         disabled={running}
         aria-label="Total number of requests to perform"
       />
@@ -140,14 +180,35 @@
       </label>
     </div>
 
-    <div class="flex-spacer" />
+    <div class="flex-spacer"></div>
 
-    <Button variant="primary" click={startRun} disabled={running} aria-label="Start load test">
+    <Button variant="primary" click={startRun} disabled={running}>
       {#if running}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="spin"
+          ><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"
+          ></polyline></svg
+        >
         <span>Running...</span>
       {:else}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg
+        >
         <span>Start Run</span>
       {/if}
     </Button>
@@ -193,20 +254,20 @@
             </tr>
           </thead>
           <tbody>
-            {#each lastResults as res}
+            {#each lastResults as res (res.index)}
               <tr>
                 <td>{res.index + 1}</td>
                 <td>
                   {#if res.error}
                     <span class="badge badge-error">ERROR</span>
-                  {:else}
+                  {:else if res.response}
                     <span class="badge {getStatusClass(res.response.statusCode)}">
                       {res.response.statusCode}
                     </span>
                   {/if}
                 </td>
-                <td>{res.response?.duration ?? '-'} ms</td>
-                <td class="error-cell">{res.error || 'Success'}</td>
+                <td>{res.response?.duration ?? "-"} ms</td>
+                <td class="error-cell">{res.error || "Success"}</td>
               </tr>
             {/each}
           </tbody>
@@ -215,7 +276,17 @@
     </div>
   {:else}
     <div class="empty-runner">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        ><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg
+      >
       <h3>Parallel Runner</h3>
       <p>Configure concurrency and iterations to perform load testing on this request.</p>
     </div>
@@ -366,10 +437,22 @@
     font-weight: var(--font-weight-bold);
   }
 
-  .status-success { background: var(--success); color: var(--bg-primary); }
-  .status-error { background: var(--danger); color: var(--bg-primary); }
-  .status-info { background: var(--info); color: var(--bg-primary); }
-  .badge-error { background: var(--danger); color: var(--bg-primary); }
+  .status-success {
+    background: var(--success);
+    color: var(--bg-primary);
+  }
+  .status-error {
+    background: var(--danger);
+    color: var(--bg-primary);
+  }
+  .status-info {
+    background: var(--info);
+    color: var(--bg-primary);
+  }
+  .badge-error {
+    background: var(--danger);
+    color: var(--bg-primary);
+  }
 
   .error-cell {
     color: var(--text-muted);
@@ -402,7 +485,11 @@
   }
 
   @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
