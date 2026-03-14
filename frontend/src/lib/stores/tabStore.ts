@@ -79,7 +79,7 @@ function createTabStore() {
     activeTabId: null
   });
 
-  return {
+  const store = {
     subscribe,
 
     /** Open a tab for an existing saved request. If already open, just activate it.
@@ -260,7 +260,7 @@ function createTabStore() {
     },
 
     async saveTab(tabId: string) {
-      const state = get(this);
+      const state = get(store);
       const tab = state.tabs.find((t) => t.id === tabId);
       if (!tab || !tab.requestId || !tab.collectionName) return;
 
@@ -295,8 +295,8 @@ function createTabStore() {
             lastUpdateTimestamp: new Date().toISOString()
           })
         );
-        this.markDirty(tabId, false);
-        this.fixTab(tabId);
+        store.markDirty(tabId, false);
+        store.fixTab(tabId);
       } catch (error) {
         notifications.error("Failed to save request");
         throw error;
@@ -340,6 +340,8 @@ function createTabStore() {
       });
     }
   };
+
+  return store;
 }
 
 export const tabStore = createTabStore();
