@@ -139,30 +139,39 @@
   }
 
   onMount(() => {
-    (async () => {
+    let disposed = false;
+
+    const unsub = config.subscribe((value) => {
+      if (disposed) return;
+      if (value?.request) {
+        const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
+        if (!copy.general) copy.general = new configuration.GeneralSettings();
+        if (!copy.request) copy.request = new configuration.RequestSettings();
+        const sig = toSignature(copy);
+        if (sig !== lastPersistedSignature) {
+          editableConfig = copy;
+          lastPersistedSignature = sig;
+        }
+      }
+    });
+
+    void (async () => {
       try {
         const loaded = await GetDefaultConfiguration();
+        if (disposed) return;
         defaultConfig = new configuration.Configuration(loaded);
         if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
         if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
       } catch (err) {
+        if (disposed) return;
         notifications.error("Failed to load default configuration", String(err));
       }
-
-      const unsub = config.subscribe((value) => {
-        if (value?.request) {
-          const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
-          if (!copy.general) copy.general = new configuration.GeneralSettings();
-          if (!copy.request) copy.request = new configuration.RequestSettings();
-          const sig = toSignature(copy);
-          if (sig !== lastPersistedSignature) {
-            editableConfig = copy;
-            lastPersistedSignature = sig;
-          }
-        }
-      });
-      return () => unsub();
     })();
+
+    return () => {
+      disposed = true;
+      unsub();
+    };
   });
 
   async function persistRequestSettings() {
