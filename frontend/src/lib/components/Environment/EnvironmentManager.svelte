@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import Tab from "$src/lib/components/base/Tab.svelte";
   import Tabs from "$src/lib/components/base/Tabs.svelte";
   import EnvironmentEditor from "$src/lib/components/Environment/EnvironmentEditor.svelte";
@@ -272,7 +272,7 @@
 />
 
 {#if showImportSelector}
-  <Modal title="Import Environment" toggleFn={() => (showImportSelector = false)} size="wide">
+  <Modal title="Import Environment" bind:open={showImportSelector} size="xl">
     <div class="import-modal-body">
       <Tabs bind:activeValue={importActiveTab}>
         <Tab title="Postman" value="postman">
@@ -346,7 +346,7 @@
       </Tabs>
     </div>
 
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       {#if importActiveTab === "postman"}
         <Button color="primary" onclick={() => handleSelectImportFormat("postman")}
           >Select file…</Button
@@ -361,11 +361,15 @@
 {/if}
 
 {#if showOverwriteConfirmDialog}
-  <Modal toggleFn={closeOverwriteConfirmDialog} size="wide">
-    <h3>Overwrite environment?</h3>
+  <Modal
+    title="Overwrite environment?"
+    bind:open={showOverwriteConfirmDialog}
+    onclose={closeOverwriteConfirmDialog}
+    size="xl"
+  >
     <p>Environment "{overwriteTargetName}" already exists.</p>
     <p class="warning">Do you want to overwrite it?</p>
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="red" onclick={confirmOverwrite}>Overwrite</Button>
     {/snippet}
   </Modal>

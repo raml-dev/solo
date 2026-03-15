@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import Tab from "$src/lib/components/base/Tab.svelte";
   import Tabs from "$src/lib/components/base/Tabs.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
@@ -670,9 +670,8 @@
 </div>
 
 {#if showNewCollectionDialog}
-  <Modal toggleFn={closeNewCollectionDialog}>
+  <Modal bind:open={showNewCollectionDialog} onclose={closeNewCollectionDialog} title="New Collection">
     <div class="dialog">
-      <h3>New Collection</h3>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
@@ -682,16 +681,15 @@
         autofocus
       />
     </div>
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="primary" onclick={handleCreateCollection}>Create</Button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showRenameCollectionDialog}
-  <Modal toggleFn={closeRenameDialog}>
+  <Modal bind:open={showRenameCollectionDialog} onclose={closeRenameDialog} title="Rename Collection">
     <div class="dialog">
-      <h3>Rename Collection</h3>
       <!-- svelte-ignore a11y_autofocus -->
       <input
         type="text"
@@ -701,39 +699,41 @@
         autofocus
       />
     </div>
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="primary" onclick={handleRenameCollection}>Save</Button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <Modal toggleFn={closeDeleteConfirmDialog}>
+  <Modal bind:open={showDeleteConfirmDialog} onclose={closeDeleteConfirmDialog} title="Delete Collection">
     <div class="dialog">
-      <h3>Delete Collection</h3>
       <p>Are you sure you want to delete "{deleteTarget}"?</p>
       <p class="warning">This action cannot be undone.</p>
     </div>
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="red" onclick={confirmDelete}>Delete</Button>
     {/snippet}
   </Modal>
 {/if}
 {#if showDeleteRequestConfirmDialog}
-  <Modal toggleFn={closeDeleteRequestConfirmDialog}>
+  <Modal
+    bind:open={showDeleteRequestConfirmDialog}
+    onclose={closeDeleteRequestConfirmDialog}
+    title="Delete Request"
+  >
     <div class="dialog">
-      <h3>Delete Request</h3>
       <p>Are you sure you want to delete this request?</p>
       <p class="warning">This action cannot be undone.</p>
     </div>
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="red" onclick={confirmDeleteRequest}>Delete</Button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showImportSelector}
-  <Modal title="Import Collection" toggleFn={() => (showImportSelector = false)}>
+  <Modal title="Import Collection" bind:open={showImportSelector} size="xl">
     <div class="import-modal-body">
       <Tabs bind:activeValue={importActiveTab}>
         <Tab title="Postman" value="postman">
@@ -809,7 +809,7 @@
       </Tabs>
     </div>
 
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       {#if importActiveTab === "postman"}
         <Button color="primary" onclick={() => handleSelectImportFormat("postman")}>
           Select file…

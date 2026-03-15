@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import { tabStore } from "$src/lib/stores/tabStore";
   import { HTTP_METHOD_COLOR_MAP, type MethodSemanticFamily } from "$src/lib/theme/themeModel";
 
@@ -109,7 +109,7 @@
 </div>
 
 {#if showConfirmClose}
-  <Modal title="Unsaved Changes" toggleFn={closeConfirmModal} size="default">
+  <Modal title="Unsaved Changes" bind:open={showConfirmClose}>
     <div class="confirm-modal-body">
       <p>Do you want to save the changes to <strong>{tabToClose?.label}</strong>?</p>
       <p class="text-gray-500 dark:text-gray-400">

@@ -5,7 +5,7 @@
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { configurationStore } from "$src/lib/stores/configurationStore";
@@ -175,7 +175,7 @@
 </MainLayout>
 
 {#if showGlobalUnsavedModal}
-  <Modal title="Unsaved Changes" toggleFn={() => (showGlobalUnsavedModal = false)} size="default">
+  <Modal title="Unsaved Changes" bind:open={showGlobalUnsavedModal}>
     <div class="confirm-modal-body">
       <p>You have unsaved changes in some requests. Do you want to save them before quitting?</p>
       <p class="text-gray-500 dark:text-gray-400">

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
 
   interface Props {
     showNewEnvironmentDialog?: boolean;
@@ -45,8 +45,7 @@
 </script>
 
 {#if showNewEnvironmentDialog}
-  <Modal toggleFn={closeNewEnvironmentDialog}>
-    <h3>New Environment</h3>
+  <Modal bind:open={showNewEnvironmentDialog} onclose={closeNewEnvironmentDialog} title="New Environment">
     <!-- svelte-ignore a11y_autofocus -->
     <input
       type="text"
@@ -55,18 +54,17 @@
       onkeydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
       autofocus
     />
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="primary" onclick={handleCreateEnvironment}>Create</Button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <Modal toggleFn={closeDeleteConfirmDialog}>
-    <h3>Delete Environment</h3>
+  <Modal bind:open={showDeleteConfirmDialog} onclose={closeDeleteConfirmDialog} title="Delete Environment">
     <p>Are you sure you want to delete "{deleteTarget}"?</p>
     <p class="warning">This action cannot be undone.</p>
-    {#snippet additional_buttons()}
+    {#snippet footer()}
       <Button color="red" onclick={confirmDelete}>Delete</Button>
     {/snippet}
   </Modal>

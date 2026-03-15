@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
 
@@ -50,13 +50,13 @@
 </div>
 
 {#if showEnvironmentManager}
-  <Modal toggleFn={toggleEnvironmentManager} size="fullpage">
+  <Modal bind:open={showEnvironmentManager} fullscreen size="none">
     <EnvironmentManager />
   </Modal>
 {/if}
 
 {#if showMainConfiguration}
-  <Modal title="Settings" toggleFn={toggleMainConfiguration} size="settings">
+  <Modal title="Settings" bind:open={showMainConfiguration} size="xl">
     <MainConfiguration />
   </Modal>
 {/if}
