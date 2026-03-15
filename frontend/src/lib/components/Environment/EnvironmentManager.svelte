@@ -36,6 +36,8 @@
   let activeMenu: string | null = $state(null);
   let showImportSelector = $state(false);
   let importActiveTab = $state("postman");
+  let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
+    $state(null);
   let showOverwriteConfirmDialog = $state(false);
   let pendingImport: { format: "postman" | "bruno"; path: string } | null = null;
   let overwriteTargetName: string | null = $state(null);
@@ -177,6 +179,7 @@
 
   function openImportModal() {
     importActiveTab = "postman";
+    gitImportActionState = null;
     showImportSelector = true;
   }
 
@@ -375,21 +378,37 @@
         </TabItem>
 
         <TabItem key="git" title="Git">
-          <GitEnvImportView onImported={() => (showImportSelector = false)} />
+          <GitEnvImportView
+            onImported={() => (showImportSelector = false)}
+            onActionStateChange={(state) => {
+              gitImportActionState = state;
+            }}
+          />
         </TabItem>
       </Tabs>
     </div>
 
     {#snippet footer()}
-      {#if importActiveTab === "postman"}
-        <Button color="primary" onclick={() => handleSelectImportFormat("postman")}
-          >Select file…</Button
-        >
-      {:else if importActiveTab === "bruno"}
-        <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
-          >Select file…</Button
-        >
-      {/if}
+      <div class="flex w-full justify-end gap-2">
+        {#if importActiveTab === "postman"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("postman")}
+            >Select file…</Button
+          >
+        {:else if importActiveTab === "bruno"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
+            >Select file…</Button
+          >
+        {:else if importActiveTab === "git"}
+          <Button
+            color="primary"
+            loading={gitImportActionState?.loading ?? false}
+            disabled={gitImportActionState?.disabled ?? true}
+            onclick={() => gitImportActionState?.submit()}
+          >
+            Import from Git
+          </Button>
+        {/if}
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -407,7 +426,9 @@
     <p>Environment "{overwriteTargetName}" already exists.</p>
     <p class="warning">Do you want to overwrite it?</p>
     {#snippet footer()}
-      <Button color="red" onclick={confirmOverwrite}>Overwrite</Button>
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmOverwrite}>Overwrite</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}

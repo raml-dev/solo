@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -63,13 +64,22 @@
   let lastOutput = $state("");
   let showDiscardConfirm = $state(false);
   let errorMessage = $state("");
+  let open = $state(true);
 
   const gitStatusPanelModalId = `git-status-${Math.random().toString(36).slice(2)}`;
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   onMount(() => {
-    modalStack.open(gitStatusPanelModalId);
     refresh();
+  });
+
+  $effect(() => {
+    if (open) {
+      modalStack.open(gitStatusPanelModalId);
+    } else {
+      modalStack.close(gitStatusPanelModalId);
+      onClose?.();
+    }
   });
 
   onDestroy(() => {
@@ -123,6 +133,10 @@
     }
   }
 
+  function requestClose() {
+    open = false;
+  }
+
   // ── Derived helpers ──────────────────────────────────────────────────────
   function statusLabel(s: CollectionStatus): string {
     if (s.isRebaseInProgress) return "Rebase in progress";
@@ -151,20 +165,18 @@
   }
 </script>
 
-<!-- ── Overlay ──────────────────────────────────────────────────────────── -->
-<div
-  class="overlay"
-  role="presentation"
-  onclick={(e) => {
-    if (e.target === e.currentTarget) onClose?.();
-  }}
+<Modal
+  bind:open
+  title="Git Status"
+  size="xl"
+  onclose={requestClose}
 >
-  <div class="panel" role="dialog" aria-modal="true" aria-label="Git Status">
-    {#if $topModalId === gitStatusPanelModalId}
-      <ToastContainer />
-    {/if}
-    <!-- Header -->
-    <header class="panel-header">
+  {#if $topModalId === gitStatusPanelModalId}
+    <ToastContainer />
+  {/if}
+
+  {#snippet header()}
+    <div class="panel-header">
       <div class="header-left">
         <svg
           width="16"
@@ -223,139 +235,140 @@
             <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
           </svg>
         </button>
-        <button class="icon-btn close-btn" onclick={() => onClose?.()} title="Close">✕</button>
+        <button class="icon-btn close-btn" onclick={requestClose} title="Close">✕</button>
       </div>
-    </header>
+    </div>
+  {/snippet}
 
-    <div class="panel-body">
-      {#if loading}
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <span>Loading git status…</span>
-        </div>
-      {:else if errorMessage}
-        <div class="error-box">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line
-              x1="12"
-              y1="16"
-              x2="12.01"
-              y2="16"
-            />
-          </svg>
-          <span>{errorMessage}</span>
-        </div>
-      {:else if status}
-        <!-- Status badge -->
-        <div class="status-row">
-          <span class="status-badge status-{statusVariant(status)}">{statusLabel(status)}</span>
-          {#if status.ahead > 0 || status.behind > 0}
-            <span class="ahead-behind-detail">
-              {#if status.ahead > 0}<span class="ahead">↑ {status.ahead} to push</span>{/if}
-              {#if status.behind > 0}<span class="behind">↓ {status.behind} to pull</span>{/if}
-            </span>
+  <div class="panel-body">
+    {#if loading}
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Loading git status…</span>
+      </div>
+    {:else if errorMessage}
+      <div class="error-box">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line
+            x1="12"
+            y1="16"
+            x2="12.01"
+            y2="16"
+          />
+        </svg>
+        <span>{errorMessage}</span>
+      </div>
+    {:else if status}
+      <!-- Status badge -->
+      <div class="status-row">
+        <span class="status-badge status-{statusVariant(status)}">{statusLabel(status)}</span>
+        {#if status.ahead > 0 || status.behind > 0}
+          <span class="ahead-behind-detail">
+            {#if status.ahead > 0}<span class="ahead">↑ {status.ahead} to push</span>{/if}
+            {#if status.behind > 0}<span class="behind">↓ {status.behind} to pull</span>{/if}
+          </span>
+        {/if}
+      </div>
+
+      <!-- Conflict / rebase warning -->
+      {#if status.isRebaseInProgress || status.hasConflicts}
+        <div class="conflict-box">
+          <div class="conflict-header">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path
+                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+              />
+              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <strong
+              >{status.isRebaseInProgress
+                ? "Rebase in progress"
+                : "Merge conflicts detected"}</strong
+            >
+          </div>
+          {#if status.conflictFiles?.length > 0}
+            <ul class="conflict-files">
+              {#each status.conflictFiles as f (f)}<li>⚡ {f}</li>{/each}
+            </ul>
           {/if}
         </div>
-
-        <!-- Conflict / rebase warning -->
-        {#if status.isRebaseInProgress || status.hasConflicts}
-          <div class="conflict-box">
-            <div class="conflict-header">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-              >
-                <path
-                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-                />
-                <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <strong
-                >{status.isRebaseInProgress
-                  ? "Rebase in progress"
-                  : "Merge conflicts detected"}</strong
-              >
-            </div>
-            {#if status.conflictFiles?.length > 0}
-              <ul class="conflict-files">
-                {#each status.conflictFiles as f (f)}<li>⚡ {f}</li>{/each}
-              </ul>
-            {/if}
-          </div>
-        {/if}
-
-        <!-- Changed files -->
-        {#if status.statusLines?.length > 0}
-          <section class="section">
-            <h4 class="section-title">
-              Changed files <span class="count">{status.statusLines.length}</span>
-            </h4>
-            <div class="file-list">
-              {#each status.statusLines as line (line)}
-                <div class="file-line">
-                  <span class="file-icon">{statusLineIcon(line)}</span>
-                  <span class="file-xy">{line.slice(0, 2)}</span>
-                  <span class="file-name">{line.slice(3)}</span>
-                </div>
-              {/each}
-            </div>
-          </section>
-        {/if}
-
-        <!-- Recent log -->
-        {#if status.recentLog?.length > 0}
-          <section class="section">
-            <h4 class="section-title">Recent commits</h4>
-            <div class="log-list">
-              {#each status.recentLog as entry (entry.hash)}
-                <div class="log-entry">
-                  <code class="log-hash">{entry.hash}</code>
-                  <span class="log-msg">{entry.message}</span>
-                  <span class="log-meta">{entry.author} · {entry.date}</span>
-                </div>
-              {/each}
-            </div>
-          </section>
-        {/if}
-
-        <!-- Output feedback -->
-        {#if lastOutput}
-          <div class="output-box ok">{lastOutput}</div>
-        {/if}
-
-        <!-- Discard confirm inline -->
-        {#if showDiscardConfirm}
-          <div class="confirm-box">
-            <span>⚠ This will permanently discard all local uncommitted changes. Continue?</span>
-            <div class="confirm-actions">
-              <Button color="red" size="sm" onclick={handleDiscard} disabled={actionInProgress}
-                >Yes, discard</Button
-              >
-              <Button
-                color="light"
-                size="sm"
-                onclick={() => (showDiscardConfirm = false)}
-                disabled={actionInProgress}>Cancel</Button
-              >
-            </div>
-          </div>
-        {/if}
       {/if}
-    </div>
 
-    <!-- Footer actions -->
-    <footer class="panel-footer">
+      <!-- Changed files -->
+      {#if status.statusLines?.length > 0}
+        <section class="section">
+          <h4 class="section-title">
+            Changed files <span class="count">{status.statusLines.length}</span>
+          </h4>
+          <div class="file-list">
+            {#each status.statusLines as line (line)}
+              <div class="file-line">
+                <span class="file-icon">{statusLineIcon(line)}</span>
+                <span class="file-xy">{line.slice(0, 2)}</span>
+                <span class="file-name">{line.slice(3)}</span>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      <!-- Recent log -->
+      {#if status.recentLog?.length > 0}
+        <section class="section">
+          <h4 class="section-title">Recent commits</h4>
+          <div class="log-list">
+            {#each status.recentLog as entry (entry.hash)}
+              <div class="log-entry">
+                <code class="log-hash">{entry.hash}</code>
+                <span class="log-msg">{entry.message}</span>
+                <span class="log-meta">{entry.author} · {entry.date}</span>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      <!-- Output feedback -->
+      {#if lastOutput}
+        <div class="output-box ok">{lastOutput}</div>
+      {/if}
+
+      <!-- Discard confirm inline -->
+      {#if showDiscardConfirm}
+        <div class="confirm-box">
+          <span>⚠ This will permanently discard all local uncommitted changes. Continue?</span>
+          <div class="confirm-actions">
+            <Button color="red" size="sm" onclick={handleDiscard} disabled={actionInProgress}
+              >Yes, discard</Button
+            >
+            <Button
+              color="light"
+              size="sm"
+              onclick={() => (showDiscardConfirm = false)}
+              disabled={actionInProgress}>Cancel</Button
+            >
+          </div>
+        </div>
+      {/if}
+    {/if}
+  </div>
+
+  {#snippet footer()}
+    <div class="panel-footer">
       <div class="actions-left">
         {#if status?.isRebaseInProgress || status?.hasConflicts}
           <Button
@@ -397,7 +410,7 @@
           {/if}
         {/if}
       </div>
-      <Button color="light" size="sm" onclick={() => onClose?.()}>Close</Button>
-    </footer>
-  </div>
-</div>
+      <Button color="light" size="sm" onclick={requestClose}>Close</Button>
+    </div>
+  {/snippet}
+</Modal>

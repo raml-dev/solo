@@ -13,11 +13,18 @@
     SetupGitCollection
   } from "$wails/go/main/App";
 
-  interface Props {
-    onImported?: () => void;
+  interface GitImportActionState {
+    loading: boolean;
+    disabled: boolean;
+    submit: () => void;
   }
 
-  let { onImported }: Props = $props();
+  interface Props {
+    onImported?: () => void;
+    onActionStateChange?: (state: GitImportActionState) => void;
+  }
+
+  let { onImported, onActionStateChange }: Props = $props();
 
   let gitUrl = $state("");
   let remotePath = $state("");
@@ -89,6 +96,14 @@
       loading = false;
     }
   }
+
+  $effect(() => {
+    onActionStateChange?.({
+      loading,
+      disabled: !gitUrl || !remotePath || loading || fetchingBranches,
+      submit: handleImport
+    });
+  });
 </script>
 
 <div class="space-y-4">
@@ -149,14 +164,4 @@
     Yapla will automatically detect the collection name from the file content.
   </Alert>
 
-  <div class="flex justify-end">
-    <Button
-      color="primary"
-      loading={loading}
-      disabled={!gitUrl || !remotePath || loading || fetchingBranches}
-      onclick={handleImport}
-    >
-      Import from Git
-    </Button>
-  </div>
 </div>

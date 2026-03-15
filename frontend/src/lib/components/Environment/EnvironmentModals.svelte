@@ -93,10 +93,12 @@
       <Helper>Use a unique name for the environment.</Helper>
     </div>
     {#snippet footer()}
-      <Button color="light" onclick={closeNewEnvironmentDialog}>Cancel</Button>
-      <Button color="primary" disabled={!newEnvironmentName.trim()} onclick={handleCreateEnvironment}
-        >Create</Button
-      >
+      <div class="flex w-full justify-end gap-2">
+        <Button color="light" onclick={closeNewEnvironmentDialog}>Cancel</Button>
+        <Button color="primary" disabled={!newEnvironmentName.trim()} onclick={handleCreateEnvironment}
+          >Create</Button
+        >
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -111,8 +113,10 @@
       <p class="text-sm text-warning-700 dark:text-warning-300">This action cannot be undone.</p>
     </div>
     {#snippet footer()}
-      <Button color="light" onclick={closeDeleteConfirmDialog}>Cancel</Button>
-      <Button color="red" onclick={confirmDelete}>Delete</Button>
+      <div class="flex w-full justify-end gap-2">
+        <Button color="light" onclick={closeDeleteConfirmDialog}>Cancel</Button>
+        <Button color="red" onclick={confirmDelete}>Delete</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}

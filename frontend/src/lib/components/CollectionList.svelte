@@ -89,6 +89,8 @@
   });
 
   let importActiveTab = $state("postman");
+  let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
+    $state(null);
 
   let newCollectionName = $state("");
   let renameCollectionName = $state("");
@@ -436,6 +438,7 @@
 
   function openImportModal() {
     importActiveTab = "postman";
+    gitImportActionState = null;
     showImportSelector = true;
   }
 
@@ -736,7 +739,9 @@
       />
     </div>
     {#snippet footer()}
-      <Button color="primary" onclick={handleCreateCollection}>Create</Button>
+      <div class="flex w-full justify-end gap-2">
+        <Button color="primary" onclick={handleCreateCollection}>Create</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -757,7 +762,9 @@
       />
     </div>
     {#snippet footer()}
-      <Button color="primary" onclick={handleRenameCollection}>Save</Button>
+      <div class="flex w-full justify-end gap-2">
+        <Button color="primary" onclick={handleRenameCollection}>Save</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -772,7 +779,9 @@
       <p class="warning">This action cannot be undone.</p>
     </div>
     {#snippet footer()}
-      <Button color="red" onclick={confirmDelete}>Delete</Button>
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmDelete}>Delete</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -790,7 +799,9 @@
       <p class="warning">This action cannot be undone.</p>
     </div>
     {#snippet footer()}
-      <Button color="red" onclick={confirmDeleteRequest}>Delete</Button>
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmDeleteRequest}>Delete</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -870,21 +881,37 @@
         </TabItem>
 
         <TabItem key="git" title="Git">
-          <GitImportView onImported={() => (showImportSelector = false)} />
+          <GitImportView
+            onImported={() => (showImportSelector = false)}
+            onActionStateChange={(state) => {
+              gitImportActionState = state;
+            }}
+          />
         </TabItem>
       </Tabs>
     </div>
 
     {#snippet footer()}
-      {#if importActiveTab === "postman"}
-        <Button color="primary" onclick={() => handleSelectImportFormat("postman")}>
-          Select file…
-        </Button>
-      {:else if importActiveTab === "bruno"}
-        <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}>
-          Select folder…
-        </Button>
-      {/if}
+      <div class="flex w-full gap-2">
+        {#if importActiveTab === "postman"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("postman")}>
+            Select file…
+          </Button>
+        {:else if importActiveTab === "bruno"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}>
+            Select folder…
+          </Button>
+        {:else if importActiveTab === "git"}
+          <Button
+            color="primary"
+            loading={gitImportActionState?.loading ?? false}
+            disabled={gitImportActionState?.disabled ?? true}
+            onclick={() => gitImportActionState?.submit()}
+          >
+            Import from Git
+          </Button>
+        {/if}
+      </div>
     {/snippet}
   </Modal>
 {/if}
