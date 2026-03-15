@@ -2,6 +2,7 @@
   import Button from "$src/lib/components/base/Button.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
   import { tabStore } from "$src/lib/stores/tabStore";
+  import { HTTP_METHOD_COLOR_MAP, type MethodSemanticFamily } from "$src/lib/theme/themeModel";
 
   let tabs = $derived($tabStore.tabs);
   let activeTabId = $derived($tabStore.activeTabId);
@@ -11,8 +12,29 @@
 
   let tabToClose = $derived(tabs.find((t) => t.id === tabToCloseId));
 
-  function getMethodClass(verb: string): string {
-    return `method-${(verb || "get").toLowerCase()}`;
+  function getMethodBadgeClass(verb: string): string {
+    const base = "rounded px-1 py-0.5 text-[10px] font-semibold uppercase";
+    const family =
+      HTTP_METHOD_COLOR_MAP[(verb || "GET").toUpperCase() as keyof typeof HTTP_METHOD_COLOR_MAP] ||
+      ("neutral" as MethodSemanticFamily);
+
+    if (family === "success") {
+      return `${base} bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300`;
+    }
+
+    if (family === "primary") {
+      return `${base} bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300`;
+    }
+
+    if (family === "warning") {
+      return `${base} bg-warning-100 text-warning-700 dark:bg-warning-900 dark:text-warning-300`;
+    }
+
+    if (family === "danger") {
+      return `${base} bg-danger-100 text-danger-700 dark:bg-danger-900 dark:text-danger-300`;
+    }
+
+    return `${base} bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300`;
   }
 
   function handleClose(e: MouseEvent, tabId: string) {
@@ -66,7 +88,7 @@
         ondblclick={() => tabStore.fixTab(tab.id)}
         title={tab.label}
       >
-        <span class="method-badge {getMethodClass(tab.verb)}">{tab.verb}</span>
+        <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
         <span class="tab-label">{tab.label}</span>
         {#if tab.isDirty}
           <span class="dirty-dot" title="Unsaved changes"></span>

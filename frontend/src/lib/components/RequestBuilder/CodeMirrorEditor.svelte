@@ -119,7 +119,7 @@
   // --- Extensions ---
 
   const customHighlightStyle = HighlightStyle.define([
-    { tag: tags.propertyName, color: "var(--info)" }
+    { tag: tags.propertyName, color: "var(--color-primary-600)" }
   ]);
 
   // Token highlighter — only used in edit mode
@@ -193,44 +193,13 @@
 
   const appTheme = EditorView.theme({
     "&": {
-      color: "var(--text)",
-      backgroundColor: "var(--bg-secondary)",
       height: "100%",
-      fontSize: "var(--font-size-sm)",
-      fontFamily: "var(--font-mono)"
-    },
-    ".cm-content": {
-      caretColor: "var(--primary)"
-    },
-    "&.cm-focused .cm-cursor": {
-      borderLeftColor: "var(--primary)"
-    },
-    "&.cm-focused .cm-selectionBackground, ::selection": {
-      backgroundColor: "rgba(74, 158, 255, 0.25) !important"
-    },
-    ".cm-gutters": {
-      backgroundColor: "var(--bg-secondary)",
-      color: "var(--text-muted)",
-      border: "none"
-    },
-    ".cm-activeLine": {
-      backgroundColor: "transparent",
-      borderTop: "1px solid var(--border-dark)",
-      borderBottom: "1px solid var(--border-dark)"
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "transparent"
+      fontSize: "0.875rem"
     },
     ".cm-foldGutter .cm-gutterElement": {
       cursor: "pointer"
     },
-    ".cm-indent-marker": {
-      background: "none",
-      borderLeft: "1px solid rgba(128, 128, 128, 0.25)"
-    },
     ".cm-yapla-token": {
-      color: "var(--primary)",
-      fontWeight: "var(--font-weight-semibold)",
       cursor: "pointer"
     }
   });

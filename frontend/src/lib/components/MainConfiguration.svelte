@@ -28,87 +28,42 @@
   // --- Store ---
   const { config, allThemes } = configurationStore;
 
-  function findTheme(name: string) {
-    return ($allThemes || []).find((t) => t.name === name) || null;
+  function findTheme(id: string) {
+    return ($allThemes || []).find((t) => t.id === id) || null;
   }
 
-  function formatThemeName(name: string): string {
-    return name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  function formatThemeName(label: string): string {
+    return label || "Untitled Theme";
   }
 
-  // --- Theme UI state (letti dal config al mount) ---
-  let themeMode: "sync" | "manual" = $state("manual");
-  let activeThemeName = $state("");
-  let dayTheme = $state("zinc-light");
-  let nightTheme = $state("zinc-dark");
+  // --- Theme UI state ---
+  let activeThemeId = $state("");
 
-  // Inizializza da config (una volta sola, appena config+temi sono pronti)
   let initialized = $state(false);
   $effect(() => {
     if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
-      activeThemeName = $config.general.activeTheme;
-      themeMode = ($config.general.themeMode as "sync" | "manual") || "manual";
-      dayTheme = $config.general.dayTheme || "zinc-light";
-      nightTheme = $config.general.nightTheme || "zinc-dark";
+      activeThemeId = $config.general.activeTheme;
       initialized = true;
     }
   });
 
-  // --- System preference ---
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
-  function getSystemTheme(): "light" | "dark" {
-    return prefersDark.matches ? "dark" : "light";
-  }
-
-  // --- Applica tema + persiste tutto nel config ---
-  async function applyAndSaveTheme(themeName: string) {
-    if (!findTheme(themeName)) return;
-    activeThemeName = themeName;
+  async function applyAndSaveTheme(themeId: string) {
+    if (!findTheme(themeId)) return;
+    activeThemeId = themeId;
     try {
-      // Salva activeTheme, themeMode, dayTheme, nightTheme in un'unica write
-      const current = $config;
-      current.general.activeTheme = themeName;
-      current.general.themeMode = themeMode;
-      current.general.dayTheme = dayTheme;
-      current.general.nightTheme = nightTheme;
+      const current = new configuration.Configuration(JSON.parse(JSON.stringify($config)));
+      if (!current.general) current.general = new configuration.GeneralSettings();
+      current.general.activeTheme = themeId;
       await configurationStore.save(current);
-      // Applica colori al DOM (changeTheme li applica già via derived store)
-      await configurationStore.changeTheme(themeName);
+      await configurationStore.changeTheme(themeId);
     } catch {
       /* shown by store */
     }
   }
 
-  // In sync mode: applica il tema giusto per il sistema corrente
-  async function applySync() {
-    const target = getSystemTheme() === "dark" ? nightTheme : dayTheme;
-    await applyAndSaveTheme(target);
+  async function handleThemeSelect(themeId: string) {
+    await applyAndSaveTheme(themeId);
   }
-
-  async function handleThemeModeChange(mode: "sync" | "manual") {
-    themeMode = mode;
-    if (mode === "sync") {
-      await applySync();
-    } else {
-      // Persiste solo il cambio di modalità, tema rimane invariato
-      const current = $config;
-      current.general.themeMode = "manual";
-      await configurationStore.save(current);
-    }
-  }
-
-  async function handleManualThemeSelect(name: string) {
-    await applyAndSaveTheme(name);
-  }
-
-  // Listener per cambi OS in sync mode
-  onMount(() => {
-    const listener = () => {
-      if (themeMode === "sync") applySync();
-    };
-    prefersDark.addEventListener("change", listener);
-    return () => prefersDark.removeEventListener("change", listener);
-  });
 
   // --- General / Request settings ---
   function createEmptyConfig() {
@@ -336,62 +291,23 @@
           sync with system settings and let the machine set your day and night themes.
         </p>
 
-        <!-- Mode selector -->
-        <div class="theme-mode-row">
-          <span class="theme-mode-label">Theme selection</span>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input
-                type="radio"
-                bind:group={themeMode}
-                value="sync"
-                onchange={() => handleThemeModeChange("sync")}
-              />
-              Sync with system
-            </label>
-            <label class="radio-label">
-              <input
-                type="radio"
-                bind:group={themeMode}
-                value="manual"
-                onchange={() => handleThemeModeChange("manual")}
-              />
-              Manual
-            </label>
-          </div>
+        <div class="theme-grid-manual">
+          {#each $allThemes || [] as t (t.id)}
+            <button
+              class="theme-tile"
+              class:active-tile={activeThemeId === t.id}
+              onclick={() => handleThemeSelect(t.id)}
+            >
+              <div class="theme-tile-preview">
+                <ThemePreview seeds={t.config?.seeds} />
+              </div>
+              <span class="theme-tile-name">{formatThemeName(t.label)}</span>
+              {#if activeThemeId === t.id}
+                <span class="active-badge">ACTIVE</span>
+              {/if}
+            </button>
+          {/each}
         </div>
-
-        {#if themeMode === "manual"}
-          <!-- Manual: griglia di tutti i temi, click = applica -->
-          <div class="theme-grid-manual">
-            {#each $allThemes || [] as t (t.name)}
-              <button
-                class="theme-tile"
-                class:active-tile={activeThemeName === t.name}
-                onclick={() => handleManualThemeSelect(t.name)}
-              >
-                <div class="theme-tile-preview">
-                  <ThemePreview themeColors={t.colors} />
-                </div>
-                <span class="theme-tile-name">{formatThemeName(t.name)}</span>
-                {#if activeThemeName === t.name}
-                  <span class="active-badge">ACTIVE</span>
-                {/if}
-              </button>
-            {/each}
-          </div>
-        {:else}
-          <!-- Sync: mostra solo il tema attivo corrente -->
-          <div class="sync-active-theme">
-            <div class="sync-active-preview">
-              <ThemePreview themeColors={findTheme(activeThemeName)?.colors || {}} />
-            </div>
-            <div class="sync-active-info">
-              <span class="sync-active-name">{formatThemeName(activeThemeName) || "—"}</span>
-              <span class="sync-active-sub">Currently active — follows your system appearance</span>
-            </div>
-          </div>
-        {/if}
       </div>
     {:else if activeSection === "general"}
       <div class="section-body">

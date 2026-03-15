@@ -1,8 +1,6 @@
 package theme
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestGetPredefinedThemes(t *testing.T) {
 	predefinedThemes := GetPredefinedThemes()
@@ -11,38 +9,34 @@ func TestGetPredefinedThemes(t *testing.T) {
 		t.Fatal("GetPredefinedThemes returned an empty slice, expected at least one theme.")
 	}
 
-	foundZincLight := false
-	foundZincDark := false
+	foundOcean := false
+	foundNord := false
 
-	for _, theme := range predefinedThemes {
-		if theme.Name == "" {
-			t.Error("Found a theme with an empty name.")
+	for _, th := range predefinedThemes {
+		if th.ID == "" {
+			t.Error("Found a theme with an empty id.")
 		}
-		if len(theme.Colors) == 0 {
-			t.Errorf("Theme '%s' has no colors defined.", theme.Name)
+		if th.Label == "" {
+			t.Errorf("Theme '%s' has empty label.", th.ID)
 		}
-		if theme.Name == "zinc-light" {
-			foundZincLight = true
+		if th.Config.Type == "" {
+			t.Errorf("Theme '%s' has empty config type.", th.ID)
 		}
-		if theme.Name == "zinc-dark" {
-			foundZincDark = true
+		if th.Config.Seeds.Primary == "" || th.Config.Seeds.Neutral == "" {
+			t.Errorf("Theme '%s' is missing required seed colors.", th.ID)
+		}
+		if th.ID == "ocean" {
+			foundOcean = true
+		}
+		if th.ID == "nord" {
+			foundNord = true
 		}
 	}
 
-	if !foundZincLight {
-		t.Error("Predefined theme 'zinc-light' was not found.")
+	if !foundOcean {
+		t.Error("Predefined theme 'ocean' was not found.")
 	}
-	if !foundZincDark {
-		t.Error("Predefined theme 'zinc-dark' was not found.")
-	}
-
-	// Ensure all themes have required color keys
-	requiredKeys := []string{"primary", "bg-primary", "bg-secondary", "bg-tertiary", "border", "text", "text-muted"}
-	for _, theme := range predefinedThemes {
-		for _, key := range requiredKeys {
-			if _, ok := theme.Colors[key]; !ok {
-				t.Errorf("Theme '%s' is missing required color key '%s'.", theme.Name, key)
-			}
-		}
+	if !foundNord {
+		t.Error("Predefined theme 'nord' was not found.")
 	}
 }

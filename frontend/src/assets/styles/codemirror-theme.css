@@ -1,0 +1,73 @@
+/* CodeMirror bridge to Tailwind/Flowbite semantic tokens */
+
+.cm-editor {
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-900);
+  font-family: var(--font-mono);
+}
+
+.cm-scroller,
+.cm-content {
+  font-family: inherit;
+}
+
+.cm-gutters {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-500);
+  border-right: 1px solid color-mix(in oklab, var(--color-neutral-300) 60%, transparent);
+}
+
+.cm-activeLine,
+.cm-activeLineGutter {
+  background: color-mix(in oklab, var(--color-neutral-200) 30%, transparent);
+}
+
+.cm-focused .cm-cursor {
+  border-left-color: var(--color-primary-600);
+}
+
+.cm-selectionBackground,
+.cm-focused .cm-selectionBackground,
+.cm-selectionLayer ::selection {
+  background: color-mix(in oklab, var(--color-primary-200) 45%, transparent) !important;
+}
+
+.cm-indent-marker {
+  background: none;
+  border-left: 1px solid color-mix(in oklab, var(--color-neutral-400) 35%, transparent);
+}
+
+.cm-yapla-token {
+  color: var(--color-primary-700);
+  font-weight: 600;
+}
+
+.dark .cm-editor {
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-100);
+}
+
+.dark .cm-gutters {
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-400);
+  border-right: 1px solid color-mix(in oklab, var(--color-neutral-700) 60%, transparent);
+}
+
+.dark .cm-activeLine,
+.dark .cm-activeLineGutter {
+  background: color-mix(in oklab, var(--color-neutral-800) 40%, transparent);
+}
+
+.dark .cm-focused .cm-cursor {
+  border-left-color: var(--color-primary-400);
+}
+
+.dark .cm-selectionBackground,
+.dark .cm-focused .cm-selectionBackground,
+.dark .cm-selectionLayer ::selection {
+  background: color-mix(in oklab, var(--color-primary-700) 35%, transparent) !important;
+}
+
+.dark .cm-yapla-token {
+  color: var(--color-primary-300);
+}

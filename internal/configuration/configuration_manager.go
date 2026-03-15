@@ -135,9 +135,9 @@ func (cm *ConfigurationManager) GetActiveTheme() string {
 	return cm.config.General.ActiveTheme
 }
 
-func (cm *ConfigurationManager) SetActiveTheme(themeName string) error {
+func (cm *ConfigurationManager) SetActiveTheme(themeID string) error {
 	cm.mu.Lock()
-	cm.config.General.ActiveTheme = themeName
+	cm.config.General.ActiveTheme = themeID
 	configToSave := *cm.config
 	cm.mu.Unlock()
 	return cm.Save(configToSave) // Save immediately to persist
@@ -167,7 +167,7 @@ func (cm *ConfigurationManager) GetAllThemes() []theme.Theme {
 func (cm *ConfigurationManager) GetThemeByName(name string) (*theme.Theme, error) {
 	allThemes := cm.GetAllThemes()
 	for _, t := range allThemes {
-		if t.Name == name {
+		if t.ID == name {
 			return &t, nil
 		}
 	}
@@ -184,7 +184,7 @@ func (cm *ConfigurationManager) SaveCustomTheme(th theme.Theme) error {
 	cm.mu.Lock()
 	found := false
 	for i, t := range cm.config.CustomThemes {
-		if t.Name == th.Name {
+		if t.ID == th.ID {
 			cm.config.CustomThemes[i] = th
 			found = true
 			break
@@ -204,7 +204,7 @@ func (cm *ConfigurationManager) DeleteCustomTheme(themeName string) error {
 	cm.mu.Lock()
 	newThemes := []theme.Theme{}
 	for _, t := range cm.config.CustomThemes {
-		if t.Name != themeName {
+		if t.ID != themeName {
 			newThemes = append(newThemes, t)
 		}
 	}
