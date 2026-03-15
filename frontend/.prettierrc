@@ -10,7 +10,11 @@
   "bracketSameLine": false,
   "svelteAllowShorthand": true,
   "svelteIndentScriptAndStyle": true,
-  "plugins": ["prettier-plugin-svelte"],
+  "plugins": [
+    "prettier-plugin-svelte",
+    "prettier-plugin-organize-imports",
+    "prettier-plugin-tailwindcss"
+  ],
   "overrides": [
     {
       "files": "*.svelte",
@@ -18,5 +22,6 @@
         "parser": "svelte"
       }
     }
-  ]
+  ],
+  "tailwindStylesheet": "./src/app.css"
 }
