@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
-  import Dropdown from "$src/lib/components/base/Dropdown.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
   import EmptyState from "$src/lib/components/base/EmptyState.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
@@ -182,19 +182,19 @@
 
   // --- Methods / Body format options ---
   const methodOptions = [
-    { value: "GET", label: "GET" },
-    { value: "POST", label: "POST" },
-    { value: "PUT", label: "PUT" },
-    { value: "DELETE", label: "DELETE" },
-    { value: "PATCH", label: "PATCH" },
-    { value: "HEAD", label: "HEAD" },
-    { value: "OPTIONS", label: "OPTIONS" }
+    { value: "GET", name: "GET" },
+    { value: "POST", name: "POST" },
+    { value: "PUT", name: "PUT" },
+    { value: "DELETE", name: "DELETE" },
+    { value: "PATCH", name: "PATCH" },
+    { value: "HEAD", name: "HEAD" },
+    { value: "OPTIONS", name: "OPTIONS" }
   ];
   const bodyFormatOptions = [
-    { value: "none", label: "None" },
-    { value: "json", label: "JSON" },
-    { value: "xml", label: "XML" },
-    { value: "text", label: "Text" }
+    { value: "none", name: "None" },
+    { value: "json", name: "JSON" },
+    { value: "xml", name: "XML" },
+    { value: "text", name: "Text" }
   ];
 
   // --- Beautify ---
@@ -451,12 +451,13 @@
     <div class="request-line">
       <div class="url-bar">
         <div class="url-bar-method">
-          <Dropdown
+          <Select
             bind:value={method}
-            options={methodOptions}
-            change={handleMethodChange}
-            variant="url-method"
-            square
+            items={methodOptions}
+            placeholder=""
+            size="sm"
+            onchange={() => handleMethodChange(method)}
+            class="h-full rounded-none border-0 bg-transparent px-3 py-0 font-semibold"
           />
         </div>
         <div class="url-bar-divider"></div>
@@ -523,11 +524,13 @@
             </button>
             <span class="format-separator">|</span>
           {/if}
-          <Dropdown
+          <Select
             bind:value={requestBodyFormat}
-            options={bodyFormatOptions}
-            change={handleBodyFormatChange}
-            variant="minimal"
+            items={bodyFormatOptions}
+            placeholder=""
+            size="sm"
+            underline
+            onchange={() => handleBodyFormatChange(requestBodyFormat)}
           />
         </div>
       {/if}
