@@ -11,6 +11,7 @@
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { historyStore } from "$src/lib/stores/historyStore";
+  import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { activeTab, tabStore } from "$src/lib/stores/tabStore";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
@@ -24,6 +25,17 @@
   let resizeStartY = 0;
   let resizeStartH = 0;
   let showGlobalUnsavedModal = $state(false);
+
+  const appModalScope = `app-${Math.random().toString(36).slice(2)}`;
+  const globalUnsavedModalId = `${appModalScope}-unsaved`;
+
+  $effect(() => {
+    if (showGlobalUnsavedModal) {
+      modalStack.open(globalUnsavedModalId);
+    } else {
+      modalStack.close(globalUnsavedModalId);
+    }
+  });
 
   async function initializeApp() {
     await Promise.all([
@@ -109,12 +121,15 @@
     });
 
     return () => {
+      modalStack.close(globalUnsavedModalId);
       window.removeEventListener("keydown", handleKeyDown);
     };
   });
 </script>
 
-<ToastContainer />
+{#if !$hasOpenModals}
+  <ToastContainer />
+{/if}
 
 <MainLayout title="yapla">
   {#snippet navbar_actions()}
@@ -176,6 +191,9 @@
 
 {#if showGlobalUnsavedModal}
   <Modal title="Unsaved Changes" bind:open={showGlobalUnsavedModal}>
+    {#if $topModalId === globalUnsavedModalId}
+      <ToastContainer />
+    {/if}
     <div class="confirm-modal-body">
       <p>You have unsaved changes in some requests. Do you want to save them before quitting?</p>
       <p class="text-gray-500 dark:text-gray-400">

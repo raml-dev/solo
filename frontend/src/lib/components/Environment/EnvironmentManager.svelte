@@ -9,8 +9,10 @@
   import EnvironmentItem from "$src/lib/components/Environment/EnvironmentItem.svelte";
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
     GetGitEnvironmentStatus,
@@ -25,6 +27,7 @@
     SyncGitEnvironment
   } from "$wails/go/main/App";
   import { environment } from "$wails/go/models";
+  import { onDestroy } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   let showNewEnvironmentDialog = $state(false);
@@ -40,6 +43,31 @@
   let syncingEnvironments: Set<string> = $state(new Set());
   let gitStatusEnvId: string | null = $state(null);
   let gitStatusEnvName: string | null = $state(null);
+
+  const environmentManagerModalScope = `environment-manager-${Math.random().toString(36).slice(2)}`;
+  const importEnvironmentModalId = `${environmentManagerModalScope}-import`;
+  const overwriteEnvironmentModalId = `${environmentManagerModalScope}-overwrite`;
+
+  $effect(() => {
+    if (showImportSelector) {
+      modalStack.open(importEnvironmentModalId);
+    } else {
+      modalStack.close(importEnvironmentModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showOverwriteConfirmDialog) {
+      modalStack.open(overwriteEnvironmentModalId);
+    } else {
+      modalStack.close(overwriteEnvironmentModalId);
+    }
+  });
+
+  onDestroy(() => {
+    modalStack.close(importEnvironmentModalId);
+    modalStack.close(overwriteEnvironmentModalId);
+  });
 
   let environments = $derived($environmentStore.environments);
   $effect(() => {
@@ -274,6 +302,9 @@
 
 {#if showImportSelector}
   <Modal title="Import Environment" bind:open={showImportSelector} size="xl">
+    {#if $topModalId === importEnvironmentModalId}
+      <ToastContainer />
+    {/if}
     <div class="import-modal-body">
       <Tabs bind:selected={importActiveTab}>
         <TabItem key="postman" title="Postman">
@@ -368,6 +399,9 @@
     onclose={closeOverwriteConfirmDialog}
     size="xl"
   >
+    {#if $topModalId === overwriteEnvironmentModalId}
+      <ToastContainer />
+    {/if}
     <p>Environment "{overwriteTargetName}" already exists.</p>
     <p class="warning">Do you want to overwrite it?</p>
     {#snippet footer()}

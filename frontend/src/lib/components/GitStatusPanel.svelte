@@ -1,7 +1,9 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
 
   interface Props {
     // ── Props ────────────────────────────────────────────────────────────────
@@ -62,9 +64,16 @@
   let showDiscardConfirm = $state(false);
   let errorMessage = $state("");
 
+  const gitStatusPanelModalId = `git-status-${Math.random().toString(36).slice(2)}`;
+
   // ── Lifecycle ────────────────────────────────────────────────────────────
   onMount(() => {
+    modalStack.open(gitStatusPanelModalId);
     refresh();
+  });
+
+  onDestroy(() => {
+    modalStack.close(gitStatusPanelModalId);
   });
 
   async function refresh() {
@@ -151,6 +160,9 @@
   }}
 >
   <div class="panel" role="dialog" aria-modal="true" aria-label="Git Status">
+    {#if $topModalId === gitStatusPanelModalId}
+      <ToastContainer />
+    {/if}
     <!-- Header -->
     <header class="panel-header">
       <div class="header-left">

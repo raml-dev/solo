@@ -6,8 +6,10 @@
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore";
   import {
@@ -38,6 +40,53 @@
   let showDeleteConfirmDialog = $state(false);
   let showDeleteRequestConfirmDialog = $state(false);
   let showImportSelector = $state(false);
+
+  const collectionModalScope = `collections-${Math.random().toString(36).slice(2)}`;
+  const newCollectionModalId = `${collectionModalScope}-new`;
+  const renameCollectionModalId = `${collectionModalScope}-rename`;
+  const deleteCollectionModalId = `${collectionModalScope}-delete-collection`;
+  const deleteRequestModalId = `${collectionModalScope}-delete-request`;
+  const importCollectionModalId = `${collectionModalScope}-import`;
+
+  $effect(() => {
+    if (showNewCollectionDialog) {
+      modalStack.open(newCollectionModalId);
+    } else {
+      modalStack.close(newCollectionModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showRenameCollectionDialog) {
+      modalStack.open(renameCollectionModalId);
+    } else {
+      modalStack.close(renameCollectionModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showDeleteConfirmDialog) {
+      modalStack.open(deleteCollectionModalId);
+    } else {
+      modalStack.close(deleteCollectionModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showDeleteRequestConfirmDialog) {
+      modalStack.open(deleteRequestModalId);
+    } else {
+      modalStack.close(deleteRequestModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showImportSelector) {
+      modalStack.open(importCollectionModalId);
+    } else {
+      modalStack.close(importCollectionModalId);
+    }
+  });
 
   let importActiveTab = $state("postman");
 
@@ -407,6 +456,11 @@
   });
   onDestroy(async () => {
     document.removeEventListener("click", clearMenu);
+    modalStack.close(newCollectionModalId);
+    modalStack.close(renameCollectionModalId);
+    modalStack.close(deleteCollectionModalId);
+    modalStack.close(deleteRequestModalId);
+    modalStack.close(importCollectionModalId);
   });
   let collections = $derived($collectionStore.collections);
   let selectedCollectionName = $derived($collectionStore.selectedCollectionName);
@@ -668,6 +722,9 @@
 
 {#if showNewCollectionDialog}
   <Modal bind:open={showNewCollectionDialog} onclose={closeNewCollectionDialog} title="New Collection">
+    {#if $topModalId === newCollectionModalId}
+      <ToastContainer />
+    {/if}
     <div class="dialog">
       <!-- svelte-ignore a11y_autofocus -->
       <input
@@ -686,6 +743,9 @@
 
 {#if showRenameCollectionDialog}
   <Modal bind:open={showRenameCollectionDialog} onclose={closeRenameDialog} title="Rename Collection">
+    {#if $topModalId === renameCollectionModalId}
+      <ToastContainer />
+    {/if}
     <div class="dialog">
       <!-- svelte-ignore a11y_autofocus -->
       <input
@@ -704,6 +764,9 @@
 
 {#if showDeleteConfirmDialog}
   <Modal bind:open={showDeleteConfirmDialog} onclose={closeDeleteConfirmDialog} title="Delete Collection">
+    {#if $topModalId === deleteCollectionModalId}
+      <ToastContainer />
+    {/if}
     <div class="dialog">
       <p>Are you sure you want to delete "{deleteTarget}"?</p>
       <p class="warning">This action cannot be undone.</p>
@@ -719,6 +782,9 @@
     onclose={closeDeleteRequestConfirmDialog}
     title="Delete Request"
   >
+    {#if $topModalId === deleteRequestModalId}
+      <ToastContainer />
+    {/if}
     <div class="dialog">
       <p>Are you sure you want to delete this request?</p>
       <p class="warning">This action cannot be undone.</p>
@@ -731,6 +797,9 @@
 
 {#if showImportSelector}
   <Modal title="Import Collection" bind:open={showImportSelector} size="xl">
+    {#if $topModalId === importCollectionModalId}
+      <ToastContainer />
+    {/if}
     <div class="import-modal-body">
       <Tabs bind:selected={importActiveTab}>
         <TabItem key="postman" title="Postman">

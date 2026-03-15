@@ -1,7 +1,9 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
-  import { onMount } from "svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { onDestroy, onMount } from "svelte";
   import { slide } from "svelte/transition";
 
   interface Props {
@@ -16,11 +18,25 @@
   let selectedCollectionName: string | null = $state(null);
   let showCollectionList = $state(false);
 
+  const saveRequestModalId = `save-request-${Math.random().toString(36).slice(2)}`;
+
+  $effect(() => {
+    if (show) {
+      modalStack.open(saveRequestModalId);
+    } else {
+      modalStack.close(saveRequestModalId);
+    }
+  });
+
   // If a collection is already selected in the sidebar, use it by default
   onMount(() => {
     if ($collectionStore.selectedCollectionName) {
       selectedCollectionName = $collectionStore.selectedCollectionName;
     }
+  });
+
+  onDestroy(() => {
+    modalStack.close(saveRequestModalId);
   });
 
   function handleSave() {
@@ -59,6 +75,9 @@
 {#if show}
   <div class="modal-overlay" role="presentation" onclick={handleOverlayClick}>
     <div class="modal-content" role="dialog" aria-modal="true">
+      {#if $topModalId === saveRequestModalId}
+        <ToastContainer />
+      {/if}
       <header class="modal-header">
         <input
           type="text"

@@ -1,14 +1,32 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { tabStore } from "$src/lib/stores/tabStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { HTTP_METHOD_COLOR_MAP, type MethodSemanticFamily } from "$src/lib/theme/themeModel";
+  import { onDestroy } from "svelte";
 
   let tabs = $derived($tabStore.tabs);
   let activeTabId = $derived($tabStore.activeTabId);
 
   let tabToCloseId: string | null = $state(null);
   let showConfirmClose = $state(false);
+
+  const tabBarModalScope = `tabbar-${Math.random().toString(36).slice(2)}`;
+  const confirmCloseModalId = `${tabBarModalScope}-confirm-close`;
+
+  $effect(() => {
+    if (showConfirmClose) {
+      modalStack.open(confirmCloseModalId);
+    } else {
+      modalStack.close(confirmCloseModalId);
+    }
+  });
+
+  onDestroy(() => {
+    modalStack.close(confirmCloseModalId);
+  });
 
   let tabToClose = $derived(tabs.find((t) => t.id === tabToCloseId));
 
@@ -110,6 +128,9 @@
 
 {#if showConfirmClose}
   <Modal title="Unsaved Changes" bind:open={showConfirmClose}>
+    {#if $topModalId === confirmCloseModalId}
+      <ToastContainer />
+    {/if}
     <div class="confirm-modal-body">
       <p>Do you want to save the changes to <strong>{tabToClose?.label}</strong>?</p>
       <p class="text-gray-500 dark:text-gray-400">
