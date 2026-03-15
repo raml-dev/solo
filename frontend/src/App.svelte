@@ -199,7 +199,9 @@
       <p class="text-gray-500 dark:text-gray-400">
         If you don't save, your changes will be permanently lost.
       </p>
+    </div>
 
+    {#snippet footer()}
       <div class="confirm-modal-actions">
         <Button color="light" onclick={() => ForceQuit()}>Discard and Quit</Button>
         <div class="flex-spacer"></div>
@@ -208,6 +210,6 @@
 
         <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
       </div>
-    </div>
+    {/snippet}
   </Modal>
 {/if}

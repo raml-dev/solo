@@ -201,14 +201,16 @@
       <p class="text-gray-500 dark:text-gray-400">
         Your changes will be lost if you don't save them.
       </p>
+    </div>
 
-      <div class="confirm-modal-actions mt-4 flex items-center gap-2">
+    {#snippet footer()}
+      <div class="confirm-modal-actions flex items-center gap-2 flex-2">
         <Button color="red" onclick={confirmCloseDiscard}>Don't Save</Button>
         <div class="ml-auto flex items-center gap-2">
           <Button color="light" onclick={closeConfirmModal}>Cancel</Button>
           <Button color="primary" onclick={confirmCloseSave}>Save</Button>
         </div>
       </div>
-    </div>
+    {/snippet}
   </Modal>
 {/if}
