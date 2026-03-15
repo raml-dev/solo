@@ -1,11 +1,13 @@
 <script lang="ts">
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Card from "flowbite-svelte/Card.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
 
   interface Props {
     preRequestScript?: string;
     postResponseScript?: string;
-    // Callbacks per notificare il parent dei cambiamenti
     onPreChange?: (val: string) => void;
     onPostChange?: (val: string) => void;
   }
@@ -32,7 +34,6 @@
 </script>
 
 <div class="scripts-panel">
-  <!-- Sidebar -->
   <nav class="scripts-nav">
     <button
       class="script-nav-item"
@@ -56,16 +57,19 @@
       {/if}
     </button>
 
-    <!-- Session vars section -->
-    <div class="session-vars-section">
+    <Card class="session-vars-section p-3">
       <div class="session-vars-header">
         <span class="session-vars-title">Session Vars</span>
         {#if sessionEntries.length > 0}
-          <button
+          <Button
+            color="light"
+            size="xs"
             class="session-vars-clear"
             onclick={() => sessionVarsStore.clear()}
-            title="Clear all session variables">Clear</button
+            title="Clear all session variables"
           >
+            Clear
+          </Button>
         {/if}
       </div>
       {#if sessionEntries.length === 0}
@@ -82,16 +86,15 @@
           {/each}
         </ul>
       {/if}
-    </div>
+    </Card>
   </nav>
 
-  <!-- Editor area -->
-  <div class="scripts-editor">
+  <Card class="scripts-editor p-0">
     <div class="editor-header">
       <span class="editor-title">
         {activeSection === "pre" ? "Pre-request Script" : "Post-response Script"}
       </span>
-      <span class="editor-lang">Lua</span>
+      <Badge color="blue" class="editor-lang">Lua</Badge>
     </div>
 
     <div class="editor-hint">
@@ -107,5 +110,5 @@
         <CodeMirrorEditor value={postResponseScript} language="lua" onChange={onPostChange} />
       </div>
     {/if}
-  </div>
+  </Card>
 </div>

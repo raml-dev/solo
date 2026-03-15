@@ -1,6 +1,7 @@
-<!-- @migration-task Error while migrating Svelte code: can't migrate `let isEditing = false;` to `$state` because there's a variable named state.
-     Rename the variable and try again or migrate by hand. -->
 <script lang="ts">
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
   import { environmentStore, selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
@@ -30,7 +31,6 @@
 
   $effect(() => {
     if (visible && !isEditing) {
-      // Editing always targets the persisted environment value, not the session override.
       editValue = envValue;
     }
   });
@@ -87,16 +87,17 @@
   >
     {#if isEditing}
       <div class="edit-mode">
-        <input
-          bind:this={inputElement}
+        <Input
+          bind:elementRef={inputElement}
           type="text"
+          size="sm"
           bind:value={editValue}
           onkeydown={handleKeydown}
           class="tooltip-input"
         />
-        <div class="edit-actions">
-          <button class="btn-save" onclick={save}>Save</button>
-          <button class="btn-cancel" onclick={() => (isEditing = false)}>Cancel</button>
+        <div class="edit-actions mt-2 flex items-center gap-2">
+          <Button color="primary" size="xs" onclick={save}>Save</Button>
+          <Button color="light" size="xs" onclick={() => (isEditing = false)}>Cancel</Button>
         </div>
       </div>
     {:else}
@@ -106,22 +107,31 @@
             {exists ? displayValue : "Unresolved variable"}
           </span>
           {#if valueSource !== "none"}
-            <span class="source-label" class:session={valueSource === "session"}>
+            <Badge color={valueSource === "session" ? "amber" : "blue"} class="source-label">
               {valueSource}
-            </span>
+            </Badge>
           {/if}
         </div>
-        <button class="edit-btn" onclick={handleEditClick} title="Edit environment value">
+        <Button
+          color="light"
+          size="xs"
+          class="edit-btn"
+          onclick={handleEditClick}
+          title="Edit environment value"
+          aria-label="Edit environment value"
+        >
           ✎
-        </button>
+        </Button>
       </div>
       {#if valueSource === "session"}
-        <div class="session-hint-wrap">
+        <div class="session-hint-wrap mt-2">
           <div class="session-hint">
             Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo
             resta quello di sessione finché non la svuoti.
           </div>
-          <button class="session-clear-btn" onclick={clearSessionOverride}>Use env value</button>
+          <Button color="light" size="xs" class="session-clear-btn mt-2" onclick={clearSessionOverride}
+            >Use env value</Button
+          >
         </div>
       {/if}
     {/if}

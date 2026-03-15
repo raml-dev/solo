@@ -149,7 +149,7 @@
     activeMenu = activeMenu === environmentName ? null : environmentName;
   }
 
-  function handleLayoutClick() {
+  function closeActiveMenu() {
     activeMenu = null;
   }
 
@@ -244,7 +244,9 @@
   }
 </script>
 
-<div class="environment-manager-layout" onclick={handleLayoutClick}>
+<svelte:window onclick={closeActiveMenu} />
+
+<div class="environment-manager-layout">
   <div class="environment-list">
     <div class="header">
       <div class="header-title">

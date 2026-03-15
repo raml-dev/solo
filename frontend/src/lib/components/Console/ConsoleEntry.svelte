@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import type { HistoryEntry } from "$src/lib/stores/historyStore";
 
   interface Props {
@@ -38,20 +40,19 @@
 </script>
 
 <div class="entry" class:expanded>
-  <!-- Summary row -->
   <button class="entry-row" onclick={() => (expanded = !expanded)}>
     <span class="entry-chevron">{expanded ? "▾" : "▸"}</span>
     <span class="entry-time">{formatTime(entry.timestamp)}</span>
-    <span class="badge badge-method {getMethodClass(entry.request.method)}"
-      >{entry.request.method}</span
-    >
+    <Badge color="gray" class={`badge badge-method ${getMethodClass(entry.request.method)}`}>
+      {entry.request.method}
+    </Badge>
 
     {#if entry.error}
-      <span class="badge badge-status status-error">ERR</span>
+      <Badge color="red" class="badge badge-status status-error">ERR</Badge>
     {:else if entry.response}
-      <span class="badge badge-status {getStatusClass(entry.response.status)}"
-        >{entry.response.status}</span
-      >
+      <Badge color="gray" class={`badge badge-status ${getStatusClass(entry.response.status)}`}>
+        {entry.response.status}
+      </Badge>
     {/if}
 
     <span class="entry-url" title={entry.request.url}>{truncateUrl(entry.request.url)}</span>
@@ -67,19 +68,20 @@
     {/if}
   </button>
 
-  <!-- Detail panel -->
   {#if expanded}
     <div class="entry-detail">
-      <div class="detail-tabs">
-        <button
+      <div class="detail-tabs flex items-center gap-2">
+        <Button
+          color={detailTab === "request" ? "primary" : "light"}
+          size="xs"
           class="detail-tab"
-          class:active={detailTab === "request"}
-          onclick={() => (detailTab = "request")}>Request</button
+          onclick={() => (detailTab = "request")}>Request</Button
         >
-        <button
+        <Button
+          color={detailTab === "response" ? "primary" : "light"}
+          size="xs"
           class="detail-tab"
-          class:active={detailTab === "response"}
-          onclick={() => (detailTab = "response")}>Response</button
+          onclick={() => (detailTab = "response")}>Response</Button
         >
       </div>
 

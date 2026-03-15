@@ -1,5 +1,10 @@
 <script lang="ts">
+  import Alert from "flowbite-svelte/Alert.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import Helper from "flowbite-svelte/Helper.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
@@ -22,6 +27,7 @@
   let errorMessage = $state("");
   let branches: string[] = $state([]);
   let selectedBranch = $state("");
+  const branchOptions = $derived(branches.map((branch) => ({ value: branch, name: branch })));
 
   async function handleUrlChange() {
     if (!gitUrl) return;
@@ -84,98 +90,72 @@
   }
 </script>
 
-<div class="git-import-container">
+<div class="space-y-4">
   {#if errorMessage}
-    <div class="error-box">
-      <div class="error-content">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>
-        <span class="error-text">{errorMessage}</span>
-      </div>
-      <button class="dismiss-btn" onclick={() => (errorMessage = "")}>✕</button>
-    </div>
+    <Alert color="red">{errorMessage}</Alert>
   {/if}
 
-  <div class="form-group">
-    <label for="git-url">Repository URL</label>
-    <div class="input-with-button">
-      <input
+  <div class="space-y-2">
+    <Label for="git-url">Repository URL</Label>
+    <div class="flex items-center gap-2">
+      <Input
         id="git-url"
         type="text"
         bind:value={gitUrl}
         onblur={handleUrlChange}
         placeholder="https://github.com/user/repo.git"
-        class="form-input"
         disabled={loading || fetchingBranches}
+        class="flex-1"
       />
       <Button
         color="light"
         size="sm"
+        loading={fetchingBranches}
         disabled={!gitUrl || loading || fetchingBranches}
         onclick={fetchBranches}
       >
-        {fetchingBranches ? "..." : "Fetch Branches"}
+        Fetch Branches
       </Button>
     </div>
   </div>
 
   {#if branches.length > 0}
-    <div class="form-group">
-      <label for="git-branch">Branch</label>
-      <select id="git-branch" bind:value={selectedBranch} class="form-select" disabled={loading}>
-        {#each branches as branch (branch)}
-          <option value={branch}>{branch}</option>
-        {/each}
-      </select>
+    <div class="space-y-2">
+      <Label for="git-branch">Branch</Label>
+      <Select
+        id="git-branch"
+        bind:value={selectedBranch}
+        items={branchOptions}
+        size="sm"
+        disabled={loading}
+      />
     </div>
   {/if}
 
-  <div class="form-group">
-    <label for="remote-path">Remote File Path</label>
-    <input
+  <div class="space-y-2">
+    <Label for="remote-path">Remote File Path</Label>
+    <Input
       id="remote-path"
       type="text"
       bind:value={remotePath}
       placeholder="e.g. environments/dev.json or env.bru"
-      class="form-input"
       disabled={loading}
     />
-    <p class="field-hint">The path to the environment file within the repository.</p>
+    <Helper>The path to the environment file within the repository.</Helper>
   </div>
 
-  <div class="info-box">
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-    >
-      <circle cx="12" cy="12" r="10"></circle>
-      <line x1="12" y1="16" x2="12" y2="12"></line>
-      <line x1="12" y1="8" x2="12.01" y2="8"></line>
-    </svg>
-    <span>Yapla will automatically detect the environment name from the file content.</span>
-  </div>
+  <Alert color="blue">
+    Yapla will automatically detect the environment name from the file content.
+  </Alert>
 
-  <div class="actions">
+  <div class="flex justify-end">
     <Button
       color="primary"
+      loading={loading}
       disabled={!gitUrl || !remotePath || loading || fetchingBranches}
       onclick={handleImport}
     >
-      {loading ? "Importing..." : "Import from Git"}
+      Import from Git
     </Button>
   </div>
 </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Button from "flowbite-svelte/Button.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
   import { debounce } from "$src/lib/utils/debounce";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import { environment } from "$wails/go/models";
@@ -73,44 +75,53 @@
   }
 </script>
 
-<div class="variable-editor">
+<div class="space-y-4">
   {#if env}
-    <div class="editor-header">
-      <h2>{env.name}</h2>
+    <div>
+      <h2 class="text-base font-semibold text-gray-900 dark:text-white">{env.name}</h2>
     </div>
-    <div class="variable-grid">
-      <div class="grid-header">Key</div>
-      <div class="grid-header">Value</div>
-      <div class="grid-header"></div>
+
+    <div class="space-y-2">
+      <div class="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs font-semibold uppercase text-gray-500">
+        <span>Key</span>
+        <span>Value</span>
+        <span class="sr-only">Actions</span>
+      </div>
 
       {#each variables as variable (variable.id)}
-        <input type="text" placeholder="Key" bind:value={variable.key} oninput={debouncedUpdate} />
-        <input
-          type="text"
-          placeholder="Value"
-          bind:value={variable.value}
-          oninput={debouncedUpdate}
-        />
-        <button class="remove-btn" onclick={() => removeVariable(variable.id)}>
-          <svg
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            stroke="currentColor"
-            stroke-width="2"
-            fill="none"
-            stroke-linecap="round"
-            stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg
+        <div class="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+          <Input
+            type="text"
+            size="sm"
+            placeholder="Key"
+            bind:value={variable.key}
+            oninput={debouncedUpdate}
+          />
+          <Input
+            type="text"
+            size="sm"
+            placeholder="Value"
+            bind:value={variable.value}
+            oninput={debouncedUpdate}
+          />
+          <Button
+            color="light"
+            size="xs"
+            aria-label={`Remove variable ${variable.key || "row"}`}
+            onclick={() => removeVariable(variable.id)}
           >
-        </button>
+            ✕
+          </Button>
+        </div>
       {/each}
     </div>
-    <div class="actions">
-      <button class="add-btn" onclick={addVariable}>Add Variable</button>
+
+    <div class="flex justify-end">
+      <Button color="light" size="sm" onclick={addVariable}>Add Variable</Button>
     </div>
   {:else}
-    <div class="no-selection">
-      <p>Select an environment to view its variables.</p>
+    <div class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+      Select an environment to view its variables.
     </div>
   {/if}
 </div>

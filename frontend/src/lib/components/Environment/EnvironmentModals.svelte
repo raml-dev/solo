@@ -1,5 +1,8 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
+  import Helper from "flowbite-svelte/Helper.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
@@ -77,16 +80,23 @@
     {#if $topModalId === newEnvironmentModalId}
       <ToastContainer />
     {/if}
-    <!-- svelte-ignore a11y_autofocus -->
-    <input
-      type="text"
-      bind:value={newEnvironmentName}
-      placeholder="Environment name"
-      onkeydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
-      autofocus
-    />
+    <div class="space-y-2">
+      <Label for="new-environment-name">Environment name</Label>
+      <Input
+        id="new-environment-name"
+        type="text"
+        bind:value={newEnvironmentName}
+        placeholder="Environment name"
+        onkeydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
+        autofocus
+      />
+      <Helper>Use a unique name for the environment.</Helper>
+    </div>
     {#snippet footer()}
-      <Button color="primary" onclick={handleCreateEnvironment}>Create</Button>
+      <Button color="light" onclick={closeNewEnvironmentDialog}>Cancel</Button>
+      <Button color="primary" disabled={!newEnvironmentName.trim()} onclick={handleCreateEnvironment}
+        >Create</Button
+      >
     {/snippet}
   </Modal>
 {/if}
@@ -96,9 +106,12 @@
     {#if $topModalId === deleteEnvironmentModalId}
       <ToastContainer />
     {/if}
-    <p>Are you sure you want to delete "{deleteTarget}"?</p>
-    <p class="warning">This action cannot be undone.</p>
+    <div class="space-y-2">
+      <p>Are you sure you want to delete "{deleteTarget}"?</p>
+      <p class="text-sm text-warning-700 dark:text-warning-300">This action cannot be undone.</p>
+    </div>
     {#snippet footer()}
+      <Button color="light" onclick={closeDeleteConfirmDialog}>Cancel</Button>
       <Button color="red" onclick={confirmDelete}>Delete</Button>
     {/snippet}
   </Modal>

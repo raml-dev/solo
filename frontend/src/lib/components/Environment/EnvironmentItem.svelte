@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "flowbite-svelte/Button.svelte";
   import type { environment } from "$wails/go/models";
 
   interface Props {
@@ -98,7 +99,14 @@
 
   <div class="environment-actions">
     {#if env.gitRemote}
-      <button class="icon-btn" onclick={handleGitStatus} title="Git status & actions">
+      <Button
+        color="light"
+        size="xs"
+        class="icon-btn"
+        onclick={handleGitStatus}
+        title="Git status & actions"
+        aria-label="Git status & actions"
+      >
         <svg
           width="12"
           height="12"
@@ -115,16 +123,18 @@
           <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
           <line x1="12" y1="12" x2="12" y2="15" />
         </svg>
-      </button>
-      <button
+      </Button>
+      <Button
+        color="light"
+        size="xs"
         class="icon-btn"
         onclick={handleSync}
         title="Sync with Git remote"
+        aria-label="Sync with Git remote"
+        loading={isSyncing}
         disabled={isSyncing}
       >
-        {#if isSyncing}
-          <span class="sync-spinner"></span>
-        {:else}
+        {#if !isSyncing}
           <svg
             width="12"
             height="12"
@@ -138,16 +148,25 @@
             ></path>
           </svg>
         {/if}
-      </button>
+      </Button>
     {/if}
-    <button class="icon-btn" onclick={toggleMenu} title="More actions" aria-label="More actions">
+    <Button
+      color="light"
+      size="xs"
+      class="icon-btn"
+      onclick={toggleMenu}
+      title="More actions"
+      aria-label="More actions"
+    >
       ...
-    </button>
+    </Button>
   </div>
 
   {#if menuOpen}
     <div class="environment-menu">
-      <button class="menu-item danger" onclick={handleDeleteEnvironment}> Delete </button>
+      <Button color="red" size="xs" class="menu-item danger" onclick={handleDeleteEnvironment}
+        >Delete</Button
+      >
     </div>
   {/if}
 </div>
