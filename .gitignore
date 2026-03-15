@@ -34,4 +34,5 @@ build/bin
 node_modules
 frontend/dist
 yapla
+.mcp
 .DS_Store

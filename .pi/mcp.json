@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "directTools": true
+  },
+  "imports": ["vscode"],
+  "mcpServers": {
+    "svelte": {
+      "command": "npx",
+      "args": ["-y", "@sveltejs/mcp"]
+    },
+    "flowbite-svelte": {
+      "command": "node",
+      "args": [".mcp/flowbite-svelte-mcp/build/server.js"]
+    }
+  }
+}
