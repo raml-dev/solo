@@ -2,8 +2,8 @@
   import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import Tab from "$src/lib/components/base/Tab.svelte";
-  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
@@ -735,8 +735,8 @@
 {#if showImportSelector}
   <Modal title="Import Collection" bind:open={showImportSelector} size="xl">
     <div class="import-modal-body">
-      <Tabs bind:activeValue={importActiveTab}>
-        <Tab title="Postman" value="postman">
+      <Tabs bind:selected={importActiveTab}>
+        <TabItem key="postman" title="Postman">
           <DropZone
             title="Drop your Postman collection here"
             subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
@@ -768,9 +768,9 @@
               </svg>
             {/snippet}
           </DropZone>
-        </Tab>
+        </TabItem>
 
-        <Tab title="Bruno" value="bruno">
+        <TabItem key="bruno" title="Bruno">
           <DropZone
             title="Drop your Bruno collection folder here"
             subtitle="Supports Bruno collection folders (.bru files)"
@@ -801,11 +801,11 @@
               </svg>
             {/snippet}
           </DropZone>
-        </Tab>
+        </TabItem>
 
-        <Tab title="Git" value="git">
+        <TabItem key="git" title="Git">
           <GitImportView onImported={() => (showImportSelector = false)} />
-        </Tab>
+        </TabItem>
       </Tabs>
     </div>
 

@@ -2,8 +2,8 @@
   import Button from "flowbite-svelte/Button.svelte";
   import Dropdown from "$src/lib/components/base/Dropdown.svelte";
   import EmptyState from "$src/lib/components/base/EmptyState.svelte";
-  import Tab from "$src/lib/components/base/Tab.svelte";
-  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import RequestBody from "$src/lib/components/RequestBuilder/RequestBody.svelte";
   import RequestHeaders from "$src/lib/components/RequestBuilder/RequestHeaders.svelte";
@@ -479,16 +479,21 @@
     </div>
 
     <div class="request-content-bar">
-      <Tabs bind:activeValue={requestPaneTab} variant="minimal">
-        <Tab title="Headers" value="Headers" />
-        <Tab title="Body" value="Body" />
-        <Tab
-          title="Scripts"
-          value="Scripts"
-          badge={preRequestScript.trim() || postResponseScript.trim() ? "●" : undefined}
-        />
-        <Tab title="Settings" value="Settings" />
-        <Tab title="Runner" value="Runner" />
+      <Tabs bind:selected={requestPaneTab} tabStyle="underline" contentClass="hidden">
+        <TabItem key="Headers" title="Headers" />
+        <TabItem key="Body" title="Body" />
+        <TabItem key="Scripts">
+          {#snippet titleSlot()}
+            <span class="inline-flex items-center gap-1">
+              <span>Scripts</span>
+              {#if preRequestScript.trim() || postResponseScript.trim()}
+                <span aria-hidden="true">●</span>
+              {/if}
+            </span>
+          {/snippet}
+        </TabItem>
+        <TabItem key="Settings" title="Settings" />
+        <TabItem key="Runner" title="Runner" />
       </Tabs>
 
       {#if requestPaneTab === "Body"}
@@ -588,9 +593,9 @@
       <div class="resize-handle" class:resizing={isResizing} onmousedown={startResize}></div>
 
       <div class="response-content-bar">
-        <Tabs bind:activeValue={responseTab} variant="minimal">
-          <Tab title="Body" value="body" />
-          <Tab title="Headers" value="headers" />
+        <Tabs bind:selected={responseTab} tabStyle="underline" contentClass="hidden">
+          <TabItem key="body" title="Body" />
+          <TabItem key="headers" title="Headers" />
         </Tabs>
         {#if response}
           <div class="response-meta">
