@@ -71,26 +71,3 @@
     {/snippet}
   </Modal>
 {/if}
-
-<style>
-  .warning {
-    color: var(--text-muted);
-    font-size: var(--font-size-sm);
-    margin-bottom: var(--space-md);
-  }
-
-  input:not([type="checkbox"]) {
-    width: 100%;
-    padding: var(--space-sm);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    color: var(--text);
-    font-size: var(--font-size-md);
-  }
-
-  input:not([type="checkbox"]):focus {
-    outline: none;
-    border-color: var(--primary);
-  }
-</style>

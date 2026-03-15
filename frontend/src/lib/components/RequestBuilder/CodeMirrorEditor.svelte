@@ -255,17 +255,3 @@
 </script>
 
 <div class="editor-container" class:read-only={readOnly} bind:this={editorEl}></div>
-
-<style>
-  .editor-container {
-    height: 100%;
-    width: 100%;
-    overflow: auto;
-  }
-
-  /* In read-only mode hide the cursor line highlight border — it's distracting */
-  .editor-container.read-only :global(.cm-activeLine) {
-    border-top: none !important;
-    border-bottom: none !important;
-  }
-</style>

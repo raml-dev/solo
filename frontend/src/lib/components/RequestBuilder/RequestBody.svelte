@@ -30,13 +30,3 @@
     }}
   />
 </div>
-
-<style>
-  .body-editor-wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: var(--space-md);
-    flex: 1;
-  }
-</style>

@@ -27,10 +27,10 @@
 <div class="app-container">
   <!-- Top Navbar -->
   <nav class="navbar">
-    <div class="flex items-center gap-md">
+    <div class="flex items-center gap-4">
       <h1 class="text-lg font-semibold">{title}</h1>
     </div>
-    <div class="flex items-center gap-sm">
+    <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
       <Button variant="secondary" click={toggleEnvironmentManager}>Environments</Button>
       <Button variant="secondary" click={toggleMainConfiguration}>Settings</Button>
@@ -60,43 +60,3 @@
     <MainConfiguration />
   </Modal>
 {/if}
-
-<style>
-  .app-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--space-md) var(--space-lg);
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border);
-    height: var(--navbar-height);
-    flex-shrink: 0;
-  }
-
-  .main-content {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    width: 100%;
-    min-height: 0;
-  }
-
-  .bottom_bar {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    height: 28px;
-    background: var(--bg-primary);
-    border-top: 1px solid var(--border);
-    padding: 0 var(--space-md);
-    gap: 2px;
-    position: relative; /* anchor for console-panel */
-  }
-</style>
