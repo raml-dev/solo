@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Alert from "flowbite-svelte/Alert.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Select from "flowbite-svelte/Select.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
@@ -389,11 +391,11 @@
     }
   }
 
-  function getStatusClass(status: number): string {
-    if (status >= 200 && status < 300) return "status-success";
-    if (status >= 300 && status < 400) return "status-info";
-    if (status >= 400 && status < 500) return "status-warning";
-    return "status-error";
+  function getStatusBadgeColor(status: number): "green" | "blue" | "yellow" | "red" {
+    if (status >= 200 && status < 300) return "green";
+    if (status >= 300 && status < 400) return "blue";
+    if (status >= 400 && status < 500) return "yellow";
+    return "red";
   }
   // --- Tab switching: ONE-WAY, store → form only ---
   // Reload when active tab changes OR when the same preview tab id is recycled
@@ -421,28 +423,15 @@
       <div class="request-name-container">
         <span class="request-name">{requestName || "New Request"}</span>
         {#if $activeTabState.isDirty}
-          <button
-            class="save-btn"
+          <Button
+            color="light"
+            size="xs"
             onclick={handleSave}
             title="Save Request (Ctrl+S)"
             aria-label="Save Request"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-              <polyline points="17 21 17 13 7 13 7 21"></polyline>
-              <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-            <span>Save</span>
-          </button>
+            Save
+          </Button>
         {/if}
       </div>
     </div>
@@ -471,10 +460,11 @@
         <div class="url-bar-divider"></div>
         <Button
           color="primary"
+          loading={loading}
           onclick={sendRequest}
           disabled={loading}
           style="padding: 0 var(--space-xl); font-weight: var(--font-weight-semibold); align-self: stretch; border-radius: 0 var(--radius-md) var(--radius-md) 0;"
-          >{loading ? "Sending…" : "Send"}</Button
+          >Send</Button
         >
       </div>
     </div>
@@ -500,28 +490,15 @@
       {#if requestPaneTab === "Body"}
         <div class="body-format-selector">
           {#if requestBodyFormat !== "none"}
-            <button
-              class="beautify-btn"
+            <Button
+              color="light"
+              size="xs"
               title="Prettify / Format body"
               onclick={formatBody}
               disabled={requestBodyFormat === "text"}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2 4h12M2 8h8M2 12h10"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-              </svg>
               Beautify
-            </button>
+            </Button>
             <span class="format-separator">|</span>
           {/if}
           <Select
@@ -593,7 +570,13 @@
 
     <!-- Response Section -->
     <div class="response-section" style="height: {responseHeight}px">
-      <div class="resize-handle" class:resizing={isResizing} onmousedown={startResize}></div>
+      <button
+        type="button"
+        class="resize-handle"
+        class:resizing={isResizing}
+        onmousedown={startResize}
+        aria-label="Resize response panel"
+      ></button>
 
       <div class="response-content-bar">
         <Tabs bind:selected={responseTab} tabStyle="underline" contentClass="hidden">
@@ -602,20 +585,21 @@
         </Tabs>
         {#if response}
           <div class="response-meta">
-            <span class="status-badge {getStatusClass(response.status)}">{response.status}</span>
-            <span class="time-badge">{response.time}ms</span>
+            <Badge color={getStatusBadgeColor(response.status)} class="status-badge">
+              {response.status}
+            </Badge>
+            <Badge color="gray" class="time-badge">{response.time}ms</Badge>
           </div>
         {/if}
       </div>
 
       {#if requestError}
-        <div class="response-error">
-          <span class="response-error-icon">✕</span>
+        <Alert color="red" class="response-error">
           <div class="response-error-body">
             <span class="response-error-title">Request failed</span>
             <span class="response-error-detail">{requestError}</span>
           </div>
-        </div>
+        </Alert>
       {:else if response}
         <div class="response-content">
           {#if responseTab === "body"}

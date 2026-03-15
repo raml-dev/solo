@@ -1,5 +1,11 @@
 <script lang="ts">
+  import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import Card from "flowbite-svelte/Card.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Progressbar from "flowbite-svelte/Progressbar.svelte";
+  import Toggle from "flowbite-svelte/Toggle.svelte";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { GetSessionVars, RunParallel } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
@@ -92,7 +98,6 @@
     });
 
     try {
-      // Set up event listener for real-time results
       EventsOn("runner:result", (res: runner.RunnerResult) => {
         lastResults = [res, ...lastResults].slice(0, MAX_VISIBLE_RESULTS);
         progress = Math.min(100, (lastResults.length / iterations) * 100);
@@ -107,10 +112,11 @@
     }
   }
 
-  function getStatusClass(status: number): string {
-    if (status >= 200 && status < 300) return "status-success";
-    if (status >= 400) return "status-error";
-    return "status-info";
+  function getStatusBadgeColor(status: number): "green" | "blue" | "yellow" | "red" {
+    if (status >= 200 && status < 300) return "green";
+    if (status >= 300 && status < 400) return "blue";
+    if (status >= 400 && status < 500) return "yellow";
+    return "red";
   }
 
   onMount(() => {
@@ -120,106 +126,50 @@
   });
 </script>
 
-<div class="runner-container">
-  <div class="runner-config">
+<div class="runner-container space-y-4">
+  <Card class="runner-config p-3">
     <div class="config-group">
-      <label for="concurrency">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg
-        >
-        <span>Concurrency</span>
-      </label>
-      <input
+      <Label for="concurrency">Concurrency</Label>
+      <Input
         id="concurrency"
         type="number"
         bind:value={concurrency}
         min="1"
         max="100"
+        size="sm"
         disabled={running}
         aria-label="Number of parallel workers"
       />
     </div>
 
     <div class="config-group">
-      <label for="iterations">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg
-        >
-        <span>Iterations</span>
-      </label>
-      <input
+      <Label for="iterations">Iterations</Label>
+      <Input
         id="iterations"
         type="number"
         bind:value={iterations}
         min="1"
+        size="sm"
         disabled={running}
         aria-label="Total number of requests to perform"
       />
     </div>
 
-    <div class="config-group checkbox">
-      <label>
-        <input type="checkbox" bind:checked={stopOnError} disabled={running} />
-        <span>Stop on error</span>
-      </label>
+    <div class="config-group checkbox md:pt-6">
+      <Toggle bind:checked={stopOnError} size="small" disabled={running}>Stop on error</Toggle>
     </div>
 
     <div class="flex-spacer"></div>
 
-    <Button color="primary" onclick={startRun} disabled={running}>
-      {#if running}
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="spin"
-          ><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"
-          ></polyline></svg
-        >
-        <span>Running...</span>
-      {:else}
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg
-        >
-        <span>Start Run</span>
-      {/if}
+    <Button color="primary" class="ml-3" onclick={startRun} disabled={running} loading={running}>
+      {running ? "Running..." : "Start Run"}
     </Button>
-  </div>
+  </Card>
 
   {#if running || stats || lastResults.length > 0}
-    <div class="runner-results">
+    <div class="runner-results space-y-3">
       {#if running}
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: {progress}%"></div>
-        </div>
+        <Progressbar progress={progress} size="h-2" color="blue" labelInside={false} />
       {/if}
 
       {#if stats}
@@ -259,11 +209,11 @@
                 <td>{res.index + 1}</td>
                 <td>
                   {#if res.error}
-                    <span class="badge badge-error">ERROR</span>
+                    <Badge color="red">ERROR</Badge>
                   {:else if res.response}
-                    <span class="badge {getStatusClass(res.response.statusCode)}">
+                    <Badge color={getStatusBadgeColor(res.response.statusCode)}>
                       {res.response.statusCode}
-                    </span>
+                    </Badge>
                   {/if}
                 </td>
                 <td>{res.response?.duration ?? "-"} ms</td>
@@ -275,20 +225,9 @@
       </div>
     </div>
   {:else}
-    <div class="empty-runner">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        ><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg
-      >
-      <h3>Parallel Runner</h3>
+    <Card class="empty-runner p-6">
+      <h3 class="text-base font-semibold">Parallel Runner</h3>
       <p>Configure concurrency and iterations to perform load testing on this request.</p>
-    </div>
+    </Card>
   {/if}
 </div>

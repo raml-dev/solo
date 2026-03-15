@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
+  import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { tabStore } from "$src/lib/stores/tabStore";
@@ -15,6 +16,7 @@
 
   const tabBarModalScope = `tabbar-${Math.random().toString(36).slice(2)}`;
   const confirmCloseModalId = `${tabBarModalScope}-confirm-close`;
+
 
   $effect(() => {
     if (showConfirmClose) {
@@ -55,6 +57,54 @@
     return `${base} bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300`;
   }
 
+  function focusTabByIndex(index: number) {
+    if (!tabs.length) return;
+    const normalized = ((index % tabs.length) + tabs.length) % tabs.length;
+    const targetTabId = tabs[normalized]?.id;
+    if (!targetTabId) return;
+    tabStore.setActiveTab(targetTabId);
+    const button = document.querySelector<HTMLButtonElement>(`[data-tab-id="${targetTabId}"]`);
+    button?.focus();
+  }
+
+  function handleTabKeydown(event: KeyboardEvent, index: number, tabId: string) {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      focusTabByIndex(index + 1);
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      focusTabByIndex(index - 1);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusTabByIndex(0);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      focusTabByIndex(tabs.length - 1);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      tabStore.setActiveTab(tabId);
+      return;
+    }
+
+    if (event.key === "Delete") {
+      event.preventDefault();
+      const synthetic = new MouseEvent("click");
+      handleClose(synthetic, tabId);
+    }
+  }
+
   function handleClose(e: MouseEvent, tabId: string) {
     e.stopPropagation();
     const tab = tabs.find((t) => t.id === tabId);
@@ -68,10 +118,6 @@
 
   async function confirmCloseSave() {
     if (tabToCloseId) {
-      // If it's a new unsaved request, we can't save it directly via saveTab
-      // because it needs a collection first. For now, let's just close it or
-      // we could trigger the Save modal from HTTPRequestBuilder.
-      // But tabStore.saveTab handles the existing request case.
       if (tabToClose?.requestId) {
         await tabStore.saveTab(tabToCloseId);
       }
@@ -93,37 +139,56 @@
   }
 </script>
 
-<div class="tab-bar">
-  <div class="tab-list">
-    {#each tabs as tab (tab.id)}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="tab-bar flex items-center gap-2 border-b border-gray-200 px-2 py-1 dark:border-gray-700">
+  <div class="tab-list flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label="Open request tabs">
+    {#each tabs as tab, index (tab.id)}
       <div
-        class="tab"
-        class:active={tab.id === activeTabId}
-        class:preview-tab={tab.isPreview}
-        onclick={() => tabStore.setActiveTab(tab.id)}
-        ondblclick={() => tabStore.fixTab(tab.id)}
-        title={tab.label}
+        class={`tab group inline-flex max-w-xs items-center rounded-md border ${
+          tab.id === activeTabId
+            ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
+            : "border-transparent bg-gray-100/70 hover:bg-gray-200/70 dark:bg-gray-800/60 dark:hover:bg-gray-700/70"
+        } ${tab.isPreview ? "opacity-85 italic" : ""}`}
       >
-        <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
-        <span class="tab-label">{tab.label}</span>
-        {#if tab.isDirty}
-          <span class="dirty-dot" title="Unsaved changes"></span>
-        {/if}
-        <button class="close-btn" onclick={(e) => handleClose(e, tab.id)} aria-label="Close tab"
-          >×</button
+        <button
+          type="button"
+          class="tab-main inline-flex min-w-0 items-center gap-2 px-2 py-1.5 text-sm"
+          role="tab"
+          aria-selected={tab.id === activeTabId}
+          tabindex={tab.id === activeTabId ? 0 : -1}
+          data-tab-id={tab.id}
+          onclick={() => tabStore.setActiveTab(tab.id)}
+          ondblclick={() => tabStore.fixTab(tab.id)}
+          onkeydown={(event) => handleTabKeydown(event, index, tab.id)}
+          title={tab.label}
         >
+          <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
+          <span class="tab-label max-w-48 truncate">{tab.label}</span>
+          {#if tab.isDirty}
+            <span class="dirty-dot h-2 w-2 rounded-full bg-warning-500" title="Unsaved changes"></span>
+          {/if}
+        </button>
+
+        <CloseButton
+          color="none"
+          size="xs"
+          class="close-btn !p-1 opacity-70 transition-opacity hover:opacity-100 group-hover:opacity-100"
+          ariaLabel="Close tab"
+          onclick={(e: MouseEvent) => handleClose(e, tab.id)}
+        />
       </div>
     {/each}
   </div>
 
-  <button
-    class="new-tab-btn"
+  <Button
+    color="light"
+    size="xs"
+    class="new-tab-btn shrink-0"
     onclick={() => tabStore.newEmptyTab()}
     title="New request"
-    aria-label="New request">+</button
+    aria-label="New request"
   >
+    +
+  </Button>
 </div>
 
 {#if showConfirmClose}

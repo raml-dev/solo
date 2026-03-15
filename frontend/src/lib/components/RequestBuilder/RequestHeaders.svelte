@@ -1,5 +1,7 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
+  import Checkbox from "flowbite-svelte/Checkbox.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
   import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
 
@@ -46,37 +48,48 @@
   );
 </script>
 
-<div class="headers-editor">
+<div class="headers-editor space-y-2">
   {#each headers as header (header.id)}
-    <div class="header-row">
-      <input
-        type="checkbox"
-        class="header-checkbox"
-        checked={header.enabled}
-        onchange={() => toggleHeader(header.id)}
-      />
-      <input
+    <div class="header-row flex flex-nowrap items-center gap-2">
+      <div class="shrink-0">
+        <Checkbox
+          checked={header.enabled}
+          onchange={() => toggleHeader(header.id)}
+          aria-label={`Enable header ${header.key || "row"}`}
+        />
+      </div>
+      <Input
         type="text"
-        class="input header-input"
+        size="sm"
+        class="header-input w-40 min-w-0"
         placeholder="Header name"
         bind:value={header.key}
         disabled={!header.enabled}
         oninput={() => onChange?.()}
       />
-      <div class="header-value-wrapper">
+      <div class="header-value-wrapper min-w-0 flex-1">
         <TokenInput
           bind:value={header.value}
           placeholder="Value"
           disabled={!header.enabled}
           {environmentEntries}
-          wrapperClass="input header-input"
+          wrapperClass="input header-input w-full"
           onChange={() => onChange?.()}
         />
       </div>
-      <Button color="light" onclick={() => removeHeader(header.id)} aria-label="Remove header"
-        >×</Button
+      <Button
+        color="light"
+        size="xs"
+        class="shrink-0"
+        onclick={() => removeHeader(header.id)}
+        aria-label="Remove header"
       >
+        ×
+      </Button>
     </div>
   {/each}
-  <button class="btn-add-header" onclick={addHeader}> + Add Header </button>
+
+  <div class="pt-1">
+    <Button color="light" size="sm" onclick={addHeader}>+ Add Header</Button>
+  </div>
 </div>
