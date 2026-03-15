@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
   import Select from "flowbite-svelte/Select.svelte";
-  import EmptyState from "$src/lib/components/base/EmptyState.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
@@ -544,7 +544,7 @@
       {:else if requestPaneTab === "Body"}
         {#key $activeTabState.id}
           {#if requestBodyFormat === "none"}
-            <EmptyState message="This request does not have a body" />
+            <FeedbackEmptyState variant="info" title="This request does not have a body" compact />
           {:else}
             <RequestBody
               bind:requestBody
@@ -638,12 +638,12 @@
           {/if}
         </div>
       {:else}
-        <EmptyState message="Send a request to see the response" />
+        <FeedbackEmptyState title="Send a request to see the response" compact />
       {/if}
     </div>
   </div>
 {:else}
-  <EmptyState message="Open a request from the sidebar or press + to start a new one" />
+  <FeedbackEmptyState title="Open a request from the sidebar or press + to start a new one" />
 {/if}
 
 <SaveRequestModal

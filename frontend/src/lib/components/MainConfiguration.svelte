@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -400,7 +401,11 @@
 
           <div class="hosts-list">
             {#if hostsList.length === 0}
-              <div class="empty-state">No specific host configuration found.</div>
+              <FeedbackEmptyState
+                variant="info"
+                title="No specific host configuration found."
+                compact
+              />
             {:else}
               <div class="table-container">
                 <table class="hosts-table">

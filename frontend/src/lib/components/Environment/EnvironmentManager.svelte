@@ -4,6 +4,7 @@
   import Modal from "flowbite-svelte/Modal.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import EnvironmentEditor from "$src/lib/components/Environment/EnvironmentEditor.svelte";
   import EnvironmentItem from "$src/lib/components/Environment/EnvironmentItem.svelte";
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
@@ -250,10 +251,10 @@
       {/each}
     </div>
     {#if environments.length === 0 && !$environmentStore.loading}
-      <div class="empty-state">
-        <p>No environments yet</p>
-        <p class="hint">Create your first environment to get started</p>
-      </div>
+      <FeedbackEmptyState
+        title="No environments yet"
+        detail="Create your first environment to get started"
+      />
     {/if}
   </div>
   <div class="environment-editor-pane">

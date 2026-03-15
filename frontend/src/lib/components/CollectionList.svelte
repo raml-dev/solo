@@ -4,6 +4,7 @@
   import Modal from "flowbite-svelte/Modal.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
@@ -657,14 +658,10 @@
     </div>
 
     {#if filteredCollections.length === 0 && !$collectionStore.loading}
-      <div class="empty-state">
-        <p>
-          {isSearching ? "No matching collections or requests" : "No collections yet"}
-        </p>
-        {#if !isSearching}
-          <p class="hint">Create your first collection to get started</p>
-        {/if}
-      </div>
+      <FeedbackEmptyState
+        title={isSearching ? "No matching collections or requests" : "No collections yet"}
+        detail={!isSearching ? "Create your first collection to get started" : undefined}
+      />
     {/if}
   {/if}
 </div>
