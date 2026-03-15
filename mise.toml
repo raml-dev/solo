@@ -51,5 +51,5 @@ run = """
 if [ ! -d {{config_root}}/.mcp/flowbite-svelte-mcp ]; then
   git clone https://github.com/shinokada/flowbite-svelte-mcp.git {{config_root}}/.mcp/flowbite-svelte-mcp
 fi
-cd {{config_root}}/.mcp/flowbite-svelte-mcp && pnpm install && pnpm run build && pnpm run copy:llm
+cd {{config_root}}/.mcp/flowbite-svelte-mcp && pnpm install && pnpm run copy:llm && pnpm run build
 """
