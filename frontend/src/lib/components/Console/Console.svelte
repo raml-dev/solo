@@ -1,6 +1,6 @@
 <script lang="ts">
   import ConsoleEntry from "$src/lib/components/Console/ConsoleEntry.svelte";
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
 
   let filterMethod = $state("");
@@ -76,17 +76,17 @@
     <span class="console-count">{filtered.length} / {$historyStore.length}</span>
 
     <Button
-      variant="secondary"
-      size="small"
-      click={handleExport}
+      color="light"
+      size="sm"
+      onclick={handleExport}
       disabled={$historyStore.length === 0}
     >
       Export HAR
     </Button>
     <Button
-      variant="tertiary"
-      size="small"
-      click={() => historyStore.clear()}
+      color="alternative"
+      size="sm"
+      onclick={() => historyStore.clear()}
       disabled={$historyStore.length === 0}
     >
       Clear

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
 
@@ -73,7 +73,9 @@
           onChange={() => onChange?.()}
         />
       </div>
-      <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>
+      <Button color="light" onclick={() => removeHeader(header.id)} aria-label="Remove header"
+        >×</Button
+      >
     </div>
   {/each}
   <button class="btn-add-header" onclick={addHeader}> + Add Header </button>

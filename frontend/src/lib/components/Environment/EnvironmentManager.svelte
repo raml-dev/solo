@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
   import Tab from "$src/lib/components/base/Tab.svelte";
@@ -220,8 +220,8 @@
     <div class="header">
       <div class="header-title">
         <div class="header-actions">
-          <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
-          <Button variant="primary" size="small" click={() => (showNewEnvironmentDialog = true)}>
+          <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
+          <Button color="primary" size="sm" onclick={() => (showNewEnvironmentDialog = true)}>
             New
           </Button>
         </div>
@@ -348,11 +348,11 @@
 
     {#snippet additional_buttons()}
       {#if importActiveTab === "postman"}
-        <Button variant="primary" click={() => handleSelectImportFormat("postman")}
+        <Button color="primary" onclick={() => handleSelectImportFormat("postman")}
           >Select file…</Button
         >
       {:else if importActiveTab === "bruno"}
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}
+        <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
           >Select file…</Button
         >
       {/if}
@@ -366,7 +366,7 @@
     <p>Environment "{overwriteTargetName}" already exists.</p>
     <p class="warning">Do you want to overwrite it?</p>
     {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmOverwrite}>Overwrite</Button>
+      <Button color="red" onclick={confirmOverwrite}>Overwrite</Button>
     {/snippet}
   </Modal>
 {/if}

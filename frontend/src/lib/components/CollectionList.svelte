@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
   import Tab from "$src/lib/components/base/Tab.svelte";
@@ -433,13 +433,13 @@
       {/if}
       <div class="header-actions">
         {#if !isCollapsed}
-          <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
-          <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
+          <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
+          <Button color="primary" size="sm" onclick={() => (showNewCollectionDialog = true)}>
             New
           </Button>
         {/if}
         <span title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-          <Button variant="secondary" click={toggleCollapse}>
+          <Button color="light" onclick={toggleCollapse}>
             {isCollapsed ? ">" : "<"}
           </Button>
         </span>
@@ -683,7 +683,7 @@
       />
     </div>
     {#snippet additional_buttons()}
-      <Button variant="primary" click={handleCreateCollection}>Create</Button>
+      <Button color="primary" onclick={handleCreateCollection}>Create</Button>
     {/snippet}
   </Modal>
 {/if}
@@ -702,7 +702,7 @@
       />
     </div>
     {#snippet additional_buttons()}
-      <Button variant="primary" click={handleRenameCollection}>Save</Button>
+      <Button color="primary" onclick={handleRenameCollection}>Save</Button>
     {/snippet}
   </Modal>
 {/if}
@@ -715,7 +715,7 @@
       <p class="warning">This action cannot be undone.</p>
     </div>
     {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmDelete}>Delete</Button>
+      <Button color="red" onclick={confirmDelete}>Delete</Button>
     {/snippet}
   </Modal>
 {/if}
@@ -727,7 +727,7 @@
       <p class="warning">This action cannot be undone.</p>
     </div>
     {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmDeleteRequest}>Delete</Button>
+      <Button color="red" onclick={confirmDeleteRequest}>Delete</Button>
     {/snippet}
   </Modal>
 {/if}
@@ -811,11 +811,11 @@
 
     {#snippet additional_buttons()}
       {#if importActiveTab === "postman"}
-        <Button variant="primary" click={() => handleSelectImportFormat("postman")}>
+        <Button color="primary" onclick={() => handleSelectImportFormat("postman")}>
           Select file…
         </Button>
       {:else if importActiveTab === "bruno"}
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>
+        <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}>
           Select folder…
         </Button>
       {/if}

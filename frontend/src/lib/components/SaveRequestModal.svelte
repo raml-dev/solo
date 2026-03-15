@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { onMount } from "svelte";
   import { slide } from "svelte/transition";
@@ -89,7 +89,7 @@
             <p class="drop-zone-subtitle">
               Select a collection to organize and share your request.
             </p>
-            <Button variant="secondary" click={() => (showCollectionList = !showCollectionList)}>
+            <Button color="light" onclick={() => (showCollectionList = !showCollectionList)}>
               Choose Collection
             </Button>
           </div>
@@ -124,7 +124,7 @@
       </div>
 
       <footer class="modal-footer">
-        <Button variant="tertiary" click={handleCancel}>Cancel</Button>
+        <Button color="alternative" onclick={handleCancel}>Cancel</Button>
       </footer>
     </div>
   </div>

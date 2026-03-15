@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { onMount } from "svelte";
 
@@ -327,13 +327,13 @@
           <div class="confirm-box">
             <span>⚠ This will permanently discard all local uncommitted changes. Continue?</span>
             <div class="confirm-actions">
-              <Button variant="danger" size="sm" click={handleDiscard} disabled={actionInProgress}
+              <Button color="red" size="sm" onclick={handleDiscard} disabled={actionInProgress}
                 >Yes, discard</Button
               >
               <Button
-                variant="secondary"
+                color="light"
                 size="sm"
-                click={() => (showDiscardConfirm = false)}
+                onclick={() => (showDiscardConfirm = false)}
                 disabled={actionInProgress}>Cancel</Button
               >
             </div>
@@ -347,45 +347,45 @@
       <div class="actions-left">
         {#if status?.isRebaseInProgress || status?.hasConflicts}
           <Button
-            variant="primary"
+            color="primary"
             size="sm"
             disabled={actionInProgress || !status}
-            click={handleKeepOurs}>Keep Ours</Button
+            onclick={handleKeepOurs}>Keep Ours</Button
           >
           <Button
-            variant="secondary"
+            color="light"
             size="sm"
             disabled={actionInProgress || !status}
-            click={handleKeepTheirs}>Keep Theirs</Button
+            onclick={handleKeepTheirs}>Keep Theirs</Button
           >
           <Button
-            variant="danger"
+            color="red"
             size="sm"
             disabled={actionInProgress || !status}
-            click={handleAbortRebase}>Abort Rebase</Button
+            onclick={handleAbortRebase}>Abort Rebase</Button
           >
         {:else}
           <Button
-            variant="primary"
+            color="primary"
             size="sm"
             disabled={actionInProgress || loading || !status}
-            click={handleSync}
+            onclick={handleSync}
           >
             {actionInProgress ? "Syncing…" : "↺ Sync"}
           </Button>
           {#if status?.isDirty}
             <Button
-              variant="danger"
+              color="red"
               size="sm"
               disabled={actionInProgress || !status}
-              click={() => (showDiscardConfirm = true)}
+              onclick={() => (showDiscardConfirm = true)}
             >
               Discard Changes
             </Button>
           {/if}
         {/if}
       </div>
-      <Button variant="secondary" size="sm" click={() => onClose?.()}>Close</Button>
+      <Button color="light" size="sm" onclick={() => onClose?.()}>Close</Button>
     </footer>
   </div>
 </div>

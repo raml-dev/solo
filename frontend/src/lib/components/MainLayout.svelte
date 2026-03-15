@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
@@ -32,9 +32,9 @@
     </div>
     <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
-      <Button variant="secondary" click={toggleEnvironmentManager}>Environments</Button>
-      <Button variant="secondary" click={toggleMainConfiguration}>Settings</Button>
-      <Button variant="secondary" click={() => {}}>Help</Button>
+      <Button color="light" onclick={toggleEnvironmentManager}>Environments</Button>
+      <Button color="light" onclick={toggleMainConfiguration}>Settings</Button>
+      <Button color="light" onclick={() => {}}>Help</Button>
     </div>
   </nav>
 

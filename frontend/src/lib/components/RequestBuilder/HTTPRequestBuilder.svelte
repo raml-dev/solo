@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import Dropdown from "$src/lib/components/base/Dropdown.svelte";
   import EmptyState from "$src/lib/components/base/EmptyState.svelte";
   import Tab from "$src/lib/components/base/Tab.svelte";
@@ -469,10 +469,9 @@
         />
         <div class="url-bar-divider"></div>
         <Button
-          variant="primary"
-          click={sendRequest}
+          color="primary"
+          onclick={sendRequest}
           disabled={loading}
-          square
           style="padding: 0 var(--space-xl); font-weight: var(--font-weight-semibold); align-self: stretch; border-radius: 0 var(--radius-md) var(--radius-md) 0;"
           >{loading ? "Sending…" : "Send"}</Button
         >

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
 
   interface Props {
@@ -56,7 +56,7 @@
       autofocus
     />
     {#snippet additional_buttons()}
-      <Button variant="primary" click={handleCreateEnvironment}>Create</Button>
+      <Button color="primary" onclick={handleCreateEnvironment}>Create</Button>
     {/snippet}
   </Modal>
 {/if}
@@ -67,7 +67,7 @@
     <p>Are you sure you want to delete "{deleteTarget}"?</p>
     <p class="warning">This action cannot be undone.</p>
     {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmDelete}>Delete</Button>
+      <Button color="red" onclick={confirmDelete}>Delete</Button>
     {/snippet}
   </Modal>
 {/if}

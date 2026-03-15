@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
   import { tabStore } from "$src/lib/stores/tabStore";
   import { HTTP_METHOD_COLOR_MAP, type MethodSemanticFamily } from "$src/lib/theme/themeModel";
@@ -117,10 +117,10 @@
       </p>
 
       <div class="confirm-modal-actions">
-        <Button variant="secondary" click={confirmCloseDiscard}>Don't Save</Button>
+        <Button color="light" onclick={confirmCloseDiscard}>Don't Save</Button>
         <div class="flex-spacer"></div>
-        <Button variant="secondary" click={closeConfirmModal}>Cancel</Button>
-        <Button variant="primary" click={confirmCloseSave}>Save</Button>
+        <Button color="light" onclick={closeConfirmModal}>Cancel</Button>
+        <Button color="primary" onclick={confirmCloseSave}>Save</Button>
       </div>
     </div>
   </Modal>

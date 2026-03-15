@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { GetSessionVars, RunParallel } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
@@ -182,7 +182,7 @@
 
     <div class="flex-spacer"></div>
 
-    <Button variant="primary" click={startRun} disabled={running}>
+    <Button color="primary" onclick={startRun} disabled={running}>
       {#if running}
         <svg
           width="16"

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
@@ -119,10 +119,10 @@
         disabled={loading || fetchingBranches}
       />
       <Button
-        variant="secondary"
+        color="light"
         size="sm"
         disabled={!gitUrl || loading || fetchingBranches}
-        click={fetchBranches}
+        onclick={fetchBranches}
       >
         {fetchingBranches ? "..." : "Fetch Branches"}
       </Button>
@@ -171,9 +171,9 @@
 
   <div class="actions">
     <Button
-      variant="primary"
+      color="primary"
       disabled={!gitUrl || !remotePath || loading || fetchingBranches}
-      click={handleImport}
+      onclick={handleImport}
     >
       {loading ? "Importing..." : "Import from Git"}
     </Button>

@@ -4,7 +4,7 @@
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import Modal from "$src/lib/components/base/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
@@ -183,12 +183,12 @@
       </p>
 
       <div class="confirm-modal-actions">
-        <Button variant="secondary" click={() => ForceQuit()}>Discard and Quit</Button>
+        <Button color="light" onclick={() => ForceQuit()}>Discard and Quit</Button>
         <div class="flex-spacer"></div>
 
-        <Button variant="secondary" click={() => (showGlobalUnsavedModal = false)}>Cancel</Button>
+        <Button color="light" onclick={() => (showGlobalUnsavedModal = false)}>Cancel</Button>
 
-        <Button variant="primary" click={handleSaveAllAndQuit}>Save All and Quit</Button>
+        <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
       </div>
     </div>
   </Modal>

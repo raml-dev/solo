@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { SaveCustomTheme } from "$wails/go/main/App";
@@ -82,7 +82,7 @@
 <div class="customizer">
   <div class="customizer-header">
     <h3 class="text-lg font-semibold">Customize Theme</h3>
-    <Button variant="primary" click={close}>×</Button>
+    <Button color="primary" onclick={close} aria-label="Close theme customizer">×</Button>
   </div>
 
   <div class="customizer-content">
@@ -102,7 +102,7 @@
   </div>
 
   <div class="customizer-footer">
-    <Button variant="secondary" click={close}>Cancel</Button>
-    <Button variant="primary" click={saveTheme}>Save Theme</Button>
+    <Button color="light" onclick={close}>Cancel</Button>
+    <Button color="primary" onclick={saveTheme}>Save Theme</Button>
   </div>
 </div>
