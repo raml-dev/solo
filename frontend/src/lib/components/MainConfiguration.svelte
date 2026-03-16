@@ -205,6 +205,7 @@
 
   let hostsList: host.Host[] = $state([]);
   let editingHost: host.Host | null = $state(null);
+  let editingHostName = $state("");
   let editingCookies: HostCookieRow[] = $state([]);
 
   // Delete confirm modal
@@ -238,12 +239,14 @@
     });
     newHost.cookies = {};
     editingHost = newHost;
+    editingHostName = "";
     editingCookies = [];
   }
 
   function editExistingHost(h: host.Host) {
     editingHost = JSON.parse(JSON.stringify(h)) as host.Host;
     if (!editingHost.cookies) editingHost.cookies = {};
+    editingHostName = editingHost.name ?? "";
     const cookieRecord = Object.fromEntries(
       Object.entries(editingHost.cookies).map(([key, value]) => [key, String(value ?? "")])
     );
@@ -273,8 +276,9 @@
   }
 
   async function handleSaveHost() {
-    if (!editingHost || !editingHost.name) return;
+    if (!editingHost || !editingHostName.trim()) return;
     try {
+      editingHost.name = editingHostName.trim();
       // Map cookie array back to object
       const cookieMap: Record<string, string> = {};
       editingCookies.forEach((c) => {
@@ -285,6 +289,7 @@
       await UpsertHost(editingHost);
       await fetchHosts();
       editingHost = null;
+      editingHostName = "";
       notifications.success("Host configuration saved");
     } catch (err) {
       notifications.error("Failed to save host", String(err));
@@ -523,7 +528,7 @@
           <!-- Host edit form -->
           <div class="flex flex-col gap-4">
             <h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-              {editingHost.name ? "Edit Host" : "New Host"}
+              {editingHostName ? "Edit Host" : "New Host"}
             </h3>
 
             <div class="flex flex-col gap-1">
@@ -532,7 +537,7 @@
                 id="h-name"
                 type="text"
                 size="sm"
-                bind:value={editingHost.name}
+                bind:value={editingHostName}
                 placeholder="Hostname"
               />
             </div>
@@ -649,7 +654,7 @@
               class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700"
             >
               <Button color="light" onclick={() => (editingHost = null)}>Cancel</Button>
-              <Button color="primary" onclick={handleSaveHost} disabled={!editingHost.name}>
+              <Button color="primary" onclick={handleSaveHost} disabled={!editingHostName.trim()}>
                 Save Host
               </Button>
             </div>
