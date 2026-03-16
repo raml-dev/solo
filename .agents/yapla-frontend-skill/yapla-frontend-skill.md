@@ -59,7 +59,7 @@ After calling the list-sections tool, you MUST analyze the returned documentatio
 ##### 3. svelte-autofixer
 
 Analyzes Svelte code and returns issues and suggestions.
-You MUST use this tool whenever writing Svelte code before sending it to the user. Keep calling it until no issues or suggestions are returned.
+You MUST use this tool whenever writing Svelte code before sending it to the user. It will return suggestions to implement best practices. Think about those suggestions and decide if it's appropriate to implement them in the current context. If you decide to NOT implement a suggestion, provide an explanation to the user. Otherwise, implement the suggested fix and call this tool again.
 
 ##### 4. playground-link
 
