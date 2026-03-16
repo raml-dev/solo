@@ -71,7 +71,7 @@
   </div>
 
   <!-- Bottom Bar (always visible) -->
-  <div class="shrink-0">
+  <div class="w-full shrink-0">
     {@render bottom_bar?.()}
   </div>
 </div>
@@ -86,7 +86,7 @@
 {/if}
 
 {#if showMainConfiguration}
-  <Modal title="Settings" bind:open={showMainConfiguration} size="xl">
+  <Modal title="Settings" bind:open={showMainConfiguration} size="xl" bodyClass="h-[600px] overflow-hidden p-4">
     {#if $topModalId === settingsModalId}
       <ToastContainer />
     {/if}

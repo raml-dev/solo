@@ -139,7 +139,7 @@
 </script>
 
 <div
-  class="tab-bar flex items-center gap-2 border-b border-gray-200 px-2 py-1 dark:border-gray-700"
+  class="tab-bar flex items-center gap-2 border-b border-neutral-200 px-2 py-1 dark:border-neutral-700"
 >
   <div
     class="tab-list flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
@@ -151,7 +151,7 @@
         class={`tab group inline-flex max-w-xs items-center rounded-md border ${
           tab.id === activeTabId
             ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
-            : "border-transparent bg-gray-100/70 hover:bg-gray-200/70 dark:bg-gray-800/60 dark:hover:bg-gray-700/70"
+            : "border-transparent bg-neutral-100/70 hover:bg-neutral-200/70 dark:bg-neutral-800/60 dark:hover:bg-neutral-700/70"
         } ${tab.isPreview ? "italic opacity-85" : ""}`}
       >
         <button
@@ -204,7 +204,7 @@
     {/if}
     <div class="confirm-modal-body">
       <p>Do you want to save the changes to <strong>{tabToClose?.label}</strong>?</p>
-      <p class="text-gray-500 dark:text-gray-400">
+      <p class="text-neutral-500 dark:text-neutral-400">
         Your changes will be lost if you don't save them.
       </p>
     </div>

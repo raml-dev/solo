@@ -1,7 +1,7 @@
 <script lang="ts">
+  import type { HistoryEntry } from "$src/lib/stores/historyStore";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import type { HistoryEntry } from "$src/lib/stores/historyStore";
 
   interface Props {
     entry: HistoryEntry;
@@ -43,7 +43,7 @@
   <button class="entry-row" onclick={() => (expanded = !expanded)}>
     <span class="entry-chevron">{expanded ? "▾" : "▸"}</span>
     <span class="entry-time">{formatTime(entry.timestamp)}</span>
-    <Badge color="gray" class={`badge badge-method ${getMethodClass(entry.request.method)}`}>
+    <Badge color="red" class={`badge badge-method ${getMethodClass(entry.request.method)}`}>
       {entry.request.method}
     </Badge>
 

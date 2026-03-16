@@ -1,14 +1,8 @@
 <script lang="ts">
-  import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
-  import Input from "flowbite-svelte/Input.svelte";
-  import Label from "flowbite-svelte/Label.svelte";
-  import Modal from "flowbite-svelte/Modal.svelte";
-  import TabItem from "flowbite-svelte/TabItem.svelte";
-  import Tabs from "flowbite-svelte/Tabs.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
@@ -28,6 +22,12 @@
     SyncGitCollection
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -359,12 +359,15 @@
 
   function getMethodClass(method: string): string {
     const m = method.toUpperCase();
-    if (m === "GET") return "bg-success-100 text-success-700 dark:bg-success-900/50 dark:text-success-300";
-    if (m === "POST") return "bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300";
+    if (m === "GET")
+      return "bg-success-100 text-success-700 dark:bg-success-900/50 dark:text-success-300";
+    if (m === "POST")
+      return "bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300";
     if (m === "PUT" || m === "PATCH") {
       return "bg-warning-100 text-warning-700 dark:bg-warning-900/50 dark:text-warning-300";
     }
-    if (m === "DELETE") return "bg-danger-100 text-danger-700 dark:bg-danger-900/50 dark:text-danger-300";
+    if (m === "DELETE")
+      return "bg-danger-100 text-danger-700 dark:bg-danger-900/50 dark:text-danger-300";
     return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   }
 
@@ -473,7 +476,6 @@
     modalStack.close(importCollectionModalId);
   });
   let collections = $derived($collectionStore.collections);
-  let selectedCollectionName = $derived($collectionStore.selectedCollectionName);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
   let selectedRequestId = $derived(
     $tabStore.tabs.find((t) => t.id === $tabStore.activeTabId)?.requestId ?? null
@@ -490,7 +492,10 @@
   class:collapsed={isCollapsed}
   style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
 >
-  <div class="absolute right-0 top-0 z-20 h-full w-1 cursor-col-resize" onmousedown={startResize}></div>
+  <div
+    class="absolute top-0 right-0 z-20 h-full w-1 cursor-col-resize"
+    onmousedown={startResize}
+  ></div>
 
   <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
     <div class="mb-2 flex items-center justify-between gap-2">
@@ -521,7 +526,12 @@
           bind:value={searchQuery}
         />
         {#if searchQuery}
-          <Button color="light" size="sm" onclick={() => (searchQuery = "")} aria-label="Clear search">
+          <Button
+            color="light"
+            size="sm"
+            onclick={() => (searchQuery = "")}
+            aria-label="Clear search"
+          >
             Clear
           </Button>
         {/if}
@@ -539,9 +549,6 @@
         {#each filteredCollections as collection (collection.id)}
           <div
             class="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/40"
-            class:ring-1={selectedCollectionName === collection.name}
-            class:ring-primary-400={selectedCollectionName === collection.name}
-            class:ring-offset-0={selectedCollectionName === collection.name}
           >
             <div
               class="relative flex items-center gap-2 px-2 py-2"
@@ -589,7 +596,9 @@
                   <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
                     {collection.name}
                   </span>
-                  <span class="rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
+                  <span
+                    class="rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+                  >
                     {collection.requests?.length || 0}
                   </span>
                 </div>
@@ -646,7 +655,7 @@
 
               {#if activeMenu === collection.name}
                 <div
-                  class="absolute right-2 top-10 z-10 w-36 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+                  class="absolute top-10 right-2 z-10 w-36 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
                 >
                   <button
                     class="block w-full rounded px-2 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
@@ -671,7 +680,9 @@
             </div>
 
             {#if isExpanded(collection.name)}
-              <div class="space-y-1 border-t border-neutral-200 px-2 pb-2 pt-1 dark:border-neutral-700">
+              <div
+                class="space-y-1 border-t border-neutral-200 px-2 pt-1 pb-2 dark:border-neutral-700"
+              >
                 {#if getVisibleRequests(collection, normalizedQuery).length === 0}
                   <div class="px-1 py-2 text-xs text-neutral-500 dark:text-neutral-400">
                     {isSearching ? "No matching requests" : "No requests yet"}
@@ -691,7 +702,9 @@
                       >
                         {request.verb}
                       </span>
-                      <span class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100">
+                      <span
+                        class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
+                      >
                         {request.name}
                       </span>
                       <Button
@@ -815,7 +828,9 @@
       <ToastContainer />
     {/if}
     <div class="space-y-2 text-sm">
-      <p class="text-neutral-700 dark:text-neutral-200">Are you sure you want to delete this request?</p>
+      <p class="text-neutral-700 dark:text-neutral-200">
+        Are you sure you want to delete this request?
+      </p>
       <p class="text-danger-600 dark:text-danger-300">This action cannot be undone.</p>
     </div>
     {#snippet footer()}
@@ -831,7 +846,7 @@
     {#if $topModalId === importCollectionModalId}
       <ToastContainer />
     {/if}
-    <div class="import-modal-body">
+    <div class="flex flex-col gap-4">
       <Tabs bind:selected={importActiveTab}>
         <TabItem key="postman" title="Postman">
           <DropZone

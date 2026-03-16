@@ -1,14 +1,10 @@
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionList from "$src/lib/components/CollectionList.svelte";
   import Console from "$src/lib/components/Console/Console.svelte";
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
-  import Badge from "flowbite-svelte/Badge.svelte";
-  import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "flowbite-svelte/Modal.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { environmentStore } from "$src/lib/stores/environmentStore";
@@ -17,6 +13,10 @@
   import { activeTab, tabStore } from "$src/lib/stores/tabStore";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
+  import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import { onMount } from "svelte";
 
   let consoleOpen = $state(false);
@@ -155,24 +155,27 @@
           class:bg-primary-500={isResizing}
           onmousedown={startResize}
         ></div>
-        <Console />
+        <div class="min-h-0 flex-1 overflow-hidden">
+          <Console />
+        </div>
       </div>
     {/if}
 
     <!-- Status bar -->
-    <div class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900">
-      <Button
-        size="xs"
-        color={consoleOpen ? "primary" : "light"}
+    <div
+      class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
+    >
+      <button
+        type="button"
         onclick={toggleConsole}
-        class="flex items-center gap-1.5"
+        class="flex items-center gap-1.5 px-2 py-1 text-xs {consoleOpen ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-400'} hover:text-neutral-900 dark:hover:text-neutral-100"
       >
         <TerminalOutline size="xs" />
         Console
         {#if $historyStore.length > 0}
           <Badge color="primary">{$historyStore.length}</Badge>
         {/if}
-      </Button>
+      </button>
     </div>
   {/snippet}
 </MainLayout>

@@ -1,9 +1,10 @@
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
-  import { notifications } from "$src/lib/stores/notificationStore";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import { debounce } from "$src/lib/utils/debounce";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
@@ -15,13 +16,14 @@
   } from "$wails/go/main/App";
   import type { theme } from "$wails/go/models";
   import { configuration, host } from "$wails/go/models";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Helper from "flowbite-svelte/Helper.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
+  import Radio from "flowbite-svelte/Radio.svelte";
   import Table from "flowbite-svelte/Table.svelte";
   import TableBody from "flowbite-svelte/TableBody.svelte";
   import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
@@ -29,12 +31,11 @@
   import TableHead from "flowbite-svelte/TableHead.svelte";
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
   import { onMount } from "svelte";
 
   // --- Nav ---
   type SettingsSection = "general" | "themes" | "hosts";
-  let activeSection: SettingsSection = $state("themes");
+  let activeSection: SettingsSection = $state("general");
 
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
@@ -55,11 +56,13 @@
 
   // --- Theme UI state ---
   let activeThemeId = $state("");
+  let selectedThemeMode = $state("system");
 
   let initialized = $state(false);
   $effect(() => {
     if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
       activeThemeId = $config.general.activeTheme;
+      selectedThemeMode = $config.general.themeMode || "system";
       initialized = true;
     }
   });
@@ -98,6 +101,7 @@
 
   function toSignature(cfg: configuration.Configuration): string {
     return JSON.stringify({
+      themeMode: cfg.general?.themeMode ?? "light",
       checkForUpdates: cfg.general?.checkForUpdates ?? false,
       request: {
         timeoutSeconds: cfg.request?.timeoutSeconds ?? 0,
@@ -158,6 +162,7 @@
       if (!current.request) current.request = new configuration.RequestSettings();
 
       current.general.checkForUpdates = editableConfig.general.checkForUpdates;
+      current.general.themeMode = editableConfig.general.themeMode;
       current.request = new configuration.RequestSettings({
         ...editableConfig.request,
         timeoutSeconds,
@@ -183,6 +188,16 @@
   const debouncedSave = debounce(persistRequestSettings, 800);
   $effect(() => {
     if (editableConfig.request || editableConfig.general) debouncedSave();
+  });
+
+  $effect(() => {
+    if (!initialized) return;
+    configurationStore.applyThemeMode(selectedThemeMode);
+    editableConfig.general = new configuration.GeneralSettings({
+      ...editableConfig.general,
+      themeMode: selectedThemeMode
+    });
+    void persistRequestSettings();
   });
 
   // --- Hosts ---
@@ -315,15 +330,25 @@
 
   <!-- Content -->
   <div class="min-w-0 flex-1 overflow-y-auto">
-
     {#if activeSection === "themes"}
       <div class="flex flex-col gap-4">
         <div>
           <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">Themes</h2>
           <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Personalize your experience with themes that match your style. Manually select a theme or
-            sync with system settings and let the machine set your day and night themes.
+            Personalize your experience with themes that match your style.
           </p>
+        </div>
+
+        <!-- Display mode selector -->
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Display mode</p>
+          <div class="flex gap-4">
+            {#each [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }] as mode (mode.value)}
+              <Radio name="themeMode" bind:group={selectedThemeMode} value={mode.value}
+                >{mode.label}</Radio
+              >
+            {/each}
+          </div>
         </div>
 
         <div class="grid grid-cols-3 gap-3">
@@ -350,7 +375,6 @@
           {/each}
         </div>
       </div>
-
     {:else if activeSection === "general"}
       <div class="flex flex-col gap-5">
         <div>
@@ -436,7 +460,6 @@
           <Helper color="green">Saved</Helper>
         {/if}
       </div>
-
     {:else if activeSection === "hosts"}
       <div class="flex flex-col gap-4">
         <div>
@@ -452,7 +475,11 @@
           </div>
 
           {#if hostsList.length === 0}
-            <FeedbackEmptyState variant="info" title="No specific host configuration found." compact />
+            <FeedbackEmptyState
+              variant="info"
+              title="No specific host configuration found."
+              compact
+            />
           {:else}
             <Table>
               <TableHead>
@@ -492,7 +519,6 @@
               </TableBody>
             </Table>
           {/if}
-
         {:else}
           <!-- Host edit form -->
           <div class="flex flex-col gap-4">
@@ -516,7 +542,9 @@
             </Toggle>
 
             {#if editingHost.tlsConfig.enabled}
-              <div class="flex flex-col gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+              <div
+                class="flex flex-col gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+              >
                 <div class="flex flex-col gap-1">
                   <Toggle bind:checked={editingHost.tlsConfig.insecureSkipVerify}>
                     Insecure Skip Verify
@@ -534,7 +562,11 @@
                       readonly
                       class="flex-1"
                     />
-                    <Button size="sm" color="light" onclick={() => pickCertFile("publicCertificateFilePath")}>
+                    <Button
+                      size="sm"
+                      color="light"
+                      onclick={() => pickCertFile("publicCertificateFilePath")}
+                    >
                       Browse
                     </Button>
                   </div>
@@ -550,7 +582,11 @@
                       readonly
                       class="flex-1"
                     />
-                    <Button size="sm" color="light" onclick={() => pickCertFile("privateKeyFilePath")}>
+                    <Button
+                      size="sm"
+                      color="light"
+                      onclick={() => pickCertFile("privateKeyFilePath")}
+                    >
                       Browse
                     </Button>
                   </div>
@@ -566,7 +602,11 @@
                       readonly
                       class="flex-1"
                     />
-                    <Button size="sm" color="light" onclick={() => pickCertFile("caCertificateFilePath")}>
+                    <Button
+                      size="sm"
+                      color="light"
+                      onclick={() => pickCertFile("caCertificateFilePath")}
+                    >
                       Browse
                     </Button>
                   </div>
@@ -582,7 +622,12 @@
               <div class="flex flex-col gap-2">
                 {#each editingCookies as cookie (cookie.id)}
                   <div class="flex items-center gap-2">
-                    <Input size="sm" bind:value={cookie.key} placeholder="Cookie Name" class="flex-1" />
+                    <Input
+                      size="sm"
+                      bind:value={cookie.key}
+                      placeholder="Cookie Name"
+                      class="flex-1"
+                    />
                     <Input size="sm" bind:value={cookie.value} placeholder="Value" class="flex-1" />
                     <Button
                       size="xs"
@@ -600,7 +645,9 @@
               </div>
             </div>
 
-            <div class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700">
+            <div
+              class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700"
+            >
               <Button color="light" onclick={() => (editingHost = null)}>Cancel</Button>
               <Button color="primary" onclick={handleSaveHost} disabled={!editingHost.name}>
                 Save Host

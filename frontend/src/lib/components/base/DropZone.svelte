@@ -95,7 +95,7 @@
       : "") + "pointer-events-none"}
   >
     <div class="flex flex-col items-center justify-center py-4 text-center">
-      <div class="mb-3 text-gray-500 dark:text-gray-400">
+      <div class="mb-3 text-neutral-500 dark:text-neutral-400">
         {#if icon}
           {@render icon()}
         {:else}
@@ -116,9 +116,9 @@
         {/if}
       </div>
 
-      <p class="mb-1 text-base font-medium text-gray-700 dark:text-gray-200">{title}</p>
+      <p class="mb-1 text-base font-medium text-neutral-700 dark:text-neutral-200">{title}</p>
       {#if subtitle}
-        <p class="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">{subtitle}</p>
       {/if}
     </div>
   </Dropzone>

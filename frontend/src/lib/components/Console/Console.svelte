@@ -1,11 +1,10 @@
 <script lang="ts">
   import ConsoleEntry from "$src/lib/components/Console/ConsoleEntry.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
+  import { historyStore } from "$src/lib/stores/historyStore";
   import Button from "flowbite-svelte/Button.svelte";
-  import Card from "flowbite-svelte/Card.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Select from "flowbite-svelte/Select.svelte";
-  import { historyStore } from "$src/lib/stores/historyStore";
 
   let filterMethod = $state("");
   let filterStatus = $state("");
@@ -58,41 +57,43 @@
   }
 </script>
 
-<Card class="h-full border-0 rounded-none">
-  <div class="flex h-full min-h-0 flex-col gap-3">
-    <div class="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-700">
-      <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
+<div class="flex h-full min-h-0 w-full flex-col gap-3 overflow-hidden p-3">
+  <div
+    class="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-700"
+  >
+    <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
 
-      <Input
-        size="sm"
-        class="min-w-52 flex-1"
-        type="text"
-        placeholder="Filter URL…"
-        bind:value={filterUrl}
-      />
+    <Input
+      size="sm"
+      class="min-w-52 flex-1"
+      type="text"
+      placeholder="Filter URL…"
+      bind:value={filterUrl}
+    />
 
-      <Select size="sm" bind:value={filterMethod} items={METHOD_OPTIONS} class="w-40" />
-      <Select size="sm" bind:value={filterStatus} items={STATUS_OPTIONS} class="w-44" />
+    <Select size="sm" bind:value={filterMethod} items={METHOD_OPTIONS} class="w-40" />
+    <Select size="sm" bind:value={filterStatus} items={STATUS_OPTIONS} class="w-44" />
 
-      <span class="ml-auto text-xs text-neutral-500 dark:text-neutral-400">
-        {filtered.length} / {$historyStore.length}
-      </span>
+    <span class="ml-auto text-xs text-neutral-500 dark:text-neutral-400">
+      {filtered.length} / {$historyStore.length}
+    </span>
 
-      <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
-        Export HAR
-      </Button>
-      <Button
-        color="alternative"
-        size="sm"
-        onclick={() => historyStore.clear()}
-        disabled={$historyStore.length === 0}
-      >
-        Clear
-      </Button>
-    </div>
+    <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
+      Export HAR
+    </Button>
+    <Button
+      color="alternative"
+      size="sm"
+      onclick={() => historyStore.clear()}
+      disabled={$historyStore.length === 0}
+    >
+      Clear
+    </Button>
+  </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-      {#if filtered.length === 0}
+  <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+    {#if filtered.length === 0}
+      <div class="flex h-full items-center justify-center">
         {#if $historyStore.length === 0}
           <FeedbackEmptyState
             compact
@@ -102,13 +103,13 @@
         {:else}
           <FeedbackEmptyState compact title="No entries match the current filters" />
         {/if}
-      {:else}
-        <div class="space-y-2">
-          {#each filtered as entry (entry.id)}
-            <ConsoleEntry {entry} />
-          {/each}
-        </div>
-      {/if}
-    </div>
+      </div>
+    {:else}
+      <div class="space-y-2">
+        {#each filtered as entry (entry.id)}
+          <ConsoleEntry {entry} />
+        {/each}
+      </div>
+    {/if}
   </div>
-</Card>
+</div>

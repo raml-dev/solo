@@ -62,6 +62,7 @@
   let responseTab = $state("body");
   let showSaveDialog = $state(false);
   let responseHeight = $state(300);
+  let responseCollapsed = $state(false);
   let isResizing = $state(false);
   let builderElement: HTMLElement | undefined = $state();
   let environmentEntries: { key: string; value: string }[] = $derived(
@@ -415,13 +416,13 @@
 </script>
 
 {#if $activeTabState}
-  <div class="request-builder" bind:this={builderElement}>
+  <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
     <TokenTooltip />
 
     <!-- Request Header -->
-    <div class="request-header">
-      <div class="request-name-container">
-        <span class="request-name">{requestName || "New Request"}</span>
+    <div class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-700">
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{requestName || "New Request"}</span>
         {#if $activeTabState.isDirty}
           <Button
             color="light"
@@ -437,9 +438,9 @@
     </div>
 
     <!-- Request Line -->
-    <div class="request-line">
-      <div class="url-bar">
-        <div class="url-bar-method">
+    <div class="shrink-0 border-b border-neutral-200 dark:border-neutral-700">
+      <div class="flex items-stretch">
+        <div class="shrink-0">
           <Select
             bind:value={method}
             items={methodOptions}
@@ -449,27 +450,27 @@
             class="h-full rounded-none border-0 bg-transparent px-3 py-0 font-semibold"
           />
         </div>
-        <div class="url-bar-divider"></div>
+        <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <TokenInput
           bind:value={url}
           placeholder="Enter request URL"
           {environmentEntries}
-          wrapperClass="url-bar-input"
+          wrapperClass="min-w-0 flex-1"
           onChange={onFieldChange}
         />
-        <div class="url-bar-divider"></div>
+        <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <Button
           color="primary"
           {loading}
           onclick={sendRequest}
           disabled={loading}
-          style="padding: 0 var(--space-xl); font-weight: var(--font-weight-semibold); align-self: stretch; border-radius: 0 var(--radius-md) var(--radius-md) 0;"
-          >Send</Button
-        >
+          class="self-stretch rounded-l-none px-6"
+        >Send</Button>
       </div>
     </div>
 
-    <div class="request-content-bar">
+    <!-- Request tabs + body format selector -->
+    <div class="flex shrink-0 items-center border-b border-neutral-200 dark:border-neutral-700">
       <Tabs bind:selected={requestPaneTab} tabStyle="underline" contentClass="hidden">
         <TabItem key="Headers" title="Headers" />
         <TabItem key="Body" title="Body" />
@@ -488,18 +489,18 @@
       </Tabs>
 
       {#if requestPaneTab === "Body"}
-        <div class="body-format-selector">
+        <div class="ml-auto flex items-center gap-1 px-2">
           {#if requestBodyFormat !== "none"}
-            <Button
-              color="light"
-              size="xs"
+            <button
+              type="button"
               title="Prettify / Format body"
               onclick={formatBody}
               disabled={requestBodyFormat === "text"}
+              class="px-2 py-1 text-xs text-neutral-600 hover:text-neutral-900 disabled:opacity-40 dark:text-neutral-400 dark:hover:text-neutral-100"
             >
               Beautify
-            </Button>
-            <span class="format-separator">|</span>
+            </button>
+            <span class="text-neutral-300 dark:text-neutral-600">|</span>
           {/if}
           <Select
             bind:value={requestBodyFormat}
@@ -513,7 +514,8 @@
       {/if}
     </div>
 
-    <div class="request-content-body">
+    <!-- Request tab content -->
+    <div class="min-h-0 flex-1 overflow-hidden">
       {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
           <RequestHeaders {headers} onChange={onFieldChange} />
@@ -569,65 +571,108 @@
     </div>
 
     <!-- Response Section -->
-    <div class="response-section" style="height: {responseHeight}px">
-      <button
-        type="button"
-        class="resize-handle"
-        class:resizing={isResizing}
-        onmousedown={startResize}
-        aria-label="Resize response panel"
-      ></button>
+    <div
+      class="flex shrink-0 flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
+      style={responseCollapsed ? undefined : `height: ${responseHeight}px`}
+    >
+      {#if !responseCollapsed}
+        <button
+          type="button"
+          class="h-1 shrink-0 cursor-row-resize bg-neutral-200 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
+          class:bg-primary-500={isResizing}
+          onmousedown={startResize}
+          aria-label="Resize response panel"
+        ></button>
+      {/if}
 
-      <div class="response-content-bar">
-        <Tabs bind:selected={responseTab} tabStyle="underline" contentClass="hidden">
-          <TabItem key="body" title="Body" />
-          <TabItem key="headers" title="Headers" />
-        </Tabs>
-        {#if response}
-          <div class="response-meta">
-            <Badge color={getStatusBadgeColor(response.status)} class="status-badge">
-              {response.status}
-            </Badge>
-            <Badge color="gray" class="time-badge">{response.time}ms</Badge>
-          </div>
-        {/if}
-      </div>
-
-      {#if requestError}
-        <Alert color="red" class="response-error">
-          <div class="response-error-body">
-            <span class="response-error-title">Request failed</span>
-            <span class="response-error-detail">{requestError}</span>
-          </div>
-        </Alert>
-      {:else if response}
-        <div class="response-content">
-          {#if responseTab === "body"}
-            <div class="response-body-editor">
-              <CodeMirrorEditor
-                value={response.body ?? ""}
-                format={responseFormat}
-                readOnly={true}
-              />
-            </div>
-          {:else}
-            <div class="response-headers">
-              {#each Object.entries(response.headers) as [key, value] (key)}
-                <div class="response-header-row">
-                  <span class="header-key">{key}:</span>
-                  <span class="header-value">{value}</span>
-                </div>
-              {/each}
+      <div
+        class="flex shrink-0 cursor-pointer items-center border-b border-neutral-200 dark:border-neutral-700"
+        role="button"
+        tabindex="0"
+        onclick={() => (responseCollapsed = !responseCollapsed)}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); responseCollapsed = !responseCollapsed; } }}
+        aria-expanded={!responseCollapsed}
+        aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
+      >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div onclick={(e) => e.stopPropagation()}>
+          <Tabs bind:selected={responseTab} tabStyle="underline" contentClass="hidden">
+            <TabItem key="body" title="Body" />
+            <TabItem key="headers" title="Headers" />
+          </Tabs>
+        </div>
+        <div class="ml-auto flex items-center gap-2 px-2">
+          {#if response}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div onclick={(e) => e.stopPropagation()} class="flex items-center gap-2">
+              <Badge color={getStatusBadgeColor(response.status)}>{response.status}</Badge>
+              <Badge color="gray">{response.time}ms</Badge>
             </div>
           {/if}
+          <button
+            type="button"
+            class="flex items-center gap-1 py-1 text-xs text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100"
+            onclick={(e) => { e.stopPropagation(); responseCollapsed = !responseCollapsed; }}
+            aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              class="transition-transform {responseCollapsed ? 'rotate-180' : ''}"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
         </div>
-      {:else}
-        <FeedbackEmptyState title="Send a request to see the response" compact />
+      </div>
+
+      {#if !responseCollapsed}
+        {#if requestError}
+          <Alert color="red" class="m-3">
+            <div class="flex flex-col gap-1">
+              <span class="font-medium">Request failed</span>
+              <span class="text-sm">{requestError}</span>
+            </div>
+          </Alert>
+        {:else if response}
+          <div class="min-h-0 flex-1 overflow-hidden">
+            {#if responseTab === "body"}
+              <div class="h-full">
+                <CodeMirrorEditor
+                  value={response.body ?? ""}
+                  format={responseFormat}
+                  readOnly={true}
+                />
+              </div>
+            {:else}
+              <div class="h-full overflow-y-auto">
+                {#each Object.entries(response.headers) as [key, value] (key)}
+                  <div class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800">
+                    <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300">{key}:</span>
+                    <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400">{value}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div class="flex h-full items-center justify-center">
+            <FeedbackEmptyState title="Send a request to see the response" compact />
+          </div>
+        {/if}
       {/if}
     </div>
   </div>
 {:else}
-  <FeedbackEmptyState title="Open a request from the sidebar or press + to start a new one" />
+  <div class="flex h-full w-full items-center justify-center">
+    <FeedbackEmptyState title="Open a request from the sidebar or press + to start a new one" />
+  </div>
 {/if}
 
 <SaveRequestModal

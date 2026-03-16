@@ -78,12 +78,12 @@
 <div class="space-y-4">
   {#if env}
     <div>
-      <h2 class="text-base font-semibold text-gray-900 dark:text-white">{env.name}</h2>
+      <h2 class="text-base font-semibold text-neutral-900 dark:text-white">{env.name}</h2>
     </div>
 
     <div class="space-y-2">
       <div
-        class="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs font-semibold text-gray-500 uppercase"
+        class="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs font-semibold text-neutral-500 uppercase"
       >
         <span>Key</span>
         <span>Value</span>
@@ -123,7 +123,7 @@
     </div>
   {:else}
     <div
-      class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+      class="rounded-lg border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"
     >
       Select an environment to view its variables.
     </div>
