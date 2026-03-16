@@ -88,7 +88,13 @@
   <div class="customizer-content">
     <div class="form-group">
       <label for="theme-name" class="label">Theme Name</label>
-      <input id="theme-name" type="text" class="input" bind:value={themeName} placeholder="My Custom Theme" />
+      <input
+        id="theme-name"
+        type="text"
+        class="input"
+        bind:value={themeName}
+        placeholder="My Custom Theme"
+      />
     </div>
 
     <div class="color-grid">
@@ -97,7 +103,8 @@
       <label><span>Warning</span><input type="color" bind:value={seeds.warning} /></label>
       <label><span>Danger</span><input type="color" bind:value={seeds.danger} /></label>
       <label><span>Neutral</span><input type="color" bind:value={seeds.neutral} /></label>
-      <label><span>Surface (optional)</span><input type="color" bind:value={seeds.surface} /></label>
+      <label><span>Surface (optional)</span><input type="color" bind:value={seeds.surface} /></label
+      >
     </div>
   </div>
 

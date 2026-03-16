@@ -93,7 +93,7 @@
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 font-sans;
+    @apply bg-neutral-50 font-sans text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
     margin: 0;
     overflow: hidden;
   }

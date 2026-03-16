@@ -90,11 +90,9 @@
   onkeydown={onKeyDown}
 >
   <Dropzone
-    class={
-      (dragOver
-        ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20 "
-        : "") + "pointer-events-none"
-    }
+    class={(dragOver
+      ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20 "
+      : "") + "pointer-events-none"}
   >
     <div class="flex flex-col items-center justify-center py-4 text-center">
       <div class="mb-3 text-gray-500 dark:text-gray-400">

@@ -165,12 +165,7 @@
   }
 </script>
 
-<Modal
-  bind:open
-  title="Git Status"
-  size="xl"
-  onclose={requestClose}
->
+<Modal bind:open title="Git Status" size="xl" onclose={requestClose}>
   {#if $topModalId === gitStatusPanelModalId}
     <ToastContainer />
   {/if}

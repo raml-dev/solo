@@ -75,12 +75,7 @@
 
     <span class="console-count">{filtered.length} / {$historyStore.length}</span>
 
-    <Button
-      color="light"
-      size="sm"
-      onclick={handleExport}
-      disabled={$historyStore.length === 0}
-    >
+    <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
       Export HAR
     </Button>
     <Button

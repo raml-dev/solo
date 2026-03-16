@@ -460,7 +460,7 @@
         <div class="url-bar-divider"></div>
         <Button
           color="primary"
-          loading={loading}
+          {loading}
           onclick={sendRequest}
           disabled={loading}
           style="padding: 0 var(--space-xl); font-weight: var(--font-weight-semibold); align-self: stretch; border-radius: 0 var(--radius-md) var(--radius-md) 0;"

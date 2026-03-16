@@ -82,7 +82,9 @@
     </div>
 
     <div class="space-y-2">
-      <div class="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs font-semibold uppercase text-gray-500">
+      <div
+        class="grid grid-cols-[1fr_1fr_auto] gap-2 px-1 text-xs font-semibold text-gray-500 uppercase"
+      >
         <span>Key</span>
         <span>Value</span>
         <span class="sr-only">Actions</span>
@@ -120,7 +122,9 @@
       <Button color="light" size="sm" onclick={addVariable}>Add Variable</Button>
     </div>
   {:else}
-    <div class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+    <div
+      class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+    >
       Select an environment to view its variables.
     </div>
   {/if}

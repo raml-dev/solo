@@ -76,7 +76,11 @@
 </script>
 
 {#if showNewEnvironmentDialog}
-  <Modal bind:open={showNewEnvironmentDialog} onclose={closeNewEnvironmentDialog} title="New Environment">
+  <Modal
+    bind:open={showNewEnvironmentDialog}
+    onclose={closeNewEnvironmentDialog}
+    title="New Environment"
+  >
     {#if $topModalId === newEnvironmentModalId}
       <ToastContainer />
     {/if}
@@ -95,8 +99,10 @@
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">
         <Button color="light" onclick={closeNewEnvironmentDialog}>Cancel</Button>
-        <Button color="primary" disabled={!newEnvironmentName.trim()} onclick={handleCreateEnvironment}
-          >Create</Button
+        <Button
+          color="primary"
+          disabled={!newEnvironmentName.trim()}
+          onclick={handleCreateEnvironment}>Create</Button
         >
       </div>
     {/snippet}
@@ -104,7 +110,11 @@
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <Modal bind:open={showDeleteConfirmDialog} onclose={closeDeleteConfirmDialog} title="Delete Environment">
+  <Modal
+    bind:open={showDeleteConfirmDialog}
+    onclose={closeDeleteConfirmDialog}
+    title="Delete Environment"
+  >
     {#if $topModalId === deleteEnvironmentModalId}
       <ToastContainer />
     {/if}

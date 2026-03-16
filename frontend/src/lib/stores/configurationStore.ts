@@ -1,9 +1,5 @@
-import {
-  THEME_PRESETS,
-  type ThemeMode,
-  type ThemeSeeds
-} from "$src/lib/theme/themeModel";
 import { notifications } from "$src/lib/stores/notificationStore";
+import { THEME_PRESETS, type ThemeMode, type ThemeSeeds } from "$src/lib/theme/themeModel";
 import {
   GetAllThemes,
   GetConfiguration,
@@ -23,14 +19,24 @@ function createEmptyConfig() {
 
 function hexToRgb(hex: string): [number, number, number] {
   const sanitized = hex.replace("#", "").trim();
-  const full = sanitized.length === 3 ? sanitized.split("").map((c) => c + c).join("") : sanitized;
+  const full =
+    sanitized.length === 3
+      ? sanitized
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : sanitized;
   const int = Number.parseInt(full, 16);
   return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
 }
 
 function rgbToHex([r, g, b]: [number, number, number]): string {
   return `#${[r, g, b]
-    .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0"))
+    .map((v) =>
+      Math.max(0, Math.min(255, Math.round(v)))
+        .toString(16)
+        .padStart(2, "0")
+    )
     .join("")}`;
 }
 

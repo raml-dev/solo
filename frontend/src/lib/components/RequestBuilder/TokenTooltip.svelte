@@ -129,8 +129,11 @@
             Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo
             resta quello di sessione finché non la svuoti.
           </div>
-          <Button color="light" size="xs" class="session-clear-btn mt-2" onclick={clearSessionOverride}
-            >Use env value</Button
+          <Button
+            color="light"
+            size="xs"
+            class="session-clear-btn mt-2"
+            onclick={clearSessionOverride}>Use env value</Button
           >
         </div>
       {/if}

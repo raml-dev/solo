@@ -14,8 +14,14 @@
     actions?: Snippet;
   }
 
-  let { variant = "neutral", title, detail, compact = false, iconSnippet, actions }: Props =
-    $props();
+  let {
+    variant = "neutral",
+    title,
+    detail,
+    compact = false,
+    iconSnippet,
+    actions
+  }: Props = $props();
 
   const useAlert = $derived(variant === "warning" || variant === "danger");
 

@@ -724,7 +724,11 @@
 </div>
 
 {#if showNewCollectionDialog}
-  <Modal bind:open={showNewCollectionDialog} onclose={closeNewCollectionDialog} title="New Collection">
+  <Modal
+    bind:open={showNewCollectionDialog}
+    onclose={closeNewCollectionDialog}
+    title="New Collection"
+  >
     {#if $topModalId === newCollectionModalId}
       <ToastContainer />
     {/if}
@@ -747,7 +751,11 @@
 {/if}
 
 {#if showRenameCollectionDialog}
-  <Modal bind:open={showRenameCollectionDialog} onclose={closeRenameDialog} title="Rename Collection">
+  <Modal
+    bind:open={showRenameCollectionDialog}
+    onclose={closeRenameDialog}
+    title="Rename Collection"
+  >
     {#if $topModalId === renameCollectionModalId}
       <ToastContainer />
     {/if}
@@ -770,7 +778,11 @@
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <Modal bind:open={showDeleteConfirmDialog} onclose={closeDeleteConfirmDialog} title="Delete Collection">
+  <Modal
+    bind:open={showDeleteConfirmDialog}
+    onclose={closeDeleteConfirmDialog}
+    title="Delete Collection"
+  >
     {#if $topModalId === deleteCollectionModalId}
       <ToastContainer />
     {/if}

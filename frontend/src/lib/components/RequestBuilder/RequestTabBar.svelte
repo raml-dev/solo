@@ -17,7 +17,6 @@
   const tabBarModalScope = `tabbar-${Math.random().toString(36).slice(2)}`;
   const confirmCloseModalId = `${tabBarModalScope}-confirm-close`;
 
-
   $effect(() => {
     if (showConfirmClose) {
       modalStack.open(confirmCloseModalId);
@@ -139,15 +138,21 @@
   }
 </script>
 
-<div class="tab-bar flex items-center gap-2 border-b border-gray-200 px-2 py-1 dark:border-gray-700">
-  <div class="tab-list flex min-w-0 flex-1 items-center gap-1 overflow-x-auto" role="tablist" aria-label="Open request tabs">
+<div
+  class="tab-bar flex items-center gap-2 border-b border-gray-200 px-2 py-1 dark:border-gray-700"
+>
+  <div
+    class="tab-list flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+    role="tablist"
+    aria-label="Open request tabs"
+  >
     {#each tabs as tab, index (tab.id)}
       <div
         class={`tab group inline-flex max-w-xs items-center rounded-md border ${
           tab.id === activeTabId
             ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
             : "border-transparent bg-gray-100/70 hover:bg-gray-200/70 dark:bg-gray-800/60 dark:hover:bg-gray-700/70"
-        } ${tab.isPreview ? "opacity-85 italic" : ""}`}
+        } ${tab.isPreview ? "italic opacity-85" : ""}`}
       >
         <button
           type="button"
@@ -164,14 +169,15 @@
           <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
           <span class="tab-label max-w-48 truncate">{tab.label}</span>
           {#if tab.isDirty}
-            <span class="dirty-dot h-2 w-2 rounded-full bg-warning-500" title="Unsaved changes"></span>
+            <span class="dirty-dot h-2 w-2 rounded-full bg-warning-500" title="Unsaved changes"
+            ></span>
           {/if}
         </button>
 
         <CloseButton
           color="none"
           size="xs"
-          class="close-btn !p-1 opacity-70 transition-opacity hover:opacity-100 group-hover:opacity-100"
+          class="close-btn p-1! opacity-70 transition-opacity group-hover:opacity-100 hover:opacity-100"
           ariaLabel="Close tab"
           onclick={(e: MouseEvent) => handleClose(e, tab.id)}
         />
@@ -204,7 +210,7 @@
     </div>
 
     {#snippet footer()}
-      <div class="confirm-modal-actions flex items-center gap-2 flex-2">
+      <div class="confirm-modal-actions flex flex-2 items-center gap-2">
         <Button color="red" onclick={confirmCloseDiscard}>Don't Save</Button>
         <div class="ml-auto flex items-center gap-2">
           <Button color="light" onclick={closeConfirmModal}>Cancel</Button>

@@ -118,11 +118,9 @@
     aria-autocomplete="list"
     aria-expanded={autocompleteState?.open === true}
     aria-controls={autocompleteListboxId}
-    aria-activedescendant={
-      autocompleteState?.open && autocompleteState.items.length > 0
-        ? `${autocompleteListboxId}-option-${autocompleteState.activeIndex}`
-        : undefined
-    }
+    aria-activedescendant={autocompleteState?.open && autocompleteState.items.length > 0
+      ? `${autocompleteListboxId}-option-${autocompleteState.activeIndex}`
+      : undefined}
     oninput={() => {
       scrollLeft = inputEl?.scrollLeft ?? 0;
       onChange?.();
@@ -134,11 +132,13 @@
 {#if autocompleteState?.open && autocompleteState.items.length > 0}
   <div
     bind:this={autocompleteMenuEl}
-    class="fixed z-[90]"
+    class="fixed z-90"
     style={`left:${autocompleteState.left}px;top:${autocompleteState.top}px;min-width:${autocompleteState.minWidth}px;max-width:${autocompleteState.maxWidth}px;`}
   >
     <Card class="w-full p-2 shadow-lg">
-      <div class="mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400">Environment variables</div>
+      <div class="mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400">
+        Environment variables
+      </div>
       <div id={autocompleteListboxId} role="listbox" class="max-h-56 space-y-1 overflow-auto">
         {#each autocompleteState.items as entry, index (entry.key)}
           <Button

@@ -9,13 +9,7 @@ export type ThemeSeeds = {
   surface?: string;
 };
 
-export type ThemePresetId =
-  | "ocean"
-  | "ember"
-  | "forest"
-  | "violet"
-  | "nord"
-  | "pastel";
+export type ThemePresetId = "ocean" | "ember" | "forest" | "violet" | "nord" | "pastel";
 
 export type PresetThemeConfig = {
   type: "preset";

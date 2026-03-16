@@ -169,7 +169,7 @@
   {#if running || stats || lastResults.length > 0}
     <div class="runner-results space-y-3">
       {#if running}
-        <Progressbar progress={progress} size="h-2" color="blue" labelInside={false} />
+        <Progressbar {progress} size="h-2" color="blue" labelInside={false} />
       {/if}
 
       {#if stats}

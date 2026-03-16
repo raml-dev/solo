@@ -65,16 +65,10 @@
       handleSave();
     }
   }
-
 </script>
 
 {#if show}
-  <Modal
-    title="Save Request"
-    bind:open={show}
-    size="lg"
-    onclose={handleCancel}
-  >
+  <Modal title="Save Request" bind:open={show} size="lg" onclose={handleCancel}>
     {#if $topModalId === saveRequestModalId}
       <ToastContainer />
     {/if}
@@ -107,7 +101,8 @@
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">
         <Button color="alternative" onclick={handleCancel}>Cancel</Button>
-        <Button color="primary" disabled={!selectedCollectionName} onclick={handleSave}>Save</Button>
+        <Button color="primary" disabled={!selectedCollectionName} onclick={handleSave}>Save</Button
+        >
       </div>
     {/snippet}
   </Modal>
