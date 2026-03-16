@@ -23,6 +23,9 @@
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
   import Button from "flowbite-svelte/Button.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
@@ -371,11 +374,6 @@
     return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   }
 
-  function toggleMenu(e: Event, collectionName: string) {
-    e.stopPropagation();
-    activeMenu = activeMenu === collectionName ? null : collectionName;
-  }
-
   function clearMenu() {
     if (activeMenu) {
       activeMenu = null;
@@ -488,7 +486,7 @@
 </script>
 
 <div
-  class="relative flex h-full flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
+  class="relative flex h-full shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
   class:collapsed={isCollapsed}
   style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
 >
@@ -498,7 +496,7 @@
   ></div>
 
   <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
-    <div class="mb-2 flex items-center justify-between gap-2">
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
       {#if !isCollapsed}
         <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Collections</h3>
       {/if}
@@ -566,16 +564,18 @@
               role="button"
               tabindex="0"
             >
-              <button
-                class="h-6 w-6 rounded text-xs text-neutral-600 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                onclick={(e) => {
+              <Button
+                color="light"
+                size="xs"
+                class="h-6 w-6 p-0 text-xs"
+                onclick={(e: MouseEvent) => {
                   e.stopPropagation();
                   toggleCollection(collection.name);
                 }}
                 aria-label="Toggle collection"
               >
                 {isExpanded(collection.name) ? "▾" : "▸"}
-              </button>
+              </Button>
 
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
@@ -605,78 +605,66 @@
               </div>
 
               <div class="flex items-center gap-1">
-                {#if collection.gitRemote}
-                  <Button
-                    color="light"
-                    size="sm"
-                    onclick={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      gitStatusCollectionId = collection.id;
-                      gitStatusCollectionName = collection.name;
-                    }}
-                    title="Git status & actions"
-                  >
-                    Git
-                  </Button>
-                  <Button
-                    color="light"
-                    size="sm"
-                    loading={syncingCollections.has(collection.id)}
-                    onclick={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      handleSync(collection.id);
-                    }}
-                    title="Sync with Git remote"
-                    disabled={syncingCollections.has(collection.id)}
-                  >
-                    Sync
-                  </Button>
-                {/if}
-
                 <Button
                   color="light"
-                  size="sm"
-                  onclick={(e: MouseEvent) => handleAddRequest(e, collection.name)}
+                  size="xs"
+                  onclick={(e: MouseEvent) => { e.stopPropagation(); handleAddRequest(e, collection.name); }}
                   title="Add request"
                   aria-label="Add request"
                 >
                   +
                 </Button>
                 <Button
+                  id="collection-menu-{collection.id}"
                   color="light"
-                  size="sm"
-                  onclick={(e: MouseEvent) => toggleMenu(e, collection.name)}
+                  size="xs"
                   title="More actions"
                   aria-label="More actions"
+                  onclick={(e: MouseEvent) => e.stopPropagation()}
                 >
-                  ...
+                  •••
                 </Button>
-              </div>
-
-              {#if activeMenu === collection.name}
-                <div
-                  class="absolute top-10 right-2 z-10 w-36 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
-                >
-                  <button
-                    class="block w-full rounded px-2 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                    onclick={(e) => {
-                      e.stopPropagation();
+                <Dropdown triggeredBy="#collection-menu-{collection.id}" class="z-50 w-40">
+                  {#if collection.gitRemote}
+                    <DropdownItem
+                      onclick={() => {
+                        gitStatusCollectionId = collection.id;
+                        gitStatusCollectionName = collection.name;
+                        activeMenu = null;
+                      }}
+                    >
+                      Git status
+                    </DropdownItem>
+                    <DropdownItem
+                      disabled={syncingCollections.has(collection.id)}
+                      onclick={() => {
+                        handleSync(collection.id);
+                        activeMenu = null;
+                      }}
+                    >
+                      {syncingCollections.has(collection.id) ? "Syncing…" : "Sync with Git"}
+                    </DropdownItem>
+                    <DropdownDivider />
+                  {/if}
+                  <DropdownItem
+                    onclick={() => {
                       openRenameCollection(collection.name);
+                      activeMenu = null;
                     }}
                   >
                     Rename
-                  </button>
-                  <button
-                    class="block w-full rounded px-2 py-1.5 text-left text-sm text-danger-700 hover:bg-danger-50 dark:text-danger-300 dark:hover:bg-danger-900/40"
-                    onclick={(e) => {
-                      e.stopPropagation();
+                  </DropdownItem>
+                  <DropdownItem
+                    class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+                    onclick={() => {
                       handleDeleteCollection(collection.name);
+                      activeMenu = null;
                     }}
                   >
                     Delete
-                  </button>
-                </div>
-              {/if}
+                  </DropdownItem>
+                </Dropdown>
+              </div>
             </div>
 
             {#if isExpanded(collection.name)}
@@ -690,7 +678,7 @@
                 {:else}
                   {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
                     <div
-                      class={`flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
+                      class={`group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
                       onclick={() => selectRequest(request, collection.name)}
                       onkeypress={(e) =>
                         e.key === "Enter" && selectRequest(request, collection.name)}
@@ -710,6 +698,7 @@
                       <Button
                         color="light"
                         size="xs"
+                        class="invisible group-hover:visible"
                         onclick={(e: MouseEvent) => {
                           e.stopPropagation();
                           handleDeleteRequest(collection.name, request.id);

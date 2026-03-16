@@ -18,7 +18,7 @@
   }
 </script>
 
-<div class="space-y-4">
+<div class="flex-1 overflow-y-auto p-3 space-y-4">
   <div class="space-y-2">
     <Label for="timeout">Timeout (seconds)</Label>
     <Input

@@ -75,6 +75,10 @@
   const { config: globalConfig } = configurationStore;
 
   onMount(() => {
+    if (builderElement) {
+      responseHeight = Math.floor(builderElement.clientHeight * 0.35);
+    }
+
     const handleSaveNew = () => {
       showSaveDialog = true;
     };
@@ -491,15 +495,15 @@
       {#if requestPaneTab === "Body"}
         <div class="ml-auto flex items-center gap-1 px-2">
           {#if requestBodyFormat !== "none"}
-            <button
-              type="button"
+            <Button
+              color="light"
+              size="xs"
               title="Prettify / Format body"
               onclick={formatBody}
               disabled={requestBodyFormat === "text"}
-              class="px-2 py-1 text-xs text-neutral-600 hover:text-neutral-900 disabled:opacity-40 dark:text-neutral-400 dark:hover:text-neutral-100"
             >
               Beautify
-            </button>
+            </Button>
             <span class="text-neutral-300 dark:text-neutral-600">|</span>
           {/if}
           <Select
@@ -515,7 +519,7 @@
     </div>
 
     <!-- Request tab content -->
-    <div class="min-h-0 flex-1 overflow-hidden">
+    <div class="min-h-0 flex-1 flex flex-col overflow-hidden">
       {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
           <RequestHeaders {headers} onChange={onFieldChange} />
@@ -576,13 +580,12 @@
       style={responseCollapsed ? undefined : `height: ${responseHeight}px`}
     >
       {#if !responseCollapsed}
-        <button
-          type="button"
-          class="h-1 shrink-0 cursor-row-resize bg-neutral-200 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
-          class:bg-primary-500={isResizing}
+        <Button
+          color="light"
+          class="h-1 w-full shrink-0 cursor-row-resize rounded-none border-0 bg-neutral-200 p-0 shadow-none transition-colors hover:bg-primary-400 dark:bg-neutral-700 {isResizing ? 'bg-primary-500' : ''}"
           onmousedown={startResize}
           aria-label="Resize response panel"
-        ></button>
+        />
       {/if}
 
       <div
@@ -611,10 +614,11 @@
               <Badge color="gray">{response.time}ms</Badge>
             </div>
           {/if}
-          <button
-            type="button"
-            class="flex items-center gap-1 py-1 text-xs text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100"
-            onclick={(e) => { e.stopPropagation(); responseCollapsed = !responseCollapsed; }}
+          <Button
+            color="light"
+            size="xs"
+            class="border-0 shadow-none"
+            onclick={(e: MouseEvent) => { e.stopPropagation(); responseCollapsed = !responseCollapsed; }}
             aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
           >
             <svg
@@ -628,7 +632,7 @@
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
 

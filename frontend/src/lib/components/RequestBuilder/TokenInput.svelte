@@ -17,6 +17,7 @@
     environmentEntries?: { key: string; value: string }[];
     inputClass?: string;
     wrapperClass?: string;
+    size?: "sm" | "md" | "lg";
     onChange?: () => void;
   }
 
@@ -27,6 +28,7 @@
     environmentEntries = [],
     inputClass = "",
     wrapperClass = "",
+    size = "md",
     onChange
   }: Props = $props();
 
@@ -111,6 +113,7 @@
   <Input
     bind:elementRef={inputEl}
     type="text"
+    {size}
     class="caret-neutral-900 [color:transparent] dark:caret-neutral-100 {inputClass}"
     bind:value
     {disabled}

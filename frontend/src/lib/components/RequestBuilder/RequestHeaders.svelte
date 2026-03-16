@@ -48,9 +48,9 @@
   );
 </script>
 
-<div class="headers-editor space-y-2">
+<div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
   {#each headers as header (header.id)}
-    <div class="header-row flex flex-nowrap items-center gap-2">
+    <div class="flex flex-nowrap items-center gap-2">
       <div class="shrink-0">
         <Checkbox
           checked={header.enabled}
@@ -58,22 +58,24 @@
           aria-label={`Enable header ${header.key || "row"}`}
         />
       </div>
-      <Input
-        type="text"
-        size="sm"
-        class="header-input w-40 min-w-0"
-        placeholder="Header name"
-        bind:value={header.key}
-        disabled={!header.enabled}
-        oninput={() => onChange?.()}
-      />
-      <div class="header-value-wrapper min-w-0 flex-1">
+      <div class="min-w-0 flex-1">
+        <Input
+          type="text"
+          size="sm"
+          placeholder="Header name"
+          bind:value={header.key}
+          disabled={!header.enabled}
+          oninput={() => onChange?.()}
+        />
+      </div>
+      <div class="min-w-0 flex-1">
         <TokenInput
           bind:value={header.value}
           placeholder="Value"
           disabled={!header.enabled}
           {environmentEntries}
-          wrapperClass="input header-input w-full"
+          wrapperClass="w-full"
+          size="sm"
           onChange={() => onChange?.()}
         />
       </div>
@@ -83,9 +85,7 @@
         class="shrink-0"
         onclick={() => removeHeader(header.id)}
         aria-label="Remove header"
-      >
-        ×
-      </Button>
+      >×</Button>
     </div>
   {/each}
 

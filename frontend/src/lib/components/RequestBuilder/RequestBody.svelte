@@ -19,7 +19,7 @@
   );
 </script>
 
-<div class="h-full w-full overflow-hidden">
+<div class="flex-1 min-h-0 w-full overflow-hidden">
   <CodeMirrorEditor
     bind:value={requestBody}
     bind:format
