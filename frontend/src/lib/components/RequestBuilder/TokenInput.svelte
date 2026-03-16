@@ -94,7 +94,7 @@
       {#if !value && placeholder}
         <span class="placeholder">{placeholder}</span>
       {:else}
-        {#each segments as segment (segment.tokenKey)}
+        {#each segments as segment, index (`${segment.isToken ? segment.tokenKey : "text"}-${index}`)}
           {#if segment.isToken}
             <span
               class="token"

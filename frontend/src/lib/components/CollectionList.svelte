@@ -1,6 +1,8 @@
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
@@ -182,13 +184,11 @@
     collectionStore.selectCollection(name);
   }
 
-  function selectRequest(requestId: string, collectionName: string) {
-    // Find the request data to pass metadata to tabStore
-    const coll = $collectionStore.collections.find(
-      (c: collection.Collection) => c.name === collectionName
-    ) as collection.Collection;
-    const req = coll?.requests.find((r) => r.id === requestId);
-    if (!req) return;
+  function selectRequest(req: collection.Request, collectionName: string) {
+    if (!req?.id) {
+      notifications.warning("Unable to open request: missing request id");
+      return;
+    }
 
     const headers = req.headers
       ? Object.entries(req.headers).map(([key, value], i) => ({
@@ -199,7 +199,7 @@
         }))
       : [];
 
-    tabStore.openTab(requestId, collectionName, {
+    tabStore.openTab(req.id, collectionName, {
       label: req.name || "Request",
       verb: req.verb || "GET",
       url: req.url || "",
@@ -211,7 +211,7 @@
       postResponseScript: req.postResponseScript || ""
     });
 
-    onRequestSelect(requestId);
+    onRequestSelect(req.id);
   }
 
   function openRenameCollection(collectionName: string) {
@@ -358,7 +358,14 @@
   }
 
   function getMethodClass(method: string): string {
-    return `method-${method.toLowerCase()}`;
+    const m = method.toUpperCase();
+    if (m === "GET") return "bg-success-100 text-success-700 dark:bg-success-900/50 dark:text-success-300";
+    if (m === "POST") return "bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300";
+    if (m === "PUT" || m === "PATCH") {
+      return "bg-warning-100 text-warning-700 dark:bg-warning-900/50 dark:text-warning-300";
+    }
+    if (m === "DELETE") return "bg-danger-100 text-danger-700 dark:bg-danger-900/50 dark:text-danger-300";
+    return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   }
 
   function toggleMenu(e: Event, collectionName: string) {
@@ -479,146 +486,93 @@
 </script>
 
 <div
-  class="collection-list"
+  class="relative flex h-full flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
   class:collapsed={isCollapsed}
   style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
 >
-  <div class="resize-handle" onmousedown={startResize}></div>
-  <div class="header">
-    <div class="header-title">
+  <div class="absolute right-0 top-0 z-20 h-full w-1 cursor-col-resize" onmousedown={startResize}></div>
+
+  <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
+    <div class="mb-2 flex items-center justify-between gap-2">
       {#if !isCollapsed}
-        <h3>Collections</h3>
+        <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Collections</h3>
       {/if}
-      <div class="header-actions">
+
+      <div class="flex items-center gap-1">
         {#if !isCollapsed}
           <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
           <Button color="primary" size="sm" onclick={() => (showNewCollectionDialog = true)}>
             New
           </Button>
         {/if}
-        <span title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-          <Button color="light" onclick={toggleCollapse}>
-            {isCollapsed ? ">" : "<"}
-          </Button>
-        </span>
+        <Button color="light" size="sm" onclick={toggleCollapse}>
+          {isCollapsed ? ">" : "<"}
+        </Button>
       </div>
     </div>
 
     {#if !isCollapsed}
-      <div class="search-row">
-        <input
+      <div class="flex items-center gap-2">
+        <Input
+          size="sm"
+          class="flex-1"
           type="text"
-          class="input input-sm search-input"
           placeholder="Search collections or requests"
           bind:value={searchQuery}
         />
         {#if searchQuery}
-          <button class="clear-search" onclick={() => (searchQuery = "")} aria-label="Clear search">
-            x
-          </button>
+          <Button color="light" size="sm" onclick={() => (searchQuery = "")} aria-label="Clear search">
+            Clear
+          </Button>
         {/if}
       </div>
     {/if}
   </div>
 
   {#if !isCollapsed}
-    {#if $collectionStore.loading}
-      <div class="loading">Loading collections...</div>
-    {/if}
+    <div class="min-h-0 flex-1 overflow-y-auto p-2">
+      {#if $collectionStore.loading}
+        <div class="p-3 text-sm text-neutral-500 dark:text-neutral-400">Loading collections...</div>
+      {/if}
 
-    <div class="collections">
-      {#each filteredCollections as collection (collection.id)}
-        <div
-          class="collection-item"
-          class:selected={selectedCollectionName === collection.name}
-          class:menu-open={activeMenu === collection.name}
-        >
+      <div class="space-y-2">
+        {#each filteredCollections as collection (collection.id)}
           <div
-            class="collection-header"
-            onclick={(e) => {
-              e.stopPropagation();
-              selectCollection(collection.name);
-              toggleCollection(collection.name);
-            }}
-            onkeypress={(e) => {
-              if (e.key === "Enter") {
-                selectCollection(collection.name);
-                toggleCollection(collection.name);
-              }
-            }}
-            role="button"
-            tabindex="0"
+            class="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/40"
+            class:ring-1={selectedCollectionName === collection.name}
+            class:ring-primary-400={selectedCollectionName === collection.name}
+            class:ring-offset-0={selectedCollectionName === collection.name}
           >
-            <button
-              class="expand-btn"
+            <div
+              class="relative flex items-center gap-2 px-2 py-2"
               onclick={(e) => {
                 e.stopPropagation();
+                selectCollection(collection.name);
                 toggleCollection(collection.name);
               }}
-              aria-label="Toggle collection"
+              onkeypress={(e) => {
+                if (e.key === "Enter") {
+                  selectCollection(collection.name);
+                  toggleCollection(collection.name);
+                }
+              }}
+              role="button"
+              tabindex="0"
             >
-              <span class="expand-icon" class:expanded={isExpanded(collection.name)}> &gt; </span>
-            </button>
+              <button
+                class="h-6 w-6 rounded text-xs text-neutral-600 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  toggleCollection(collection.name);
+                }}
+                aria-label="Toggle collection"
+              >
+                {isExpanded(collection.name) ? "▾" : "▸"}
+              </button>
 
-            <div class="collection-info">
-              {#if collection.gitRemote}
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  class="provider-icon"
-                  aria-label={`Git remote: ${collection.gitRemote}`}
-                >
-                  <path d={getProviderIconPath(collection.gitProvider || "git")} />
-                </svg>
-              {/if}
-              <span class="collection-name">{collection.name}</span>
-              <span class="collection-count">{collection.requests?.length || 0}</span>
-            </div>
-
-            <div class="collection-actions">
-              {#if collection.gitRemote}
-                <button
-                  class="icon-btn"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    gitStatusCollectionId = collection.id;
-                    gitStatusCollectionName = collection.name;
-                  }}
-                  title="Git status & actions"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
-                      cx="18"
-                      cy="6"
-                      r="3"
-                    />
-                    <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
-                    <line x1="12" y1="12" x2="12" y2="15" />
-                  </svg>
-                </button>
-                <button
-                  class="icon-btn"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    handleSync(collection.id);
-                  }}
-                  title="Sync with Git remote"
-                  disabled={syncingCollections.has(collection.id)}
-                >
-                  {#if syncingCollections.has(collection.id)}
-                    <span class="sync-spinner"></span>
-                  {:else}
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  {#if collection.gitRemote}
                     <svg
                       width="12"
                       height="12"
@@ -626,100 +580,150 @@
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
+                      class="text-neutral-500 dark:text-neutral-400"
+                      aria-label={`Git remote: ${collection.gitRemote}`}
                     >
-                      <path
-                        d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
-                      ></path>
+                      <path d={getProviderIconPath(collection.gitProvider || "git")} />
                     </svg>
                   {/if}
-                </button>
+                  <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                    {collection.name}
+                  </span>
+                  <span class="rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
+                    {collection.requests?.length || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1">
+                {#if collection.gitRemote}
+                  <Button
+                    color="light"
+                    size="sm"
+                    onclick={(e: MouseEvent) => {
+                      e.stopPropagation();
+                      gitStatusCollectionId = collection.id;
+                      gitStatusCollectionName = collection.name;
+                    }}
+                    title="Git status & actions"
+                  >
+                    Git
+                  </Button>
+                  <Button
+                    color="light"
+                    size="sm"
+                    loading={syncingCollections.has(collection.id)}
+                    onclick={(e: MouseEvent) => {
+                      e.stopPropagation();
+                      handleSync(collection.id);
+                    }}
+                    title="Sync with Git remote"
+                    disabled={syncingCollections.has(collection.id)}
+                  >
+                    Sync
+                  </Button>
+                {/if}
+
+                <Button
+                  color="light"
+                  size="sm"
+                  onclick={(e: MouseEvent) => handleAddRequest(e, collection.name)}
+                  title="Add request"
+                  aria-label="Add request"
+                >
+                  +
+                </Button>
+                <Button
+                  color="light"
+                  size="sm"
+                  onclick={(e: MouseEvent) => toggleMenu(e, collection.name)}
+                  title="More actions"
+                  aria-label="More actions"
+                >
+                  ...
+                </Button>
+              </div>
+
+              {#if activeMenu === collection.name}
+                <div
+                  class="absolute right-2 top-10 z-10 w-36 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+                >
+                  <button
+                    class="block w-full rounded px-2 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      openRenameCollection(collection.name);
+                    }}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    class="block w-full rounded px-2 py-1.5 text-left text-sm text-danger-700 hover:bg-danger-50 dark:text-danger-300 dark:hover:bg-danger-900/40"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCollection(collection.name);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
               {/if}
-              <button
-                class="icon-btn"
-                onclick={(e) => handleAddRequest(e, collection.name)}
-                title="Add request"
-                aria-label="Add request"
-              >
-                +
-              </button>
-              <button
-                class="icon-btn"
-                onclick={(e) => toggleMenu(e, collection.name)}
-                title="More actions"
-                aria-label="More actions"
-              >
-                ...
-              </button>
             </div>
 
-            {#if activeMenu === collection.name}
-              <div class="collection-menu">
-                <button
-                  class="menu-item"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    openRenameCollection(collection.name);
-                  }}
-                >
-                  Rename
-                </button>
-                <button
-                  class="menu-item danger"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteCollection(collection.name);
-                  }}
-                >
-                  Delete
-                </button>
+            {#if isExpanded(collection.name)}
+              <div class="space-y-1 border-t border-neutral-200 px-2 pb-2 pt-1 dark:border-neutral-700">
+                {#if getVisibleRequests(collection, normalizedQuery).length === 0}
+                  <div class="px-1 py-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    {isSearching ? "No matching requests" : "No requests yet"}
+                  </div>
+                {:else}
+                  {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
+                    <div
+                      class={`flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
+                      onclick={() => selectRequest(request, collection.name)}
+                      onkeypress={(e) =>
+                        e.key === "Enter" && selectRequest(request, collection.name)}
+                      role="button"
+                      tabindex="0"
+                    >
+                      <span
+                        class={`inline-flex min-w-14 justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${getMethodClass(request.verb)}`}
+                      >
+                        {request.verb}
+                      </span>
+                      <span class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100">
+                        {request.name}
+                      </span>
+                      <Button
+                        color="light"
+                        size="xs"
+                        onclick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          handleDeleteRequest(collection.name, request.id);
+                        }}
+                        title="Delete request"
+                        aria-label="Delete request"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  {/each}
+                {/if}
               </div>
             {/if}
           </div>
+        {/each}
+      </div>
 
-          {#if isExpanded(collection.name)}
-            <div class="requests">
-              {#if getVisibleRequests(collection, normalizedQuery).length === 0}
-                <div class="empty-requests">
-                  {isSearching ? "No matching requests" : "No requests yet"}
-                </div>
-              {:else}
-                {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
-                  <div
-                    class="request-item"
-                    class:selected={selectedRequestId === request.id}
-                    onclick={() => selectRequest(request.id, collection.name)}
-                    onkeypress={(e) =>
-                      e.key === "Enter" && selectRequest(request.id, collection.name)}
-                    role="button"
-                    tabindex="0"
-                  >
-                    <span class={`method-badge ${getMethodClass(request.verb)}`}>
-                      {request.verb}
-                    </span>
-                    <span class="request-name">{request.name}</span>
-                    <button
-                      class="icon-btn subtle"
-                      onclick={() => handleDeleteRequest(collection.name, request.id)}
-                      title="Delete request"
-                      aria-label="Delete request"
-                    >
-                      x
-                    </button>
-                  </div>
-                {/each}
-              {/if}
-            </div>
-          {/if}
+      {#if filteredCollections.length === 0 && !$collectionStore.loading}
+        <div class="pt-2">
+          <FeedbackEmptyState
+            title={isSearching ? "No matching collections or requests" : "No collections yet"}
+            detail={!isSearching ? "Create your first collection to get started" : undefined}
+          />
         </div>
-      {/each}
+      {/if}
     </div>
-
-    {#if filteredCollections.length === 0 && !$collectionStore.loading}
-      <FeedbackEmptyState
-        title={isSearching ? "No matching collections or requests" : "No collections yet"}
-        detail={!isSearching ? "Create your first collection to get started" : undefined}
-      />
-    {/if}
   {/if}
 </div>
 
@@ -732,9 +736,10 @@
     {#if $topModalId === newCollectionModalId}
       <ToastContainer />
     {/if}
-    <div class="dialog">
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
+    <div class="space-y-2">
+      <Label for="new-collection-name">Collection name</Label>
+      <Input
+        id="new-collection-name"
         type="text"
         bind:value={newCollectionName}
         placeholder="Collection name"
@@ -759,9 +764,10 @@
     {#if $topModalId === renameCollectionModalId}
       <ToastContainer />
     {/if}
-    <div class="dialog">
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
+    <div class="space-y-2">
+      <Label for="rename-collection-name">Collection name</Label>
+      <Input
+        id="rename-collection-name"
         type="text"
         bind:value={renameCollectionName}
         placeholder="Collection name"
@@ -786,9 +792,11 @@
     {#if $topModalId === deleteCollectionModalId}
       <ToastContainer />
     {/if}
-    <div class="dialog">
-      <p>Are you sure you want to delete "{deleteTarget}"?</p>
-      <p class="warning">This action cannot be undone.</p>
+    <div class="space-y-2 text-sm">
+      <p class="text-neutral-700 dark:text-neutral-200">
+        Are you sure you want to delete "{deleteTarget}"?
+      </p>
+      <p class="text-danger-600 dark:text-danger-300">This action cannot be undone.</p>
     </div>
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">
@@ -806,9 +814,9 @@
     {#if $topModalId === deleteRequestModalId}
       <ToastContainer />
     {/if}
-    <div class="dialog">
-      <p>Are you sure you want to delete this request?</p>
-      <p class="warning">This action cannot be undone.</p>
+    <div class="space-y-2 text-sm">
+      <p class="text-neutral-700 dark:text-neutral-200">Are you sure you want to delete this request?</p>
+      <p class="text-danger-600 dark:text-danger-300">This action cannot be undone.</p>
     </div>
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">

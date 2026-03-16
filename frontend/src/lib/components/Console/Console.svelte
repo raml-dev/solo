@@ -1,6 +1,10 @@
 <script lang="ts">
   import ConsoleEntry from "$src/lib/components/Console/ConsoleEntry.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import Card from "flowbite-svelte/Card.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
 
   let filterMethod = $state("");
@@ -8,21 +12,21 @@
   let filterUrl = $state("");
 
   const METHOD_OPTIONS = [
-    { value: "", label: "All methods" },
-    { value: "GET", label: "GET" },
-    { value: "POST", label: "POST" },
-    { value: "PUT", label: "PUT" },
-    { value: "PATCH", label: "PATCH" },
-    { value: "DELETE", label: "DELETE" }
+    { value: "", name: "All methods" },
+    { value: "GET", name: "GET" },
+    { value: "POST", name: "POST" },
+    { value: "PUT", name: "PUT" },
+    { value: "PATCH", name: "PATCH" },
+    { value: "DELETE", name: "DELETE" }
   ];
 
   const STATUS_OPTIONS = [
-    { value: "", label: "All statuses" },
-    { value: "2xx", label: "2xx Success" },
-    { value: "3xx", label: "3xx Redirect" },
-    { value: "4xx", label: "4xx Client error" },
-    { value: "5xx", label: "5xx Server error" },
-    { value: "err", label: "Error" }
+    { value: "", name: "All statuses" },
+    { value: "2xx", name: "2xx Success" },
+    { value: "3xx", name: "3xx Redirect" },
+    { value: "4xx", name: "4xx Client error" },
+    { value: "5xx", name: "5xx Server error" },
+    { value: "err", name: "Error" }
   ];
 
   let filtered = $derived(
@@ -54,54 +58,57 @@
   }
 </script>
 
-<div class="console">
-  <!-- Toolbar -->
-  <div class="console-toolbar">
-    <span class="console-title">Console</span>
+<Card class="h-full border-0 rounded-none">
+  <div class="flex h-full min-h-0 flex-col gap-3">
+    <div class="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-700">
+      <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
 
-    <input class="filter-input" type="text" placeholder="Filter URL…" bind:value={filterUrl} />
+      <Input
+        size="sm"
+        class="min-w-52 flex-1"
+        type="text"
+        placeholder="Filter URL…"
+        bind:value={filterUrl}
+      />
 
-    <select class="filter-select" bind:value={filterMethod}>
-      {#each METHOD_OPTIONS as opt (opt.label)}
-        <option value={opt.value}>{opt.label}</option>
-      {/each}
-    </select>
+      <Select size="sm" bind:value={filterMethod} items={METHOD_OPTIONS} class="w-40" />
+      <Select size="sm" bind:value={filterStatus} items={STATUS_OPTIONS} class="w-44" />
 
-    <select class="filter-select" bind:value={filterStatus}>
-      {#each STATUS_OPTIONS.filter((o, i, arr) => arr.findIndex((x) => x.value === o.value) === i) as opt (opt.label)}
-        <option value={opt.value}>{opt.label}</option>
-      {/each}
-    </select>
+      <span class="ml-auto text-xs text-neutral-500 dark:text-neutral-400">
+        {filtered.length} / {$historyStore.length}
+      </span>
 
-    <span class="console-count">{filtered.length} / {$historyStore.length}</span>
+      <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
+        Export HAR
+      </Button>
+      <Button
+        color="alternative"
+        size="sm"
+        onclick={() => historyStore.clear()}
+        disabled={$historyStore.length === 0}
+      >
+        Clear
+      </Button>
+    </div>
 
-    <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
-      Export HAR
-    </Button>
-    <Button
-      color="alternative"
-      size="sm"
-      onclick={() => historyStore.clear()}
-      disabled={$historyStore.length === 0}
-    >
-      Clear
-    </Button>
-  </div>
-
-  <!-- Entry list -->
-  <div class="console-list">
-    {#if filtered.length === 0}
-      <div class="console-empty">
+    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+      {#if filtered.length === 0}
         {#if $historyStore.length === 0}
-          No requests yet — send one to see it here
+          <FeedbackEmptyState
+            compact
+            title="No requests yet"
+            detail="Send a request to see it in the console"
+          />
         {:else}
-          No entries match the current filters
+          <FeedbackEmptyState compact title="No entries match the current filters" />
         {/if}
-      </div>
-    {:else}
-      {#each filtered as entry (entry.id)}
-        <ConsoleEntry {entry} />
-      {/each}
-    {/if}
+      {:else}
+        <div class="space-y-2">
+          {#each filtered as entry (entry.id)}
+            <ConsoleEntry {entry} />
+          {/each}
+        </div>
+      {/if}
+    </div>
   </div>
-</div>
+</Card>
