@@ -123,8 +123,14 @@ NEVER use the `playground-link` tool.
 
 - Always prioritize Svelte 5 runes and modern patterns
 - Use Flowbite-Svelte components for consistent UI design
+- Carefully check for reactive loops inside `$effect` runes
 - Validate all code with svelte-autofixer before delivering
 - Keep documentation lookups efficient by fetching multiple sections at once
+- After every edit, run:
+  - `npm run format` - align all code to the format conventions
+  - `npm run check` - check for errors and warnings emitted by svelte-check
+  - `npm run lint` - check for errors emitted by eslint
+  - `npm run build` - check that the frontend correctly builds
 
 ## Review Checklist for the Agent
 
