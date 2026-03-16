@@ -14,7 +14,7 @@
     bottom_bar?: import("svelte").Snippet;
   }
 
-  let { title = "Yapla", navbar_actions, children, bottom_bar }: Props = $props();
+  let { title = "solo", navbar_actions, children, bottom_bar }: Props = $props();
   let showEnvironmentManager = $state(false);
   let showMainConfiguration = $state(false);
 
@@ -54,9 +54,10 @@
 
 <div class="flex h-screen flex-col overflow-hidden">
   <!-- Top Navbar -->
-  <nav class="flex h-[--spacing-toolbar] shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800">
+  <nav class="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800">
     <div class="flex items-center gap-4">
-      <h1 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{title}</h1>
+      <h1 aria-label="solo" class="select-none">
+        <pre aria-hidden="true" class="pointer-events-none cursor-default select-none text-[0.35rem]/[1.3] font-mono text-primary-700 dark:text-primary-500">{title}</pre></h1>
     </div>
     <div class="flex items-center gap-2">
       {@render navbar_actions?.()}

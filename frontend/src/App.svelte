@@ -28,6 +28,10 @@
   let resizeStartH = 0;
   let showGlobalUnsavedModal = $state(false);
 
+  const appNameAscii = `           █
+ ▄▄▄  ▄▄▄  █  ▄▄▄
+▀▄▄  █   █ █ █   █
+▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀`;
   const appModalScope = `app-${Math.random().toString(36).slice(2)}`;
   const globalUnsavedModalId = `${appModalScope}-unsaved`;
 
@@ -133,7 +137,7 @@
   <ToastContainer />
 {/if}
 
-<MainLayout title="yapla">
+<MainLayout title={appNameAscii}>
   <!-- Main area: sidebar + builder -->
   <div class="flex min-h-0 flex-1 overflow-hidden">
     <CollectionList />
@@ -169,7 +173,9 @@
         color="light"
         size="xs"
         onclick={toggleConsole}
-        class="border-0 shadow-none {consoleOpen ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-400'}"
+        class="border-0 shadow-none {consoleOpen
+          ? 'text-primary-600 dark:text-primary-400'
+          : 'text-neutral-600 dark:text-neutral-400'}"
       >
         <TerminalOutline size="xs" />
         Console
