@@ -52,27 +52,26 @@
   });
 </script>
 
-<div class="app-container">
+<div class="flex h-screen flex-col overflow-hidden">
   <!-- Top Navbar -->
-  <nav class="navbar">
+  <nav class="flex h-[--spacing-toolbar] shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800">
     <div class="flex items-center gap-4">
-      <h1 class="text-lg font-semibold">{title}</h1>
+      <h1 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{title}</h1>
     </div>
     <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
-      <Button color="light" onclick={toggleEnvironmentManager}>Environments</Button>
-      <Button color="light" onclick={toggleMainConfiguration}>Settings</Button>
-      <Button color="light" onclick={() => {}}>Help</Button>
+      <Button size="xs" color="light" onclick={toggleEnvironmentManager}>Environments</Button>
+      <Button size="xs" color="light" onclick={toggleMainConfiguration}>Settings</Button>
     </div>
   </nav>
 
   <!-- Main Content Area -->
-  <div class="main-content">
+  <div class="flex min-h-0 flex-1 overflow-hidden">
     {@render children?.()}
   </div>
 
   <!-- Bottom Bar (always visible) -->
-  <div class="bottom_bar">
+  <div class="shrink-0">
     {@render bottom_bar?.()}
   </div>
 </div>
