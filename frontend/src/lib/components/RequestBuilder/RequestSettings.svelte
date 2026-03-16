@@ -1,4 +1,8 @@
 <script lang="ts">
+  import Helper from "flowbite-svelte/Helper.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Toggle from "flowbite-svelte/Toggle.svelte";
   import type { configuration as conf } from "$wails/go/models";
 
   interface Props {
@@ -14,45 +18,47 @@
   }
 </script>
 
-<div class="settings-form-container">
-  <div class="form-group">
-    <label for="timeout">Timeout (seconds)</label>
-    <input
+<div class="flex-1 overflow-y-auto p-3 space-y-4">
+  <div class="space-y-2">
+    <Label for="timeout">Timeout (seconds)</Label>
+    <Input
       id="timeout"
       type="number"
       min="0"
       step="1"
+      size="sm"
       placeholder={`Global: ${globalConfig.request.timeoutSeconds || "30"}`}
       bind:value={requestSettings.timeoutSeconds}
       oninput={handleChange}
     />
   </div>
-  <div class="form-group">
-    <label for="user-agent">User Agent</label>
-    <input
+
+  <div class="space-y-2">
+    <Label for="user-agent">User Agent</Label>
+    <Input
       id="user-agent"
       type="text"
+      size="sm"
       placeholder={`Global: ${globalConfig.request.defaultUserAgent || "Yapla/1.0"}`}
       bind:value={requestSettings.defaultUserAgent}
       oninput={handleChange}
     />
   </div>
-  <div class="form-group-row">
-    <label class="checkbox-group">
-      <input
-        type="checkbox"
-        bind:checked={requestSettings.followRedirects}
-        onchange={handleChange}
-      />
-      Follow Redirects
-    </label>
-    <div class="form-group">
-      <label for="max-redirects">Max Redirects</label>
-      <input
+
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
+    <div class="md:pb-1">
+      <Toggle bind:checked={requestSettings.followRedirects} size="small" onchange={handleChange}
+        >Follow Redirects</Toggle
+      >
+    </div>
+    <div class="space-y-2">
+      <Label for="max-redirects">Max Redirects</Label>
+      <Input
         id="max-redirects"
         type="number"
         min="0"
         step="1"
+        size="sm"
         placeholder={`Global: ${globalConfig.request.maxRedirects || "10"}`}
         bind:value={requestSettings.maxRedirects}
         oninput={handleChange}
@@ -60,71 +66,23 @@
       />
     </div>
   </div>
-  <div class="form-group">
-    <label class="checkbox-group">
-      <input type="checkbox" bind:checked={requestSettings.validateSSL} onchange={handleChange} />
-      Validate SSL Certificates
-    </label>
+
+  <div>
+    <Toggle bind:checked={requestSettings.validateSSL} size="small" onchange={handleChange}
+      >Validate SSL Certificates</Toggle
+    >
   </div>
-  <div class="form-group">
-    <label for="proxy">Proxy URL</label>
-    <input
+
+  <div class="space-y-2">
+    <Label for="proxy">Proxy URL</Label>
+    <Input
       id="proxy"
       type="text"
+      size="sm"
       placeholder={`Global: ${globalConfig.request.proxyUrl || "Use system settings"}`}
       bind:value={requestSettings.proxyUrl}
       oninput={handleChange}
     />
+    <Helper>Leave empty to use global/system proxy behavior.</Helper>
   </div>
 </div>
-
-<style>
-  .settings-form-container {
-    padding: var(--space-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-lg);
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .form-group-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-lg);
-    align-items: flex-end;
-  }
-
-  .checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    cursor: pointer;
-    user-select: none;
-  }
-
-  label {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-muted);
-  }
-
-  input[type="text"],
-  input[type="number"] {
-    padding: var(--space-sm);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    color: var(--text);
-    font-size: var(--font-size-sm);
-  }
-
-  input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-</style>

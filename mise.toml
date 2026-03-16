@@ -2,7 +2,54 @@
 go = "1.25.6"
 "go:github.com/wailsapp/wails/v2/cmd/wails" = "2.11.0"
 node = "24.12.0"
+pnpm = "10.32.1"
+"npm:@mariozechner/pi-coding-agent" = "0.58.1"
 
+[hooks]
+postinstall = { task = "mcp:check" }
+
+[shell_alias]
+pi = "mise run --quiet pi "
+
+# main tasks
 [tasks.dev]
+description = "Start the development server from the project root"
 dir = "{{ config_root }}"
 run = "wails dev"
+
+[tasks.pi]
+description = "Start the pi coding agent from the project root"
+dir = "{{ config_root }}"
+run = "$(mise which pi)"
+
+# utilities tasks - not meant to be run directly
+
+[tasks."mcp:check"]
+description = "Check if the MCP server and adapter are installed"
+depends = ["mcp:flowbite-check", "mcp:adapter-check"]
+
+
+[tasks."mcp:flowbite-check"]
+description = "Check if the Flowbite MCP server is installed"
+run = """
+if ! ls {{config_root}}/.mcp/flowbite-svelte-mcp &> /dev/null; then
+  mise run mcp:flowbite-install
+fi
+"""
+
+[tasks."mcp:adapter-check"]
+description = "Check if the Pi MCP adapter is installed"
+run = """
+if ! $(mise which pi) list | grep -q "npm:pi-mcp-adapter"; then
+  $(mise which pi) install npm:pi-mcp-adapter
+fi
+"""
+
+[tasks."mcp:flowbite-install"]
+description = "Install and build the flowbite-svelte MCP server"
+run = """
+if [ ! -d {{config_root}}/.mcp/flowbite-svelte-mcp ]; then
+  git clone https://github.com/shinokada/flowbite-svelte-mcp.git {{config_root}}/.mcp/flowbite-svelte-mcp
+fi
+cd {{config_root}}/.mcp/flowbite-svelte-mcp && pnpm install && pnpm run copy:llm && pnpm run build
+"""

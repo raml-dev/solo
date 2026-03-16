@@ -1,8 +1,11 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { onDestroy } from "svelte";
 
   interface Props {
     title?: string;
@@ -15,6 +18,26 @@
   let showEnvironmentManager = $state(false);
   let showMainConfiguration = $state(false);
 
+  const layoutModalScope = `layout-${Math.random().toString(36).slice(2)}`;
+  const environmentManagerModalId = `${layoutModalScope}-environments`;
+  const settingsModalId = `${layoutModalScope}-settings`;
+
+  $effect(() => {
+    if (showEnvironmentManager) {
+      modalStack.open(environmentManagerModalId);
+    } else {
+      modalStack.close(environmentManagerModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showMainConfiguration) {
+      modalStack.open(settingsModalId);
+    } else {
+      modalStack.close(settingsModalId);
+    }
+  });
+
   function toggleEnvironmentManager() {
     showEnvironmentManager = !showEnvironmentManager;
   }
@@ -22,81 +45,51 @@
   function toggleMainConfiguration() {
     showMainConfiguration = !showMainConfiguration;
   }
+
+  onDestroy(() => {
+    modalStack.close(environmentManagerModalId);
+    modalStack.close(settingsModalId);
+  });
 </script>
 
-<div class="app-container">
+<div class="flex h-screen flex-col overflow-hidden">
   <!-- Top Navbar -->
-  <nav class="navbar">
-    <div class="flex items-center gap-md">
-      <h1 class="text-lg font-semibold">{title}</h1>
+  <nav class="flex h-[--spacing-toolbar] shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800">
+    <div class="flex items-center gap-4">
+      <h1 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{title}</h1>
     </div>
-    <div class="flex items-center gap-sm">
+    <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
-      <Button variant="secondary" click={toggleEnvironmentManager}>Environments</Button>
-      <Button variant="secondary" click={toggleMainConfiguration}>Settings</Button>
-      <Button variant="secondary" click={() => {}}>Help</Button>
+      <Button size="xs" color="light" onclick={toggleEnvironmentManager}>Environments</Button>
+      <Button size="xs" color="light" onclick={toggleMainConfiguration}>Settings</Button>
     </div>
   </nav>
 
   <!-- Main Content Area -->
-  <div class="main-content">
+  <div class="flex min-h-0 flex-1 overflow-hidden">
     {@render children?.()}
   </div>
 
   <!-- Bottom Bar (always visible) -->
-  <div class="bottom_bar">
+  <div class="w-full shrink-0">
     {@render bottom_bar?.()}
   </div>
 </div>
 
 {#if showEnvironmentManager}
-  <Modal toggleFn={toggleEnvironmentManager} size="fullpage">
+  <Modal bind:open={showEnvironmentManager} fullscreen size="none">
+    {#if $topModalId === environmentManagerModalId}
+      <ToastContainer />
+    {/if}
     <EnvironmentManager />
   </Modal>
 {/if}
 
 {#if showMainConfiguration}
-  <Modal title="Settings" toggleFn={toggleMainConfiguration} size="settings">
+  <Modal title="Settings" bind:open={showMainConfiguration} size="xl" bodyClass="h-[600px] overflow-hidden p-4">
+    {#if $topModalId === settingsModalId}
+      <ToastContainer />
+    {/if}
     <MainConfiguration />
   </Modal>
 {/if}
-
-<style>
-  .app-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--space-md) var(--space-lg);
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border);
-    height: var(--navbar-height);
-    flex-shrink: 0;
-  }
-
-  .main-content {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    width: 100%;
-    min-height: 0;
-  }
-
-  .bottom_bar {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    height: 28px;
-    background: var(--bg-primary);
-    border-top: 1px solid var(--border);
-    padding: 0 var(--space-md);
-    gap: 2px;
-    position: relative; /* anchor for console-panel */
-  }
-</style>

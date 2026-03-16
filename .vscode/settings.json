@@ -20,10 +20,19 @@
       "source.organizeImports": "always"
     }
   },
-  "eslint.workingDirectories": [{
-    "directory": "${workspaceFolder}/frontend"
-  }],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "eslint.workingDirectories": [
+    {
+      "directory": "${workspaceFolder}/frontend"
+    }
+  ],
+  "eslint.enable": true,
 
   "js/ts.tsdk.path": "frontend/node_modules/typescript/lib",
-  "js/ts.tsdk.promptToUseWorkspaceVersion": true
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "svelte.enable-ts-plugin": true,
+  "svelte.plugin.typescript.enable": true,
+  "svelte.plugin.typescript.diagnostics.enable": true
 }

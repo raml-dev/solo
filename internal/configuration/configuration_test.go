@@ -7,9 +7,6 @@ import (
 	"yapla/internal/tools"
 )
 
-// setupTestEnvironment creates a temporary directory for config files,
-// sets the necessary environment variables to point to it, and returns
-// a cleanup function to be deferred by the caller.
 func setupTestEnvironment(t *testing.T) func() {
 	tempHome, err := os.MkdirTemp("", "yapla_test_config")
 	if err != nil {
@@ -36,13 +33,11 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
-	// Test initialization
 	cm, err := NewConfigurationManager()
 	if err != nil {
 		t.Fatalf("NewConfigurationManager failed: %v", err)
 	}
 
-	// Verify defaults
 	cfg := cm.Get()
 	if cfg.General.ActiveTheme != tools.DEFAULT_THEME {
 		t.Errorf("Expected default theme %s, got %s", tools.DEFAULT_THEME, cfg.General.ActiveTheme)
@@ -51,14 +46,12 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 		t.Errorf("Expected default timeout %d, got %d", tools.DEFAULT_TIMEOUT_SECONDS, cfg.Request.TimeoutSeconds)
 	}
 
-	// Test Persistence
-	newTheme := "dark-mode-test"
+	newTheme := "nord"
 	cfg.General.ActiveTheme = newTheme
 	if err := cm.Save(cfg); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	// Create new manager to simulate app restart
 	cm2, err := NewConfigurationManager()
 	if err != nil {
 		t.Fatalf("Second NewConfigurationManager failed: %v", err)
@@ -78,7 +71,6 @@ func TestConfigurationManager_ThemeManagement(t *testing.T) {
 		t.Fatalf("NewConfigurationManager failed: %v", err)
 	}
 
-	// 1. Test Initial State
 	if cm.GetActiveTheme() != tools.DEFAULT_THEME {
 		t.Errorf("Expected default theme %s, got %s", tools.DEFAULT_THEME, cm.GetActiveTheme())
 	}
@@ -88,18 +80,25 @@ func TestConfigurationManager_ThemeManagement(t *testing.T) {
 		t.Errorf("Expected %d themes initially, got %d", len(predefinedThemes), len(allThemes))
 	}
 
-	// 2. Test SaveCustomTheme (New)
 	customTheme := theme.Theme{
-		Name: "test-custom-theme",
-		Colors: map[string]string{
-			"primary": "#123456",
+		ID:    "custom-test",
+		Label: "Custom Test",
+		Config: theme.ThemeConfig{
+			Type: "custom",
+			Mode: theme.ThemeModeSystem,
+			Seeds: theme.ThemeSeeds{
+				Primary: "#123456",
+				Success: "#10b981",
+				Warning: "#f59e0b",
+				Danger:  "#ef4444",
+				Neutral: "#52525b",
+			},
 		},
 	}
 	if err := cm.SaveCustomTheme(customTheme); err != nil {
 		t.Fatalf("SaveCustomTheme failed: %v", err)
 	}
 
-	// Verify it's saved by checking a new manager instance
 	cm2, err := NewConfigurationManager()
 	if err != nil {
 		t.Fatalf("Second NewConfigurationManager failed: %v", err)
@@ -108,60 +107,51 @@ func TestConfigurationManager_ThemeManagement(t *testing.T) {
 	if len(customThemes) != 1 {
 		t.Fatalf("Expected 1 custom theme after saving, got %d", len(customThemes))
 	}
-	if customThemes[0].Name != "test-custom-theme" {
-		t.Errorf("Expected custom theme name 'test-custom-theme', got '%s'", customThemes[0].Name)
+	if customThemes[0].ID != "custom-test" {
+		t.Errorf("Expected custom theme id 'custom-test', got '%s'", customThemes[0].ID)
 	}
 
-	themeByName, err := cm2.GetThemeByName("test-custom-theme")
+	themeByName, err := cm2.GetThemeByName("custom-test")
 	if err != nil {
 		t.Fatalf("GetThemeByName should find the new custom theme, but failed: %v", err)
 	}
-	if themeByName.Colors["primary"] != "#123456" {
-		t.Errorf("Expected primary color '#123456', got '%s'", themeByName.Colors["primary"])
+	if themeByName.Config.Seeds.Primary != "#123456" {
+		t.Errorf("Expected primary color '#123456', got '%s'", themeByName.Config.Seeds.Primary)
 	}
 
-	// 3. Test SetActiveTheme
-	if err := cm2.SetActiveTheme("test-custom-theme"); err != nil {
+	if err := cm2.SetActiveTheme("custom-test"); err != nil {
 		t.Fatalf("SetActiveTheme failed: %v", err)
 	}
-	if cm2.GetActiveTheme() != "test-custom-theme" {
-		t.Errorf("Expected active theme 'test-custom-theme', got '%s'", cm2.GetActiveTheme())
+	if cm2.GetActiveTheme() != "custom-test" {
+		t.Errorf("Expected active theme 'custom-test', got '%s'", cm2.GetActiveTheme())
 	}
 
-	// Verify persistence of active theme
 	cm3, err := NewConfigurationManager()
 	if err != nil {
 		t.Fatalf("Third NewConfigurationManager failed: %v", err)
 	}
-	if cm3.GetActiveTheme() != "test-custom-theme" {
-		t.Errorf("Active theme should persist across instances. Expected 'test-custom-theme', got '%s'", cm3.GetActiveTheme())
+	if cm3.GetActiveTheme() != "custom-test" {
+		t.Errorf("Active theme should persist across instances. Expected 'custom-test', got '%s'", cm3.GetActiveTheme())
 	}
 
-	// 4. Test SaveCustomTheme (Update)
-	updatedTheme := theme.Theme{
-		Name: "test-custom-theme",
-		Colors: map[string]string{
-			"primary": "#abcdef",
-		},
-	}
+	updatedTheme := customTheme
+	updatedTheme.Config.Seeds.Primary = "#abcdef"
 	if err := cm3.SaveCustomTheme(updatedTheme); err != nil {
 		t.Fatalf("Updating custom theme failed: %v", err)
 	}
 
-	themeByName, err = cm3.GetThemeByName("test-custom-theme")
+	themeByName, err = cm3.GetThemeByName("custom-test")
 	if err != nil {
 		t.Fatalf("GetThemeByName should find the updated custom theme, but failed: %v", err)
 	}
-	if themeByName.Colors["primary"] != "#abcdef" {
-		t.Errorf("Custom theme color was not updated. Expected '#abcdef', got '%s'", themeByName.Colors["primary"])
+	if themeByName.Config.Seeds.Primary != "#abcdef" {
+		t.Errorf("Custom theme color was not updated. Expected '#abcdef', got '%s'", themeByName.Config.Seeds.Primary)
 	}
 
-	// 5. Test DeleteCustomTheme
-	if err := cm3.DeleteCustomTheme("test-custom-theme"); err != nil {
+	if err := cm3.DeleteCustomTheme("custom-test"); err != nil {
 		t.Fatalf("DeleteCustomTheme failed: %v", err)
 	}
 
-	// Verify it's deleted
 	cm4, err := NewConfigurationManager()
 	if err != nil {
 		t.Fatalf("Fourth NewConfigurationManager failed: %v", err)
@@ -170,12 +160,11 @@ func TestConfigurationManager_ThemeManagement(t *testing.T) {
 		t.Errorf("Custom themes should be empty after deletion, got %d", len(cm4.GetCustomThemes()))
 	}
 
-	_, err = cm4.GetThemeByName("test-custom-theme")
+	_, err = cm4.GetThemeByName("custom-test")
 	if err == nil {
 		t.Errorf("GetThemeByName should fail for a deleted theme, but it succeeded")
 	}
 
-	// 6. Test that deleting the active theme resets to default
 	if cm4.GetActiveTheme() != tools.DEFAULT_THEME {
 		t.Errorf("Deleting active theme should reset active theme to default. Expected '%s', got '%s'", tools.DEFAULT_THEME, cm4.GetActiveTheme())
 	}

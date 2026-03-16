@@ -1,5 +1,7 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Checkbox from "flowbite-svelte/Checkbox.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
   import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
 
@@ -46,91 +48,48 @@
   );
 </script>
 
-<div class="headers-editor">
+<div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
   {#each headers as header (header.id)}
-    <div class="header-row">
-      <input
-        type="checkbox"
-        class="header-checkbox"
-        checked={header.enabled}
-        onchange={() => toggleHeader(header.id)}
-      />
-      <input
-        type="text"
-        class="input header-input"
-        placeholder="Header name"
-        bind:value={header.key}
-        disabled={!header.enabled}
-        oninput={() => onChange?.()}
-      />
-      <div class="header-value-wrapper">
+    <div class="flex flex-nowrap items-center gap-2">
+      <div class="shrink-0">
+        <Checkbox
+          checked={header.enabled}
+          onchange={() => toggleHeader(header.id)}
+          aria-label={`Enable header ${header.key || "row"}`}
+        />
+      </div>
+      <div class="min-w-0 flex-1">
+        <Input
+          type="text"
+          size="sm"
+          placeholder="Header name"
+          bind:value={header.key}
+          disabled={!header.enabled}
+          oninput={() => onChange?.()}
+        />
+      </div>
+      <div class="min-w-0 flex-1">
         <TokenInput
           bind:value={header.value}
           placeholder="Value"
           disabled={!header.enabled}
           {environmentEntries}
-          wrapperClass="input header-input"
+          wrapperClass="w-full"
+          size="sm"
           onChange={() => onChange?.()}
         />
       </div>
-      <Button variant="secondary" click={() => removeHeader(header.id)}>×</Button>
+      <Button
+        color="light"
+        size="xs"
+        class="shrink-0"
+        onclick={() => removeHeader(header.id)}
+        aria-label="Remove header"
+      >×</Button>
     </div>
   {/each}
-  <button class="btn-add-header" onclick={addHeader}> + Add Header </button>
+
+  <div class="pt-1">
+    <Button color="light" size="sm" onclick={addHeader}>+ Add Header</Button>
+  </div>
 </div>
-
-<style>
-  .headers-editor {
-    padding: var(--space-md);
-  }
-
-  .header-row {
-    display: flex;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-sm);
-    align-items: stretch;
-  }
-
-  .header-row .input {
-    height: 34px;
-  }
-
-  .header-checkbox {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-
-  .header-input {
-    flex: 1;
-  }
-
-  .header-value-wrapper {
-    flex: 1;
-    display: flex;
-    min-width: 0;
-  }
-
-  .header-input:disabled {
-    opacity: 0.5;
-    background: var(--bg-tertiary);
-  }
-  .btn-add-header {
-    padding: var(--space-sm) var(--space-md);
-    background: none;
-    border: 2px dashed var(--border-dark);
-    color: var(--text-muted);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    width: 100%;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    transition: all var(--transition-fast);
-  }
-
-  .btn-add-header:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: var(--bg-tertiary);
-  }
-</style>

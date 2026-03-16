@@ -1,36 +1,70 @@
 <script lang="ts">
+  import Dropzone from "flowbite-svelte/Dropzone.svelte";
   import { OnFileDrop, OnFileDropOff } from "$wails/runtime/runtime";
   import { onDestroy, onMount } from "svelte";
+  import type { Snippet } from "svelte";
 
   interface Props {
-    /** Titolo grande al centro della zona */
     title?: string;
-    /** Sottotitolo descrittivo */
     subtitle?: string;
-    icon?: import("svelte").Snippet;
+    icon?: Snippet;
     onDrop?: (e: { paths: string[] }) => void;
   }
 
   let { title = "Drop file here", subtitle = "", icon, onDrop }: Props = $props();
 
   let dragOver = $state(false);
-  let el: HTMLDivElement | undefined = $state();
+  let wrapperEl: HTMLDivElement | undefined = $state();
 
-  // Wails OnFileDrop fornisce i path reali del filesystem.
-  // useDropTarget=true limita il callback agli elementi CSS marcati come drop target.
+  function handleWailsDrop(x: number, y: number, paths: string[]) {
+    if (!wrapperEl) return;
+
+    const rect = wrapperEl.getBoundingClientRect();
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      dragOver = false;
+      onDrop?.({ paths });
+    }
+  }
+
+  function onDragEnter(event: DragEvent) {
+    event.preventDefault();
+    dragOver = true;
+  }
+
+  function onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    dragOver = false;
+  }
+
+  function onDragOver(event: DragEvent) {
+    event.preventDefault();
+    dragOver = true;
+  }
+
+  function onDropEvent(event: DragEvent) {
+    event.preventDefault();
+    dragOver = false;
+  }
+
+  function onClick(event: MouseEvent) {
+    // Route click to consumer fallback picker logic (same path as "Select file/folder").
+    event.preventDefault();
+    event.stopPropagation();
+    onDrop?.({ paths: [] });
+  }
+
+  function onKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onDrop?.({ paths: [] });
+    }
+  }
+
   onMount(() => {
     try {
-      OnFileDrop((x, y, paths) => {
-        // Verifica che il drop sia avvenuto sopra questo elemento specifico
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          dragOver = false;
-          onDrop?.({ paths });
-        }
-      }, true);
+      OnFileDrop(handleWailsDrop, true);
     } catch {
-      // Fuori dal runtime Wails (es. dev server browser): no-op
+      // Running outside Wails runtime
     }
   });
 
@@ -38,121 +72,54 @@
     try {
       OnFileDropOff();
     } catch {
-      // no-op
+      // Running outside Wails runtime
     }
   });
-
-  // Visual feedback durante il drag — usiamo gli eventi del webview
-  // solo per l'highlight visivo (il drop effettivo viene da Wails)
-  function onDragEnter() {
-    dragOver = true;
-  }
-  function onDragLeave() {
-    dragOver = false;
-  }
-  // Preveniamo il comportamento default del webview (apertura file)
-  function onDragOver(e: DragEvent) {
-    e.preventDefault();
-  }
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-  }
 </script>
 
-<!--
-  --wails-drop-target: drop  →  Wails riconosce questo elemento come drop target
-  e consegna i path reali al callback OnFileDrop registrato in onMount.
--->
 <div
-  bind:this={el}
-  class="dropzone"
-  class:drag-over={dragOver}
+  bind:this={wrapperEl}
+  style="--wails-drop-target: drop"
   role="button"
   tabindex="0"
-  style="--wails-drop-target: drop"
   ondragenter={onDragEnter}
   ondragleave={onDragLeave}
   ondragover={onDragOver}
-  ondrop={handleDrop}
-  onkeydown={(e) => e.key === "Enter" && onDrop?.({ paths: [] })}
+  ondrop={onDropEvent}
+  onclick={onClick}
+  onkeydown={onKeyDown}
 >
-  <div class="dropzone-icon">
-    {#if icon}{@render icon()}{:else}
-      <!-- icona upload di default -->
-      <svg
-        width="44"
-        height="44"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.4"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="17 8 12 3 7 8" />
-        <line x1="12" y1="3" x2="12" y2="15" />
-      </svg>
-    {/if}
-  </div>
+  <Dropzone
+    class={(dragOver
+      ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20 "
+      : "") + "pointer-events-none"}
+  >
+    <div class="flex flex-col items-center justify-center py-4 text-center">
+      <div class="mb-3 text-neutral-500 dark:text-neutral-400">
+        {#if icon}
+          {@render icon()}
+        {:else}
+          <svg
+            width="44"
+            height="44"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        {/if}
+      </div>
 
-  <p class="dropzone-title">{title}</p>
-  {#if subtitle}
-    <p class="dropzone-subtitle">{subtitle}</p>
-  {/if}
+      <p class="mb-1 text-base font-medium text-neutral-700 dark:text-neutral-200">{title}</p>
+      {#if subtitle}
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">{subtitle}</p>
+      {/if}
+    </div>
+  </Dropzone>
 </div>
-
-<style>
-  .dropzone {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-md);
-    min-height: 240px;
-    margin: var(--space-lg);
-    border: 2px dashed var(--border);
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    transition:
-      border-color var(--transition-fast),
-      background var(--transition-fast);
-    user-select: none;
-  }
-
-  .dropzone:hover,
-  .dropzone:focus,
-  .dropzone.drag-over {
-    border-color: var(--primary);
-    background: var(--status-info-bg);
-    outline: none;
-  }
-
-  .dropzone-icon {
-    color: var(--text-muted);
-    opacity: 0.6;
-    transition:
-      opacity var(--transition-fast),
-      color var(--transition-fast);
-  }
-
-  .dropzone:hover .dropzone-icon,
-  .dropzone.drag-over .dropzone-icon {
-    opacity: 1;
-    color: var(--primary);
-  }
-
-  .dropzone-title {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text);
-    margin: 0;
-  }
-
-  .dropzone-subtitle {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-    margin: 0;
-    text-align: center;
-  }
-</style>

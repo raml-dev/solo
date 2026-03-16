@@ -19,7 +19,7 @@
   );
 </script>
 
-<div class="body-editor-wrapper">
+<div class="flex-1 min-h-0 w-full overflow-hidden">
   <CodeMirrorEditor
     bind:value={requestBody}
     bind:format
@@ -30,13 +30,3 @@
     }}
   />
 </div>
-
-<style>
-  .body-editor-wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: var(--space-md);
-    flex: 1;
-  }
-</style>

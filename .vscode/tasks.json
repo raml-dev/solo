@@ -105,7 +105,42 @@
         "-o",
         "build/bin/yapla"
       ]
+    },
+    {
+      "label": "svelte-check watch",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "check", "--", "--watch"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "svelte",
+        "source": "svelte-check",
+        "fileLocation": "absolute",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Loading svelte-check",
+          "endsPattern": "^svelte-check found"
+        },
+        "pattern": [
+          {
+            "regexp": "^([^\\s][^:]+):(\\d+):(\\d+)$",
+            "file": 1,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "regexp": "^(Error|Warn|Hint): (.*)$",
+            "severity": 1,
+            "message": 2
+          }
+        ]
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
     }
   ]
 }
-  

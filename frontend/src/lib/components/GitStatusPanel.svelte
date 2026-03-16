@@ -1,7 +1,13 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Alert from "flowbite-svelte/Alert.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import Spinner from "flowbite-svelte/Spinner.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
 
   interface Props {
     // ── Props ────────────────────────────────────────────────────────────────
@@ -61,10 +67,26 @@
   let lastOutput = $state("");
   let showDiscardConfirm = $state(false);
   let errorMessage = $state("");
+  let open = $state(true);
+
+  const gitStatusPanelModalId = `git-status-${Math.random().toString(36).slice(2)}`;
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   onMount(() => {
     refresh();
+  });
+
+  $effect(() => {
+    if (open) {
+      modalStack.open(gitStatusPanelModalId);
+    } else {
+      modalStack.close(gitStatusPanelModalId);
+      onClose?.();
+    }
+  });
+
+  onDestroy(() => {
+    modalStack.close(gitStatusPanelModalId);
   });
 
   async function refresh() {
@@ -114,6 +136,10 @@
     }
   }
 
+  function requestClose() {
+    open = false;
+  }
+
   // ── Derived helpers ──────────────────────────────────────────────────────
   function statusLabel(s: CollectionStatus): string {
     if (s.isRebaseInProgress) return "Rebase in progress";
@@ -142,18 +168,14 @@
   }
 </script>
 
-<!-- ── Overlay ──────────────────────────────────────────────────────────── -->
-<div
-  class="overlay"
-  role="presentation"
-  onclick={(e) => {
-    if (e.target === e.currentTarget) onClose?.();
-  }}
->
-  <div class="panel" role="dialog" aria-modal="true" aria-label="Git Status">
-    <!-- Header -->
-    <header class="panel-header">
-      <div class="header-left">
+<Modal bind:open title="Git Status" size="xl" onclose={requestClose}>
+  {#if $topModalId === gitStatusPanelModalId}
+    <ToastContainer />
+  {/if}
+
+  {#snippet header()}
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
         <svg
           width="16"
           height="16"
@@ -161,599 +183,160 @@
           fill="none"
           stroke="currentColor"
           stroke-width="2"
-          class="git-icon"
+          class="shrink-0 text-neutral-500 dark:text-neutral-400"
         >
-          <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
-            cx="18"
-            cy="6"
-            r="3"
-          />
+          <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" />
           <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
           <line x1="12" y1="12" x2="12" y2="15" />
         </svg>
         <div>
-          <h2 class="panel-title">{entityName}</h2>
+          <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{entityName}</h2>
           {#if status}
-            <span class="branch-label">⎇ {status.branch}</span>
+            <span class="font-mono text-xs text-neutral-500 dark:text-neutral-400">⎇ {status.branch}</span>
           {/if}
         </div>
       </div>
-      <div class="header-right">
-        <button
-          class="icon-btn"
+      <div class="flex shrink-0 items-center gap-1">
+        <Button
+          color="light"
+          size="xs"
           title="Refresh"
           onclick={refresh}
           disabled={loading || actionInProgress}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            class:spinning={loading}
-          >
-            <path
-              d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
-            />
-          </svg>
-        </button>
-        <button class="icon-btn" title="Open in Terminal" onclick={handleOpenTerminal}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
+          {#if loading}
+            <Spinner size="4" />
+          {:else}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47" />
+            </svg>
+          {/if}
+        </Button>
+        <Button color="light" size="xs" title="Open in Terminal" onclick={handleOpenTerminal}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
           </svg>
-        </button>
-        <button class="icon-btn close-btn" onclick={() => onClose?.()} title="Close">✕</button>
+        </Button>
+        <Button color="light" size="xs" title="Close" onclick={requestClose}>✕</Button>
       </div>
-    </header>
-
-    <div class="panel-body">
-      {#if loading}
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <span>Loading git status…</span>
-        </div>
-      {:else if errorMessage}
-        <div class="error-box">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line
-              x1="12"
-              y1="16"
-              x2="12.01"
-              y2="16"
-            />
-          </svg>
-          <span>{errorMessage}</span>
-        </div>
-      {:else if status}
-        <!-- Status badge -->
-        <div class="status-row">
-          <span class="status-badge status-{statusVariant(status)}">{statusLabel(status)}</span>
-          {#if status.ahead > 0 || status.behind > 0}
-            <span class="ahead-behind-detail">
-              {#if status.ahead > 0}<span class="ahead">↑ {status.ahead} to push</span>{/if}
-              {#if status.behind > 0}<span class="behind">↓ {status.behind} to pull</span>{/if}
-            </span>
-          {/if}
-        </div>
-
-        <!-- Conflict / rebase warning -->
-        {#if status.isRebaseInProgress || status.hasConflicts}
-          <div class="conflict-box">
-            <div class="conflict-header">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-              >
-                <path
-                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-                />
-                <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <strong
-                >{status.isRebaseInProgress
-                  ? "Rebase in progress"
-                  : "Merge conflicts detected"}</strong
-              >
-            </div>
-            {#if status.conflictFiles?.length > 0}
-              <ul class="conflict-files">
-                {#each status.conflictFiles as f (f)}<li>⚡ {f}</li>{/each}
-              </ul>
-            {/if}
-          </div>
-        {/if}
-
-        <!-- Changed files -->
-        {#if status.statusLines?.length > 0}
-          <section class="section">
-            <h4 class="section-title">
-              Changed files <span class="count">{status.statusLines.length}</span>
-            </h4>
-            <div class="file-list">
-              {#each status.statusLines as line (line)}
-                <div class="file-line">
-                  <span class="file-icon">{statusLineIcon(line)}</span>
-                  <span class="file-xy">{line.slice(0, 2)}</span>
-                  <span class="file-name">{line.slice(3)}</span>
-                </div>
-              {/each}
-            </div>
-          </section>
-        {/if}
-
-        <!-- Recent log -->
-        {#if status.recentLog?.length > 0}
-          <section class="section">
-            <h4 class="section-title">Recent commits</h4>
-            <div class="log-list">
-              {#each status.recentLog as entry (entry.hash)}
-                <div class="log-entry">
-                  <code class="log-hash">{entry.hash}</code>
-                  <span class="log-msg">{entry.message}</span>
-                  <span class="log-meta">{entry.author} · {entry.date}</span>
-                </div>
-              {/each}
-            </div>
-          </section>
-        {/if}
-
-        <!-- Output feedback -->
-        {#if lastOutput}
-          <div class="output-box ok">{lastOutput}</div>
-        {/if}
-
-        <!-- Discard confirm inline -->
-        {#if showDiscardConfirm}
-          <div class="confirm-box">
-            <span>⚠ This will permanently discard all local uncommitted changes. Continue?</span>
-            <div class="confirm-actions">
-              <Button variant="danger" size="sm" click={handleDiscard} disabled={actionInProgress}
-                >Yes, discard</Button
-              >
-              <Button
-                variant="secondary"
-                size="sm"
-                click={() => (showDiscardConfirm = false)}
-                disabled={actionInProgress}>Cancel</Button
-              >
-            </div>
-          </div>
-        {/if}
-      {/if}
     </div>
+  {/snippet}
 
-    <!-- Footer actions -->
-    <footer class="panel-footer">
-      <div class="actions-left">
-        {#if status?.isRebaseInProgress || status?.hasConflicts}
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={actionInProgress || !status}
-            click={handleKeepOurs}>Keep Ours</Button
-          >
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={actionInProgress || !status}
-            click={handleKeepTheirs}>Keep Theirs</Button
-          >
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={actionInProgress || !status}
-            click={handleAbortRebase}>Abort Rebase</Button
-          >
+  <div class="flex flex-col gap-4">
+    {#if loading}
+      <div class="flex items-center gap-2 py-6 text-sm text-neutral-500 dark:text-neutral-400">
+        <Spinner size="4" />
+        <span>Loading git status…</span>
+      </div>
+    {:else if errorMessage}
+      <Alert color="red">
+        <span>{errorMessage}</span>
+      </Alert>
+    {:else if status}
+      <!-- Status badge -->
+      <div class="flex flex-wrap items-center gap-3">
+        {#if statusVariant(status) === "ok"}
+          <Badge color="green">{statusLabel(status)}</Badge>
+        {:else if statusVariant(status) === "warning"}
+          <Badge color="yellow">{statusLabel(status)}</Badge>
         {:else}
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={actionInProgress || loading || !status}
-            click={handleSync}
-          >
+          <Badge color="red">{statusLabel(status)}</Badge>
+        {/if}
+        {#if status.ahead > 0 || status.behind > 0}
+          <span class="flex items-center gap-3 text-xs">
+            {#if status.ahead > 0}<span class="text-primary-600 dark:text-primary-400">↑ {status.ahead} to push</span>{/if}
+            {#if status.behind > 0}<span class="text-neutral-500 dark:text-neutral-400">↓ {status.behind} to pull</span>{/if}
+          </span>
+        {/if}
+      </div>
+
+      <!-- Conflict / rebase warning -->
+      {#if status.isRebaseInProgress || status.hasConflicts}
+        <Alert color="red" class="mt-1">
+          <div class="flex items-center gap-2 font-medium">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <strong>{status.isRebaseInProgress ? "Rebase in progress" : "Merge conflicts detected"}</strong>
+          </div>
+          {#if status.conflictFiles?.length > 0}
+            <ul class="mt-2 list-none space-y-1 font-mono text-sm">
+              {#each status.conflictFiles as f (f)}<li>⚡ {f}</li>{/each}
+            </ul>
+          {/if}
+        </Alert>
+      {/if}
+
+      <!-- Changed files -->
+      {#if status.statusLines?.length > 0}
+        <section class="flex flex-col gap-2">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+            Changed files <Badge color="gray" class="ml-1">{status.statusLines.length}</Badge>
+          </h4>
+          <div class="space-y-0.5">
+            {#each status.statusLines as line (line)}
+              <div class="flex items-baseline gap-2 rounded px-1 py-0.5 font-mono text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                <span class="shrink-0">{statusLineIcon(line)}</span>
+                <span class="w-5 shrink-0 font-bold text-neutral-400">{line.slice(0, 2)}</span>
+                <span class="min-w-0 truncate text-neutral-700 dark:text-neutral-300">{line.slice(3)}</span>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      <!-- Recent log -->
+      {#if status.recentLog?.length > 0}
+        <section class="flex flex-col gap-2">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Recent commits</h4>
+          <div class="space-y-2">
+            {#each status.recentLog as entry (entry.hash)}
+              <div class="flex flex-col gap-0.5 rounded border border-neutral-200 p-2 dark:border-neutral-700">
+                <code class="font-mono text-xs text-neutral-400">{entry.hash}</code>
+                <span class="text-sm text-neutral-800 dark:text-neutral-100">{entry.message}</span>
+                <span class="text-xs text-neutral-500 dark:text-neutral-400">{entry.author} · {entry.date}</span>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      <!-- Output feedback -->
+      {#if lastOutput}
+        <Alert color="green" class="mt-1">{lastOutput}</Alert>
+      {/if}
+
+      <!-- Discard confirm inline -->
+      {#if showDiscardConfirm}
+        <div class="rounded-lg border border-warning-200 bg-warning-50 p-3 text-sm dark:border-warning-700 dark:bg-warning-900/20">
+          <span>⚠ This will permanently discard all local uncommitted changes. Continue?</span>
+          <div class="mt-2 flex items-center gap-2">
+            <Button color="red" size="sm" onclick={handleDiscard} disabled={actionInProgress}>Yes, discard</Button>
+            <Button color="light" size="sm" onclick={() => (showDiscardConfirm = false)} disabled={actionInProgress}>Cancel</Button>
+          </div>
+        </div>
+      {/if}
+    {/if}
+  </div>
+
+  {#snippet footer()}
+    <div class="flex w-full items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        {#if status?.isRebaseInProgress || status?.hasConflicts}
+          <Button color="primary" size="sm" disabled={actionInProgress || !status} onclick={handleKeepOurs}>Keep Ours</Button>
+          <Button color="light" size="sm" disabled={actionInProgress || !status} onclick={handleKeepTheirs}>Keep Theirs</Button>
+          <Button color="red" size="sm" disabled={actionInProgress || !status} onclick={handleAbortRebase}>Abort Rebase</Button>
+        {:else}
+          <Button color="primary" size="sm" disabled={actionInProgress || loading || !status} onclick={handleSync}>
             {actionInProgress ? "Syncing…" : "↺ Sync"}
           </Button>
           {#if status?.isDirty}
-            <Button
-              variant="danger"
-              size="sm"
-              disabled={actionInProgress || !status}
-              click={() => (showDiscardConfirm = true)}
-            >
-              Discard Changes
-            </Button>
+            <Button color="red" size="sm" disabled={actionInProgress || !status} onclick={() => (showDiscardConfirm = true)}>Discard Changes</Button>
           {/if}
         {/if}
       </div>
-      <Button variant="secondary" size="sm" click={() => onClose?.()}>Close</Button>
-    </footer>
-  </div>
-</div>
-
-<style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1100;
-    backdrop-filter: blur(2px);
-  }
-
-  .panel {
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    width: 100%;
-    max-width: 520px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-  }
-
-  /* Header */
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-md) var(--space-lg);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
-    gap: var(--space-sm);
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    min-width: 0;
-  }
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    flex-shrink: 0;
-  }
-
-  .git-icon {
-    flex-shrink: 0;
-    color: var(--text-muted);
-  }
-  .panel-title {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .branch-label {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-  }
-
-  .icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s;
-  }
-  .icon-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text);
-  }
-  .icon-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .close-btn {
-    font-size: 1rem;
-  }
-
-  /* Body */
-  .panel-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space-md) var(--space-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-  }
-
-  .loading-state {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    color: var(--text-muted);
-    padding: var(--space-xl) 0;
-    justify-content: center;
-    font-size: 0.875rem;
-  }
-
-  .spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    flex-shrink: 0;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  .spinning {
-    animation: spin 0.8s linear infinite;
-  }
-
-  /* Status badge */
-  .status-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-  }
-
-  .status-badge {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .status-ok {
-    background: color-mix(in srgb, var(--success) 15%, transparent);
-    color: var(--success);
-    border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
-  }
-  .status-warning {
-    background: color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent);
-    color: var(--warning, #f59e0b);
-    border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 30%, transparent);
-  }
-  .status-danger {
-    background: color-mix(in srgb, var(--danger) 15%, transparent);
-    color: var(--danger);
-    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
-  }
-
-  .ahead-behind-detail {
-    display: flex;
-    gap: var(--space-sm);
-    font-size: 0.75rem;
-  }
-  .ahead {
-    color: var(--success);
-  }
-  .behind {
-    color: var(--warning, #f59e0b);
-  }
-
-  /* Conflict box */
-  .conflict-box {
-    background: color-mix(in srgb, var(--danger) 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
-  }
-  .conflict-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    color: var(--danger);
-    font-size: 0.8rem;
-  }
-  .conflict-files {
-    margin: var(--space-xs) 0 0 var(--space-md);
-    padding: 0;
-    list-style: none;
-    font-size: 0.75rem;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  /* Sections */
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-  .section-title {
-    margin: 0;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-  .count {
-    background: var(--bg-tertiary);
-    border-radius: 10px;
-    padding: 0 5px;
-    font-size: 0.65rem;
-  }
-
-  /* File list */
-  .file-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-height: 120px;
-    overflow-y: auto;
-  }
-  .file-line {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    padding: 2px 4px;
-    border-radius: var(--radius-sm);
-  }
-  .file-line:hover {
-    background: var(--bg-secondary);
-  }
-  .file-icon {
-    width: 14px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .file-xy {
-    color: var(--text-muted);
-    min-width: 18px;
-    font-weight: 600;
-  }
-  .file-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--text);
-  }
-
-  /* Log list */
-  .log-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 140px;
-    overflow-y: auto;
-  }
-  .log-entry {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    column-gap: var(--space-sm);
-    row-gap: 1px;
-    font-size: 0.75rem;
-    padding: 4px 6px;
-    border-radius: var(--radius-sm);
-  }
-  .log-entry:hover {
-    background: var(--bg-secondary);
-  }
-  .log-hash {
-    grid-row: 1 / 3;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    background: var(--bg-tertiary);
-    padding: 1px 5px;
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    align-self: center;
-    white-space: nowrap;
-  }
-  .log-msg {
-    color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .log-meta {
-    color: var(--text-muted);
-    font-size: 0.68rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Feedback boxes */
-  .error-box {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-sm);
-    background: color-mix(in srgb, var(--danger) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
-    font-size: 0.75rem;
-    color: var(--danger);
-    word-break: break-word;
-  }
-
-  .output-box {
-    font-size: 0.75rem;
-    padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
-    font-family: var(--font-mono);
-  }
-  .output-box.ok {
-    background: color-mix(in srgb, var(--success) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
-    color: var(--success);
-  }
-
-  /* Discard confirm */
-  .confirm-box {
-    background: color-mix(in srgb, var(--danger) 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
-    font-size: 0.8rem;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-    color: var(--text);
-  }
-  .confirm-actions {
-    display: flex;
-    gap: var(--space-sm);
-  }
-
-  /* Footer */
-  .panel-footer {
-    padding: var(--space-md) var(--space-lg);
-    border-top: 1px solid var(--border);
-    background: var(--bg-secondary);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--space-sm);
-  }
-  .actions-left {
-    display: flex;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-  }
-</style>
+      <Button color="light" size="sm" onclick={requestClose}>Close</Button>
+    </div>
+  {/snippet}
+</Modal>

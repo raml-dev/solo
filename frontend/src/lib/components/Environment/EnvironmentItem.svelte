@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "flowbite-svelte/Button.svelte";
   import type { environment } from "$wails/go/models";
 
   interface Props {
@@ -69,234 +70,82 @@
   }
 </script>
 
-<div class="environment-item" class:active={isActive} class:focused={isFocused}>
-  <div class="environment-info">
-    <input
-      class="active-radio"
-      type="radio"
-      name="active-environment"
-      checked={isActive}
-      onchange={activateEnvironment}
-      aria-label={`Set ${env.name} as active environment`}
-    />
-    {#if env.gitRemote}
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        class="provider-icon"
-        aria-label={`Git remote: ${env.gitRemote}`}
-      >
-        <path d={getProviderIconPath(env.gitProvider || "git")} />
-      </svg>
-    {/if}
-    <button class="environment-name-btn" onclick={openEnvironment}>{env.name}</button>
-  </div>
-
-  <div class="environment-actions">
-    {#if env.gitRemote}
-      <button class="icon-btn" onclick={handleGitStatus} title="Git status & actions">
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
-            cx="18"
-            cy="6"
-            r="3"
-          />
-          <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
-          <line x1="12" y1="12" x2="12" y2="15" />
-        </svg>
-      </button>
-      <button
-        class="icon-btn"
-        onclick={handleSync}
-        title="Sync with Git remote"
-        disabled={isSyncing}
-      >
-        {#if isSyncing}
-          <span class="sync-spinner"></span>
-        {:else}
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
-            ></path>
-          </svg>
-        {/if}
-      </button>
-    {/if}
-    <button class="icon-btn" onclick={toggleMenu} title="More actions" aria-label="More actions">
-      ...
-    </button>
-  </div>
+<div
+  class="relative flex items-center gap-1.5 px-2 py-1.5 {isFocused ? 'bg-primary-50 dark:bg-primary-900/30' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'}"
+>
+  <input
+    type="radio"
+    name="active-environment"
+    checked={isActive}
+    onchange={activateEnvironment}
+    aria-label={`Set ${env.name} as active environment`}
+    class="shrink-0 accent-primary-600"
+  />
+  {#if env.gitRemote}
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      class="shrink-0 text-neutral-400"
+      aria-label={`Git remote: ${env.gitRemote}`}
+    >
+      <path d={getProviderIconPath(env.gitProvider || "git")} />
+    </svg>
+  {/if}
+  <Button
+    color="light"
+    size="sm"
+    class="min-w-0 flex-1 justify-start truncate border-0 shadow-none"
+    onclick={openEnvironment}
+  >
+    {env.name}
+  </Button>
+  <Button
+    color="light"
+    size="xs"
+    class="shrink-0 border-0 shadow-none"
+    onclick={toggleMenu}
+    title="More actions"
+    aria-label="More actions"
+  >
+    •••
+  </Button>
 
   {#if menuOpen}
-    <div class="environment-menu">
-      <button class="menu-item danger" onclick={handleDeleteEnvironment}> Delete </button>
+    <div
+      class="absolute right-0 top-full z-50 min-w-40 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+    >
+      {#if env.gitRemote}
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 shadow-none"
+          onclick={handleGitStatus}
+        >
+          Git status
+        </Button>
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 shadow-none disabled:opacity-50"
+          onclick={handleSync}
+          disabled={isSyncing}
+        >
+          {isSyncing ? "Syncing…" : "Sync with Git"}
+        </Button>
+        <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
+      {/if}
+      <Button
+        color="light"
+        size="sm"
+        class="w-full justify-start border-0 shadow-none text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+        onclick={handleDeleteEnvironment}
+      >
+        Delete
+      </Button>
     </div>
   {/if}
 </div>
-
-<style>
-  .environment-item {
-    display: flex;
-    align-items: center;
-    padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
-    border: 1px solid transparent;
-    transition: background-color 0.15s;
-    position: relative;
-  }
-
-  .environment-item:hover,
-  .environment-item.focused {
-    background-color: var(--bg-tertiary);
-  }
-
-  .environment-item.active {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
-  }
-
-  .environment-item.focused:not(.active) {
-    border-color: var(--border);
-  }
-
-  .environment-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  .provider-icon {
-    flex-shrink: 0;
-    color: var(--text-muted);
-  }
-
-  .active-radio {
-    margin: 0;
-    accent-color: var(--primary);
-    cursor: pointer;
-  }
-
-  .environment-name-btn {
-    background: none;
-    border: none;
-    color: var(--text);
-    font: inherit;
-    font-weight: var(--font-weight-medium);
-    cursor: pointer;
-    padding: 0;
-    text-align: left;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-  }
-
-  .environment-actions {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s;
-    display: flex;
-    gap: 2px;
-  }
-
-  .environment-item:hover .environment-actions,
-  .environment-item.focused .environment-actions,
-  .environment-item.active .environment-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .icon-btn {
-    background: none;
-    border: 1px solid transparent;
-    cursor: pointer;
-    padding: 0 var(--space-xs);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    transition: all var(--transition-fast);
-    font-size: var(--font-size-sm);
-    height: 24px;
-  }
-  .icon-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text);
-  }
-
-  .icon-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .sync-spinner {
-    display: block;
-    width: 10px;
-    height: 10px;
-    border: 1.5px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .environment-menu {
-    position: absolute;
-    right: var(--space-sm);
-    top: calc(100% + 6px);
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    display: flex;
-    flex-direction: column;
-    min-width: 140px;
-    z-index: var(--z-dropdown);
-  }
-
-  .menu-item {
-    padding: var(--space-sm) var(--space-md);
-    background: none;
-    border: none;
-    text-align: left;
-    font-size: var(--font-size-sm);
-    color: var(--text);
-    cursor: pointer;
-  }
-
-  .menu-item:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .menu-item.danger {
-    color: var(--danger);
-  }
-
-  .menu-item.danger:hover {
-    background: var(--status-danger-bg);
-  }
-</style>

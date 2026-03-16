@@ -3,11 +3,27 @@ export interface EnvAutocompleteEntry {
   value: string;
 }
 
+export interface EnvAutocompleteRenderState {
+  open: boolean;
+  items: EnvAutocompleteEntry[];
+  activeIndex: number;
+  left: number;
+  top: number;
+  minWidth: number;
+  maxWidth: number;
+  query: string;
+  select: (index: number) => void;
+  setActive: (index: number) => void;
+  close: () => void;
+}
+
 export interface EnvAutocompleteOptions {
   entries: EnvAutocompleteEntry[];
   trigger?: string;
   maxItems?: number;
   insertMode?: "value" | "token";
+  menuElement?: HTMLElement | null;
+  onStateChange?: (state: EnvAutocompleteRenderState) => void;
 }
 
 type TextFieldElement = HTMLInputElement | HTMLTextAreaElement;
@@ -74,11 +90,37 @@ function getCaretCoordinates(
 
 export function envAutocomplete(node: TextFieldElement, options: EnvAutocompleteOptions) {
   let currentOptions = options;
-  let menu: HTMLDivElement | null = null;
   let open = false;
   let filtered: EnvAutocompleteEntry[] = [];
   let activeIndex = 0;
   let matchContext: MatchContext | null = null;
+  let menuLeft = 0;
+  let menuTop = 0;
+  let menuMinWidth = 220;
+  let menuMaxWidth = 220;
+
+  function emitState() {
+    currentOptions.onStateChange?.({
+      open,
+      items: filtered,
+      activeIndex,
+      left: menuLeft,
+      top: menuTop,
+      minWidth: menuMinWidth,
+      maxWidth: menuMaxWidth,
+      query: matchContext?.query ?? "",
+      select: (index: number) => {
+        const entry = filtered[index];
+        if (entry) applySelection(entry);
+      },
+      setActive: (index: number) => {
+        if (!filtered.length) return;
+        activeIndex = Math.max(0, Math.min(index, filtered.length - 1));
+        emitState();
+      },
+      close: closeMenu
+    });
+  }
 
   function getMatchContext(): MatchContext | null {
     const caret = node.selectionStart;
@@ -92,7 +134,6 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
 
     const query = beforeCaret.slice(openIndex + trigger.length);
 
-    // Ignore invalid token contexts to avoid noisy suggestions.
     if (query.includes("}}") || query.includes("\n") || query.includes("\r")) {
       return null;
     }
@@ -115,8 +156,6 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
   }
 
   function setMenuPosition() {
-    if (!menu) return;
-
     const caret = node.selectionStart ?? node.value.length;
     const { left, top } = getCaretCoordinates(node, caret);
     const rect = node.getBoundingClientRect();
@@ -124,24 +163,18 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
     const lineHeight = Number.parseFloat(rawLineHeight);
     const safeLineHeight = Number.isFinite(lineHeight) ? lineHeight : 18;
 
-    const menuLeft = Math.max(rect.left, left - 8);
-    const menuTop = top + safeLineHeight + 6;
-    const maxWidth = Math.max(220, rect.width);
-
-    menu.style.left = `${window.scrollX + menuLeft}px`;
-    menu.style.top = `${window.scrollY + menuTop}px`;
-    menu.style.maxWidth = `${maxWidth}px`;
-    menu.style.minWidth = "220px";
+    menuLeft = window.scrollX + Math.max(rect.left, left - 8);
+    menuTop = window.scrollY + top + safeLineHeight + 6;
+    menuMaxWidth = Math.max(220, rect.width);
+    menuMinWidth = 220;
   }
 
   function closeMenu() {
     open = false;
     matchContext = null;
-
-    if (menu) {
-      menu.remove();
-      menu = null;
-    }
+    filtered = [];
+    activeIndex = 0;
+    emitState();
   }
 
   function applySelection(entry: EnvAutocompleteEntry) {
@@ -153,42 +186,6 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
     node.setRangeText(replacement, matchContext.start, matchContext.end, "end");
     node.dispatchEvent(new Event("input", { bubbles: true }));
     closeMenu();
-  }
-
-  function renderMenu() {
-    if (!open || !matchContext || filtered.length === 0) {
-      closeMenu();
-      return;
-    }
-
-    if (!menu) {
-      menu = document.createElement("div");
-      menu.className = "env-autocomplete-menu";
-      document.body.appendChild(menu);
-    }
-
-    setMenuPosition();
-    menu.innerHTML = "";
-
-    filtered.forEach((entry, index) => {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "env-autocomplete-item";
-      if (index === activeIndex) {
-        item.classList.add("active");
-      }
-
-      const keyLabel = document.createElement("span");
-      keyLabel.className = "env-key";
-      keyLabel.textContent = entry.key;
-
-      item.appendChild(keyLabel);
-      item.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        applySelection(entry);
-      });
-      menu?.appendChild(item);
-    });
   }
 
   function refreshFromCaret() {
@@ -208,8 +205,9 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
     }
 
     open = true;
-    activeIndex = Math.min(activeIndex, filtered.length - 1);
-    renderMenu();
+    activeIndex = Math.max(0, Math.min(activeIndex, filtered.length - 1));
+    setMenuPosition();
+    emitState();
   }
 
   function onInput() {
@@ -230,18 +228,19 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
 
   function onKeyDown(event: Event) {
     if (!open || filtered.length === 0) return;
-    if (event instanceof KeyboardEvent === false) return;
+    if (!(event instanceof KeyboardEvent)) return;
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
       activeIndex = (activeIndex + 1) % filtered.length;
-      renderMenu();
+      emitState();
       return;
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
       activeIndex = (activeIndex - 1 + filtered.length) % filtered.length;
-      renderMenu();
+      emitState();
       return;
     }
 
@@ -260,15 +259,19 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
   function onDocumentClick(event: MouseEvent) {
     if (!open) return;
     const target = event.target as Node;
-    if (target === node || node.contains(target) || (menu && menu.contains(target))) {
+    const menuEl = currentOptions.menuElement;
+
+    if (target === node || node.contains(target) || (menuEl && menuEl.contains(target))) {
       return;
     }
+
     closeMenu();
   }
 
   function onWindowResizeOrScroll() {
     if (open) {
       setMenuPosition();
+      emitState();
     }
   }
 
@@ -284,9 +287,24 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
 
   return {
     update(nextOptions: EnvAutocompleteOptions) {
+      const prev = currentOptions;
       currentOptions = nextOptions;
-      activeIndex = 0;
-      refreshFromCaret();
+
+      const entriesChanged = prev.entries !== nextOptions.entries;
+      const triggerChanged = prev.trigger !== nextOptions.trigger;
+      const maxItemsChanged = prev.maxItems !== nextOptions.maxItems;
+      const insertModeChanged = prev.insertMode !== nextOptions.insertMode;
+
+      if (entriesChanged || triggerChanged || maxItemsChanged || insertModeChanged) {
+        activeIndex = 0;
+        refreshFromCaret();
+        return;
+      }
+
+      const menuElementChanged = prev.menuElement !== nextOptions.menuElement;
+      if (menuElementChanged && open) {
+        emitState();
+      }
     },
     destroy() {
       closeMenu();

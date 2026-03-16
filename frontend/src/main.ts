@@ -1,6 +1,7 @@
+import "$src/app.css";
 import App from "$src/App.svelte";
+import "$src/assets/styles/codemirror-theme.css";
 import { mount } from "svelte";
-import "./style.css";
 
 let target = document.getElementById("app");
 

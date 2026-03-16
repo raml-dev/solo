@@ -1,15 +1,18 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
-  import Tab from "$src/lib/components/base/Tab.svelte";
-  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import EnvironmentEditor from "$src/lib/components/Environment/EnvironmentEditor.svelte";
   import EnvironmentItem from "$src/lib/components/Environment/EnvironmentItem.svelte";
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
     GetGitEnvironmentStatus,
@@ -24,6 +27,7 @@
     SyncGitEnvironment
   } from "$wails/go/main/App";
   import { environment } from "$wails/go/models";
+  import { onDestroy } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   let showNewEnvironmentDialog = $state(false);
@@ -32,6 +36,8 @@
   let activeMenu: string | null = $state(null);
   let showImportSelector = $state(false);
   let importActiveTab = $state("postman");
+  let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
+    $state(null);
   let showOverwriteConfirmDialog = $state(false);
   let pendingImport: { format: "postman" | "bruno"; path: string } | null = null;
   let overwriteTargetName: string | null = $state(null);
@@ -39,6 +45,31 @@
   let syncingEnvironments: Set<string> = $state(new Set());
   let gitStatusEnvId: string | null = $state(null);
   let gitStatusEnvName: string | null = $state(null);
+
+  const environmentManagerModalScope = `environment-manager-${Math.random().toString(36).slice(2)}`;
+  const importEnvironmentModalId = `${environmentManagerModalScope}-import`;
+  const overwriteEnvironmentModalId = `${environmentManagerModalScope}-overwrite`;
+
+  $effect(() => {
+    if (showImportSelector) {
+      modalStack.open(importEnvironmentModalId);
+    } else {
+      modalStack.close(importEnvironmentModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showOverwriteConfirmDialog) {
+      modalStack.open(overwriteEnvironmentModalId);
+    } else {
+      modalStack.close(overwriteEnvironmentModalId);
+    }
+  });
+
+  onDestroy(() => {
+    modalStack.close(importEnvironmentModalId);
+    modalStack.close(overwriteEnvironmentModalId);
+  });
 
   let environments = $derived($environmentStore.environments);
   $effect(() => {
@@ -120,7 +151,7 @@
     activeMenu = activeMenu === environmentName ? null : environmentName;
   }
 
-  function handleLayoutClick() {
+  function closeActiveMenu() {
     activeMenu = null;
   }
 
@@ -148,6 +179,7 @@
 
   function openImportModal() {
     importActiveTab = "postman";
+    gitImportActionState = null;
     showImportSelector = true;
   }
 
@@ -215,24 +247,22 @@
   }
 </script>
 
-<div class="environment-manager-layout" onclick={handleLayoutClick}>
-  <div class="environment-list">
-    <div class="header">
-      <div class="header-title">
-        <div class="header-actions">
-          <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
-          <Button variant="primary" size="small" click={() => (showNewEnvironmentDialog = true)}>
-            New
-          </Button>
-        </div>
-      </div>
+<svelte:window onclick={closeActiveMenu} />
+
+<div class="flex h-full overflow-hidden">
+  <div class="flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-700">
+    <div class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 p-3 dark:border-neutral-700">
+      <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
+      <Button color="primary" size="sm" onclick={() => (showNewEnvironmentDialog = true)}>
+        New
+      </Button>
     </div>
 
     {#if $environmentStore.loading}
-      <div class="loading">Loading environments...</div>
+      <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">Loading environments...</div>
     {/if}
 
-    <div class="environments">
+    <div class="flex-1 overflow-y-auto">
       {#each environments as environment (environment.id)}
         <EnvironmentItem
           env={environment}
@@ -250,13 +280,13 @@
       {/each}
     </div>
     {#if environments.length === 0 && !$environmentStore.loading}
-      <div class="empty-state">
-        <p>No environments yet</p>
-        <p class="hint">Create your first environment to get started</p>
-      </div>
+      <FeedbackEmptyState
+        title="No environments yet"
+        detail="Create your first environment to get started"
+      />
     {/if}
   </div>
-  <div class="environment-editor-pane">
+  <div class="min-w-0 flex-1 overflow-y-auto p-4">
     <EnvironmentEditor env={selectedEnvironment} onUpdate={handleUpdateEnvironment} />
   </div>
 </div>
@@ -272,10 +302,13 @@
 />
 
 {#if showImportSelector}
-  <Modal title="Import Environment" toggleFn={() => (showImportSelector = false)} size="wide">
-    <div class="import-modal-body">
-      <Tabs bind:activeValue={importActiveTab}>
-        <Tab title="Postman" value="postman">
+  <Modal title="Import Environment" bind:open={showImportSelector} size="xl">
+    {#if $topModalId === importEnvironmentModalId}
+      <ToastContainer />
+    {/if}
+    <div class="flex flex-col gap-4">
+      <Tabs bind:selected={importActiveTab}>
+        <TabItem key="postman" title="Postman">
           <DropZone
             title="Drop your Postman environment here"
             subtitle="Supports Postman Environment JSON"
@@ -306,9 +339,9 @@
               </svg>
             {/snippet}
           </DropZone>
-        </Tab>
+        </TabItem>
 
-        <Tab title="Bruno" value="bruno">
+        <TabItem key="bruno" title="Bruno">
           <DropZone
             title="Drop your Bruno environment here"
             subtitle="Supports Bruno environment .bru files"
@@ -338,35 +371,60 @@
               </svg>
             {/snippet}
           </DropZone>
-        </Tab>
+        </TabItem>
 
-        <Tab title="Git" value="git">
-          <GitEnvImportView onImported={() => (showImportSelector = false)} />
-        </Tab>
+        <TabItem key="git" title="Git">
+          <GitEnvImportView
+            onImported={() => (showImportSelector = false)}
+            onActionStateChange={(state) => {
+              gitImportActionState = state;
+            }}
+          />
+        </TabItem>
       </Tabs>
     </div>
 
-    {#snippet additional_buttons()}
-      {#if importActiveTab === "postman"}
-        <Button variant="primary" click={() => handleSelectImportFormat("postman")}
-          >Select file…</Button
-        >
-      {:else if importActiveTab === "bruno"}
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}
-          >Select file…</Button
-        >
-      {/if}
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        {#if importActiveTab === "postman"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("postman")}
+            >Select file…</Button
+          >
+        {:else if importActiveTab === "bruno"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
+            >Select file…</Button
+          >
+        {:else if importActiveTab === "git"}
+          <Button
+            color="primary"
+            loading={gitImportActionState?.loading ?? false}
+            disabled={gitImportActionState?.disabled ?? true}
+            onclick={() => gitImportActionState?.submit()}
+          >
+            Import from Git
+          </Button>
+        {/if}
+      </div>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showOverwriteConfirmDialog}
-  <Modal toggleFn={closeOverwriteConfirmDialog} size="wide">
-    <h3>Overwrite environment?</h3>
+  <Modal
+    title="Overwrite environment?"
+    bind:open={showOverwriteConfirmDialog}
+    onclose={closeOverwriteConfirmDialog}
+    size="xl"
+  >
+    {#if $topModalId === overwriteEnvironmentModalId}
+      <ToastContainer />
+    {/if}
     <p>Environment "{overwriteTargetName}" already exists.</p>
-    <p class="warning">Do you want to overwrite it?</p>
-    {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmOverwrite}>Overwrite</Button>
+    <p class="text-sm text-neutral-600 dark:text-neutral-400">Do you want to overwrite it?</p>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmOverwrite}>Overwrite</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -389,96 +447,3 @@
     }}
   />
 {/if}
-
-<style>
-  .environment-manager-layout {
-    display: flex;
-    height: 100%;
-    overflow: hidden;
-    border-radius: var(--radius-lg);
-    background: var(--bg-primary);
-  }
-
-  .environment-list {
-    width: fit-content;
-    min-width: 180px;
-    max-width: 320px;
-    flex-shrink: 0;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-    padding: var(--space-lg) var(--space-sm);
-    gap: var(--space-sm);
-  }
-
-  .environment-editor-pane {
-    flex-grow: 1;
-    overflow: auto;
-    background: var(--bg-primary);
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-  }
-
-  .header {
-    padding: 0 var(--space-sm);
-  }
-
-  .header-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .header-actions {
-    display: flex;
-    gap: var(--space-xs);
-    align-items: center;
-    width: 100%;
-  }
-
-  .header-actions :global(button) {
-    flex: 1;
-  }
-
-  .import-modal-body {
-    margin: calc(-1 * var(--space-lg));
-  }
-
-  .loading {
-    padding: var(--space-md);
-    text-align: center;
-    color: var(--text-muted);
-    font-size: var(--font-size-sm);
-  }
-
-  .warning {
-    color: var(--text-muted);
-    font-size: var(--font-size-sm);
-    margin-bottom: var(--space-md);
-  }
-
-  .environments {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-    padding: var(--space-xs);
-  }
-
-  .empty-state {
-    padding: var(--space-xl);
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .empty-state p {
-    margin: var(--space-xs) 0;
-  }
-
-  .empty-state .hint {
-    font-size: var(--font-size-sm);
-  }
-</style>

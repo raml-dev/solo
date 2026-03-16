@@ -1,12 +1,11 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
-  import Tab from "$src/lib/components/base/Tab.svelte";
-  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore";
   import {
@@ -23,6 +22,15 @@
     SyncGitCollection
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -38,7 +46,56 @@
   let showDeleteRequestConfirmDialog = $state(false);
   let showImportSelector = $state(false);
 
+  const collectionModalScope = `collections-${Math.random().toString(36).slice(2)}`;
+  const newCollectionModalId = `${collectionModalScope}-new`;
+  const renameCollectionModalId = `${collectionModalScope}-rename`;
+  const deleteCollectionModalId = `${collectionModalScope}-delete-collection`;
+  const deleteRequestModalId = `${collectionModalScope}-delete-request`;
+  const importCollectionModalId = `${collectionModalScope}-import`;
+
+  $effect(() => {
+    if (showNewCollectionDialog) {
+      modalStack.open(newCollectionModalId);
+    } else {
+      modalStack.close(newCollectionModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showRenameCollectionDialog) {
+      modalStack.open(renameCollectionModalId);
+    } else {
+      modalStack.close(renameCollectionModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showDeleteConfirmDialog) {
+      modalStack.open(deleteCollectionModalId);
+    } else {
+      modalStack.close(deleteCollectionModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showDeleteRequestConfirmDialog) {
+      modalStack.open(deleteRequestModalId);
+    } else {
+      modalStack.close(deleteRequestModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showImportSelector) {
+      modalStack.open(importCollectionModalId);
+    } else {
+      modalStack.close(importCollectionModalId);
+    }
+  });
+
   let importActiveTab = $state("postman");
+  let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
+    $state(null);
 
   let newCollectionName = $state("");
   let renameCollectionName = $state("");
@@ -130,13 +187,11 @@
     collectionStore.selectCollection(name);
   }
 
-  function selectRequest(requestId: string, collectionName: string) {
-    // Find the request data to pass metadata to tabStore
-    const coll = $collectionStore.collections.find(
-      (c: collection.Collection) => c.name === collectionName
-    ) as collection.Collection;
-    const req = coll?.requests.find((r) => r.id === requestId);
-    if (!req) return;
+  function selectRequest(req: collection.Request, collectionName: string) {
+    if (!req?.id) {
+      notifications.warning("Unable to open request: missing request id");
+      return;
+    }
 
     const headers = req.headers
       ? Object.entries(req.headers).map(([key, value], i) => ({
@@ -147,7 +202,7 @@
         }))
       : [];
 
-    tabStore.openTab(requestId, collectionName, {
+    tabStore.openTab(req.id, collectionName, {
       label: req.name || "Request",
       verb: req.verb || "GET",
       url: req.url || "",
@@ -159,7 +214,7 @@
       postResponseScript: req.postResponseScript || ""
     });
 
-    onRequestSelect(requestId);
+    onRequestSelect(req.id);
   }
 
   function openRenameCollection(collectionName: string) {
@@ -306,12 +361,17 @@
   }
 
   function getMethodClass(method: string): string {
-    return `method-${method.toLowerCase()}`;
-  }
-
-  function toggleMenu(e: Event, collectionName: string) {
-    e.stopPropagation();
-    activeMenu = activeMenu === collectionName ? null : collectionName;
+    const m = method.toUpperCase();
+    if (m === "GET")
+      return "bg-success-100 text-success-700 dark:bg-success-900/50 dark:text-success-300";
+    if (m === "POST")
+      return "bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300";
+    if (m === "PUT" || m === "PATCH") {
+      return "bg-warning-100 text-warning-700 dark:bg-warning-900/50 dark:text-warning-300";
+    }
+    if (m === "DELETE")
+      return "bg-danger-100 text-danger-700 dark:bg-danger-900/50 dark:text-danger-300";
+    return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   }
 
   function clearMenu() {
@@ -386,6 +446,7 @@
 
   function openImportModal() {
     importActiveTab = "postman";
+    gitImportActionState = null;
     showImportSelector = true;
   }
 
@@ -406,9 +467,13 @@
   });
   onDestroy(async () => {
     document.removeEventListener("click", clearMenu);
+    modalStack.close(newCollectionModalId);
+    modalStack.close(renameCollectionModalId);
+    modalStack.close(deleteCollectionModalId);
+    modalStack.close(deleteRequestModalId);
+    modalStack.close(importCollectionModalId);
   });
   let collections = $derived($collectionStore.collections);
-  let selectedCollectionName = $derived($collectionStore.selectedCollectionName);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
   let selectedRequestId = $derived(
     $tabStore.tabs.find((t) => t.id === $tabStore.activeTabId)?.requestId ?? null
@@ -421,146 +486,100 @@
 </script>
 
 <div
-  class="collection-list"
+  class="relative flex h-full shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
   class:collapsed={isCollapsed}
   style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
 >
-  <div class="resize-handle" onmousedown={startResize}></div>
-  <div class="header">
-    <div class="header-title">
+  <div
+    class="absolute top-0 right-0 z-20 h-full w-1 cursor-col-resize"
+    onmousedown={startResize}
+  ></div>
+
+  <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
       {#if !isCollapsed}
-        <h3>Collections</h3>
+        <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Collections</h3>
       {/if}
-      <div class="header-actions">
+
+      <div class="flex items-center gap-1">
         {#if !isCollapsed}
-          <Button variant="secondary" size="small" click={openImportModal}>Import</Button>
-          <Button variant="primary" size="small" click={() => (showNewCollectionDialog = true)}>
+          <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
+          <Button color="primary" size="sm" onclick={() => (showNewCollectionDialog = true)}>
             New
           </Button>
         {/if}
-        <span title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-          <Button variant="secondary" click={toggleCollapse}>
-            {isCollapsed ? ">" : "<"}
-          </Button>
-        </span>
+        <Button color="light" size="sm" onclick={toggleCollapse}>
+          {isCollapsed ? ">" : "<"}
+        </Button>
       </div>
     </div>
 
     {#if !isCollapsed}
-      <div class="search-row">
-        <input
+      <div class="flex items-center gap-2">
+        <Input
+          size="sm"
+          class="flex-1"
           type="text"
-          class="input input-sm search-input"
           placeholder="Search collections or requests"
           bind:value={searchQuery}
         />
         {#if searchQuery}
-          <button class="clear-search" onclick={() => (searchQuery = "")} aria-label="Clear search">
-            x
-          </button>
+          <Button
+            color="light"
+            size="sm"
+            onclick={() => (searchQuery = "")}
+            aria-label="Clear search"
+          >
+            Clear
+          </Button>
         {/if}
       </div>
     {/if}
   </div>
 
   {#if !isCollapsed}
-    {#if $collectionStore.loading}
-      <div class="loading">Loading collections...</div>
-    {/if}
+    <div class="min-h-0 flex-1 overflow-y-auto p-2">
+      {#if $collectionStore.loading}
+        <div class="p-3 text-sm text-neutral-500 dark:text-neutral-400">Loading collections...</div>
+      {/if}
 
-    <div class="collections">
-      {#each filteredCollections as collection (collection.id)}
-        <div
-          class="collection-item"
-          class:selected={selectedCollectionName === collection.name}
-          class:menu-open={activeMenu === collection.name}
-        >
+      <div class="space-y-2">
+        {#each filteredCollections as collection (collection.id)}
           <div
-            class="collection-header"
-            onclick={(e) => {
-              e.stopPropagation();
-              selectCollection(collection.name);
-              toggleCollection(collection.name);
-            }}
-            onkeypress={(e) => {
-              if (e.key === "Enter") {
-                selectCollection(collection.name);
-                toggleCollection(collection.name);
-              }
-            }}
-            role="button"
-            tabindex="0"
+            class="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/40"
           >
-            <button
-              class="expand-btn"
+            <div
+              class="relative flex items-center gap-2 px-2 py-2"
               onclick={(e) => {
                 e.stopPropagation();
+                selectCollection(collection.name);
                 toggleCollection(collection.name);
               }}
-              aria-label="Toggle collection"
+              onkeypress={(e) => {
+                if (e.key === "Enter") {
+                  selectCollection(collection.name);
+                  toggleCollection(collection.name);
+                }
+              }}
+              role="button"
+              tabindex="0"
             >
-              <span class="expand-icon" class:expanded={isExpanded(collection.name)}> &gt; </span>
-            </button>
+              <Button
+                color="light"
+                size="xs"
+                class="h-6 w-6 p-0 text-xs"
+                onclick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  toggleCollection(collection.name);
+                }}
+                aria-label="Toggle collection"
+              >
+                {isExpanded(collection.name) ? "▾" : "▸"}
+              </Button>
 
-            <div class="collection-info">
-              {#if collection.gitRemote}
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  class="provider-icon"
-                  aria-label={`Git remote: ${collection.gitRemote}`}
-                >
-                  <path d={getProviderIconPath(collection.gitProvider || "git")} />
-                </svg>
-              {/if}
-              <span class="collection-name">{collection.name}</span>
-              <span class="collection-count">{collection.requests?.length || 0}</span>
-            </div>
-
-            <div class="collection-actions">
-              {#if collection.gitRemote}
-                <button
-                  class="icon-btn"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    gitStatusCollectionId = collection.id;
-                    gitStatusCollectionName = collection.name;
-                  }}
-                  title="Git status & actions"
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
-                      cx="18"
-                      cy="6"
-                      r="3"
-                    />
-                    <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
-                    <line x1="12" y1="12" x2="12" y2="15" />
-                  </svg>
-                </button>
-                <button
-                  class="icon-btn"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    handleSync(collection.id);
-                  }}
-                  title="Sync with Git remote"
-                  disabled={syncingCollections.has(collection.id)}
-                >
-                  {#if syncingCollections.has(collection.id)}
-                    <span class="sync-spinner"></span>
-                  {:else}
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  {#if collection.gitRemote}
                     <svg
                       width="12"
                       height="12"
@@ -568,113 +587,161 @@
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
+                      class="text-neutral-500 dark:text-neutral-400"
+                      aria-label={`Git remote: ${collection.gitRemote}`}
                     >
-                      <path
-                        d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
-                      ></path>
+                      <path d={getProviderIconPath(collection.gitProvider || "git")} />
                     </svg>
                   {/if}
-                </button>
-              {/if}
-              <button
-                class="icon-btn"
-                onclick={(e) => handleAddRequest(e, collection.name)}
-                title="Add request"
-                aria-label="Add request"
-              >
-                +
-              </button>
-              <button
-                class="icon-btn"
-                onclick={(e) => toggleMenu(e, collection.name)}
-                title="More actions"
-                aria-label="More actions"
-              >
-                ...
-              </button>
+                  <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                    {collection.name}
+                  </span>
+                  <span
+                    class="rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+                  >
+                    {collection.requests?.length || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1">
+                <Button
+                  color="light"
+                  size="xs"
+                  onclick={(e: MouseEvent) => { e.stopPropagation(); handleAddRequest(e, collection.name); }}
+                  title="Add request"
+                  aria-label="Add request"
+                >
+                  +
+                </Button>
+                <Button
+                  id="collection-menu-{collection.id}"
+                  color="light"
+                  size="xs"
+                  title="More actions"
+                  aria-label="More actions"
+                  onclick={(e: MouseEvent) => e.stopPropagation()}
+                >
+                  •••
+                </Button>
+                <Dropdown triggeredBy="#collection-menu-{collection.id}" class="z-50 w-40">
+                  {#if collection.gitRemote}
+                    <DropdownItem
+                      onclick={() => {
+                        gitStatusCollectionId = collection.id;
+                        gitStatusCollectionName = collection.name;
+                        activeMenu = null;
+                      }}
+                    >
+                      Git status
+                    </DropdownItem>
+                    <DropdownItem
+                      disabled={syncingCollections.has(collection.id)}
+                      onclick={() => {
+                        handleSync(collection.id);
+                        activeMenu = null;
+                      }}
+                    >
+                      {syncingCollections.has(collection.id) ? "Syncing…" : "Sync with Git"}
+                    </DropdownItem>
+                    <DropdownDivider />
+                  {/if}
+                  <DropdownItem
+                    onclick={() => {
+                      openRenameCollection(collection.name);
+                      activeMenu = null;
+                    }}
+                  >
+                    Rename
+                  </DropdownItem>
+                  <DropdownItem
+                    class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+                    onclick={() => {
+                      handleDeleteCollection(collection.name);
+                      activeMenu = null;
+                    }}
+                  >
+                    Delete
+                  </DropdownItem>
+                </Dropdown>
+              </div>
             </div>
 
-            {#if activeMenu === collection.name}
-              <div class="collection-menu">
-                <button
-                  class="menu-item"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    openRenameCollection(collection.name);
-                  }}
-                >
-                  Rename
-                </button>
-                <button
-                  class="menu-item danger"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteCollection(collection.name);
-                  }}
-                >
-                  Delete
-                </button>
+            {#if isExpanded(collection.name)}
+              <div
+                class="space-y-1 border-t border-neutral-200 px-2 pt-1 pb-2 dark:border-neutral-700"
+              >
+                {#if getVisibleRequests(collection, normalizedQuery).length === 0}
+                  <div class="px-1 py-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    {isSearching ? "No matching requests" : "No requests yet"}
+                  </div>
+                {:else}
+                  {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
+                    <div
+                      class={`group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
+                      onclick={() => selectRequest(request, collection.name)}
+                      onkeypress={(e) =>
+                        e.key === "Enter" && selectRequest(request, collection.name)}
+                      role="button"
+                      tabindex="0"
+                    >
+                      <span
+                        class={`inline-flex min-w-14 justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${getMethodClass(request.verb)}`}
+                      >
+                        {request.verb}
+                      </span>
+                      <span
+                        class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
+                      >
+                        {request.name}
+                      </span>
+                      <Button
+                        color="light"
+                        size="xs"
+                        class="invisible group-hover:visible"
+                        onclick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          handleDeleteRequest(collection.name, request.id);
+                        }}
+                        title="Delete request"
+                        aria-label="Delete request"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  {/each}
+                {/if}
               </div>
             {/if}
           </div>
-
-          {#if isExpanded(collection.name)}
-            <div class="requests">
-              {#if getVisibleRequests(collection, normalizedQuery).length === 0}
-                <div class="empty-requests">
-                  {isSearching ? "No matching requests" : "No requests yet"}
-                </div>
-              {:else}
-                {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
-                  <div
-                    class="request-item"
-                    class:selected={selectedRequestId === request.id}
-                    onclick={() => selectRequest(request.id, collection.name)}
-                    onkeypress={(e) =>
-                      e.key === "Enter" && selectRequest(request.id, collection.name)}
-                    role="button"
-                    tabindex="0"
-                  >
-                    <span class={`method-badge ${getMethodClass(request.verb)}`}>
-                      {request.verb}
-                    </span>
-                    <span class="request-name">{request.name}</span>
-                    <button
-                      class="icon-btn subtle"
-                      onclick={() => handleDeleteRequest(collection.name, request.id)}
-                      title="Delete request"
-                      aria-label="Delete request"
-                    >
-                      x
-                    </button>
-                  </div>
-                {/each}
-              {/if}
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-
-    {#if filteredCollections.length === 0 && !$collectionStore.loading}
-      <div class="empty-state">
-        <p>
-          {isSearching ? "No matching collections or requests" : "No collections yet"}
-        </p>
-        {#if !isSearching}
-          <p class="hint">Create your first collection to get started</p>
-        {/if}
+        {/each}
       </div>
-    {/if}
+
+      {#if filteredCollections.length === 0 && !$collectionStore.loading}
+        <div class="pt-2">
+          <FeedbackEmptyState
+            title={isSearching ? "No matching collections or requests" : "No collections yet"}
+            detail={!isSearching ? "Create your first collection to get started" : undefined}
+          />
+        </div>
+      {/if}
+    </div>
   {/if}
 </div>
 
 {#if showNewCollectionDialog}
-  <Modal toggleFn={closeNewCollectionDialog}>
-    <div class="dialog">
-      <h3>New Collection</h3>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
+  <Modal
+    bind:open={showNewCollectionDialog}
+    onclose={closeNewCollectionDialog}
+    title="New Collection"
+  >
+    {#if $topModalId === newCollectionModalId}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2">
+      <Label for="new-collection-name">Collection name</Label>
+      <Input
+        id="new-collection-name"
         type="text"
         bind:value={newCollectionName}
         placeholder="Collection name"
@@ -682,18 +749,27 @@
         autofocus
       />
     </div>
-    {#snippet additional_buttons()}
-      <Button variant="primary" click={handleCreateCollection}>Create</Button>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="primary" onclick={handleCreateCollection}>Create</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showRenameCollectionDialog}
-  <Modal toggleFn={closeRenameDialog}>
-    <div class="dialog">
-      <h3>Rename Collection</h3>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
+  <Modal
+    bind:open={showRenameCollectionDialog}
+    onclose={closeRenameDialog}
+    title="Rename Collection"
+  >
+    {#if $topModalId === renameCollectionModalId}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2">
+      <Label for="rename-collection-name">Collection name</Label>
+      <Input
+        id="rename-collection-name"
         type="text"
         bind:value={renameCollectionName}
         placeholder="Collection name"
@@ -701,42 +777,67 @@
         autofocus
       />
     </div>
-    {#snippet additional_buttons()}
-      <Button variant="primary" click={handleRenameCollection}>Save</Button>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="primary" onclick={handleRenameCollection}>Save</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <Modal toggleFn={closeDeleteConfirmDialog}>
-    <div class="dialog">
-      <h3>Delete Collection</h3>
-      <p>Are you sure you want to delete "{deleteTarget}"?</p>
-      <p class="warning">This action cannot be undone.</p>
+  <Modal
+    bind:open={showDeleteConfirmDialog}
+    onclose={closeDeleteConfirmDialog}
+    title="Delete Collection"
+  >
+    {#if $topModalId === deleteCollectionModalId}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2 text-sm">
+      <p class="text-neutral-700 dark:text-neutral-200">
+        Are you sure you want to delete "{deleteTarget}"?
+      </p>
+      <p class="text-danger-600 dark:text-danger-300">This action cannot be undone.</p>
     </div>
-    {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmDelete}>Delete</Button>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmDelete}>Delete</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
 {#if showDeleteRequestConfirmDialog}
-  <Modal toggleFn={closeDeleteRequestConfirmDialog}>
-    <div class="dialog">
-      <h3>Delete Request</h3>
-      <p>Are you sure you want to delete this request?</p>
-      <p class="warning">This action cannot be undone.</p>
+  <Modal
+    bind:open={showDeleteRequestConfirmDialog}
+    onclose={closeDeleteRequestConfirmDialog}
+    title="Delete Request"
+  >
+    {#if $topModalId === deleteRequestModalId}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2 text-sm">
+      <p class="text-neutral-700 dark:text-neutral-200">
+        Are you sure you want to delete this request?
+      </p>
+      <p class="text-danger-600 dark:text-danger-300">This action cannot be undone.</p>
     </div>
-    {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmDeleteRequest}>Delete</Button>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmDeleteRequest}>Delete</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showImportSelector}
-  <Modal title="Import Collection" toggleFn={() => (showImportSelector = false)}>
-    <div class="import-modal-body">
-      <Tabs bind:activeValue={importActiveTab}>
-        <Tab title="Postman" value="postman">
+  <Modal title="Import Collection" bind:open={showImportSelector} size="xl">
+    {#if $topModalId === importCollectionModalId}
+      <ToastContainer />
+    {/if}
+    <div class="flex flex-col gap-4">
+      <Tabs bind:selected={importActiveTab}>
+        <TabItem key="postman" title="Postman">
           <DropZone
             title="Drop your Postman collection here"
             subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
@@ -768,9 +869,9 @@
               </svg>
             {/snippet}
           </DropZone>
-        </Tab>
+        </TabItem>
 
-        <Tab title="Bruno" value="bruno">
+        <TabItem key="bruno" title="Bruno">
           <DropZone
             title="Drop your Bruno collection folder here"
             subtitle="Supports Bruno collection folders (.bru files)"
@@ -801,24 +902,40 @@
               </svg>
             {/snippet}
           </DropZone>
-        </Tab>
+        </TabItem>
 
-        <Tab title="Git" value="git">
-          <GitImportView onImported={() => (showImportSelector = false)} />
-        </Tab>
+        <TabItem key="git" title="Git">
+          <GitImportView
+            onImported={() => (showImportSelector = false)}
+            onActionStateChange={(state) => {
+              gitImportActionState = state;
+            }}
+          />
+        </TabItem>
       </Tabs>
     </div>
 
-    {#snippet additional_buttons()}
-      {#if importActiveTab === "postman"}
-        <Button variant="primary" click={() => handleSelectImportFormat("postman")}>
-          Select file…
-        </Button>
-      {:else if importActiveTab === "bruno"}
-        <Button variant="primary" click={() => handleSelectImportFormat("bruno")}>
-          Select folder…
-        </Button>
-      {/if}
+    {#snippet footer()}
+      <div class="flex w-full gap-2">
+        {#if importActiveTab === "postman"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("postman")}>
+            Select file…
+          </Button>
+        {:else if importActiveTab === "bruno"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}>
+            Select folder…
+          </Button>
+        {:else if importActiveTab === "git"}
+          <Button
+            color="primary"
+            loading={gitImportActionState?.loading ?? false}
+            disabled={gitImportActionState?.disabled ?? true}
+            onclick={() => gitImportActionState?.submit()}
+          >
+            Import from Git
+          </Button>
+        {/if}
+      </div>
     {/snippet}
   </Modal>
 {/if}
@@ -841,425 +958,3 @@
     }}
   />
 {/if}
-
-<style>
-  .collection-list {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    /* width is now controlled by a style property */
-    flex-shrink: 0;
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border);
-    position: relative;
-  }
-
-  .resize-handle {
-    position: absolute;
-    top: 0;
-    right: -4px;
-    bottom: 0;
-    width: 8px;
-    cursor: col-resize;
-    z-index: 50; /* Ensure it's on top */
-  }
-
-  .collection-list.collapsed {
-    width: auto;
-  }
-
-  .header {
-    padding: var(--space-md);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-  }
-
-  .header-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  .header h3 {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .search-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  .search-input {
-    flex: 1;
-  }
-
-  .clear-search {
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--bg-tertiary);
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .clear-search:hover {
-    color: var(--text);
-    border-color: var(--border-dark);
-  }
-
-  .loading {
-    padding: var(--space-md);
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .error {
-    margin: var(--space-md);
-    padding: var(--space-sm);
-    background: var(--status-danger-bg);
-    color: var(--status-danger-text);
-    border-radius: var(--radius-md);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: var(--font-size-sm);
-  }
-
-  .collections {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space-sm);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .collection-item {
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    border: 1px solid transparent;
-    overflow: visible;
-  }
-
-  .collection-item.selected {
-    border-color: var(--primary);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .collection-item.menu-open {
-    border-color: var(--border-dark);
-  }
-
-  .collection-header {
-    display: flex;
-    align-items: center;
-    padding: var(--space-sm) var(--space-md);
-    cursor: pointer;
-    gap: var(--space-xs);
-    position: relative;
-    border-radius: var(--radius-md);
-  }
-
-  .collection-header:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .expand-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .expand-icon {
-    display: inline-block;
-    transition: transform var(--transition-fast);
-  }
-
-  .expand-icon.expanded {
-    transform: rotate(90deg);
-  }
-
-  .collection-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    flex: 1;
-    min-width: 0;
-  }
-
-  .provider-icon {
-    flex-shrink: 0;
-    color: var(--text-muted);
-  }
-
-  .collection-name {
-    font-weight: var(--font-weight-medium);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .collection-count {
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    background: var(--bg-tertiary);
-    padding: 0 var(--space-xs);
-    border-radius: var(--radius-sm);
-  }
-
-  .collection-actions {
-    display: flex;
-    gap: var(--space-xs);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--transition-fast);
-  }
-
-  .collection-header:hover .collection-actions,
-  .collection-item.menu-open .collection-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .icon-btn {
-    background: none;
-    border: 1px solid transparent;
-    cursor: pointer;
-    padding: 0 var(--space-xs);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    transition: all var(--transition-fast);
-    font-size: var(--font-size-sm);
-    height: 24px;
-  }
-
-  .icon-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .sync-spinner {
-    display: block;
-    width: 10px;
-    height: 10px;
-    border: 1.5px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .icon-btn.subtle {
-    opacity: 0;
-  }
-
-  .request-item:hover .icon-btn.subtle {
-    opacity: 1;
-  }
-
-  .collection-menu {
-    position: absolute;
-    right: var(--space-sm);
-    top: calc(100% + 6px);
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    display: flex;
-    flex-direction: column;
-    min-width: 140px;
-    z-index: var(--z-dropdown);
-  }
-
-  .menu-item {
-    padding: var(--space-sm) var(--space-md);
-    background: none;
-    border: none;
-    text-align: left;
-    font-size: var(--font-size-sm);
-    color: var(--text);
-    cursor: pointer;
-  }
-
-  .menu-item:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .menu-item.danger {
-    color: var(--danger);
-  }
-
-  .menu-item.danger:hover {
-    background: var(--status-danger-bg);
-  }
-
-  .requests {
-    background: var(--bg-secondary);
-    padding: 0 var(--space-sm) var(--space-sm) calc(var(--space-lg) + 8px);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .request-item {
-    display: flex;
-    align-items: center;
-    padding: var(--space-xs) var(--space-sm);
-    cursor: pointer;
-    gap: var(--space-sm);
-    border-radius: var(--radius-sm);
-    transition: background-color var(--transition-fast);
-  }
-
-  .request-item:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .request-item.selected {
-    background: var(--status-info-bg);
-  }
-
-  .method-badge {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    min-width: 48px;
-    text-align: center;
-    padding: 2px var(--space-xs);
-    border-radius: var(--radius-sm);
-  }
-
-  .method-badge.method-get {
-    background: var(--method-get-bg);
-    color: var(--method-get-text);
-  }
-
-  .method-badge.method-post {
-    background: var(--method-post-bg);
-    color: var(--method-post-text);
-  }
-
-  .method-badge.method-put {
-    background: var(--method-put-bg);
-    color: var(--method-put-text);
-  }
-
-  .method-badge.method-delete {
-    background: var(--method-delete-bg);
-    color: var(--method-delete-text);
-  }
-
-  .method-badge.method-patch {
-    background: var(--method-patch-bg);
-    color: var(--method-patch-text);
-  }
-
-  .method-badge.method-head,
-  .method-badge.method-options {
-    background: var(--bg-tertiary);
-    color: var(--text-muted);
-  }
-
-  .request-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .empty-requests {
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    padding: var(--space-xs) var(--space-sm);
-  }
-
-  .empty-state {
-    padding: var(--space-xl);
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .empty-state p {
-    margin: var(--space-xs) 0;
-  }
-
-  .empty-state .hint {
-    font-size: var(--font-size-sm);
-  }
-
-  .dialog h3 {
-    margin: 0 0 var(--space-md) 0;
-    font-size: var(--font-size-xl);
-  }
-
-  .dialog p {
-    margin: 0 0 var(--space-sm) 0;
-    color: var(--text);
-  }
-
-  .dialog .warning {
-    color: var(--text-muted);
-    font-size: var(--font-size-sm);
-    margin-bottom: var(--space-md);
-  }
-
-  .format-buttons {
-    display: flex;
-    gap: var(--space-md);
-    justify-content: center;
-  }
-
-  .dialog input {
-    width: 100%;
-    padding: var(--space-sm);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    color: var(--text);
-    font-size: var(--font-size-md);
-    margin-bottom: var(--space-md);
-  }
-
-  .dialog input:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
-
-  .dialog-actions {
-    display: flex;
-    gap: var(--space-sm);
-    justify-content: flex-end;
-  }
-
-  /* ── Import Modal ──────────────────────────────────────────── */
-
-  .import-modal-body {
-    /* remove default dialog-content padding so the Tabs bar touches the edges */
-    margin: calc(-1 * var(--space-lg));
-  }
-</style>

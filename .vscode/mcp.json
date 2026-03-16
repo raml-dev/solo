@@ -1,0 +1,14 @@
+{
+	"servers": {
+    "svelte": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@sveltejs/mcp"]
+    },
+    "flowbite-svelte": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/.mcp/flowbite-svelte-mcp/build/server.js"]
+    }
+  }
+}

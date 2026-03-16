@@ -1,6 +1,12 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
-  import Modal from "$src/lib/components/base/Modal.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Helper from "flowbite-svelte/Helper.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { onDestroy } from "svelte";
 
   interface Props {
     showNewEnvironmentDialog?: boolean;
@@ -24,6 +30,31 @@
 
   let newEnvironmentName = $state("");
 
+  const environmentModalScope = `environment-modals-${Math.random().toString(36).slice(2)}`;
+  const newEnvironmentModalId = `${environmentModalScope}-new`;
+  const deleteEnvironmentModalId = `${environmentModalScope}-delete`;
+
+  $effect(() => {
+    if (showNewEnvironmentDialog) {
+      modalStack.open(newEnvironmentModalId);
+    } else {
+      modalStack.close(newEnvironmentModalId);
+    }
+  });
+
+  $effect(() => {
+    if (showDeleteConfirmDialog) {
+      modalStack.open(deleteEnvironmentModalId);
+    } else {
+      modalStack.close(deleteEnvironmentModalId);
+    }
+  });
+
+  onDestroy(() => {
+    modalStack.close(newEnvironmentModalId);
+    modalStack.close(deleteEnvironmentModalId);
+  });
+
   function closeNewEnvironmentDialog() {
     showNewEnvironmentDialog = false;
     newEnvironmentName = "";
@@ -45,52 +76,57 @@
 </script>
 
 {#if showNewEnvironmentDialog}
-  <Modal toggleFn={closeNewEnvironmentDialog}>
-    <h3>New Environment</h3>
-    <!-- svelte-ignore a11y_autofocus -->
-    <input
-      type="text"
-      bind:value={newEnvironmentName}
-      placeholder="Environment name"
-      onkeydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
-      autofocus
-    />
-    {#snippet additional_buttons()}
-      <Button variant="primary" click={handleCreateEnvironment}>Create</Button>
+  <Modal
+    bind:open={showNewEnvironmentDialog}
+    onclose={closeNewEnvironmentDialog}
+    title="New Environment"
+  >
+    {#if $topModalId === newEnvironmentModalId}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2">
+      <Label for="new-environment-name">Environment name</Label>
+      <Input
+        id="new-environment-name"
+        type="text"
+        bind:value={newEnvironmentName}
+        placeholder="Environment name"
+        onkeydown={(e) => e.key === "Enter" && handleCreateEnvironment()}
+        autofocus
+      />
+      <Helper>Use a unique name for the environment.</Helper>
+    </div>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="light" onclick={closeNewEnvironmentDialog}>Cancel</Button>
+        <Button
+          color="primary"
+          disabled={!newEnvironmentName.trim()}
+          onclick={handleCreateEnvironment}>Create</Button
+        >
+      </div>
     {/snippet}
   </Modal>
 {/if}
 
 {#if showDeleteConfirmDialog}
-  <Modal toggleFn={closeDeleteConfirmDialog}>
-    <h3>Delete Environment</h3>
-    <p>Are you sure you want to delete "{deleteTarget}"?</p>
-    <p class="warning">This action cannot be undone.</p>
-    {#snippet additional_buttons()}
-      <Button variant="danger" click={confirmDelete}>Delete</Button>
+  <Modal
+    bind:open={showDeleteConfirmDialog}
+    onclose={closeDeleteConfirmDialog}
+    title="Delete Environment"
+  >
+    {#if $topModalId === deleteEnvironmentModalId}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2">
+      <p>Are you sure you want to delete "{deleteTarget}"?</p>
+      <p class="text-sm text-warning-700 dark:text-warning-300">This action cannot be undone.</p>
+    </div>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="light" onclick={closeDeleteConfirmDialog}>Cancel</Button>
+        <Button color="red" onclick={confirmDelete}>Delete</Button>
+      </div>
     {/snippet}
   </Modal>
 {/if}
-
-<style>
-  .warning {
-    color: var(--text-muted);
-    font-size: var(--font-size-sm);
-    margin-bottom: var(--space-md);
-  }
-
-  input:not([type="checkbox"]) {
-    width: 100%;
-    padding: var(--space-sm);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    color: var(--text);
-    font-size: var(--font-size-md);
-  }
-
-  input:not([type="checkbox"]):focus {
-    outline: none;
-    border-color: var(--primary);
-  }
-</style>

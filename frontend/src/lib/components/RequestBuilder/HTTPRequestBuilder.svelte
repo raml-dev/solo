@@ -1,9 +1,11 @@
 <script lang="ts">
-  import Button from "$src/lib/components/base/Button.svelte";
-  import Dropdown from "$src/lib/components/base/Dropdown.svelte";
-  import EmptyState from "$src/lib/components/base/EmptyState.svelte";
-  import Tab from "$src/lib/components/base/Tab.svelte";
-  import Tabs from "$src/lib/components/base/Tabs.svelte";
+  import Alert from "flowbite-svelte/Alert.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
+  import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import RequestBody from "$src/lib/components/RequestBuilder/RequestBody.svelte";
   import RequestHeaders from "$src/lib/components/RequestBuilder/RequestHeaders.svelte";
@@ -60,6 +62,7 @@
   let responseTab = $state("body");
   let showSaveDialog = $state(false);
   let responseHeight = $state(300);
+  let responseCollapsed = $state(false);
   let isResizing = $state(false);
   let builderElement: HTMLElement | undefined = $state();
   let environmentEntries: { key: string; value: string }[] = $derived(
@@ -72,6 +75,10 @@
   const { config: globalConfig } = configurationStore;
 
   onMount(() => {
+    if (builderElement) {
+      responseHeight = Math.floor(builderElement.clientHeight * 0.35);
+    }
+
     const handleSaveNew = () => {
       showSaveDialog = true;
     };
@@ -182,19 +189,19 @@
 
   // --- Methods / Body format options ---
   const methodOptions = [
-    { value: "GET", label: "GET" },
-    { value: "POST", label: "POST" },
-    { value: "PUT", label: "PUT" },
-    { value: "DELETE", label: "DELETE" },
-    { value: "PATCH", label: "PATCH" },
-    { value: "HEAD", label: "HEAD" },
-    { value: "OPTIONS", label: "OPTIONS" }
+    { value: "GET", name: "GET" },
+    { value: "POST", name: "POST" },
+    { value: "PUT", name: "PUT" },
+    { value: "DELETE", name: "DELETE" },
+    { value: "PATCH", name: "PATCH" },
+    { value: "HEAD", name: "HEAD" },
+    { value: "OPTIONS", name: "OPTIONS" }
   ];
   const bodyFormatOptions = [
-    { value: "none", label: "None" },
-    { value: "json", label: "JSON" },
-    { value: "xml", label: "XML" },
-    { value: "text", label: "Text" }
+    { value: "none", name: "None" },
+    { value: "json", name: "JSON" },
+    { value: "xml", name: "XML" },
+    { value: "text", name: "Text" }
   ];
 
   // --- Beautify ---
@@ -389,11 +396,11 @@
     }
   }
 
-  function getStatusClass(status: number): string {
-    if (status >= 200 && status < 300) return "status-success";
-    if (status >= 300 && status < 400) return "status-info";
-    if (status >= 400 && status < 500) return "status-warning";
-    return "status-error";
+  function getStatusBadgeColor(status: number): "green" | "blue" | "yellow" | "red" {
+    if (status >= 200 && status < 300) return "green";
+    if (status >= 300 && status < 400) return "blue";
+    if (status >= 400 && status < 500) return "yellow";
+    return "red";
   }
   // --- Tab switching: ONE-WAY, store → form only ---
   // Reload when active tab changes OR when the same preview tab id is recycled
@@ -413,123 +420,106 @@
 </script>
 
 {#if $activeTabState}
-  <div class="request-builder" bind:this={builderElement}>
+  <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
     <TokenTooltip />
 
     <!-- Request Header -->
-    <div class="request-header">
-      <div class="request-name-container">
-        <span class="request-name">{requestName || "New Request"}</span>
+    <div class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-700">
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{requestName || "New Request"}</span>
         {#if $activeTabState.isDirty}
-          <button
-            class="save-btn"
+          <Button
+            color="light"
+            size="xs"
             onclick={handleSave}
             title="Save Request (Ctrl+S)"
             aria-label="Save Request"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-              <polyline points="17 21 17 13 7 13 7 21"></polyline>
-              <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-            <span>Save</span>
-          </button>
+            Save
+          </Button>
         {/if}
       </div>
     </div>
 
     <!-- Request Line -->
-    <div class="request-line">
-      <div class="url-bar">
-        <div class="url-bar-method">
-          <Dropdown
+    <div class="shrink-0 border-b border-neutral-200 dark:border-neutral-700">
+      <div class="flex items-stretch">
+        <div class="shrink-0">
+          <Select
             bind:value={method}
-            options={methodOptions}
-            change={handleMethodChange}
-            variant="url-method"
-            square
+            items={methodOptions}
+            placeholder=""
+            size="sm"
+            onchange={() => handleMethodChange(method)}
+            class="h-full rounded-none border-0 bg-transparent px-3 py-0 font-semibold"
           />
         </div>
-        <div class="url-bar-divider"></div>
+        <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <TokenInput
           bind:value={url}
           placeholder="Enter request URL"
           {environmentEntries}
-          wrapperClass="url-bar-input"
+          wrapperClass="min-w-0 flex-1"
           onChange={onFieldChange}
         />
-        <div class="url-bar-divider"></div>
+        <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <Button
-          variant="primary"
-          click={sendRequest}
+          color="primary"
+          {loading}
+          onclick={sendRequest}
           disabled={loading}
-          square
-          style="padding: 0 var(--space-xl); font-weight: var(--font-weight-semibold); align-self: stretch; border-radius: 0 var(--radius-md) var(--radius-md) 0;"
-          >{loading ? "Sending…" : "Send"}</Button
-        >
+          class="self-stretch rounded-l-none px-6"
+        >Send</Button>
       </div>
     </div>
 
-    <div class="request-content-bar">
-      <Tabs bind:activeValue={requestPaneTab} variant="minimal">
-        <Tab title="Headers" value="Headers" />
-        <Tab title="Body" value="Body" />
-        <Tab
-          title="Scripts"
-          value="Scripts"
-          badge={preRequestScript.trim() || postResponseScript.trim() ? "●" : undefined}
-        />
-        <Tab title="Settings" value="Settings" />
-        <Tab title="Runner" value="Runner" />
+    <!-- Request tabs + body format selector -->
+    <div class="flex shrink-0 items-center border-b border-neutral-200 dark:border-neutral-700">
+      <Tabs bind:selected={requestPaneTab} tabStyle="underline" contentClass="hidden">
+        <TabItem key="Headers" title="Headers" />
+        <TabItem key="Body" title="Body" />
+        <TabItem key="Scripts">
+          {#snippet titleSlot()}
+            <span class="inline-flex items-center gap-1">
+              <span>Scripts</span>
+              {#if preRequestScript.trim() || postResponseScript.trim()}
+                <span aria-hidden="true">●</span>
+              {/if}
+            </span>
+          {/snippet}
+        </TabItem>
+        <TabItem key="Settings" title="Settings" />
+        <TabItem key="Runner" title="Runner" />
       </Tabs>
 
       {#if requestPaneTab === "Body"}
-        <div class="body-format-selector">
+        <div class="ml-auto flex items-center gap-1 px-2">
           {#if requestBodyFormat !== "none"}
-            <button
-              class="beautify-btn"
+            <Button
+              color="light"
+              size="xs"
               title="Prettify / Format body"
               onclick={formatBody}
               disabled={requestBodyFormat === "text"}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M2 4h12M2 8h8M2 12h10"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-              </svg>
               Beautify
-            </button>
-            <span class="format-separator">|</span>
+            </Button>
+            <span class="text-neutral-300 dark:text-neutral-600">|</span>
           {/if}
-          <Dropdown
+          <Select
             bind:value={requestBodyFormat}
-            options={bodyFormatOptions}
-            change={handleBodyFormatChange}
-            variant="minimal"
+            items={bodyFormatOptions}
+            placeholder=""
+            size="sm"
+            underline
+            onchange={() => handleBodyFormatChange(requestBodyFormat)}
           />
         </div>
       {/if}
     </div>
 
-    <div class="request-content-body">
+    <!-- Request tab content -->
+    <div class="min-h-0 flex-1 flex flex-col overflow-hidden">
       {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
           <RequestHeaders {headers} onChange={onFieldChange} />
@@ -537,7 +527,7 @@
       {:else if requestPaneTab === "Body"}
         {#key $activeTabState.id}
           {#if requestBodyFormat === "none"}
-            <EmptyState message="This request does not have a body" />
+            <FeedbackEmptyState variant="info" title="This request does not have a body" compact />
           {:else}
             <RequestBody
               bind:requestBody
@@ -585,58 +575,108 @@
     </div>
 
     <!-- Response Section -->
-    <div class="response-section" style="height: {responseHeight}px">
-      <div class="resize-handle" class:resizing={isResizing} onmousedown={startResize}></div>
+    <div
+      class="flex shrink-0 flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
+      style={responseCollapsed ? undefined : `height: ${responseHeight}px`}
+    >
+      {#if !responseCollapsed}
+        <Button
+          color="light"
+          class="h-1 w-full shrink-0 cursor-row-resize rounded-none border-0 bg-neutral-200 p-0 shadow-none transition-colors hover:bg-primary-400 dark:bg-neutral-700 {isResizing ? 'bg-primary-500' : ''}"
+          onmousedown={startResize}
+          aria-label="Resize response panel"
+        />
+      {/if}
 
-      <div class="response-content-bar">
-        <Tabs bind:activeValue={responseTab} variant="minimal">
-          <Tab title="Body" value="body" />
-          <Tab title="Headers" value="headers" />
-        </Tabs>
-        {#if response}
-          <div class="response-meta">
-            <span class="status-badge {getStatusClass(response.status)}">{response.status}</span>
-            <span class="time-badge">{response.time}ms</span>
-          </div>
-        {/if}
-      </div>
-
-      {#if requestError}
-        <div class="response-error">
-          <span class="response-error-icon">✕</span>
-          <div class="response-error-body">
-            <span class="response-error-title">Request failed</span>
-            <span class="response-error-detail">{requestError}</span>
-          </div>
+      <div
+        class="flex shrink-0 cursor-pointer items-center border-b border-neutral-200 dark:border-neutral-700"
+        role="button"
+        tabindex="0"
+        onclick={() => (responseCollapsed = !responseCollapsed)}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); responseCollapsed = !responseCollapsed; } }}
+        aria-expanded={!responseCollapsed}
+        aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
+      >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div onclick={(e) => e.stopPropagation()}>
+          <Tabs bind:selected={responseTab} tabStyle="underline" contentClass="hidden">
+            <TabItem key="body" title="Body" />
+            <TabItem key="headers" title="Headers" />
+          </Tabs>
         </div>
-      {:else if response}
-        <div class="response-content">
-          {#if responseTab === "body"}
-            <div class="response-body-editor">
-              <CodeMirrorEditor
-                value={response.body ?? ""}
-                format={responseFormat}
-                readOnly={true}
-              />
-            </div>
-          {:else}
-            <div class="response-headers">
-              {#each Object.entries(response.headers) as [key, value] (key)}
-                <div class="response-header-row">
-                  <span class="header-key">{key}:</span>
-                  <span class="header-value">{value}</span>
-                </div>
-              {/each}
+        <div class="ml-auto flex items-center gap-2 px-2">
+          {#if response}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div onclick={(e) => e.stopPropagation()} class="flex items-center gap-2">
+              <Badge color={getStatusBadgeColor(response.status)}>{response.status}</Badge>
+              <Badge color="gray">{response.time}ms</Badge>
             </div>
           {/if}
+          <Button
+            color="light"
+            size="xs"
+            class="border-0 shadow-none"
+            onclick={(e: MouseEvent) => { e.stopPropagation(); responseCollapsed = !responseCollapsed; }}
+            aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              class="transition-transform {responseCollapsed ? 'rotate-180' : ''}"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </Button>
         </div>
-      {:else}
-        <EmptyState message="Send a request to see the response" />
+      </div>
+
+      {#if !responseCollapsed}
+        {#if requestError}
+          <Alert color="red" class="m-3">
+            <div class="flex flex-col gap-1">
+              <span class="font-medium">Request failed</span>
+              <span class="text-sm">{requestError}</span>
+            </div>
+          </Alert>
+        {:else if response}
+          <div class="min-h-0 flex-1 overflow-hidden">
+            {#if responseTab === "body"}
+              <div class="h-full">
+                <CodeMirrorEditor
+                  value={response.body ?? ""}
+                  format={responseFormat}
+                  readOnly={true}
+                />
+              </div>
+            {:else}
+              <div class="h-full overflow-y-auto">
+                {#each Object.entries(response.headers) as [key, value] (key)}
+                  <div class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800">
+                    <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300">{key}:</span>
+                    <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400">{value}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div class="flex h-full items-center justify-center">
+            <FeedbackEmptyState title="Send a request to see the response" compact />
+          </div>
+        {/if}
       {/if}
     </div>
   </div>
 {:else}
-  <EmptyState message="Open a request from the sidebar or press + to start a new one" />
+  <div class="flex h-full w-full items-center justify-center">
+    <FeedbackEmptyState title="Open a request from the sidebar or press + to start a new one" />
+  </div>
 {/if}
 
 <SaveRequestModal
@@ -645,389 +685,3 @@
   onSave={handleSaveRequest}
   onCancel={() => (showSaveDialog = false)}
 />
-
-<style>
-  .request-builder {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-    background: var(--bg-primary);
-  }
-
-  .request-header {
-    padding: var(--space-sm) var(--space-lg) 0 var(--space-lg);
-    background: var(--bg-primary);
-  }
-
-  .request-name-container {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    height: 24px;
-  }
-
-  .request-name {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .save-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    color: var(--primary);
-    font-size: 11px;
-    font-family: var(--font-sans);
-    font-weight: var(--font-weight-bold);
-    padding: 1px 6px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .save-btn:hover {
-    background: var(--primary);
-    color: var(--bg-primary);
-    border-color: var(--primary);
-  }
-
-  .request-line {
-    padding: var(--space-xs) var(--space-lg) var(--space-md) var(--space-lg);
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .url-bar {
-    display: flex;
-    align-items: stretch;
-    height: 38px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    transition: border-color var(--transition-fast);
-  }
-
-  .url-bar:focus-within {
-    border-color: var(--primary);
-  }
-
-  .url-bar-divider {
-    width: 1px;
-    background: var(--border);
-    flex-shrink: 0;
-  }
-
-  .url-bar-method {
-    display: flex;
-    align-items: stretch;
-    flex-shrink: 0;
-  }
-
-  .url-bar-method :global(.dropdown-trigger.variant-url-method) {
-    border-radius: var(--radius-md) 0 0 var(--radius-md);
-  }
-
-  :global(.url-bar-input) {
-    flex: 1 !important;
-    min-width: 0;
-    background: transparent !important;
-  }
-
-  .response-tabs {
-    padding: 0 var(--space-md);
-  }
-
-  .response-content-bar {
-    display: flex;
-    align-items: stretch;
-    justify-content: space-between;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border);
-    padding: 0 var(--space-md) 0 0;
-    flex-shrink: 0;
-  }
-
-  .response-meta {
-    display: flex;
-    gap: var(--space-sm);
-    align-items: center;
-    padding: 0 var(--space-xs);
-  }
-
-  .request-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow-y: auto;
-    background: var(--bg-secondary);
-    min-height: 200px;
-  }
-
-  .request-content-bar {
-    display: flex;
-    align-items: stretch;
-    justify-content: space-between;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border);
-    padding: 0 var(--space-md) 0 0;
-  }
-
-  .body-format-selector {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    padding-right: var(--space-xs);
-  }
-
-  .beautify-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    font-family: var(--font-sans);
-    font-weight: var(--font-weight-medium);
-    padding: 2px var(--space-xs);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition:
-      color var(--transition-fast),
-      background var(--transition-fast);
-    white-space: nowrap;
-  }
-  .beautify-btn:hover:not(:disabled) {
-    color: var(--text);
-    background: var(--bg-tertiary);
-  }
-  .beautify-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-
-  .format-separator {
-    color: var(--border-dark);
-    font-size: var(--font-size-xs);
-    user-select: none;
-  }
-
-  .format-label {
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    user-select: none;
-  }
-
-  .request-content-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .response-section {
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-primary);
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .resize-handle {
-    position: absolute;
-    top: -4px;
-    left: 0;
-    right: 0;
-    height: 8px;
-    cursor: ns-resize;
-    z-index: 10;
-  }
-
-  .resize-handle::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 3px;
-    height: 2px;
-    background: transparent;
-    transition: background-color 0.2s;
-  }
-
-  .resize-handle:hover::after,
-  .resize-handle.resizing::after {
-    background: var(--primary);
-  }
-
-  .status-badge {
-    padding: var(--space-xs) var(--space-md);
-    border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .status-success {
-    background: var(--success);
-    color: var(--bg-primary);
-  }
-  .status-info {
-    background: var(--info);
-    color: var(--bg-primary);
-  }
-  .status-warning {
-    background: var(--warning);
-    color: var(--bg-primary);
-  }
-  .status-error {
-    background: var(--danger);
-    color: var(--bg-primary);
-  }
-
-  .time-badge {
-    font-size: var(--font-size-sm);
-    color: var(--text-muted);
-  }
-
-  .response-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--bg-secondary);
-  }
-
-  .response-error {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-md);
-    padding: var(--space-lg) var(--space-xl);
-    background: var(--bg-secondary);
-    border-top: 2px solid var(--danger);
-  }
-
-  .response-error-icon {
-    flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--danger);
-    color: var(--bg-primary);
-    font-size: 0.65rem;
-    font-weight: var(--font-weight-semibold);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 2px;
-  }
-
-  .response-error-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .response-error-title {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--danger);
-  }
-
-  .response-error-detail {
-    font-size: var(--font-size-sm);
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-    word-break: break-word;
-  }
-
-  .response-body-editor {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .response-headers {
-    padding: var(--space-md);
-  }
-
-  .response-header-row {
-    display: flex;
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    gap: var(--space-md);
-  }
-
-  .header-key {
-    font-weight: var(--font-weight-semibold);
-    color: var(--primary);
-    min-width: 200px;
-    flex-shrink: 0;
-  }
-
-  .header-value {
-    color: var(--text);
-    word-break: break-all;
-    overflow-wrap: break-word;
-    flex: 1;
-  }
-
-  :global(.env-autocomplete-menu) {
-    position: absolute;
-    z-index: 2000;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    max-height: 280px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-
-  :global(.env-autocomplete-item) {
-    appearance: none;
-    border: none;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    width: 100%;
-    padding: var(--space-sm) var(--space-md);
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-md);
-    font-size: var(--font-size-sm);
-  }
-
-  :global(.env-autocomplete-item:hover),
-  :global(.env-autocomplete-item.active) {
-    background: var(--bg-tertiary);
-  }
-
-  :global(.env-autocomplete-item .env-key) {
-    color: var(--text);
-    font-weight: var(--font-weight-semibold);
-    white-space: nowrap;
-  }
-
-  :global(.env-autocomplete-item .env-value) {
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 60%;
-  }
-</style>
