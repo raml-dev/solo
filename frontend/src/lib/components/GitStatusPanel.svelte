@@ -1,6 +1,9 @@
 <script lang="ts">
+  import Alert from "flowbite-svelte/Alert.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
+  import Spinner from "flowbite-svelte/Spinner.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -171,8 +174,8 @@
   {/if}
 
   {#snippet header()}
-    <div class="panel-header">
-      <div class="header-left">
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
         <svg
           width="16"
           height="16"
@@ -180,141 +183,103 @@
           fill="none"
           stroke="currentColor"
           stroke-width="2"
-          class="git-icon"
+          class="shrink-0 text-neutral-500 dark:text-neutral-400"
         >
-          <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
-            cx="18"
-            cy="6"
-            r="3"
-          />
+          <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle cx="18" cy="6" r="3" />
           <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
           <line x1="12" y1="12" x2="12" y2="15" />
         </svg>
         <div>
-          <h2 class="panel-title">{entityName}</h2>
+          <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{entityName}</h2>
           {#if status}
-            <span class="branch-label">⎇ {status.branch}</span>
+            <span class="font-mono text-xs text-neutral-500 dark:text-neutral-400">⎇ {status.branch}</span>
           {/if}
         </div>
       </div>
-      <div class="header-right">
-        <button
-          class="icon-btn"
+      <div class="flex shrink-0 items-center gap-1">
+        <Button
+          color="light"
+          size="xs"
           title="Refresh"
           onclick={refresh}
           disabled={loading || actionInProgress}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            class:spinning={loading}
-          >
-            <path
-              d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
-            />
-          </svg>
-        </button>
-        <button class="icon-btn" title="Open in Terminal" onclick={handleOpenTerminal}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
+          {#if loading}
+            <Spinner size="4" />
+          {:else}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47" />
+            </svg>
+          {/if}
+        </Button>
+        <Button color="light" size="xs" title="Open in Terminal" onclick={handleOpenTerminal}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
           </svg>
-        </button>
-        <button class="icon-btn close-btn" onclick={requestClose} title="Close">✕</button>
+        </Button>
+        <Button color="light" size="xs" title="Close" onclick={requestClose}>✕</Button>
       </div>
     </div>
   {/snippet}
 
-  <div class="panel-body">
+  <div class="flex flex-col gap-4">
     {#if loading}
-      <div class="loading-state">
-        <div class="spinner"></div>
+      <div class="flex items-center gap-2 py-6 text-sm text-neutral-500 dark:text-neutral-400">
+        <Spinner size="4" />
         <span>Loading git status…</span>
       </div>
     {:else if errorMessage}
-      <div class="error-box">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line
-            x1="12"
-            y1="16"
-            x2="12.01"
-            y2="16"
-          />
-        </svg>
+      <Alert color="red">
         <span>{errorMessage}</span>
-      </div>
+      </Alert>
     {:else if status}
       <!-- Status badge -->
-      <div class="status-row">
-        <span class="status-badge status-{statusVariant(status)}">{statusLabel(status)}</span>
+      <div class="flex flex-wrap items-center gap-3">
+        {#if statusVariant(status) === "ok"}
+          <Badge color="green">{statusLabel(status)}</Badge>
+        {:else if statusVariant(status) === "warning"}
+          <Badge color="yellow">{statusLabel(status)}</Badge>
+        {:else}
+          <Badge color="red">{statusLabel(status)}</Badge>
+        {/if}
         {#if status.ahead > 0 || status.behind > 0}
-          <span class="ahead-behind-detail">
-            {#if status.ahead > 0}<span class="ahead">↑ {status.ahead} to push</span>{/if}
-            {#if status.behind > 0}<span class="behind">↓ {status.behind} to pull</span>{/if}
+          <span class="flex items-center gap-3 text-xs">
+            {#if status.ahead > 0}<span class="text-primary-600 dark:text-primary-400">↑ {status.ahead} to push</span>{/if}
+            {#if status.behind > 0}<span class="text-neutral-500 dark:text-neutral-400">↓ {status.behind} to pull</span>{/if}
           </span>
         {/if}
       </div>
 
       <!-- Conflict / rebase warning -->
       {#if status.isRebaseInProgress || status.hasConflicts}
-        <div class="conflict-box">
-          <div class="conflict-header">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
-              <path
-                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-              />
+        <Alert color="red" class="mt-1">
+          <div class="flex items-center gap-2 font-medium">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            <strong
-              >{status.isRebaseInProgress
-                ? "Rebase in progress"
-                : "Merge conflicts detected"}</strong
-            >
+            <strong>{status.isRebaseInProgress ? "Rebase in progress" : "Merge conflicts detected"}</strong>
           </div>
           {#if status.conflictFiles?.length > 0}
-            <ul class="conflict-files">
+            <ul class="mt-2 list-none space-y-1 font-mono text-sm">
               {#each status.conflictFiles as f (f)}<li>⚡ {f}</li>{/each}
             </ul>
           {/if}
-        </div>
+        </Alert>
       {/if}
 
       <!-- Changed files -->
       {#if status.statusLines?.length > 0}
-        <section class="section">
-          <h4 class="section-title">
-            Changed files <span class="count">{status.statusLines.length}</span>
+        <section class="flex flex-col gap-2">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+            Changed files <Badge color="gray" class="ml-1">{status.statusLines.length}</Badge>
           </h4>
-          <div class="file-list">
+          <div class="space-y-0.5">
             {#each status.statusLines as line (line)}
-              <div class="file-line">
-                <span class="file-icon">{statusLineIcon(line)}</span>
-                <span class="file-xy">{line.slice(0, 2)}</span>
-                <span class="file-name">{line.slice(3)}</span>
+              <div class="flex items-baseline gap-2 rounded px-1 py-0.5 font-mono text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                <span class="shrink-0">{statusLineIcon(line)}</span>
+                <span class="w-5 shrink-0 font-bold text-neutral-400">{line.slice(0, 2)}</span>
+                <span class="min-w-0 truncate text-neutral-700 dark:text-neutral-300">{line.slice(3)}</span>
               </div>
             {/each}
           </div>
@@ -323,14 +288,14 @@
 
       <!-- Recent log -->
       {#if status.recentLog?.length > 0}
-        <section class="section">
-          <h4 class="section-title">Recent commits</h4>
-          <div class="log-list">
+        <section class="flex flex-col gap-2">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Recent commits</h4>
+          <div class="space-y-2">
             {#each status.recentLog as entry (entry.hash)}
-              <div class="log-entry">
-                <code class="log-hash">{entry.hash}</code>
-                <span class="log-msg">{entry.message}</span>
-                <span class="log-meta">{entry.author} · {entry.date}</span>
+              <div class="flex flex-col gap-0.5 rounded border border-neutral-200 p-2 dark:border-neutral-700">
+                <code class="font-mono text-xs text-neutral-400">{entry.hash}</code>
+                <span class="text-sm text-neutral-800 dark:text-neutral-100">{entry.message}</span>
+                <span class="text-xs text-neutral-500 dark:text-neutral-400">{entry.author} · {entry.date}</span>
               </div>
             {/each}
           </div>
@@ -339,23 +304,16 @@
 
       <!-- Output feedback -->
       {#if lastOutput}
-        <div class="output-box ok">{lastOutput}</div>
+        <Alert color="green" class="mt-1">{lastOutput}</Alert>
       {/if}
 
       <!-- Discard confirm inline -->
       {#if showDiscardConfirm}
-        <div class="confirm-box">
+        <div class="rounded-lg border border-warning-200 bg-warning-50 p-3 text-sm dark:border-warning-700 dark:bg-warning-900/20">
           <span>⚠ This will permanently discard all local uncommitted changes. Continue?</span>
-          <div class="confirm-actions">
-            <Button color="red" size="sm" onclick={handleDiscard} disabled={actionInProgress}
-              >Yes, discard</Button
-            >
-            <Button
-              color="light"
-              size="sm"
-              onclick={() => (showDiscardConfirm = false)}
-              disabled={actionInProgress}>Cancel</Button
-            >
+          <div class="mt-2 flex items-center gap-2">
+            <Button color="red" size="sm" onclick={handleDiscard} disabled={actionInProgress}>Yes, discard</Button>
+            <Button color="light" size="sm" onclick={() => (showDiscardConfirm = false)} disabled={actionInProgress}>Cancel</Button>
           </div>
         </div>
       {/if}
@@ -363,45 +321,18 @@
   </div>
 
   {#snippet footer()}
-    <div class="panel-footer">
-      <div class="actions-left">
+    <div class="flex w-full items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
         {#if status?.isRebaseInProgress || status?.hasConflicts}
-          <Button
-            color="primary"
-            size="sm"
-            disabled={actionInProgress || !status}
-            onclick={handleKeepOurs}>Keep Ours</Button
-          >
-          <Button
-            color="light"
-            size="sm"
-            disabled={actionInProgress || !status}
-            onclick={handleKeepTheirs}>Keep Theirs</Button
-          >
-          <Button
-            color="red"
-            size="sm"
-            disabled={actionInProgress || !status}
-            onclick={handleAbortRebase}>Abort Rebase</Button
-          >
+          <Button color="primary" size="sm" disabled={actionInProgress || !status} onclick={handleKeepOurs}>Keep Ours</Button>
+          <Button color="light" size="sm" disabled={actionInProgress || !status} onclick={handleKeepTheirs}>Keep Theirs</Button>
+          <Button color="red" size="sm" disabled={actionInProgress || !status} onclick={handleAbortRebase}>Abort Rebase</Button>
         {:else}
-          <Button
-            color="primary"
-            size="sm"
-            disabled={actionInProgress || loading || !status}
-            onclick={handleSync}
-          >
+          <Button color="primary" size="sm" disabled={actionInProgress || loading || !status} onclick={handleSync}>
             {actionInProgress ? "Syncing…" : "↺ Sync"}
           </Button>
           {#if status?.isDirty}
-            <Button
-              color="red"
-              size="sm"
-              disabled={actionInProgress || !status}
-              onclick={() => (showDiscardConfirm = true)}
-            >
-              Discard Changes
-            </Button>
+            <Button color="red" size="sm" disabled={actionInProgress || !status} onclick={() => (showDiscardConfirm = true)}>Discard Changes</Button>
           {/if}
         {/if}
       </div>

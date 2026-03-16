@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "flowbite-svelte/Button.svelte";
   import type { environment } from "$wails/go/models";
 
   interface Props {
@@ -94,52 +95,57 @@
       <path d={getProviderIconPath(env.gitProvider || "git")} />
     </svg>
   {/if}
-  <button
-    type="button"
-    class="min-w-0 flex-1 truncate text-left text-sm text-neutral-800 dark:text-neutral-100"
+  <Button
+    color="light"
+    size="sm"
+    class="min-w-0 flex-1 justify-start truncate border-0 shadow-none"
     onclick={openEnvironment}
   >
     {env.name}
-  </button>
-  <button
-    type="button"
-    class="shrink-0 rounded px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-neutral-100"
+  </Button>
+  <Button
+    color="light"
+    size="xs"
+    class="shrink-0 border-0 shadow-none"
     onclick={toggleMenu}
     title="More actions"
     aria-label="More actions"
   >
     •••
-  </button>
+  </Button>
 
   {#if menuOpen}
     <div
       class="absolute right-0 top-full z-50 min-w-40 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
     >
       {#if env.gitRemote}
-        <button
-          type="button"
-          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 shadow-none"
           onclick={handleGitStatus}
         >
           Git status
-        </button>
-        <button
-          type="button"
-          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
+        </Button>
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 shadow-none disabled:opacity-50"
           onclick={handleSync}
           disabled={isSyncing}
         >
           {isSyncing ? "Syncing…" : "Sync with Git"}
-        </button>
+        </Button>
         <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
       {/if}
-      <button
-        type="button"
-        class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+      <Button
+        color="light"
+        size="sm"
+        class="w-full justify-start border-0 shadow-none text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
         onclick={handleDeleteEnvironment}
       >
         Delete
-      </button>
+      </Button>
     </div>
   {/if}
 </div>

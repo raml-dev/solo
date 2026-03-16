@@ -358,13 +358,9 @@
 
         <div class="grid grid-cols-3 gap-3">
           {#each $allThemes || [] as t (t.id)}
-            <button
-              class="flex cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400"
-              class:border-primary-500={activeThemeId === t.id}
-              class:ring-2={activeThemeId === t.id}
-              class:ring-primary-500={activeThemeId === t.id}
-              class:border-neutral-200={activeThemeId !== t.id}
-              class:dark:border-neutral-700={activeThemeId !== t.id}
+            <Button
+              color="light"
+              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {activeThemeId === t.id ? 'border-primary-500 ring-2 ring-primary-500' : 'border-neutral-200 dark:border-neutral-700'}"
               onclick={() => handleThemeSelect(t.id)}
             >
               <div class="mb-2 w-full overflow-hidden rounded">
@@ -376,7 +372,7 @@
               {#if activeThemeId === t.id}
                 <Badge color="primary" class="mt-1">Active</Badge>
               {/if}
-            </button>
+            </Button>
           {/each}
         </div>
       </div>

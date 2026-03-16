@@ -91,30 +91,11 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="relative {wrapperClass}" onclick={focusInput}>
-  <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-    <div class="flex h-full items-center whitespace-pre px-2.5 text-sm" style={`transform: translateX(-${scrollLeft}px);`}>
-      {#if !value && placeholder}
-        <span class="text-neutral-400 dark:text-neutral-500">{placeholder}</span>
-      {:else}
-        {#each segments as segment, index (`${segment.isToken ? segment.tokenKey : "text"}-${index}`)}
-          {#if segment.isToken}
-            <span
-              class="rounded bg-primary-100 px-0.5 font-mono text-primary-700 dark:bg-primary-900 dark:text-primary-300"
-              onmouseenter={(e) => handleTokenEnter(e, segment)}
-              onmouseleave={handleTokenLeave}>{segment.text}</span
-            >
-          {:else}
-            <span class="text-neutral-900 dark:text-neutral-100">{segment.text}</span>
-          {/if}
-        {/each}
-      {/if}
-    </div>
-  </div>
   <Input
     bind:elementRef={inputEl}
     type="text"
     {size}
-    class="caret-neutral-900 [color:transparent] dark:caret-neutral-100 {inputClass}"
+    class="caret-neutral-900 ![color:transparent] dark:caret-neutral-100 {inputClass}"
     bind:value
     {disabled}
     role="combobox"
@@ -130,6 +111,25 @@
     }}
     onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
   />
+  <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <div class="flex h-full items-center whitespace-pre px-2.5 text-sm" style={`transform: translateX(-${scrollLeft}px);`}>
+      {#if !value && placeholder}
+        <span class="text-neutral-400 dark:text-neutral-500">{placeholder}</span>
+      {:else}
+        {#each segments as segment, index (`${segment.isToken ? segment.tokenKey : "text"}-${index}`)}
+          {#if segment.isToken}
+            <span
+              class="pointer-events-auto rounded bg-primary-100 px-0.5 font-mono text-primary-700 dark:bg-primary-900 dark:text-primary-300"
+              onmouseenter={(e) => handleTokenEnter(e, segment)}
+              onmouseleave={handleTokenLeave}>{segment.text}</span
+            >
+          {:else}
+            <span class="text-neutral-900 dark:text-neutral-100">{segment.text}</span>
+          {/if}
+        {/each}
+      {/if}
+    </div>
+  </div>
 </div>
 
 {#if autocompleteState?.open && autocompleteState.items.length > 0}

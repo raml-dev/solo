@@ -139,45 +139,45 @@
 </script>
 
 <div
-  class="tab-bar flex items-center gap-2 border-b border-neutral-200 px-2 py-1 dark:border-neutral-700"
+  class="flex items-center gap-2 border-b border-neutral-200 px-2 py-1 dark:border-neutral-700"
 >
   <div
-    class="tab-list flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+    class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     role="tablist"
     aria-label="Open request tabs"
   >
     {#each tabs as tab, index (tab.id)}
       <div
-        class={`tab group inline-flex max-w-xs items-center rounded-md border ${
+        class={`group inline-flex max-w-xs items-center rounded-md border ${
           tab.id === activeTabId
             ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
             : "border-transparent bg-neutral-100/70 hover:bg-neutral-200/70 dark:bg-neutral-800/60 dark:hover:bg-neutral-700/70"
         } ${tab.isPreview ? "italic opacity-85" : ""}`}
       >
-        <button
-          type="button"
-          class="tab-main inline-flex min-w-0 items-center gap-2 px-2 py-1.5 text-sm"
+        <Button
+          color="light"
+          size="xs"
+          class="inline-flex min-w-0 items-center gap-2 border-0 bg-transparent px-2 py-1.5 text-sm shadow-none hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent"
           role="tab"
           aria-selected={tab.id === activeTabId}
           tabindex={tab.id === activeTabId ? 0 : -1}
           data-tab-id={tab.id}
           onclick={() => tabStore.setActiveTab(tab.id)}
           ondblclick={() => tabStore.fixTab(tab.id)}
-          onkeydown={(event) => handleTabKeydown(event, index, tab.id)}
+          onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
           title={tab.label}
         >
           <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
-          <span class="tab-label max-w-48 truncate">{tab.label}</span>
+          <span class="max-w-48 truncate">{tab.label}</span>
           {#if tab.isDirty}
-            <span class="dirty-dot h-2 w-2 rounded-full bg-warning-500" title="Unsaved changes"
-            ></span>
+            <span class="h-2 w-2 rounded-full bg-warning-500" title="Unsaved changes"></span>
           {/if}
-        </button>
+        </Button>
 
         <CloseButton
           color="none"
           size="xs"
-          class="close-btn p-1! opacity-70 transition-opacity group-hover:opacity-100 hover:opacity-100"
+          class="p-1! opacity-70 transition-opacity group-hover:opacity-100 hover:opacity-100"
           ariaLabel="Close tab"
           onclick={(e: MouseEvent) => handleClose(e, tab.id)}
         />
@@ -188,7 +188,7 @@
   <Button
     color="light"
     size="xs"
-    class="new-tab-btn shrink-0"
+    class="shrink-0"
     onclick={() => tabStore.newEmptyTab()}
     title="New request"
     aria-label="New request"
@@ -202,7 +202,7 @@
     {#if $topModalId === confirmCloseModalId}
       <ToastContainer />
     {/if}
-    <div class="confirm-modal-body">
+    <div class="flex flex-col gap-2">
       <p>Do you want to save the changes to <strong>{tabToClose?.label}</strong>?</p>
       <p class="text-neutral-500 dark:text-neutral-400">
         Your changes will be lost if you don't save them.
@@ -210,7 +210,7 @@
     </div>
 
     {#snippet footer()}
-      <div class="confirm-modal-actions flex flex-2 items-center gap-2">
+      <div class="flex flex-2 items-center gap-2">
         <Button color="red" onclick={confirmCloseDiscard}>Don't Save</Button>
         <div class="ml-auto flex items-center gap-2">
           <Button color="light" onclick={closeConfirmModal}>Cancel</Button>

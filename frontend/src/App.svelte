@@ -165,17 +165,18 @@
     <div
       class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
     >
-      <button
-        type="button"
+      <Button
+        color="light"
+        size="xs"
         onclick={toggleConsole}
-        class="flex items-center gap-1.5 px-2 py-1 text-xs {consoleOpen ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-400'} hover:text-neutral-900 dark:hover:text-neutral-100"
+        class="border-0 shadow-none {consoleOpen ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-400'}"
       >
         <TerminalOutline size="xs" />
         Console
         {#if $historyStore.length > 0}
           <Badge color="primary">{$historyStore.length}</Badge>
         {/if}
-      </button>
+      </Button>
     </div>
   {/snippet}
 </MainLayout>

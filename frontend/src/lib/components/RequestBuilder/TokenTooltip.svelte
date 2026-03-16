@@ -80,42 +80,38 @@
 {#if visible}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="token-tooltip"
+    class="fixed z-50 w-max rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
     style="left: {tooltipState.x}px; top: {tooltipState.y}px;"
     onmouseenter={cancelHideTokenTooltip}
     onmouseleave={tooltipMouseLeave}
   >
     {#if isEditing}
-      <div class="edit-mode">
+      <div class="flex flex-col gap-2">
         <Input
           bind:elementRef={inputElement}
           type="text"
           size="sm"
           bind:value={editValue}
           onkeydown={handleKeydown}
-          class="tooltip-input"
         />
-        <div class="edit-actions mt-2 flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <Button color="primary" size="xs" onclick={save}>Save</Button>
           <Button color="light" size="xs" onclick={() => (isEditing = false)}>Cancel</Button>
         </div>
       </div>
     {:else}
-      <div class="preview-mode">
-        <div class="preview-main">
-          <span class="preview-value" class:unresolved={!exists}>
-            {exists ? displayValue : "Unresolved variable"}
-          </span>
-          {#if valueSource !== "none"}
-            <Badge color={valueSource === "session" ? "amber" : "blue"} class="source-label">
-              {valueSource}
-            </Badge>
-          {/if}
-        </div>
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-sm {exists ? 'text-neutral-800 dark:text-neutral-100' : 'italic text-neutral-400 dark:text-neutral-500'}">
+          {exists ? displayValue : "Unresolved variable"}
+        </span>
+        {#if valueSource !== "none"}
+          <Badge color={valueSource === "session" ? "yellow" : "blue"}>
+            {valueSource}
+          </Badge>
+        {/if}
         <Button
           color="light"
           size="xs"
-          class="edit-btn"
           onclick={handleEditClick}
           title="Edit environment value"
           aria-label="Edit environment value"
@@ -124,17 +120,12 @@
         </Button>
       </div>
       {#if valueSource === "session"}
-        <div class="session-hint-wrap mt-2">
-          <div class="session-hint">
+        <div class="mt-2 flex flex-col gap-1">
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
             Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo
             resta quello di sessione finché non la svuoti.
-          </div>
-          <Button
-            color="light"
-            size="xs"
-            class="session-clear-btn mt-2"
-            onclick={clearSessionOverride}>Use env value</Button
-          >
+          </p>
+          <Button color="light" size="xs" onclick={clearSessionOverride}>Use env value</Button>
         </div>
       {/if}
     {/if}
