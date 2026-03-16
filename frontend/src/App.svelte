@@ -1,12 +1,10 @@
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionList from "$src/lib/components/CollectionList.svelte";
   import Console from "$src/lib/components/Console/Console.svelte";
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
-  import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "flowbite-svelte/Modal.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { environmentStore } from "$src/lib/stores/environmentStore";
@@ -15,6 +13,10 @@
   import { activeTab, tabStore } from "$src/lib/stores/tabStore";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
+  import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import { onMount } from "svelte";
 
   let consoleOpen = $state(false);
@@ -132,60 +134,50 @@
 {/if}
 
 <MainLayout title="yapla">
-  {#snippet navbar_actions()}
-    <div class="nav-actions"></div>
-  {/snippet}
-
-  <!-- Main area: sidebar + builder + console panel stacked -->
-
-  <div class="app-body">
+  <!-- Main area: sidebar + builder -->
+  <div class="flex min-h-0 flex-1 overflow-hidden">
     <CollectionList />
-    <div class="builder-area"><RequestTabBar /><HTTPRequestBuilder /></div>
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <RequestTabBar />
+      <HTTPRequestBuilder />
+    </div>
   </div>
 
-  <!-- Console panel: expands above the bottom bar -->
-
+  <!-- Console panel + status bar -->
   {#snippet bottom_bar()}
     {#if consoleOpen}
-      <div class="console-panel" style="height: {consoleHeight}px">
+      <div
+        class="flex flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
+        style="height: {consoleHeight}px"
+      >
         <div
-          class="console-resize-handle"
-          class:resizing={isResizing}
+          class="h-1 shrink-0 cursor-row-resize bg-neutral-200 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
+          class:bg-primary-500={isResizing}
           onmousedown={startResize}
         ></div>
-
-        <Console />
+        <div class="min-h-0 flex-1 overflow-hidden">
+          <Console />
+        </div>
       </div>
     {/if}
 
-    <!-- Bottom bar content -->
-
-    <button class="bottom-btn" class:active={consoleOpen} onclick={toggleConsole}>
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 16 16"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
+    <!-- Status bar -->
+    <div
+      class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
+    >
+      <Button
+        color="light"
+        size="xs"
+        onclick={toggleConsole}
+        class="border-0 shadow-none {consoleOpen ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-400'}"
       >
-        <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.4"
-        ></rect>
-
-        <path
-          d="M4 6l3 3-3 3M9 12h4"
-          stroke="currentColor"
-          stroke-width="1.4"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        ></path>
-      </svg>
-
-      Console
-
-      {#if $historyStore.length > 0}
-        <span class="bottom-btn-badge">{$historyStore.length}</span>
-      {/if}
-    </button>
+        <TerminalOutline size="xs" />
+        Console
+        {#if $historyStore.length > 0}
+          <Badge color="primary">{$historyStore.length}</Badge>
+        {/if}
+      </Button>
+    </div>
   {/snippet}
 </MainLayout>
 
@@ -194,21 +186,20 @@
     {#if $topModalId === globalUnsavedModalId}
       <ToastContainer />
     {/if}
-    <div class="confirm-modal-body">
+    <div class="flex flex-col gap-2">
       <p>You have unsaved changes in some requests. Do you want to save them before quitting?</p>
-      <p class="text-gray-500 dark:text-gray-400">
+      <p class="text-neutral-500 dark:text-neutral-400">
         If you don't save, your changes will be permanently lost.
       </p>
     </div>
 
     {#snippet footer()}
-      <div class="confirm-modal-actions">
-        <Button color="light" onclick={() => ForceQuit()}>Discard and Quit</Button>
-        <div class="flex-spacer"></div>
-
-        <Button color="light" onclick={() => (showGlobalUnsavedModal = false)}>Cancel</Button>
-
-        <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
+      <div class="flex w-full items-center gap-2">
+        <Button color="red" onclick={() => ForceQuit()}>Discard and Quit</Button>
+        <div class="ml-auto flex items-center gap-2">
+          <Button color="light" onclick={() => (showGlobalUnsavedModal = false)}>Cancel</Button>
+          <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
+        </div>
       </div>
     {/snippet}
   </Modal>

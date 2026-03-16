@@ -108,6 +108,7 @@ function applyThemeMode(mode: ThemeMode | string | undefined) {
   }
 }
 
+// Global display mode — driven by general.themeMode, not per-theme config.
 let activeThemeMode: ThemeMode | string | undefined;
 
 function applyThemeToDom(t: theme.Theme) {
@@ -134,9 +135,7 @@ function applyThemeToDom(t: theme.Theme) {
   } else {
     root.style.removeProperty("--color-surface");
   }
-
-  activeThemeMode = t?.config?.mode;
-  applyThemeMode(activeThemeMode);
+  // Mode is not read from the theme — it is applied separately via general.themeMode.
 }
 
 let mediaQueryCleanup: (() => void) | null = null;
@@ -177,6 +176,15 @@ function createConfigurationStore() {
 
   activeTheme.subscribe((t) => {
     if (t) applyThemeToDom(t);
+  });
+
+  // Apply display mode from general.themeMode — the single authoritative source.
+  config.subscribe((cfg) => {
+    const mode = cfg?.general?.themeMode;
+    if (mode) {
+      activeThemeMode = mode;
+      applyThemeMode(activeThemeMode);
+    }
   });
 
   return {
@@ -229,6 +237,11 @@ function createConfigurationStore() {
         notifications.error("Failed to change theme", String(error));
         throw error;
       }
+    },
+
+    applyThemeMode: (mode: string) => {
+      activeThemeMode = mode;
+      applyThemeMode(mode);
     }
   };
 }

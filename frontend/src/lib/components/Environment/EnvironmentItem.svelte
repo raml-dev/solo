@@ -70,103 +70,82 @@
   }
 </script>
 
-<div class="environment-item" class:active={isActive} class:focused={isFocused}>
-  <div class="environment-info">
-    <input
-      class="active-radio"
-      type="radio"
-      name="active-environment"
-      checked={isActive}
-      onchange={activateEnvironment}
-      aria-label={`Set ${env.name} as active environment`}
-    />
-    {#if env.gitRemote}
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        class="provider-icon"
-        aria-label={`Git remote: ${env.gitRemote}`}
-      >
-        <path d={getProviderIconPath(env.gitProvider || "git")} />
-      </svg>
-    {/if}
-    <button class="environment-name-btn" onclick={openEnvironment}>{env.name}</button>
-  </div>
-
-  <div class="environment-actions">
-    {#if env.gitRemote}
-      <Button
-        color="light"
-        size="xs"
-        class="icon-btn"
-        onclick={handleGitStatus}
-        title="Git status & actions"
-        aria-label="Git status & actions"
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><circle
-            cx="18"
-            cy="6"
-            r="3"
-          />
-          <path d="M18 9v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
-          <line x1="12" y1="12" x2="12" y2="15" />
-        </svg>
-      </Button>
-      <Button
-        color="light"
-        size="xs"
-        class="icon-btn"
-        onclick={handleSync}
-        title="Sync with Git remote"
-        aria-label="Sync with Git remote"
-        loading={isSyncing}
-        disabled={isSyncing}
-      >
-        {#if !isSyncing}
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M21 2v6h-6M3 22v-6h6M21 12c0 4.97-4.03 9-9 9-3.32 0-6.23-1.8-7.81-4.47M3 12c0-4.97 4.03-9 9-9 3.32 0 6.23 1.8 7.81 4.47"
-            ></path>
-          </svg>
-        {/if}
-      </Button>
-    {/if}
-    <Button
-      color="light"
-      size="xs"
-      class="icon-btn"
-      onclick={toggleMenu}
-      title="More actions"
-      aria-label="More actions"
+<div
+  class="relative flex items-center gap-1.5 px-2 py-1.5 {isFocused ? 'bg-primary-50 dark:bg-primary-900/30' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'}"
+>
+  <input
+    type="radio"
+    name="active-environment"
+    checked={isActive}
+    onchange={activateEnvironment}
+    aria-label={`Set ${env.name} as active environment`}
+    class="shrink-0 accent-primary-600"
+  />
+  {#if env.gitRemote}
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      class="shrink-0 text-neutral-400"
+      aria-label={`Git remote: ${env.gitRemote}`}
     >
-      ...
-    </Button>
-  </div>
+      <path d={getProviderIconPath(env.gitProvider || "git")} />
+    </svg>
+  {/if}
+  <Button
+    color="light"
+    size="sm"
+    class="min-w-0 flex-1 justify-start truncate border-0 shadow-none"
+    onclick={openEnvironment}
+  >
+    {env.name}
+  </Button>
+  <Button
+    color="light"
+    size="xs"
+    class="shrink-0 border-0 shadow-none"
+    onclick={toggleMenu}
+    title="More actions"
+    aria-label="More actions"
+  >
+    •••
+  </Button>
 
   {#if menuOpen}
-    <div class="environment-menu">
-      <Button color="red" size="xs" class="menu-item danger" onclick={handleDeleteEnvironment}
-        >Delete</Button
+    <div
+      class="absolute right-0 top-full z-50 min-w-40 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+    >
+      {#if env.gitRemote}
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 shadow-none"
+          onclick={handleGitStatus}
+        >
+          Git status
+        </Button>
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 shadow-none disabled:opacity-50"
+          onclick={handleSync}
+          disabled={isSyncing}
+        >
+          {isSyncing ? "Syncing…" : "Sync with Git"}
+        </Button>
+        <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
+      {/if}
+      <Button
+        color="light"
+        size="sm"
+        class="w-full justify-start border-0 shadow-none text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+        onclick={handleDeleteEnvironment}
       >
+        Delete
+      </Button>
     </div>
   {/if}
 </div>

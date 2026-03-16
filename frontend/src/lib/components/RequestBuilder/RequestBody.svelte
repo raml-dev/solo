@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Card from "flowbite-svelte/Card.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
@@ -20,7 +19,7 @@
   );
 </script>
 
-<Card class="body-editor-wrapper p-0">
+<div class="flex-1 min-h-0 w-full overflow-hidden">
   <CodeMirrorEditor
     bind:value={requestBody}
     bind:format
@@ -30,4 +29,4 @@
       onChange?.();
     }}
   />
-</Card>
+</div>

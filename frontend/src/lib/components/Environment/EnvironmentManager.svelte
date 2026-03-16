@@ -249,24 +249,20 @@
 
 <svelte:window onclick={closeActiveMenu} />
 
-<div class="environment-manager-layout">
-  <div class="environment-list">
-    <div class="header">
-      <div class="header-title">
-        <div class="header-actions">
-          <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
-          <Button color="primary" size="sm" onclick={() => (showNewEnvironmentDialog = true)}>
-            New
-          </Button>
-        </div>
-      </div>
+<div class="flex h-full overflow-hidden">
+  <div class="flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-700">
+    <div class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 p-3 dark:border-neutral-700">
+      <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
+      <Button color="primary" size="sm" onclick={() => (showNewEnvironmentDialog = true)}>
+        New
+      </Button>
     </div>
 
     {#if $environmentStore.loading}
-      <div class="loading">Loading environments...</div>
+      <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">Loading environments...</div>
     {/if}
 
-    <div class="environments">
+    <div class="flex-1 overflow-y-auto">
       {#each environments as environment (environment.id)}
         <EnvironmentItem
           env={environment}
@@ -290,7 +286,7 @@
       />
     {/if}
   </div>
-  <div class="environment-editor-pane">
+  <div class="min-w-0 flex-1 overflow-y-auto p-4">
     <EnvironmentEditor env={selectedEnvironment} onUpdate={handleUpdateEnvironment} />
   </div>
 </div>
@@ -310,7 +306,7 @@
     {#if $topModalId === importEnvironmentModalId}
       <ToastContainer />
     {/if}
-    <div class="import-modal-body">
+    <div class="flex flex-col gap-4">
       <Tabs bind:selected={importActiveTab}>
         <TabItem key="postman" title="Postman">
           <DropZone
@@ -424,7 +420,7 @@
       <ToastContainer />
     {/if}
     <p>Environment "{overwriteTargetName}" already exists.</p>
-    <p class="warning">Do you want to overwrite it?</p>
+    <p class="text-sm text-neutral-600 dark:text-neutral-400">Do you want to overwrite it?</p>
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">
         <Button color="red" onclick={confirmOverwrite}>Overwrite</Button>

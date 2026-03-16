@@ -1,7 +1,9 @@
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { debounce } from "$src/lib/utils/debounce";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
@@ -14,11 +16,26 @@
   } from "$wails/go/main/App";
   import type { theme } from "$wails/go/models";
   import { configuration, host } from "$wails/go/models";
+  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Helper from "flowbite-svelte/Helper.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import Radio from "flowbite-svelte/Radio.svelte";
+  import Table from "flowbite-svelte/Table.svelte";
+  import TableBody from "flowbite-svelte/TableBody.svelte";
+  import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
+  import TableBodyRow from "flowbite-svelte/TableBodyRow.svelte";
+  import TableHead from "flowbite-svelte/TableHead.svelte";
+  import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
+  import Toggle from "flowbite-svelte/Toggle.svelte";
   import { onMount } from "svelte";
 
   // --- Nav ---
   type SettingsSection = "general" | "themes" | "hosts";
-  let activeSection: SettingsSection = $state("themes");
+  let activeSection: SettingsSection = $state("general");
 
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
@@ -39,11 +56,13 @@
 
   // --- Theme UI state ---
   let activeThemeId = $state("");
+  let selectedThemeMode = $state("system");
 
   let initialized = $state(false);
   $effect(() => {
     if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
       activeThemeId = $config.general.activeTheme;
+      selectedThemeMode = $config.general.themeMode || "system";
       initialized = true;
     }
   });
@@ -82,6 +101,7 @@
 
   function toSignature(cfg: configuration.Configuration): string {
     return JSON.stringify({
+      themeMode: cfg.general?.themeMode ?? "light",
       checkForUpdates: cfg.general?.checkForUpdates ?? false,
       request: {
         timeoutSeconds: cfg.request?.timeoutSeconds ?? 0,
@@ -142,6 +162,7 @@
       if (!current.request) current.request = new configuration.RequestSettings();
 
       current.general.checkForUpdates = editableConfig.general.checkForUpdates;
+      current.general.themeMode = editableConfig.general.themeMode;
       current.request = new configuration.RequestSettings({
         ...editableConfig.request,
         timeoutSeconds,
@@ -169,12 +190,33 @@
     if (editableConfig.request || editableConfig.general) debouncedSave();
   });
 
+  $effect(() => {
+    if (!initialized) return;
+    configurationStore.applyThemeMode(selectedThemeMode);
+    editableConfig.general = new configuration.GeneralSettings({
+      ...editableConfig.general,
+      themeMode: selectedThemeMode
+    });
+    void persistRequestSettings();
+  });
+
   // --- Hosts ---
   type HostCookieRow = { id: string; key: string; value: string };
 
   let hostsList: host.Host[] = $state([]);
   let editingHost: host.Host | null = $state(null);
+  let editingHostName = $state("");
   let editingCookies: HostCookieRow[] = $state([]);
+
+  // Delete confirm modal
+  const deleteHostModalId = `settings-delete-host-${Math.random().toString(36).slice(2)}`;
+  let showDeleteHostModal = $state(false);
+  let hostToDelete = $state("");
+
+  $effect(() => {
+    if (showDeleteHostModal) modalStack.open(deleteHostModalId);
+    else modalStack.close(deleteHostModalId);
+  });
 
   async function fetchHosts() {
     try {
@@ -197,12 +239,14 @@
     });
     newHost.cookies = {};
     editingHost = newHost;
+    editingHostName = "";
     editingCookies = [];
   }
 
   function editExistingHost(h: host.Host) {
     editingHost = JSON.parse(JSON.stringify(h)) as host.Host;
     if (!editingHost.cookies) editingHost.cookies = {};
+    editingHostName = editingHost.name ?? "";
     const cookieRecord = Object.fromEntries(
       Object.entries(editingHost.cookies).map(([key, value]) => [key, String(value ?? "")])
     );
@@ -232,8 +276,9 @@
   }
 
   async function handleSaveHost() {
-    if (!editingHost || !editingHost.name) return;
+    if (!editingHost || !editingHostName.trim()) return;
     try {
+      editingHost.name = editingHostName.trim();
       // Map cookie array back to object
       const cookieMap: Record<string, string> = {};
       editingCookies.forEach((c) => {
@@ -244,16 +289,22 @@
       await UpsertHost(editingHost);
       await fetchHosts();
       editingHost = null;
+      editingHostName = "";
       notifications.success("Host configuration saved");
     } catch (err) {
       notifications.error("Failed to save host", String(err));
     }
   }
 
-  async function handleDeleteHost(name: string) {
-    if (!confirm(`Are you sure you want to delete host config for "${name}"?`)) return;
+  function handleDeleteHost(name: string) {
+    hostToDelete = name;
+    showDeleteHostModal = true;
+  }
+
+  async function confirmDeleteHost() {
+    showDeleteHostModal = false;
     try {
-      await DeleteHost(name);
+      await DeleteHost(hostToDelete);
       await fetchHosts();
       notifications.success("Host deleted");
     } catch (err) {
@@ -268,285 +319,340 @@
   });
 </script>
 
-<div class="settings-modal">
-  <!-- Sidebar -->
-  <nav class="settings-nav">
+<div class="flex h-full gap-6">
+  <!-- Sidebar nav -->
+  <nav class="flex w-36 shrink-0 flex-col gap-1">
     {#each NAV_ITEMS as item (item.id)}
-      <button
-        class="nav-item"
-        class:active={activeSection === item.id}
+      <Button
+        color={activeSection === item.id ? "primary" : "light"}
+        class="justify-start"
         onclick={() => (activeSection = item.id)}
       >
         {item.label}
-      </button>
+      </Button>
     {/each}
   </nav>
 
   <!-- Content -->
-  <div class="settings-content">
+  <div class="min-w-0 flex-1 overflow-y-auto">
     {#if activeSection === "themes"}
-      <div class="section-body">
-        <h2 class="section-title">Themes</h2>
-        <p class="section-desc">
-          Personalize your experience with themes that match your style. Manually select a theme or
-          sync with system settings and let the machine set your day and night themes.
-        </p>
+      <div class="flex flex-col gap-4">
+        <div>
+          <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">Themes</h2>
+          <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            Personalize your experience with themes that match your style.
+          </p>
+        </div>
 
-        <div class="theme-grid-manual">
+        <!-- Display mode selector -->
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Display mode</p>
+          <div class="flex gap-4">
+            {#each [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }] as mode (mode.value)}
+              <Radio name="themeMode" bind:group={selectedThemeMode} value={mode.value}
+                >{mode.label}</Radio
+              >
+            {/each}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
           {#each $allThemes || [] as t (t.id)}
-            <button
-              class="theme-tile"
-              class:active-tile={activeThemeId === t.id}
+            <Button
+              color="light"
+              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {activeThemeId === t.id ? 'border-primary-500 ring-2 ring-primary-500' : 'border-neutral-200 dark:border-neutral-700'}"
               onclick={() => handleThemeSelect(t.id)}
             >
-              <div class="theme-tile-preview">
+              <div class="mb-2 w-full overflow-hidden rounded">
                 <ThemePreview seeds={t.config?.seeds} />
               </div>
-              <span class="theme-tile-name">{formatThemeName(t.label)}</span>
+              <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                {formatThemeName(t.label)}
+              </p>
               {#if activeThemeId === t.id}
-                <span class="active-badge">ACTIVE</span>
+                <Badge color="primary" class="mt-1">Active</Badge>
               {/if}
-            </button>
+            </Button>
           {/each}
         </div>
       </div>
     {:else if activeSection === "general"}
-      <div class="section-body">
-        <h2 class="section-title">General</h2>
-        <p class="section-desc">Configure general application behavior and request defaults.</p>
-
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input type="checkbox" bind:checked={editableConfig.general.checkForUpdates} />
-            Check for updates on startup
-          </label>
+      <div class="flex flex-col gap-5">
+        <div>
+          <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">General</h2>
+          <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            Configure general application behavior and request defaults.
+          </p>
         </div>
 
-        <h3 class="subsection-title">Request Defaults</h3>
+        <Toggle bind:checked={editableConfig.general.checkForUpdates}>
+          Check for updates on startup
+        </Toggle>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="timeout">Timeout (seconds)</label>
-            <input
-              id="timeout"
-              type="number"
-              bind:value={editableConfig.request.timeoutSeconds}
-              min="0"
-              step="1"
-              placeholder={`Default: ${defaultConfig.request.timeoutSeconds}`}
-            />
+        <div>
+          <h3 class="mb-3 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+            Request Defaults
+          </h3>
+          <div class="flex flex-col gap-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-1">
+                <Label for="timeout">Timeout (seconds)</Label>
+                <Input
+                  id="timeout"
+                  type="number"
+                  size="sm"
+                  bind:value={editableConfig.request.timeoutSeconds}
+                  min="0"
+                  step="1"
+                  placeholder="Default: {defaultConfig.request.timeoutSeconds}"
+                />
+              </div>
+              <div class="flex flex-col gap-1">
+                <Label for="max-redirects">Max Redirects</Label>
+                <Input
+                  id="max-redirects"
+                  type="number"
+                  size="sm"
+                  bind:value={editableConfig.request.maxRedirects}
+                  min="0"
+                  step="1"
+                  placeholder="Default: {defaultConfig.request.maxRedirects}"
+                  disabled={!editableConfig.request.followRedirects}
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <Label for="user-agent">Default User Agent</Label>
+              <Input
+                id="user-agent"
+                type="text"
+                size="sm"
+                bind:value={editableConfig.request.defaultUserAgent}
+                placeholder="Default: {defaultConfig.request.defaultUserAgent}"
+              />
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <Label for="proxy">Proxy URL</Label>
+              <Input
+                id="proxy"
+                type="text"
+                size="sm"
+                bind:value={editableConfig.request.proxyUrl}
+                placeholder="http://user:pass@host:port (optional)"
+              />
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <Toggle bind:checked={editableConfig.request.followRedirects}>
+                Follow Redirects
+              </Toggle>
+              <Toggle bind:checked={editableConfig.request.validateSSL}>
+                Validate SSL Certificates
+              </Toggle>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="max-redirects">Max Redirects</label>
-            <input
-              id="max-redirects"
-              type="number"
-              bind:value={editableConfig.request.maxRedirects}
-              min="0"
-              step="1"
-              placeholder={`Default: ${defaultConfig.request.maxRedirects}`}
-              disabled={!editableConfig.request.followRedirects}
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="user-agent">Default User Agent</label>
-          <input
-            id="user-agent"
-            type="text"
-            bind:value={editableConfig.request.defaultUserAgent}
-            placeholder={`Default: ${defaultConfig.request.defaultUserAgent}`}
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="proxy">Proxy URL</label>
-          <input
-            id="proxy"
-            type="text"
-            bind:value={editableConfig.request.proxyUrl}
-            placeholder="http://user:pass@host:port (optional)"
-          />
-        </div>
-
-        <div class="checkboxes">
-          <label class="checkbox-label">
-            <input type="checkbox" bind:checked={editableConfig.request.followRedirects} />
-            Follow Redirects
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" bind:checked={editableConfig.request.validateSSL} />
-            Validate SSL Certificates
-          </label>
         </div>
 
         {#if saveStatus === "saving"}
-          <p class="save-status">Saving…</p>
+          <Helper color="gray">Saving…</Helper>
         {:else if saveStatus === "saved"}
-          <p class="save-status saved">Saved ✓</p>
+          <Helper color="green">Saved</Helper>
         {/if}
       </div>
     {:else if activeSection === "hosts"}
-      <div class="section-body">
-        <h2 class="section-title">Hosts</h2>
-        <p class="section-desc">
-          Manage specific TLS and certificate configurations for your target hosts.
-        </p>
+      <div class="flex flex-col gap-4">
+        <div>
+          <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">Hosts</h2>
+          <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            Manage specific TLS and certificate configurations for your target hosts.
+          </p>
+        </div>
 
         {#if !editingHost}
-          <div class="hosts-header">
-            <button class="btn btn-primary" onclick={startAddHost}>Add Host</button>
+          <div class="flex justify-end">
+            <Button color="primary" onclick={startAddHost}>Add Host</Button>
           </div>
 
-          <div class="hosts-list">
-            {#if hostsList.length === 0}
-              <FeedbackEmptyState
-                variant="info"
-                title="No specific host configuration found."
-                compact
-              />
-            {:else}
-              <div class="table-container">
-                <table class="hosts-table">
-                  <thead>
-                    <tr>
-                      <th>Hostname</th>
-                      <th>TLS</th>
-                      <th>Skip Verify</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each hostsList as h (h.id)}
-                      <tr>
-                        <td><strong>{h.name}</strong></td>
-                        <td>
-                          <span class="badge" class:badge-success={h.tlsConfig.enabled}>
-                            {h.tlsConfig.enabled ? "Enabled" : "Disabled"}
-                          </span>
-                        </td>
-                        <td>
-                          <span class="badge" class:badge-warning={h.tlsConfig.insecureSkipVerify}>
-                            {h.tlsConfig.insecureSkipVerify ? "Yes" : "No"}
-                          </span>
-                        </td>
-                        <td class="actions-cell">
-                          <button class="btn-icon" onclick={() => editExistingHost(h)}>Edit</button>
-                          <button
-                            class="btn-icon btn-danger"
-                            onclick={() => handleDeleteHost(h.name)}>Delete</button
-                          >
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            {/if}
-          </div>
+          {#if hostsList.length === 0}
+            <FeedbackEmptyState
+              variant="info"
+              title="No specific host configuration found."
+              compact
+            />
+          {:else}
+            <Table>
+              <TableHead>
+                <TableHeadCell>Hostname</TableHeadCell>
+                <TableHeadCell>TLS</TableHeadCell>
+                <TableHeadCell>Skip Verify</TableHeadCell>
+                <TableHeadCell>Actions</TableHeadCell>
+              </TableHead>
+              <TableBody>
+                {#each hostsList as h (h.id)}
+                  <TableBodyRow>
+                    <TableBodyCell>
+                      <span class="font-medium">{h.name}</span>
+                    </TableBodyCell>
+                    <TableBodyCell>
+                      <Badge color={h.tlsConfig.enabled ? "green" : "gray"}>
+                        {h.tlsConfig.enabled ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </TableBodyCell>
+                    <TableBodyCell>
+                      <Badge color={h.tlsConfig.insecureSkipVerify ? "yellow" : "gray"}>
+                        {h.tlsConfig.insecureSkipVerify ? "Yes" : "No"}
+                      </Badge>
+                    </TableBodyCell>
+                    <TableBodyCell>
+                      <div class="flex items-center gap-2">
+                        <Button size="xs" color="light" onclick={() => editExistingHost(h)}>
+                          Edit
+                        </Button>
+                        <Button size="xs" color="red" onclick={() => handleDeleteHost(h.name)}>
+                          Delete
+                        </Button>
+                      </div>
+                    </TableBodyCell>
+                  </TableBodyRow>
+                {/each}
+              </TableBody>
+            </Table>
+          {/if}
         {:else}
-          <!-- Edit Form -->
-          <div class="host-form">
-            <h3 class="subsection-title">{editingHost.name ? "Edit Host" : "New Host"}</h3>
+          <!-- Host edit form -->
+          <div class="flex flex-col gap-4">
+            <h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+              {editingHostName ? "Edit Host" : "New Host"}
+            </h3>
 
-            <div class="form-group">
-              <label for="h-name">Hostname (e.g. api.company.com or localhost:8443)</label>
-              <input id="h-name" type="text" bind:value={editingHost.name} placeholder="Hostname" />
+            <div class="flex flex-col gap-1">
+              <Label for="h-name">Hostname (e.g. api.company.com or localhost:8443)</Label>
+              <Input
+                id="h-name"
+                type="text"
+                size="sm"
+                bind:value={editingHostName}
+                placeholder="Hostname"
+              />
             </div>
 
-            <div class="checkbox-group">
-              <label class="checkbox-label">
-                <input type="checkbox" bind:checked={editingHost.tlsConfig.enabled} />
-                Enable Custom TLS Configuration
-              </label>
-            </div>
+            <Toggle bind:checked={editingHost.tlsConfig.enabled}>
+              Enable Custom TLS Configuration
+            </Toggle>
 
             {#if editingHost.tlsConfig.enabled}
-              <div class="tls-details">
-                <div class="checkbox-group">
-                  <label class="checkbox-label">
-                    <input
-                      type="checkbox"
-                      bind:checked={editingHost.tlsConfig.insecureSkipVerify}
-                    />
-                    Insecure Skip Verify (not recommended)
-                  </label>
+              <div
+                class="flex flex-col gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+              >
+                <div class="flex flex-col gap-1">
+                  <Toggle bind:checked={editingHost.tlsConfig.insecureSkipVerify}>
+                    Insecure Skip Verify
+                  </Toggle>
+                  <Helper color="red">Not recommended for production use.</Helper>
                 </div>
 
-                <div class="form-group file-picker">
-                  <label>Public Certificate (.crt, .pem)</label>
-                  <div class="input-with-action">
-                    <input
+                <div class="flex flex-col gap-1">
+                  <Label>Public Certificate (.crt, .pem)</Label>
+                  <div class="flex items-center gap-2">
+                    <Input
                       type="text"
-                      bind:value={editingHost.tlsConfig.publicCertificateFilePath}
+                      size="sm"
+                      value={editingHost.tlsConfig.publicCertificateFilePath}
                       readonly
+                      class="flex-1"
                     />
-                    <button
-                      class="btn btn-secondary"
-                      onclick={() => pickCertFile("publicCertificateFilePath")}>Browse</button
+                    <Button
+                      size="sm"
+                      color="light"
+                      onclick={() => pickCertFile("publicCertificateFilePath")}
                     >
+                      Browse
+                    </Button>
                   </div>
                 </div>
 
-                <div class="form-group file-picker">
-                  <label>Private Key (.key)</label>
-                  <div class="input-with-action">
-                    <input
+                <div class="flex flex-col gap-1">
+                  <Label>Private Key (.key)</Label>
+                  <div class="flex items-center gap-2">
+                    <Input
                       type="text"
-                      bind:value={editingHost.tlsConfig.privateKeyFilePath}
+                      size="sm"
+                      value={editingHost.tlsConfig.privateKeyFilePath}
                       readonly
+                      class="flex-1"
                     />
-                    <button
-                      class="btn btn-secondary"
-                      onclick={() => pickCertFile("privateKeyFilePath")}>Browse</button
+                    <Button
+                      size="sm"
+                      color="light"
+                      onclick={() => pickCertFile("privateKeyFilePath")}
                     >
+                      Browse
+                    </Button>
                   </div>
                 </div>
 
-                <div class="form-group file-picker">
-                  <label>CA Certificate (Root CA)</label>
-                  <div class="input-with-action">
-                    <input
+                <div class="flex flex-col gap-1">
+                  <Label>CA Certificate (Root CA)</Label>
+                  <div class="flex items-center gap-2">
+                    <Input
                       type="text"
-                      bind:value={editingHost.tlsConfig.caCertificateFilePath}
+                      size="sm"
+                      value={editingHost.tlsConfig.caCertificateFilePath}
                       readonly
+                      class="flex-1"
                     />
-                    <button
-                      class="btn btn-secondary"
-                      onclick={() => pickCertFile("caCertificateFilePath")}>Browse</button
+                    <Button
+                      size="sm"
+                      color="light"
+                      onclick={() => pickCertFile("caCertificateFilePath")}
                     >
+                      Browse
+                    </Button>
                   </div>
                 </div>
               </div>
             {/if}
 
-            <div class="cookies-section">
-              <h3 class="subsection-title">Cookies</h3>
-              <p class="section-desc">
+            <div class="flex flex-col gap-3">
+              <h4 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Cookies</h4>
+              <p class="text-sm text-neutral-500 dark:text-neutral-400">
                 These cookies will be automatically added to all requests sent to this host.
               </p>
-
-              <div class="cookies-list">
+              <div class="flex flex-col gap-2">
                 {#each editingCookies as cookie (cookie.id)}
-                  <div class="cookie-row">
-                    <input type="text" bind:value={cookie.key} placeholder="Cookie Name" />
-                    <input type="text" bind:value={cookie.value} placeholder="Value" />
-                    <button class="btn-icon btn-danger" onclick={() => removeCookieRow(cookie.id)}
-                      >Remove</button
+                  <div class="flex items-center gap-2">
+                    <Input
+                      size="sm"
+                      bind:value={cookie.key}
+                      placeholder="Cookie Name"
+                      class="flex-1"
+                    />
+                    <Input size="sm" bind:value={cookie.value} placeholder="Value" class="flex-1" />
+                    <Button
+                      size="xs"
+                      color="red"
+                      aria-label="Remove cookie"
+                      onclick={() => removeCookieRow(cookie.id)}
                     >
+                      <TrashBinOutline size="xs" />
+                    </Button>
                   </div>
                 {/each}
-                <button class="btn btn-secondary btn-sm" onclick={addCookieRow}>+ Add Cookie</button
-                >
+                <div>
+                  <Button size="sm" color="alternative" onclick={addCookieRow}>+ Add Cookie</Button>
+                </div>
               </div>
             </div>
 
-            <div class="form-actions">
-              <button class="btn btn-secondary" onclick={() => (editingHost = null)}>Cancel</button>
-              <button class="btn btn-primary" onclick={handleSaveHost} disabled={!editingHost.name}
-                >Save Host</button
-              >
+            <div
+              class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700"
+            >
+              <Button color="light" onclick={() => (editingHost = null)}>Cancel</Button>
+              <Button color="primary" onclick={handleSaveHost} disabled={!editingHostName.trim()}>
+                Save Host
+              </Button>
             </div>
           </div>
         {/if}
@@ -554,3 +660,22 @@
     {/if}
   </div>
 </div>
+
+<!-- Delete host confirm modal -->
+{#if showDeleteHostModal}
+  <Modal title="Delete Host" bind:open={showDeleteHostModal} size="sm">
+    {#if $topModalId === deleteHostModalId}
+      <ToastContainer />
+    {/if}
+    <p class="text-neutral-700 dark:text-neutral-300">
+      Are you sure you want to delete the host configuration for
+      <strong>{hostToDelete}</strong>?
+    </p>
+    {#snippet footer()}
+      <div class="flex w-full items-center justify-end gap-2">
+        <Button color="light" onclick={() => (showDeleteHostModal = false)}>Cancel</Button>
+        <Button color="red" onclick={confirmDeleteHost}>Delete</Button>
+      </div>
+    {/snippet}
+  </Modal>
+{/if}

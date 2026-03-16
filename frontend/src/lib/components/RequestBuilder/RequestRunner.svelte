@@ -1,10 +1,15 @@
 <script lang="ts">
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import Card from "flowbite-svelte/Card.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Progressbar from "flowbite-svelte/Progressbar.svelte";
+  import Table from "flowbite-svelte/Table.svelte";
+  import TableBody from "flowbite-svelte/TableBody.svelte";
+  import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
+  import TableBodyRow from "flowbite-svelte/TableBodyRow.svelte";
+  import TableHead from "flowbite-svelte/TableHead.svelte";
+  import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { GetSessionVars, RunParallel } from "$wails/go/main/App";
@@ -126,88 +131,86 @@
   });
 </script>
 
-<div class="runner-container space-y-4">
-  <Card class="runner-config p-3">
-    <div class="config-group">
-      <Label for="concurrency">Concurrency</Label>
-      <Input
-        id="concurrency"
-        type="number"
-        bind:value={concurrency}
-        min="1"
-        max="100"
-        size="sm"
-        disabled={running}
-        aria-label="Number of parallel workers"
-      />
+<div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
+  <div class="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800">
+    <div class="flex flex-wrap items-end gap-4">
+      <div class="flex flex-col gap-1">
+        <Label for="concurrency">Concurrency</Label>
+        <Input
+          id="concurrency"
+          type="number"
+          bind:value={concurrency}
+          min="1"
+          max="100"
+          size="sm"
+          disabled={running}
+          aria-label="Number of parallel workers"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <Label for="iterations">Iterations</Label>
+        <Input
+          id="iterations"
+          type="number"
+          bind:value={iterations}
+          min="1"
+          size="sm"
+          disabled={running}
+          aria-label="Total number of requests to perform"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1 md:pt-6">
+        <Toggle bind:checked={stopOnError} size="small" disabled={running}>Stop on error</Toggle>
+      </div>
+
+      <Button color="primary" class="ml-auto" onclick={startRun} disabled={running} loading={running}>
+        {running ? "Running..." : "Start Run"}
+      </Button>
     </div>
-
-    <div class="config-group">
-      <Label for="iterations">Iterations</Label>
-      <Input
-        id="iterations"
-        type="number"
-        bind:value={iterations}
-        min="1"
-        size="sm"
-        disabled={running}
-        aria-label="Total number of requests to perform"
-      />
-    </div>
-
-    <div class="config-group checkbox md:pt-6">
-      <Toggle bind:checked={stopOnError} size="small" disabled={running}>Stop on error</Toggle>
-    </div>
-
-    <div class="flex-spacer"></div>
-
-    <Button color="primary" class="ml-3" onclick={startRun} disabled={running} loading={running}>
-      {running ? "Running..." : "Start Run"}
-    </Button>
-  </Card>
+  </div>
 
   {#if running || stats || lastResults.length > 0}
-    <div class="runner-results space-y-3">
+    <div class="space-y-3">
       {#if running}
         <Progressbar {progress} size="h-2" color="blue" labelInside={false} />
       {/if}
 
       {#if stats}
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-label">Requests</span>
-            <span class="stat-value">{stats.successCount} / {stats.totalRequests}</span>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400">Requests</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.successCount} / {stats.totalRequests}</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-label">Avg Latency</span>
-            <span class="stat-value">{stats.avgLatency}ms</span>
+          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400">Avg Latency</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.avgLatency}ms</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-label">P95</span>
-            <span class="stat-value">{stats.p95Latency}ms</span>
+          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400">P95</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.p95Latency}ms</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-label">Throughput</span>
-            <span class="stat-value">{stats.requestsPerSec.toFixed(2)} req/s</span>
+          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400">Throughput</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.requestsPerSec.toFixed(2)} req/s</span>
           </div>
         </div>
       {/if}
 
-      <div class="results-table-container">
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Status</th>
-              <th>Latency</th>
-              <th>Result</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div class="overflow-x-auto">
+        <Table>
+          <TableHead>
+            <TableHeadCell>#</TableHeadCell>
+            <TableHeadCell>Status</TableHeadCell>
+            <TableHeadCell>Latency</TableHeadCell>
+            <TableHeadCell>Result</TableHeadCell>
+          </TableHead>
+          <TableBody>
             {#each lastResults as res (res.index)}
-              <tr>
-                <td>{res.index + 1}</td>
-                <td>
+              <TableBodyRow>
+                <TableBodyCell>{res.index + 1}</TableBodyCell>
+                <TableBodyCell>
                   {#if res.error}
                     <Badge color="red">ERROR</Badge>
                   {:else if res.response}
@@ -215,19 +218,21 @@
                       {res.response.statusCode}
                     </Badge>
                   {/if}
-                </td>
-                <td>{res.response?.duration ?? "-"} ms</td>
-                <td class="error-cell">{res.error || "Success"}</td>
-              </tr>
+                </TableBodyCell>
+                <TableBodyCell>{res.response?.duration ?? "-"} ms</TableBodyCell>
+                <TableBodyCell>
+                  <span class="max-w-xs truncate text-xs text-neutral-500 dark:text-neutral-400">{res.error || "Success"}</span>
+                </TableBodyCell>
+              </TableBodyRow>
             {/each}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   {:else}
-    <Card class="empty-runner p-6">
+    <div class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800">
       <h3 class="text-base font-semibold">Parallel Runner</h3>
       <p>Configure concurrency and iterations to perform load testing on this request.</p>
-    </Card>
+    </div>
   {/if}
 </div>

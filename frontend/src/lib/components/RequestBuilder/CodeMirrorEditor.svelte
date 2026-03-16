@@ -223,4 +223,4 @@
   });
 </script>
 
-<div class="editor-container" class:read-only={readOnly} bind:this={editorEl}></div>
+<div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>

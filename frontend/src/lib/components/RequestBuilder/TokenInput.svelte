@@ -17,6 +17,7 @@
     environmentEntries?: { key: string; value: string }[];
     inputClass?: string;
     wrapperClass?: string;
+    size?: "sm" | "md" | "lg";
     onChange?: () => void;
   }
 
@@ -27,6 +28,7 @@
     environmentEntries = [],
     inputClass = "",
     wrapperClass = "",
+    size = "md",
     onChange
   }: Props = $props();
 
@@ -88,30 +90,12 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="token-input-wrapper {wrapperClass}" onclick={focusInput}>
-  <div class="token-input-overlay" aria-hidden="true">
-    <div class="token-input-overlay-content" style={`transform: translateX(-${scrollLeft}px);`}>
-      {#if !value && placeholder}
-        <span class="placeholder">{placeholder}</span>
-      {:else}
-        {#each segments as segment (segment.tokenKey)}
-          {#if segment.isToken}
-            <span
-              class="token"
-              onmouseenter={(e) => handleTokenEnter(e, segment)}
-              onmouseleave={handleTokenLeave}>{segment.text}</span
-            >
-          {:else}
-            <span class="text">{segment.text}</span>
-          {/if}
-        {/each}
-      {/if}
-    </div>
-  </div>
+<div class="relative {wrapperClass}" onclick={focusInput}>
   <Input
     bind:elementRef={inputEl}
     type="text"
-    class={`real-input ${inputClass}`}
+    {size}
+    class="caret-neutral-900 ![color:transparent] dark:caret-neutral-100 {inputClass}"
     bind:value
     {disabled}
     role="combobox"
@@ -127,6 +111,25 @@
     }}
     onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
   />
+  <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <div class="flex h-full items-center whitespace-pre px-2.5 text-sm" style={`transform: translateX(-${scrollLeft}px);`}>
+      {#if !value && placeholder}
+        <span class="text-neutral-400 dark:text-neutral-500">{placeholder}</span>
+      {:else}
+        {#each segments as segment, index (`${segment.isToken ? segment.tokenKey : "text"}-${index}`)}
+          {#if segment.isToken}
+            <span
+              class="pointer-events-auto rounded bg-primary-100 px-0.5 font-mono text-primary-700 dark:bg-primary-900 dark:text-primary-300"
+              onmouseenter={(e) => handleTokenEnter(e, segment)}
+              onmouseleave={handleTokenLeave}>{segment.text}</span
+            >
+          {:else}
+            <span class="text-neutral-900 dark:text-neutral-100">{segment.text}</span>
+          {/if}
+        {/each}
+      {/if}
+    </div>
+  </div>
 </div>
 
 {#if autocompleteState?.open && autocompleteState.items.length > 0}
@@ -136,7 +139,7 @@
     style={`left:${autocompleteState.left}px;top:${autocompleteState.top}px;min-width:${autocompleteState.minWidth}px;max-width:${autocompleteState.maxWidth}px;`}
   >
     <Card class="w-full p-2 shadow-lg">
-      <div class="mb-1 px-1 text-[11px] text-gray-500 dark:text-gray-400">
+      <div class="mb-1 px-1 text-[11px] text-neutral-500 dark:text-neutral-400">
         Environment variables
       </div>
       <div id={autocompleteListboxId} role="listbox" class="max-h-56 space-y-1 overflow-auto">
