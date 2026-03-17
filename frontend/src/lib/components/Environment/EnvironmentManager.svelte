@@ -199,7 +199,11 @@
     return match ? match[1] : null;
   }
 
-  async function executeImport(format: "postman" | "bruno" | "yapla", path: string, overwrite: boolean) {
+  async function executeImport(
+    format: "postman" | "bruno" | "yapla",
+    path: string,
+    overwrite: boolean
+  ) {
     try {
       if (format === "postman") {
         await ImportPostmanEnvironment(path, overwrite);
@@ -272,7 +276,9 @@
 
 <div class="flex h-full overflow-hidden">
   <div class="flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-700">
-    <div class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 p-3 dark:border-neutral-700">
+    <div
+      class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 p-3 dark:border-neutral-700"
+    >
       <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
       <Button color="primary" size="sm" onclick={() => (showNewEnvironmentDialog = true)}>
         New
@@ -280,7 +286,9 @@
     </div>
 
     {#if $environmentStore.loading}
-      <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">Loading environments...</div>
+      <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">
+        Loading environments...
+      </div>
     {/if}
 
     <div class="flex-1 overflow-y-auto">

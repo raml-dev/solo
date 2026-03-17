@@ -54,10 +54,15 @@
 
 <div class="flex h-screen flex-col overflow-hidden">
   <!-- Top Navbar -->
-  <nav class="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800">
+  <nav
+    class="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800"
+  >
     <div class="flex items-center gap-4">
       <h1 aria-label="solo" class="select-none">
-        <pre aria-hidden="true" class="pointer-events-none cursor-default select-none text-[0.35rem]/[1.3] font-mono text-primary-700 dark:text-primary-500">{title}</pre></h1>
+        <pre
+          aria-hidden="true"
+          class="pointer-events-none cursor-default font-mono text-[0.35rem]/[1.3] text-primary-700 select-none dark:text-primary-500">{title}</pre>
+      </h1>
     </div>
     <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
@@ -87,7 +92,12 @@
 {/if}
 
 {#if showMainConfiguration}
-  <Modal title="Settings" bind:open={showMainConfiguration} size="xl" bodyClass="h-[600px] overflow-hidden p-4">
+  <Modal
+    title="Settings"
+    bind:open={showMainConfiguration}
+    size="xl"
+    bodyClass="h-[600px] overflow-hidden p-4"
+  >
     {#if $topModalId === settingsModalId}
       <ToastContainer />
     {/if}

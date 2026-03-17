@@ -74,7 +74,6 @@
   function handleCancel() {
     onCancel?.();
   }
-
 </script>
 
 {#if show}
@@ -102,12 +101,15 @@
               bind:value={newCollectionName}
               placeholder="New collection name"
               class="flex-1"
-              onkeydown={(e) => e.key === 'Enter' && handleSave()}
+              onkeydown={(e) => e.key === "Enter" && handleSave()}
             />
             <Button
               color="alternative"
               size="sm"
-              onclick={() => { creatingNew = false; newCollectionName = ""; }}
+              onclick={() => {
+                creatingNew = false;
+                newCollectionName = "";
+              }}
             >
               Cancel
             </Button>
@@ -122,9 +124,7 @@
               size="sm"
               class="flex-1"
             />
-            <Button color="alternative" size="sm" onclick={() => (creatingNew = true)}>
-              New…
-            </Button>
+            <Button color="alternative" size="sm" onclick={() => (creatingNew = true)}>New…</Button>
           </div>
         {/if}
         <Helper>Select the target collection for this request.</Helper>
@@ -137,8 +137,8 @@
         <Button
           color="primary"
           disabled={creatingNew ? !newCollectionName.trim() : !selectedCollectionName}
-          onclick={handleSave}
-        >Save</Button>
+          onclick={handleSave}>Save</Button
+        >
       </div>
     {/snippet}
   </Modal>

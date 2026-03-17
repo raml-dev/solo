@@ -95,7 +95,7 @@
     bind:elementRef={inputEl}
     type="text"
     {size}
-    class="caret-neutral-900 ![color:transparent] dark:caret-neutral-100 {inputClass}"
+    class="![color:transparent] caret-neutral-900 dark:caret-neutral-100 {inputClass}"
     bind:value
     {disabled}
     role="combobox"
@@ -112,7 +112,10 @@
     onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
   />
   <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-    <div class="flex h-full items-center whitespace-pre px-2.5 text-sm" style={`transform: translateX(-${scrollLeft}px);`}>
+    <div
+      class="flex h-full items-center px-2.5 text-sm whitespace-pre"
+      style={`transform: translateX(-${scrollLeft}px);`}
+    >
       {#if !value && placeholder}
         <span class="text-neutral-400 dark:text-neutral-500">{placeholder}</span>
       {:else}

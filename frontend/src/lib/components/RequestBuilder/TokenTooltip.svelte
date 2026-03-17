@@ -101,7 +101,11 @@
       </div>
     {:else}
       <div class="flex items-center gap-2">
-        <span class="font-mono text-sm {exists ? 'text-neutral-800 dark:text-neutral-100' : 'italic text-neutral-400 dark:text-neutral-500'}">
+        <span
+          class="font-mono text-sm {exists
+            ? 'text-neutral-800 dark:text-neutral-100'
+            : 'text-neutral-400 italic dark:text-neutral-500'}"
+        >
           {exists ? displayValue : "Unresolved variable"}
         </span>
         {#if valueSource !== "none"}

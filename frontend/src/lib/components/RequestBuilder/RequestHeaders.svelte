@@ -48,7 +48,7 @@
   );
 </script>
 
-<div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+<div class="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
   {#each headers as header (header.id)}
     <div class="flex flex-nowrap items-center gap-2">
       <div class="shrink-0">
@@ -84,8 +84,8 @@
         size="xs"
         class="shrink-0"
         onclick={() => removeHeader(header.id)}
-        aria-label="Remove header"
-      >×</Button>
+        aria-label="Remove header">×</Button
+      >
     </div>
   {/each}
 
