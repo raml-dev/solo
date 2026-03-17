@@ -722,7 +722,8 @@
                 <CodeMirrorEditor
                   value={response.body ?? ""}
                   format={responseFormat}
-                  readOnly={true}
+                  readOnly
+                  showCopyPaste
                 />
               </div>
             {:else}
@@ -759,19 +760,10 @@
 {#if showCurlModal}
   <Modal title="Export as cURL" bind:open={showCurlModal} size="xl">
     <div class="h-80 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700">
-      <CodeMirrorEditor value={curlPreview} language="text" readOnly />
+      <CodeMirrorEditor value={curlPreview} language="text" readOnly showCopyPaste/>
     </div>
     {#snippet footer()}
       <div class="flex w-full gap-2">
-        <Button
-          color="alternative"
-          onclick={async () => {
-            await navigator.clipboard.writeText(curlPreview);
-            notifications.success("Copied to clipboard");
-          }}
-        >
-          Copy
-        </Button>
         <Button
           color="primary"
           onclick={async () => {
