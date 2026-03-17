@@ -9,9 +9,11 @@
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
     DeleteHost,
+    ExportLogsZip,
     GetAllHosts,
     GetDefaultConfiguration,
     SelectFile,
+    SetDebugMode,
     UpsertHost
   } from "$wails/go/main/App";
   import type { theme } from "$wails/go/models";
@@ -34,13 +36,14 @@
   import { onMount } from "svelte";
 
   // --- Nav ---
-  type SettingsSection = "general" | "themes" | "hosts";
+  type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts";
   let activeSection: SettingsSection = $state("general");
 
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
     { id: "themes", label: "Themes" },
-    { id: "hosts", label: "Hosts" }
+    { id: "hosts", label: "Hosts" },
+    { id: "troubleshooting", label: "Troubleshooting" }
   ];
 
   // --- Store ---
@@ -88,7 +91,7 @@
   // --- General / Request settings ---
   function createEmptyConfig() {
     const cfg = new configuration.Configuration();
-    cfg.general = new configuration.GeneralSettings();
+    cfg.general = new configuration.GeneralSettings({ debugMode: true });
     cfg.request = new configuration.RequestSettings();
     cfg.customThemes = [] as theme.Theme[];
     return cfg;
@@ -103,6 +106,7 @@
     return JSON.stringify({
       themeMode: cfg.general?.themeMode ?? "light",
       checkForUpdates: cfg.general?.checkForUpdates ?? false,
+      debugMode: cfg.general?.debugMode ?? false,
       request: {
         timeoutSeconds: cfg.request?.timeoutSeconds ?? 0,
         defaultUserAgent: cfg.request?.defaultUserAgent ?? "",
@@ -123,6 +127,7 @@
         const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
         if (!copy.general) copy.general = new configuration.GeneralSettings();
         if (!copy.request) copy.request = new configuration.RequestSettings();
+        copy.general.debugMode = true;
         const sig = toSignature(copy);
         if (sig !== lastPersistedSignature) {
           editableConfig = copy;
@@ -132,6 +137,12 @@
     });
 
     void (async () => {
+      try {
+        await SetDebugMode(true);
+      } catch (err) {
+        console.warn("Failed to enable debug mode at runtime", err);
+      }
+
       try {
         const loaded = await GetDefaultConfiguration();
         if (disposed) return;
@@ -163,6 +174,7 @@
 
       current.general.checkForUpdates = editableConfig.general.checkForUpdates;
       current.general.themeMode = editableConfig.general.themeMode;
+      current.general.debugMode = true;
       current.request = new configuration.RequestSettings({
         ...editableConfig.request,
         timeoutSeconds,
@@ -199,6 +211,24 @@
     });
     void persistRequestSettings();
   });
+
+  let isExportingLogs = $state(false);
+
+  async function handleLogsExport() {
+    if (isExportingLogs) return;
+
+    try {
+      isExportingLogs = true;
+      const saved = await ExportLogsZip();
+      if (saved) {
+        notifications.success("Logs archive exported");
+      }
+    } catch (err) {
+      notifications.error("Failed to export logs", String(err));
+    } finally {
+      isExportingLogs = false;
+    }
+  }
 
   // --- Hosts ---
   type HostCookieRow = { id: string; key: string; value: string };
@@ -360,7 +390,10 @@
           {#each $allThemes || [] as t (t.id)}
             <Button
               color="light"
-              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {activeThemeId === t.id ? 'border-primary-500 ring-2 ring-primary-500' : 'border-neutral-200 dark:border-neutral-700'}"
+              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {activeThemeId ===
+              t.id
+                ? 'border-primary-500 ring-2 ring-primary-500'
+                : 'border-neutral-200 dark:border-neutral-700'}"
               onclick={() => handleThemeSelect(t.id)}
             >
               <div class="mb-2 w-full overflow-hidden rounded">
@@ -460,6 +493,43 @@
         {:else if saveStatus === "saved"}
           <Helper color="green">Saved</Helper>
         {/if}
+      </div>
+    {:else if activeSection === "troubleshooting"}
+      <div class="flex flex-col gap-6">
+        <div>
+          <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+            Troubleshooting
+          </h2>
+          <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            Collect diagnostics and enable verbose logging when investigating issues.
+          </p>
+        </div>
+
+        <div
+          class="flex flex-col gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+        >
+          <h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Debug mode</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            Enable detailed runtime logs. This can increase log volume.
+          </p>
+          <Toggle bind:checked={editableConfig.general.debugMode} disabled>
+            Enable debug mode
+          </Toggle>
+        </div>
+
+        <div
+          class="flex flex-col gap-2 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+        >
+          <h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Logs export</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            Download a ZIP archive with all application log files, including rotated logs.
+          </p>
+          <div>
+            <Button color="light" onclick={handleLogsExport} disabled={isExportingLogs}>
+              {isExportingLogs ? "Preparing archive…" : "Download logs (.zip)"}
+            </Button>
+          </div>
+        </div>
       </div>
     {:else if activeSection === "hosts"}
       <div class="flex flex-col gap-4">

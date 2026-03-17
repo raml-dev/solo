@@ -20,6 +20,11 @@ type ScriptManager struct {
 }
 
 func NewScriptManager(ctx context.Context) *ScriptManager {
+	runCtx := ctx
+	if runCtx == nil {
+		runCtx = context.Background()
+	}
+
 	L := lua.NewState(lua.Options{SkipOpenLibs: true})
 
 	// Load allowed libraries
@@ -59,7 +64,7 @@ func NewScriptManager(ctx context.Context) *ScriptManager {
 
 	// Cancel the Lua state if the context is done
 	go func() {
-		<-ctx.Done()
+		<-runCtx.Done()
 		L.Close()
 	}()
 
