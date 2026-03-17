@@ -129,6 +129,9 @@
   let gitStatusCollectionId: string | null = $state(null);
   let gitStatusCollectionName: string | null = $state(null);
   let syncingCollections: Set<string> = $state(new Set());
+  let editingRequestId: string | null = $state(null);
+  let editingRequestCollectionName: string | null = $state(null);
+  let editingRequestName = $state("");
 
   // cURL import state
   let curlInput = $state("");
@@ -246,6 +249,49 @@
     });
 
     onRequestSelect(req.id);
+  }
+
+  function isEditingRequest(requestId: string, collectionName: string): boolean {
+    return editingRequestId === requestId && editingRequestCollectionName === collectionName;
+  }
+
+  function startRequestRename(e: Event, req: collection.Request, collectionName: string) {
+    e.stopPropagation();
+    editingRequestId = req.id;
+    editingRequestCollectionName = collectionName;
+    editingRequestName = req.name || "";
+  }
+
+  function cancelRequestRename() {
+    editingRequestId = null;
+    editingRequestCollectionName = null;
+    editingRequestName = "";
+  }
+
+  async function commitRequestRename(req: collection.Request, collectionName: string) {
+    if (!isEditingRequest(req.id, collectionName)) return;
+
+    const nextName = editingRequestName.trim();
+    if (!nextName || nextName === req.name) {
+      cancelRequestRename();
+      return;
+    }
+
+    try {
+      await collectionStore.updateRequest(
+        collectionName,
+        collection.Request.createFrom({
+          ...req,
+          name: nextName,
+          lastUpdateTimestamp: new Date().toISOString()
+        })
+      );
+      tabStore.renameTabsByRequestId(req.id, nextName);
+    } catch {
+      // error already shown by store
+    } finally {
+      cancelRequestRename();
+    }
   }
 
   function openRenameCollection(collectionName: string) {
@@ -828,8 +874,11 @@
                     <div
                       class={`group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
                       onclick={() => selectRequest(request, collection.name)}
+                      ondblclick={(e) => startRequestRename(e, request, collection.name)}
                       onkeypress={(e) =>
-                        e.key === "Enter" && selectRequest(request, collection.name)}
+                        e.key === "Enter" &&
+                        !isEditingRequest(request.id, collection.name) &&
+                        selectRequest(request, collection.name)}
                       role="button"
                       tabindex="0"
                     >
@@ -838,11 +887,36 @@
                       >
                         {request.verb}
                       </span>
-                      <span
-                        class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
-                      >
-                        {request.name}
-                      </span>
+                      {#if isEditingRequest(request.id, collection.name)}
+                        <Input
+                          type="text"
+                          size="sm"
+                          class="min-w-0 flex-1"
+                          bind:value={editingRequestName}
+                          autofocus
+                          onclick={(e) => e.stopPropagation()}
+                          onkeydown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") {
+                              void commitRequestRename(request, collection.name);
+                            }
+                            if (e.key === "Escape") {
+                              cancelRequestRename();
+                            }
+                          }}
+                          onblur={() => void commitRequestRename(request, collection.name)}
+                        />
+                      {:else}
+                        <span
+                          class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
+                          role="button"
+                          tabindex="0"
+                          ondblclick={(e) => startRequestRename(e, request, collection.name)}
+                          onkeydown={(e) => e.key === "Enter" && startRequestRename(e, request, collection.name)}
+                        >
+                          {request.name}
+                        </span>
+                      {/if}
                       <Button
                         color="light"
                         size="xs"

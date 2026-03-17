@@ -285,6 +285,7 @@ function createTabStore() {
           tab.collectionName,
           collection.Request.createFrom({
             ...originalRequest,
+            name: tab.label,
             url: tab.url,
             verb: tab.verb,
             body: tab.body,
@@ -325,6 +326,13 @@ function createTabStore() {
       update((state) => ({
         ...state,
         tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isPreview: false } : t))
+      }));
+    },
+
+    renameTabsByRequestId(requestId: string, label: string) {
+      update((state) => ({
+        ...state,
+        tabs: state.tabs.map((t) => (t.requestId === requestId ? { ...t, label } : t))
       }));
     },
 
