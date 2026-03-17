@@ -9,6 +9,7 @@
     isFocused?: boolean;
     isSyncing?: boolean;
     onDelete?: (name: string) => void;
+    onExport?: (name: string) => void;
     onOpen?: (name: string) => void;
     onActivate?: (name: string) => void;
     onToggleMenu?: (name: string) => void;
@@ -23,6 +24,7 @@
     isFocused = false,
     isSyncing = false,
     onDelete,
+    onExport,
     onOpen,
     onActivate,
     onToggleMenu,
@@ -46,6 +48,12 @@
   function handleDeleteEnvironment(e: Event) {
     e.stopPropagation();
     onDelete?.(env.name);
+  }
+
+  function handleExportEnvironment(e: Event) {
+    e.stopPropagation();
+    onExport?.(env.name);
+    onToggleMenu?.(env.name);
   }
 
   function handleSync(e: Event) {
@@ -138,6 +146,15 @@
         </Button>
         <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
       {/if}
+      <Button
+        color="light"
+        size="sm"
+        class="w-full justify-start border-0 shadow-none"
+        onclick={handleExportEnvironment}
+      >
+        Export
+      </Button>
+      <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
       <Button
         color="light"
         size="sm"

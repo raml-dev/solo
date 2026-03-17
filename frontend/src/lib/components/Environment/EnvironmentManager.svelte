@@ -15,6 +15,7 @@
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
+    ExportEnvironment,
     GetGitEnvironmentStatus,
     GitEnvAbortRebase,
     GitEnvDiscardChanges,
@@ -22,6 +23,7 @@
     GitEnvKeepTheirs,
     ImportBrunoEnvironment,
     ImportPostmanEnvironment,
+    ImportYaplaEnvironment,
     OpenEnvironmentInTerminal,
     SelectFile,
     SyncGitEnvironment
@@ -39,7 +41,7 @@
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
   let showOverwriteConfirmDialog = $state(false);
-  let pendingImport: { format: "postman" | "bruno"; path: string } | null = null;
+  let pendingImport: { format: "postman" | "bruno" | "yapla"; path: string } | null = null;
   let overwriteTargetName: string | null = $state(null);
   let focusedEnvironmentName: string | null = $state(null);
   let syncingEnvironments: Set<string> = $state(new Set());
@@ -177,6 +179,15 @@
     gitStatusEnvName = env.name;
   }
 
+  async function handleExportEnvironment(name: string) {
+    try {
+      await ExportEnvironment(name);
+      notifications.success("Environment exported successfully");
+    } catch (err) {
+      notifications.error("Failed to export environment", String(err));
+    }
+  }
+
   function openImportModal() {
     importActiveTab = "postman";
     gitImportActionState = null;
@@ -188,12 +199,14 @@
     return match ? match[1] : null;
   }
 
-  async function executeImport(format: "postman" | "bruno", path: string, overwrite: boolean) {
+  async function executeImport(format: "postman" | "bruno" | "yapla", path: string, overwrite: boolean) {
     try {
       if (format === "postman") {
         await ImportPostmanEnvironment(path, overwrite);
-      } else {
+      } else if (format === "bruno") {
         await ImportBrunoEnvironment(path, overwrite);
+      } else {
+        await ImportYaplaEnvironment(path, overwrite);
       }
       await environmentStore.loadEnvironments();
       notifications.success("Environment imported successfully");
@@ -223,12 +236,20 @@
     await executeImport("bruno", filePath, false);
   }
 
-  async function handleSelectImportFormat(format: "postman" | "bruno") {
+  async function handleImportYapla(path?: string) {
+    const filePath = path ?? (await SelectFile("Select Yapla Environment", "*.json", "JSON Files"));
+    if (!filePath) return;
+    await executeImport("yapla", filePath, false);
+  }
+
+  async function handleSelectImportFormat(format: "postman" | "bruno" | "yapla") {
     showImportSelector = false;
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
       await handleImportBruno();
+    } else {
+      await handleImportYapla();
     }
   }
 
@@ -273,6 +294,7 @@
           onOpen={openEnvironment}
           onActivate={activateEnvironment}
           onDelete={handleDeleteEnvironment}
+          onExport={handleExportEnvironment}
           onToggleMenu={toggleMenu}
           onSync={handleSync}
           onGitStatus={handleGitStatus}
@@ -373,6 +395,39 @@
           </DropZone>
         </TabItem>
 
+        <TabItem key="yapla" title="Yapla">
+          <DropZone
+            title="Drop your Yapla environment here"
+            subtitle="Supports Yapla environment JSON"
+            onDrop={async (e) => {
+              const paths = e.paths;
+              showImportSelector = false;
+              if (paths.length > 0) {
+                await executeImport("yapla", paths[0], false);
+              } else {
+                await handleImportYapla();
+              }
+            }}
+          >
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            {/snippet}
+          </DropZone>
+        </TabItem>
+
         <TabItem key="git" title="Git">
           <GitEnvImportView
             onImported={() => (showImportSelector = false)}
@@ -392,6 +447,10 @@
           >
         {:else if importActiveTab === "bruno"}
           <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
+            >Select file…</Button
+          >
+        {:else if importActiveTab === "yapla"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("yapla")}
             >Select file…</Button
           >
         {:else if importActiveTab === "git"}

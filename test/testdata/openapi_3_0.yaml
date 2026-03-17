@@ -1,0 +1,46 @@
+openapi: "3.0.0"
+info:
+  title: "OpenAPI Test Collection"
+  version: "1.0.0"
+servers:
+  - url: "https://api.example.com"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List all users
+      parameters:
+        - name: X-Request-Id
+          in: header
+          schema:
+            type: string
+    post:
+      summary: Create user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+  /users/{id}:
+    put:
+      operationId: updateUser
+      summary: Update a user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+    delete:
+      parameters: []

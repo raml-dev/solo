@@ -4,18 +4,23 @@
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
+  import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore";
   import {
+    ExportCollection,
     GetGitCollectionStatus,
     GitAbortRebase,
     GitDiscardChanges,
     GitKeepOurs,
     GitKeepTheirs,
     ImportBrunoCollection,
+    ImportCurlRequest,
+    ImportOpenAPICollection,
     ImportPostmanCollection,
+    ImportYaplaCollection,
     OpenCollectionInTerminal,
     SelectDirectory,
     SelectFile,
@@ -29,6 +34,7 @@
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount } from "svelte";
@@ -52,6 +58,7 @@
   const deleteCollectionModalId = `${collectionModalScope}-delete-collection`;
   const deleteRequestModalId = `${collectionModalScope}-delete-request`;
   const importCollectionModalId = `${collectionModalScope}-import`;
+  const yaplaCollectionOverwriteModalId = `${collectionModalScope}-yapla-overwrite`;
 
   $effect(() => {
     if (showNewCollectionDialog) {
@@ -93,6 +100,18 @@
     }
   });
 
+  let showYaplaCollectionOverwriteDialog = $state(false);
+  let yaplaCollectionOverwriteName: string | null = $state(null);
+  let pendingYaplaCollectionPath: string | null = null;
+
+  $effect(() => {
+    if (showYaplaCollectionOverwriteDialog) {
+      modalStack.open(yaplaCollectionOverwriteModalId);
+    } else {
+      modalStack.close(yaplaCollectionOverwriteModalId);
+    }
+  });
+
   let importActiveTab = $state("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
@@ -103,13 +122,26 @@
   let deleteTarget: string | null = $state(null);
   let deleteRequestTarget: string | null = null;
   let deleteRequestCollectionName: string | null = null;
-  let expandedCollections: Set<string> = new SvelteSet();
+  let expandedCollections = $state(new SvelteSet<string>());
   let searchQuery = $state("");
   let activeMenu: string | null = $state(null);
   let isCollapsed = $state(false);
   let gitStatusCollectionId: string | null = $state(null);
   let gitStatusCollectionName: string | null = $state(null);
   let syncingCollections: Set<string> = $state(new Set());
+
+  // cURL import state
+  let curlInput = $state("");
+  let curlTargetCollection = $state("");
+  let curlNewCollectionName = $state("");
+  let curlCreatingNew = $state(false);
+
+  // Pre-select the active collection when the import modal opens
+  $effect(() => {
+    if (showImportSelector && $collectionStore.selectedCollectionName) {
+      curlTargetCollection = $collectionStore.selectedCollectionName;
+    }
+  });
 
   let sidebarWidth = $state(280); // Default width
   let isResizing = false;
@@ -180,7 +212,6 @@
     } else {
       expandedCollections.add(collectionName);
     }
-    expandedCollections = new SvelteSet(expandedCollections);
   }
 
   function selectCollection(name: string) {
@@ -276,7 +307,6 @@
       if (expandedCollections.has(renameTarget)) {
         expandedCollections.delete(renameTarget);
         expandedCollections.add(trimmed);
-        expandedCollections = new SvelteSet(expandedCollections);
       }
       closeRenameDialog();
     } catch {
@@ -301,7 +331,6 @@
     try {
       await collectionStore.deleteCollection(deleteTarget);
       expandedCollections.delete(deleteTarget);
-      expandedCollections = new SvelteSet(expandedCollections);
       closeDeleteConfirmDialog();
     } catch (err) {
       console.error("Error deleting collection:", err);
@@ -319,7 +348,6 @@
       });
 
       expandedCollections.add(collectionName);
-      expandedCollections = new SvelteSet(expandedCollections);
 
       if (newReq?.id) {
         tabStore.openTab(newReq.id, collectionName, {
@@ -409,12 +437,115 @@
     }
   }
 
-  async function handleSelectImportFormat(format: "postman" | "bruno") {
+  async function handleImportOpenAPI() {
+    try {
+      const filePath = await SelectFile(
+        "Select OpenAPI / Swagger Document",
+        "*.json;*.yaml;*.yml",
+        "OpenAPI / Swagger Files"
+      );
+      if (!filePath) return;
+      const warnings = await ImportOpenAPICollection(filePath);
+      await collectionStore.loadCollections();
+      for (const w of warnings) {
+        notifications.warning(w);
+      }
+      notifications.success("OpenAPI collection imported");
+    } catch (err) {
+      notifications.error("Failed to import OpenAPI collection", String(err));
+    }
+  }
+
+  async function handleImportCurl() {
+    if (!curlInput.trim()) return;
+
+    if (curlCreatingNew) {
+      const name = curlNewCollectionName.trim();
+      if (!name) {
+        notifications.error("Collection name is required");
+        return;
+      }
+      try {
+        await collectionStore.createCollection(name);
+        curlTargetCollection = name;
+        curlCreatingNew = false;
+        curlNewCollectionName = "";
+      } catch {
+        return; // createCollection already shows an error toast
+      }
+    }
+
+    if (!curlTargetCollection) {
+      notifications.error("Select a destination collection");
+      return;
+    }
+
+    try {
+      await ImportCurlRequest(curlInput, curlTargetCollection);
+      await collectionStore.loadCollections();
+      notifications.success("Request imported from cURL");
+      curlInput = "";
+    } catch (err) {
+      notifications.error("Failed to import cURL request", String(err));
+    }
+  }
+
+  function parseCollectionNameFromError(message: string): string | null {
+    const match = message.match(/collection\s+(\S+)\s+already exists/i);
+    return match ? match[1] : null;
+  }
+
+  async function executeYaplaCollectionImport(path: string, overwrite: boolean) {
+    try {
+      await ImportYaplaCollection(path, overwrite);
+      await collectionStore.loadCollections();
+      notifications.success("Collection imported successfully");
+    } catch (err) {
+      const message = String(err ?? "Failed to import collection");
+      const existingName = parseCollectionNameFromError(message);
+      if (!overwrite && existingName) {
+        pendingYaplaCollectionPath = path;
+        yaplaCollectionOverwriteName = existingName;
+        showYaplaCollectionOverwriteDialog = true;
+        return;
+      }
+      notifications.error("Failed to import collection", message);
+    }
+  }
+
+  async function handleImportYaplaCollection(path?: string) {
+    const filePath = path ?? (await SelectFile("Select Yapla Collection", "*.json", "JSON Files"));
+    if (!filePath) return;
+    showImportSelector = false;
+    await executeYaplaCollectionImport(filePath, false);
+  }
+
+  async function confirmYaplaCollectionOverwrite() {
+    if (!pendingYaplaCollectionPath) return;
+    const path = pendingYaplaCollectionPath;
+    pendingYaplaCollectionPath = null;
+    showYaplaCollectionOverwriteDialog = false;
+    await executeYaplaCollectionImport(path, true);
+  }
+
+  async function handleExportCollection(collectionName: string) {
+    try {
+      await ExportCollection(collectionName);
+      notifications.success("Collection exported successfully");
+    } catch (err) {
+      notifications.error("Failed to export collection", String(err));
+    }
+    activeMenu = null;
+  }
+
+  async function handleSelectImportFormat(format: "postman" | "bruno" | "openapi") {
     showImportSelector = false;
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
       await handleImportBruno();
+    } else if (format === "openapi") {
+      await handleImportOpenAPI();
     }
   }
 
@@ -442,6 +573,13 @@
       default:
         return "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
     }
+  }
+
+  function closeImportModal() {
+    showImportSelector = false;
+    curlInput = "";
+    curlCreatingNew = false;
+    curlNewCollectionName = "";
   }
 
   function openImportModal() {
@@ -472,6 +610,7 @@
     modalStack.close(deleteCollectionModalId);
     modalStack.close(deleteRequestModalId);
     modalStack.close(importCollectionModalId);
+    modalStack.close(yaplaCollectionOverwriteModalId);
   });
   let collections = $derived($collectionStore.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
@@ -553,7 +692,6 @@
               onclick={(e) => {
                 e.stopPropagation();
                 selectCollection(collection.name);
-                toggleCollection(collection.name);
               }}
               onkeypress={(e) => {
                 if (e.key === "Enter") {
@@ -646,6 +784,12 @@
                     </DropdownItem>
                     <DropdownDivider />
                   {/if}
+                  <DropdownItem
+                    onclick={() => handleExportCollection(collection.name)}
+                  >
+                    Export
+                  </DropdownItem>
+                  <DropdownDivider />
                   <DropdownItem
                     onclick={() => {
                       openRenameCollection(collection.name);
@@ -831,7 +975,7 @@
 {/if}
 
 {#if showImportSelector}
-  <Modal title="Import Collection" bind:open={showImportSelector} size="xl">
+  <Modal title="Import Collection or Request" bind:open={showImportSelector} onclose={closeImportModal} size="xl">
     {#if $topModalId === importCollectionModalId}
       <ToastContainer />
     {/if}
@@ -904,6 +1048,132 @@
           </DropZone>
         </TabItem>
 
+        <TabItem key="openapi" title="OpenAPI / Swagger">
+          <DropZone
+            title="Drop your OpenAPI or Swagger document here"
+            subtitle="Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)"
+            onDrop={async (e) => {
+              const paths = e.paths;
+              showImportSelector = false;
+              if (paths.length > 0) {
+                const warnings = await ImportOpenAPICollection(paths[0]);
+                await collectionStore.loadCollections();
+                for (const w of warnings) {
+                  notifications.warning(w);
+                }
+                notifications.success("OpenAPI collection imported");
+              } else {
+                await handleImportOpenAPI();
+              }
+            }}
+          >
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            {/snippet}
+          </DropZone>
+        </TabItem>
+
+        <TabItem key="curl" title="cURL">
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-1">
+              <Label>Paste cURL command</Label>
+              <div class="h-48 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700">
+                <CodeMirrorEditor
+                  value={curlInput}
+                  language="text"
+                  onChange={(v) => (curlInput = v)}
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <Label>Destination collection</Label>
+              {#if curlCreatingNew}
+                <div class="flex gap-2">
+                  <Input
+                    bind:value={curlNewCollectionName}
+                    placeholder="New collection name"
+                    class="flex-1"
+                  />
+                  <Button
+                    color="alternative"
+                    size="sm"
+                    onclick={() => {
+                      curlCreatingNew = false;
+                      curlNewCollectionName = "";
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              {:else}
+                <div class="flex gap-2">
+                  <Select bind:value={curlTargetCollection} class="flex-1">
+                    {#each collections as coll}
+                      <option value={coll.name}>{coll.name}</option>
+                    {/each}
+                  </Select>
+                  <Button
+                    color="alternative"
+                    size="sm"
+                    onclick={() => (curlCreatingNew = true)}
+                  >
+                    New…
+                  </Button>
+                </div>
+              {/if}
+            </div>
+          </div>
+        </TabItem>
+
+        <TabItem key="yapla" title="Yapla">
+          <DropZone
+            title="Drop your Yapla collection here"
+            subtitle="Supports Yapla collection JSON"
+            onDrop={async (e) => {
+              const paths = e.paths;
+              showImportSelector = false;
+              if (paths.length > 0) {
+                await executeYaplaCollectionImport(paths[0], false);
+              } else {
+                await handleImportYaplaCollection();
+              }
+            }}
+          >
+            {#snippet icon()}
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            {/snippet}
+          </DropZone>
+        </TabItem>
+
         <TabItem key="git" title="Git">
           <GitImportView
             onImported={() => (showImportSelector = false)}
@@ -925,6 +1195,22 @@
           <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}>
             Select folder…
           </Button>
+        {:else if importActiveTab === "openapi"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("openapi")}>
+            Select file…
+          </Button>
+        {:else if importActiveTab === "curl"}
+          <Button
+            color="primary"
+            disabled={!curlInput.trim() || (!curlTargetCollection && !curlCreatingNew)}
+            onclick={handleImportCurl}
+          >
+            Import Request
+          </Button>
+        {:else if importActiveTab === "yapla"}
+          <Button color="primary" onclick={() => handleImportYaplaCollection()}>
+            Select file…
+          </Button>
         {:else if importActiveTab === "git"}
           <Button
             color="primary"
@@ -935,6 +1221,30 @@
             Import from Git
           </Button>
         {/if}
+      </div>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if showYaplaCollectionOverwriteDialog}
+  <Modal
+    title="Overwrite collection?"
+    bind:open={showYaplaCollectionOverwriteDialog}
+    onclose={() => {
+      pendingYaplaCollectionPath = null;
+      yaplaCollectionOverwriteName = null;
+      showYaplaCollectionOverwriteDialog = false;
+    }}
+    size="xl"
+  >
+    {#if $topModalId === yaplaCollectionOverwriteModalId}
+      <ToastContainer />
+    {/if}
+    <p>Collection "{yaplaCollectionOverwriteName}" already exists.</p>
+    <p class="text-sm text-neutral-600 dark:text-neutral-400">Do you want to overwrite it?</p>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmYaplaCollectionOverwrite}>Overwrite</Button>
       </div>
     {/snippet}
   </Modal>
