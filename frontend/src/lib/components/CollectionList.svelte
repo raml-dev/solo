@@ -765,6 +765,7 @@
                 <Dropdown triggeredBy="#collection-menu-{collection.id}" class="z-50 w-40">
                   {#if collection.gitRemote}
                     <DropdownItem
+                      class="text-gray-900 dark:text-white"
                       onclick={() => {
                         gitStatusCollectionId = collection.id;
                         gitStatusCollectionName = collection.name;
@@ -774,6 +775,7 @@
                       Git status
                     </DropdownItem>
                     <DropdownItem
+                      class="text-gray-900 dark:text-white"
                       disabled={syncingCollections.has(collection.id)}
                       onclick={() => {
                         handleSync(collection.id);
@@ -785,12 +787,14 @@
                     <DropdownDivider />
                   {/if}
                   <DropdownItem
+                    class="text-gray-900 dark:text-white"
                     onclick={() => handleExportCollection(collection.name)}
                   >
                     Export
                   </DropdownItem>
                   <DropdownDivider />
                   <DropdownItem
+                    class="text-gray-900 dark:text-white"
                     onclick={() => {
                       openRenameCollection(collection.name);
                       activeMenu = null;
