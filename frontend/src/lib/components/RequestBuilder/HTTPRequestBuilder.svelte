@@ -1,11 +1,5 @@
 <script lang="ts">
-  import Alert from "flowbite-svelte/Alert.svelte";
-  import Badge from "flowbite-svelte/Badge.svelte";
-  import Button from "flowbite-svelte/Button.svelte";
-  import Select from "flowbite-svelte/Select.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
-  import TabItem from "flowbite-svelte/TabItem.svelte";
-  import Tabs from "flowbite-svelte/Tabs.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import RequestBody from "$src/lib/components/RequestBuilder/RequestBody.svelte";
   import RequestHeaders from "$src/lib/components/RequestBuilder/RequestHeaders.svelte";
@@ -20,15 +14,23 @@
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { historyStore } from "$src/lib/stores/historyStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
     activeTab as activeTabState,
     tabStore,
     type TabResponse
   } from "$src/lib/stores/tabStore";
-  import { Execute, GetSessionVars } from "$wails/go/main/App";
+  import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
   import { main } from "$wails/go/models";
+  import Alert from "flowbite-svelte/Alert.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onMount } from "svelte";
 
   interface Header {
@@ -61,6 +63,8 @@
   let loading = $state(false);
   let responseTab = $state("body");
   let showSaveDialog = $state(false);
+  let showCurlModal = $state(false);
+  let curlPreview = $state("");
   let responseHeight = $state(300);
   let responseCollapsed = $state(false);
   let isResizing = $state(false);
@@ -348,6 +352,58 @@
     }
   }
 
+  async function handleExportCurl() {
+    const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
+
+    const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
+    const resolvedBody = requestBody ? resolveEnvironmentTokens(requestBody, sessionVars) : "";
+
+    const resolvedHeaders = headers
+      .filter((h) => h.enabled && h.key)
+      .reduce(
+        (acc, { key, value }) => ({
+          ...acc,
+          [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
+        }),
+        {} as Record<string, string>
+      );
+
+    // Add cookies from the saved request as Cookie header if present
+    const collName = $activeTabState?.collectionName ?? null;
+    const reqId = $activeTabState?.requestId ?? null;
+    if (collName && reqId) {
+      const savedReq = $collectionStore.collections
+        .find((c) => c.name === collName)
+        ?.requests.find((r) => r.id === reqId);
+      const cookieEntries = Object.entries(savedReq?.cookies ?? {});
+      if (cookieEntries.length > 0) {
+        resolvedHeaders["Cookie"] = cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ");
+      }
+    }
+
+    // Warn about unresolved placeholders
+    const allValues = [resolvedUrl, resolvedBody, ...Object.values(resolvedHeaders)].join("\n");
+    const unresolved = [...allValues.matchAll(/\{\{([^{}\r\n]+?)\}\}/g)].map((m) => m[1].trim());
+    for (const key of [...new Set(unresolved)]) {
+      notifications.warning(
+        `Placeholder "{{${key}}}" not resolved — no value in active environment`
+      );
+    }
+
+    try {
+      const curl = await GenerateCurl({
+        method,
+        url: resolvedUrl,
+        headers: resolvedHeaders,
+        body: resolvedBody
+      });
+      curlPreview = curl;
+      showCurlModal = true;
+    } catch (err) {
+      notifications.error("Failed to generate cURL", String(err));
+    }
+  }
+
   function prettyPrint(body: string, fmt: "json" | "xml" | "text"): string {
     if (!body?.trim()) return body;
     if (fmt === "json") {
@@ -424,9 +480,13 @@
     <TokenTooltip />
 
     <!-- Request Header -->
-    <div class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-700">
+    <div
+      class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-700"
+    >
       <div class="flex items-center gap-2">
-        <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{requestName || "New Request"}</span>
+        <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
+          >{requestName || "New Request"}</span
+        >
         {#if $activeTabState.isDirty}
           <Button
             color="light"
@@ -439,6 +499,9 @@
           </Button>
         {/if}
       </div>
+      <Button color="light" size="xs" title="Export as cURL" onclick={handleExportCurl}>
+        Export
+      </Button>
     </div>
 
     <!-- Request Line -->
@@ -468,8 +531,8 @@
           {loading}
           onclick={sendRequest}
           disabled={loading}
-          class="self-stretch rounded-l-none px-6"
-        >Send</Button>
+          class="self-stretch rounded-l-none px-6">Send</Button
+        >
       </div>
     </div>
 
@@ -519,7 +582,7 @@
     </div>
 
     <!-- Request tab content -->
-    <div class="min-h-0 flex-1 flex flex-col overflow-hidden">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
           <RequestHeaders {headers} onChange={onFieldChange} />
@@ -582,7 +645,9 @@
       {#if !responseCollapsed}
         <Button
           color="light"
-          class="h-1 w-full shrink-0 cursor-row-resize rounded-none border-0 bg-neutral-200 p-0 shadow-none transition-colors hover:bg-primary-400 dark:bg-neutral-700 {isResizing ? 'bg-primary-500' : ''}"
+          class="h-1 w-full shrink-0 cursor-row-resize rounded-none border-0 bg-neutral-200 p-0 shadow-none transition-colors hover:bg-primary-400 dark:bg-neutral-700 {isResizing
+            ? 'bg-primary-500'
+            : ''}"
           onmousedown={startResize}
           aria-label="Resize response panel"
         />
@@ -593,7 +658,12 @@
         role="button"
         tabindex="0"
         onclick={() => (responseCollapsed = !responseCollapsed)}
-        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); responseCollapsed = !responseCollapsed; } }}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            responseCollapsed = !responseCollapsed;
+          }
+        }}
         aria-expanded={!responseCollapsed}
         aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
       >
@@ -618,7 +688,10 @@
             color="light"
             size="xs"
             class="border-0 shadow-none"
-            onclick={(e: MouseEvent) => { e.stopPropagation(); responseCollapsed = !responseCollapsed; }}
+            onclick={(e: MouseEvent) => {
+              e.stopPropagation();
+              responseCollapsed = !responseCollapsed;
+            }}
             aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
           >
             <svg
@@ -657,9 +730,15 @@
             {:else}
               <div class="h-full overflow-y-auto">
                 {#each Object.entries(response.headers) as [key, value] (key)}
-                  <div class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800">
-                    <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300">{key}:</span>
-                    <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400">{value}</span>
+                  <div
+                    class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800"
+                  >
+                    <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300"
+                      >{key}:</span
+                    >
+                    <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400"
+                      >{value}</span
+                    >
                   </div>
                 {/each}
               </div>
@@ -677,6 +756,39 @@
   <div class="flex h-full w-full items-center justify-center">
     <FeedbackEmptyState title="Open a request from the sidebar or press + to start a new one" />
   </div>
+{/if}
+
+{#if showCurlModal}
+  <Modal title="Export as cURL" bind:open={showCurlModal} size="xl">
+    <div class="h-80 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700">
+      <CodeMirrorEditor value={curlPreview} language="text" readOnly />
+    </div>
+    {#snippet footer()}
+      <div class="flex w-full gap-2">
+        <Button
+          color="alternative"
+          onclick={async () => {
+            await navigator.clipboard.writeText(curlPreview);
+            notifications.success("Copied to clipboard");
+          }}
+        >
+          Copy
+        </Button>
+        <Button
+          color="primary"
+          onclick={async () => {
+            try {
+              await SaveCurlFile(curlPreview, "request.sh");
+            } catch (err) {
+              notifications.error("Failed to save file", String(err));
+            }
+          }}
+        >
+          Download .sh
+        </Button>
+      </div>
+    {/snippet}
+  </Modal>
 {/if}
 
 <SaveRequestModal

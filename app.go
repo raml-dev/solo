@@ -15,6 +15,7 @@ import (
 	"yapla/internal/environment"
 	"yapla/internal/git"
 	"yapla/internal/host"
+	"yapla/internal/exporter"
 	"yapla/internal/importer"
 	"yapla/internal/requester"
 	"yapla/internal/runner"
@@ -305,6 +306,179 @@ func (a *App) ImportPostmanCollection(path string) error {
 	}
 
 	return nil
+}
+
+// ImportOpenAPICollection imports an OpenAPI 3.x or Swagger 2.x collection
+// (JSON or YAML) into Yapla.
+// Returns a (possibly empty) list of warning messages to show to the user.
+func (a *App) ImportOpenAPICollection(path string) ([]string, error) {
+	imp := importer.NewOpenAPIImporter()
+
+	result, err := imp.Import(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to import OpenAPI collection: %w", err)
+	}
+
+	if err := a.collectionManager.UpdateCollection(*result.Collection); err != nil {
+		return nil, fmt.Errorf("failed to save imported OpenAPI collection: %w", err)
+	}
+
+	return result.Warnings, nil
+}
+
+// ImportCurlRequest parses a cURL command string and adds the resulting request
+// to the specified collection.
+func (a *App) ImportCurlRequest(curlString, collectionName string) error {
+	imp := importer.NewCurlImporter()
+	req, err := imp.ParseRequest(curlString)
+	if err != nil {
+		return fmt.Errorf("failed to parse cURL command: %w", err)
+	}
+
+	if _, err := a.collectionManager.AddRequest(collectionName, req); err != nil {
+		return fmt.Errorf("failed to add request to collection %q: %w", collectionName, err)
+	}
+
+	return nil
+}
+
+// ExportCollection opens a native save dialog and writes the collection as Yapla-native JSON.
+func (a *App) ExportCollection(collectionName string) error {
+	coll, err := a.collectionManager.LoadCollection(collectionName)
+	if err != nil {
+		return fmt.Errorf("failed to load collection %q: %w", collectionName, err)
+	}
+
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export Collection",
+		DefaultFilename: collectionName + ".json",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON files", Pattern: "*.json"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled
+	}
+
+	data, err := json.MarshalIndent(coll, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal collection: %w", err)
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+// ExportEnvironment opens a native save dialog and writes the environment as Yapla-native JSON.
+func (a *App) ExportEnvironment(environmentName string) error {
+	env, err := a.environmentManager.LoadEnvironment(environmentName)
+	if err != nil {
+		return fmt.Errorf("failed to load environment %q: %w", environmentName, err)
+	}
+
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export Environment",
+		DefaultFilename: environmentName + ".json",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON files", Pattern: "*.json"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled
+	}
+
+	data, err := json.MarshalIndent(env, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal environment: %w", err)
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+// ImportYaplaCollection imports a Yapla-native collection JSON file.
+// If overwrite is false and a collection with the same name already exists,
+// returns an error of the form "collection <name> already exists".
+func (a *App) ImportYaplaCollection(path string, overwrite bool) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var coll collection.Collection
+	if err := json.Unmarshal(data, &coll); err != nil {
+		return fmt.Errorf("invalid Yapla collection file: %w", err)
+	}
+	if coll.Name == "" {
+		return fmt.Errorf("collection file has no name field")
+	}
+
+	if !overwrite {
+		existing, _ := a.collectionManager.LoadCollection(coll.Name)
+		if existing != nil {
+			return fmt.Errorf("collection %s already exists", coll.Name)
+		}
+	}
+
+	if err := a.collectionManager.UpdateCollection(coll); err != nil {
+		return fmt.Errorf("failed to save collection: %w", err)
+	}
+	return nil
+}
+
+// ImportYaplaEnvironment imports a Yapla-native environment JSON file.
+// If overwrite is false and an environment with the same name already exists,
+// returns an error of the form "environment <name> already exists".
+func (a *App) ImportYaplaEnvironment(path string, overwrite bool) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var env environment.Environment
+	if err := json.Unmarshal(data, &env); err != nil {
+		return fmt.Errorf("invalid Yapla environment file: %w", err)
+	}
+	if env.Name == "" {
+		return fmt.Errorf("environment file has no name field")
+	}
+
+	if !overwrite {
+		existing, _ := a.environmentManager.LoadEnvironment(env.Name)
+		if existing != nil {
+			return fmt.Errorf("environment %s already exists", env.Name)
+		}
+	}
+
+	if err := a.environmentManager.UpdateEnvironment(&env); err != nil {
+		return fmt.Errorf("failed to save environment: %w", err)
+	}
+	return nil
+}
+
+// GenerateCurl converts a resolved HTTP request into a multi-line cURL command string.
+func (a *App) GenerateCurl(req exporter.CurlExportRequest) (string, error) {
+	return exporter.GenerateCurl(req), nil
+}
+
+// SaveCurlFile opens a native save dialog and writes the cURL string to the chosen path.
+func (a *App) SaveCurlFile(content, suggestedName string) error {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Save cURL command",
+		DefaultFilename: suggestedName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Shell scripts", Pattern: "*.sh"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled
+	}
+	return os.WriteFile(path, []byte(content), 0644)
 }
 
 // ImportBrunoCollection imports a Bruno collection from a directory.
