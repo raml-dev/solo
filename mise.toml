@@ -4,6 +4,8 @@ go = "1.25.6"
 node = "24.12.0"
 pnpm = "10.32.1"
 "npm:@mariozechner/pi-coding-agent" = "0.58.1"
+pipx = "latest"
+"pipx:svg-text2path" = "latest"
 
 [hooks]
 postinstall = { task = "mcp:check" }

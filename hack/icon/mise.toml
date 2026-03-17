@@ -1,0 +1,15 @@
+[tools]
+"python" = "3.13.10"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+WAILS_ROOT = "{{config_root}}/../.."
+
+[tasks.setup]
+description = "Install icon generation dependencies"
+run = "pip install -r requirements.txt"
+
+[tasks.icons]
+description = "Generate Wails icons from SVG"
+run = "python gen_icons.py icon-lighning-spike.svg --out ${WAILS_ROOT}/build"
+depends = ["setup"]
