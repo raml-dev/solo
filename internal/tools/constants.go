@@ -18,7 +18,7 @@ const (
 	DEFAULT_TIMEOUT_SECONDS = 30
 	DEFAULT_MAX_REDIRECTS   = 10
 	DEFAULT_VALIDATE_SSL    = true
-	DEFAULT_USER_AGENT      = "Yapla/1.0"
+	DEFAULT_USER_AGENT      = "Solo/1.0"
 )
 
 const (
