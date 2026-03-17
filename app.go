@@ -4,24 +4,27 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 	"yapla/internal/collection"
 	"yapla/internal/configuration"
 	"yapla/internal/environment"
+	"yapla/internal/exporter"
 	"yapla/internal/git"
 	"yapla/internal/host"
-	"yapla/internal/exporter"
 	"yapla/internal/importer"
 	"yapla/internal/requester"
 	"yapla/internal/runner"
 	"yapla/internal/script"
 	"yapla/internal/theme"
 	"yapla/internal/tools"
+	"yapla/internal/troubleshooting"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -37,18 +40,18 @@ type App struct {
 	scriptManager      *script.ScriptManager
 	runner             *runner.Runner
 	gitManager         *git.Manager
-  closingMu           sync.Mutex
-  isClosing           bool
+	closingMu          sync.Mutex
+	isClosing          bool
 }
 
 type RequestOptions struct {
-	Method              string                                 `json:"method"`
-	URL                 string                                 `json:"url"`
-	Headers             map[string]any                         `json:"headers"`
-	Body                string                                 `json:"body"`
-	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
-	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
-	PostResponseScript  string                                 `json:"postResponseScript,omitempty"`
+	Method             string                                 `json:"method"`
+	URL                string                                 `json:"url"`
+	Headers            map[string]any                         `json:"headers"`
+	Body               string                                 `json:"body"`
+	Settings           *configuration.RequestSettingsOverride `json:"settings,omitempty"`
+	PreRequestScript   string                                 `json:"preRequestScript,omitempty"`
+	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
 }
 
 // RunParallel performs parallel HTTP requests for load testing.
@@ -86,7 +89,7 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 
 // dummy function to emit RunnerResult
 func (a *App) GetRunnerResult() runner.RunnerResult {
-    return runner.RunnerResult{}
+	return runner.RunnerResult{}
 }
 
 // NewApp creates a new App application struct
@@ -111,8 +114,8 @@ func NewApp() *App {
 		scriptManager:      sm,
 		runner:             runner.NewRunner(service),
 		gitManager:         git.NewManager(),
-    closingMu:          sync.Mutex{},
-    isClosing:          false,
+		closingMu:          sync.Mutex{},
+		isClosing:          false,
 	}
 }
 
@@ -124,31 +127,39 @@ func (a *App) startup(ctx context.Context) {
 	if a.scriptManager != nil {
 		a.scriptManager.SetContext(ctx)
 	}
-	slog.Info("Application started")
+
+	if a.configManager != nil {
+		cfg := a.configManager.Get()
+		a.SetDebugMode(cfg.General.DebugMode)
+		slog.Info("Application started", "debug_mode", cfg.General.DebugMode)
+		return
+	}
+
+	slog.Info("Application started", "debug_mode", false)
 }
 
 // beforeClose is called when the user tries to close the application.
 // We emit an event to the frontend to check for unsaved changes and veto the close.
 func (a *App) beforeClose(ctx context.Context) bool {
-    a.closingMu.Lock()
-    defer a.closingMu.Unlock()
+	a.closingMu.Lock()
+	defer a.closingMu.Unlock()
 
-    if a.isClosing {
-        return false // Already confirmed — let it close
-    }
+	if a.isClosing {
+		return false // Already confirmed — let it close
+	}
 
-    runtime.EventsEmit(ctx, "app:request-close")
-    return true // Veto the close
+	runtime.EventsEmit(ctx, "app:request-close")
+	return true // Veto the close
 }
 
 func (a *App) ForceQuit() {
-    a.closingMu.Lock()
-    a.isClosing = true
-    a.closingMu.Unlock()
+	a.closingMu.Lock()
+	a.isClosing = true
+	a.closingMu.Unlock()
 
-    if a.ctx != nil {
-        runtime.Quit(a.ctx)
-    }
+	if a.ctx != nil {
+		runtime.Quit(a.ctx)
+	}
 }
 
 // Execute performs the HTTP request with the given options.
@@ -481,6 +492,46 @@ func (a *App) SaveCurlFile(content, suggestedName string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
+// ExportLogsZip creates a ZIP archive with all files in the app logs directory
+// (including rotated/compressed ones) and saves it via native save dialog.
+func (a *App) ExportLogsZip() (bool, error) {
+	configRoot, err := tools.GetOrCreateConfigDir()
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve config directory: %w", err)
+	}
+
+	logsDir := filepath.Join(configRoot, "logs")
+	zipBytes, includedFiles, err := troubleshooting.BuildLogsZip(logsDir)
+	if err != nil {
+		if errors.Is(err, troubleshooting.ErrNoLogFiles) || errors.Is(err, os.ErrNotExist) {
+			return false, fmt.Errorf("no log files found to export")
+		}
+		return false, fmt.Errorf("failed to build logs archive: %w", err)
+	}
+
+	defaultFilename := fmt.Sprintf("yapla-logs-%s.zip", time.Now().Format("20060102-150405"))
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export Logs",
+		DefaultFilename: defaultFilename,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "ZIP archives", Pattern: "*.zip"},
+		},
+	})
+	if err != nil {
+		return false, fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return false, nil // user cancelled
+	}
+
+	if err := os.WriteFile(path, zipBytes, 0644); err != nil {
+		return false, fmt.Errorf("failed to write archive: %w", err)
+	}
+
+	slog.Info("Logs archive exported", "path", path, "files", len(includedFiles))
+	return true, nil
+}
+
 // ImportBrunoCollection imports a Bruno collection from a directory.
 func (a *App) ImportBrunoCollection(path string) error {
 	imp := importer.NewBrunoImporter()
@@ -689,15 +740,13 @@ func (a *App) ResolveRequestPlaceholders(reqId string, collName string, envId st
 // SetDebugMode changes the application's log level at runtime.
 func (a *App) SetDebugMode(enabled bool) {
 	if enabled {
-
 		programLevel.Set(slog.LevelDebug)
-		slog.Debug("Enabling debug mode")
-
-	} else {
-
-		slog.Debug("Disabling debug mode")
-		programLevel.Set(slog.LevelInfo)
+		slog.Info("Debug mode enabled")
+		return
 	}
+
+	programLevel.Set(slog.LevelInfo)
+	slog.Info("Debug mode disabled")
 }
 
 // Git Management Methods

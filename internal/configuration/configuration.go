@@ -3,20 +3,20 @@ package configuration
 import "yapla/internal/theme"
 
 type Configuration struct {
-	General       GeneralSettings  `json:"general"`
-	Request       RequestSettings  `json:"request"`
-	CustomThemes  []theme.Theme    `json:"customThemes"`
+	General      GeneralSettings `json:"general"`
+	Request      RequestSettings `json:"request"`
+	CustomThemes []theme.Theme   `json:"customThemes"`
 }
 
 type GeneralSettings struct {
 	ActiveTheme         string `json:"activeTheme"`
-	ThemeMode           string `json:"themeMode,omitempty"`           // "manual" | "sync"
-	DayTheme            string `json:"dayTheme,omitempty"`            // tema usato in sync light
-	NightTheme          string `json:"nightTheme,omitempty"`          // tema usato in sync dark
+	ThemeMode           string `json:"themeMode,omitempty"`  // "manual" | "sync"
+	DayTheme            string `json:"dayTheme,omitempty"`   // tema usato in sync light
+	NightTheme          string `json:"nightTheme,omitempty"` // tema usato in sync dark
 	CheckForUpdates     bool   `json:"checkForUpdates"`
+	DebugMode           bool   `json:"debugMode"`
 	SelectedEnvironment string `json:"selectedEnvironment,omitempty"`
 }
-
 
 type RequestSettings struct {
 	TimeoutSeconds   int    `json:"timeoutSeconds"`

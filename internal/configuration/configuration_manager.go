@@ -55,6 +55,7 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			DayTheme:        tools.DEFAULT_THEME_LIGHT,
 			NightTheme:      tools.DEFAULT_THEME_DARK,
 			CheckForUpdates: tools.DEFAULT_CHECK_UPDATES,
+			DebugMode:       false,
 		},
 		Request: RequestSettings{
 			TimeoutSeconds:   tools.DEFAULT_TIMEOUT_SECONDS,
