@@ -1,4 +1,7 @@
 <script lang="ts">
+  import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
+  import ClipboardCleanSolid from "flowbite-svelte-icons/ClipboardCleanSolid.svelte";
+  import Clipboard from "flowbite-svelte/Clipboard.svelte";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import {
     autocompletion,
@@ -40,6 +43,7 @@
     environmentEntries?: { key: string; value: string }[];
     readOnly?: boolean;
     onChange?: (value: string) => void;
+    showCopyPaste?: boolean;
   }
 
   let {
@@ -48,8 +52,11 @@
     language = "",
     environmentEntries = [],
     readOnly = false,
-    onChange
+    onChange,
+    showCopyPaste = false
   }: Props = $props();
+
+  let success = $state(false);
 
   // Annotation to mark transactions initiated by us (external sync) so the
   // updateListener does NOT re-emit "change" and cause an infinite loop.
@@ -223,4 +230,21 @@
   });
 </script>
 
-<div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>
+<div class="relative">
+  <div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>
+  {#if showCopyPaste}
+    <Clipboard
+      color={success ? "alternative" : "light"}
+      bind:success
+      {value}
+      size="sm"
+      class="absolute end-2 top-2 h-8 px-2.5 font-medium focus:ring-0"
+    >
+      {#if success}
+        <CheckOutline class="h-3 w-3" /> Copied
+      {:else}
+        <ClipboardCleanSolid class="h-3 w-3" /> Copy code
+      {/if}
+    </Clipboard>
+  {/if}
+</div>

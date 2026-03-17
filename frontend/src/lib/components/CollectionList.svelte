@@ -792,7 +792,10 @@
                 <Button
                   color="light"
                   size="xs"
-                  onclick={(e: MouseEvent) => { e.stopPropagation(); handleAddRequest(e, collection.name); }}
+                  onclick={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    handleAddRequest(e, collection.name);
+                  }}
                   title="Add request"
                   aria-label="Add request"
                 >
@@ -912,7 +915,8 @@
                           role="button"
                           tabindex="0"
                           ondblclick={(e) => startRequestRename(e, request, collection.name)}
-                          onkeydown={(e) => e.key === "Enter" && startRequestRename(e, request, collection.name)}
+                          onkeydown={(e) =>
+                            e.key === "Enter" && startRequestRename(e, request, collection.name)}
                         >
                           {request.name}
                         </span>
@@ -1053,7 +1057,12 @@
 {/if}
 
 {#if showImportSelector}
-  <Modal title="Import Collection or Request" bind:open={showImportSelector} onclose={closeImportModal} size="xl">
+  <Modal
+    title="Import Collection or Request"
+    bind:open={showImportSelector}
+    onclose={closeImportModal}
+    size="xl"
+  >
     {#if $topModalId === importCollectionModalId}
       <ToastContainer />
     {/if}
@@ -1170,7 +1179,9 @@
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-1">
               <Label>Paste cURL command</Label>
-              <div class="h-48 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700">
+              <div
+                class="h-48 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700"
+              >
                 <CodeMirrorEditor
                   value={curlInput}
                   language="text"
@@ -1206,11 +1217,7 @@
                       <option value={coll.name}>{coll.name}</option>
                     {/each}
                   </Select>
-                  <Button
-                    color="alternative"
-                    size="sm"
-                    onclick={() => (curlCreatingNew = true)}
-                  >
+                  <Button color="alternative" size="sm" onclick={() => (curlCreatingNew = true)}>
                     New…
                   </Button>
                 </div>

@@ -79,7 +79,9 @@
 </script>
 
 <div
-  class="relative flex items-center gap-1.5 px-2 py-1.5 {isFocused ? 'bg-primary-50 dark:bg-primary-900/30' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'}"
+  class="relative flex items-center gap-1.5 px-2 py-1.5 {isFocused
+    ? 'bg-primary-50 dark:bg-primary-900/30'
+    : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'}"
 >
   <input
     type="radio"
@@ -124,7 +126,7 @@
 
   {#if menuOpen}
     <div
-      class="absolute right-0 top-full z-50 min-w-40 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+      class="absolute top-full right-0 z-50 min-w-40 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
     >
       {#if env.gitRemote}
         <Button
@@ -158,7 +160,7 @@
       <Button
         color="light"
         size="sm"
-        class="w-full justify-start border-0 shadow-none text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+        class="w-full justify-start border-0 text-danger-600 shadow-none hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
         onclick={handleDeleteEnvironment}
       >
         Delete

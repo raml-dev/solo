@@ -471,7 +471,14 @@
   let responseFormat = $derived(getResponseFormat(response));
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.ctrlKey && e.key === 's') { e.preventDefault(); handleSave(); } }} />
+<svelte:window
+  onkeydown={(e) => {
+    if (e.ctrlKey && e.key === "s") {
+      e.preventDefault();
+      handleSave();
+    }
+  }}
+/>
 
 {#if $activeTabState}
   <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
@@ -536,7 +543,7 @@
 
     <!-- Request tabs + body format selector -->
     <div class="flex shrink-0 items-center border-b border-neutral-200 dark:border-neutral-700">
-      <Tabs bind:selected={requestPaneTab} tabStyle="underline" contentClass="hidden">
+      <Tabs bind:selected={requestPaneTab} tabStyle="underline" classes={{ content: "hidden" }}>
         <TabItem key="Headers" title="Headers" />
         <TabItem key="Body" title="Body" />
         <TabItem key="Scripts">
@@ -668,7 +675,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div onclick={(e) => e.stopPropagation()}>
-          <Tabs bind:selected={responseTab} tabStyle="underline" contentClass="hidden">
+          <Tabs bind:selected={responseTab} tabStyle="underline" classes={{ content: "hidden" }}>
             <TabItem key="body" title="Body" />
             <TabItem key="headers" title="Headers" />
           </Tabs>
@@ -722,7 +729,8 @@
                 <CodeMirrorEditor
                   value={response.body ?? ""}
                   format={responseFormat}
-                  readOnly={true}
+                  readOnly
+                  showCopyPaste
                 />
               </div>
             {:else}
@@ -759,19 +767,10 @@
 {#if showCurlModal}
   <Modal title="Export as cURL" bind:open={showCurlModal} size="xl">
     <div class="h-80 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700">
-      <CodeMirrorEditor value={curlPreview} language="text" readOnly />
+      <CodeMirrorEditor value={curlPreview} language="text" readOnly showCopyPaste />
     </div>
     {#snippet footer()}
       <div class="flex w-full gap-2">
-        <Button
-          color="alternative"
-          onclick={async () => {
-            await navigator.clipboard.writeText(curlPreview);
-            notifications.success("Copied to clipboard");
-          }}
-        >
-          Copy
-        </Button>
         <Button
           color="primary"
           onclick={async () => {

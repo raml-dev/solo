@@ -19,10 +19,11 @@
   );
 </script>
 
-<div class="flex-1 min-h-0 w-full overflow-hidden">
+<div class="min-h-0 w-full flex-1 overflow-hidden">
   <CodeMirrorEditor
     bind:value={requestBody}
     bind:format
+    showCopyPaste
     {environmentEntries}
     onChange={(value) => {
       requestBody = value;

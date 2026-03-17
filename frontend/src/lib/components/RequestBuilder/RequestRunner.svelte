@@ -131,8 +131,10 @@
   });
 </script>
 
-<div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
-  <div class="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800">
+<div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+  <div
+    class="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+  >
     <div class="flex flex-wrap items-end gap-4">
       <div class="flex flex-col gap-1">
         <Label for="concurrency">Concurrency</Label>
@@ -165,7 +167,13 @@
         <Toggle bind:checked={stopOnError} size="small" disabled={running}>Stop on error</Toggle>
       </div>
 
-      <Button color="primary" class="ml-auto" onclick={startRun} disabled={running} loading={running}>
+      <Button
+        color="primary"
+        class="ml-auto"
+        onclick={startRun}
+        disabled={running}
+        loading={running}
+      >
         {running ? "Running..." : "Start Run"}
       </Button>
     </div>
@@ -179,21 +187,37 @@
 
       {#if stats}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+          <div
+            class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
+          >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">Requests</span>
-            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.successCount} / {stats.totalRequests}</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
+              >{stats.successCount} / {stats.totalRequests}</span
+            >
           </div>
-          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+          <div
+            class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
+          >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">Avg Latency</span>
-            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.avgLatency}ms</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
+              >{stats.avgLatency}ms</span
+            >
           </div>
-          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+          <div
+            class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
+          >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">P95</span>
-            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.p95Latency}ms</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
+              >{stats.p95Latency}ms</span
+            >
           </div>
-          <div class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+          <div
+            class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
+          >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">Throughput</span>
-            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{stats.requestsPerSec.toFixed(2)} req/s</span>
+            <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
+              >{stats.requestsPerSec.toFixed(2)} req/s</span
+            >
           </div>
         </div>
       {/if}
@@ -221,7 +245,9 @@
                 </TableBodyCell>
                 <TableBodyCell>{res.response?.duration ?? "-"} ms</TableBodyCell>
                 <TableBodyCell>
-                  <span class="max-w-xs truncate text-xs text-neutral-500 dark:text-neutral-400">{res.error || "Success"}</span>
+                  <span class="max-w-xs truncate text-xs text-neutral-500 dark:text-neutral-400"
+                    >{res.error || "Success"}</span
+                  >
                 </TableBodyCell>
               </TableBodyRow>
             {/each}
@@ -230,7 +256,9 @@
       </div>
     </div>
   {:else}
-    <div class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800">
+    <div
+      class="rounded-lg border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-800"
+    >
       <h3 class="text-base font-semibold">Parallel Runner</h3>
       <p>Configure concurrency and iterations to perform load testing on this request.</p>
     </div>

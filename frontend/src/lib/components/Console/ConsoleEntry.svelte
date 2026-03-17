@@ -35,7 +35,9 @@
     onclick={() => (expanded = !expanded)}
   >
     <span class="shrink-0 text-neutral-400">{expanded ? "▾" : "▸"}</span>
-    <span class="shrink-0 font-mono text-neutral-500 dark:text-neutral-400">{formatTime(entry.timestamp)}</span>
+    <span class="shrink-0 font-mono text-neutral-500 dark:text-neutral-400"
+      >{formatTime(entry.timestamp)}</span
+    >
     <Badge color="red">
       {entry.request.method}
     </Badge>
@@ -48,7 +50,10 @@
       </Badge>
     {/if}
 
-    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300" title={entry.request.url}>{truncateUrl(entry.request.url)}</span>
+    <span
+      class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300"
+      title={entry.request.url}>{truncateUrl(entry.request.url)}</span
+    >
 
     {#if entry.response}
       <span class="shrink-0 text-neutral-500 dark:text-neutral-400">{entry.response.time}ms</span>
@@ -62,7 +67,9 @@
   </Button>
 
   {#if expanded}
-    <div class="border-t border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50">
+    <div
+      class="border-t border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/50"
+    >
       <div class="flex items-center gap-2">
         <Button
           color={detailTab === "request" ? "primary" : "light"}
@@ -78,41 +85,84 @@
 
       {#if detailTab === "request"}
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">URL</p>
-          <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry.request.method} {entry.request.url}</pre>
+          <p
+            class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+          >
+            URL
+          </p>
+          <pre
+            class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry
+              .request.method} {entry.request.url}</pre>
         </div>
         {#if Object.keys(entry.request.headers).length > 0}
           <div class="flex flex-col gap-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Headers</p>
-            <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{formatHeaders(entry.request.headers)}</pre>
+            <p
+              class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+            >
+              Headers
+            </p>
+            <pre
+              class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{formatHeaders(
+                entry.request.headers
+              )}</pre>
           </div>
         {/if}
         {#if entry.request.body}
           <div class="flex flex-col gap-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Body</p>
-            <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry.request.body}</pre>
+            <p
+              class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+            >
+              Body
+            </p>
+            <pre
+              class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry
+                .request.body}</pre>
           </div>
         {/if}
       {:else if entry.error}
         <div class="flex flex-col gap-1 text-danger-600 dark:text-danger-400">
-          <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Error</p>
-          <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry.error}</pre>
+          <p
+            class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+          >
+            Error
+          </p>
+          <pre
+            class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry.error}</pre>
         </div>
       {:else if entry.response}
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Status</p>
-          <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry.response.status} — {entry.response.time}ms</pre>
+          <p
+            class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+          >
+            Status
+          </p>
+          <pre
+            class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry
+              .response.status} — {entry.response.time}ms</pre>
         </div>
         {#if Object.keys(entry.response.headers).length > 0}
           <div class="flex flex-col gap-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Headers</p>
-            <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{formatHeaders(entry.response.headers)}</pre>
+            <p
+              class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+            >
+              Headers
+            </p>
+            <pre
+              class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{formatHeaders(
+                entry.response.headers
+              )}</pre>
           </div>
         {/if}
         {#if entry.response.body}
           <div class="flex flex-col gap-1">
-            <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Body</p>
-            <pre class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry.response.body}</pre>
+            <p
+              class="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400"
+            >
+              Body
+            </p>
+            <pre
+              class="overflow-x-auto rounded bg-neutral-100 p-2 font-mono text-xs text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">{entry
+                .response.body}</pre>
           </div>
         {/if}
       {/if}

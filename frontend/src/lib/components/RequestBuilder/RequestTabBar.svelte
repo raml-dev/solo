@@ -138,9 +138,7 @@
   }
 </script>
 
-<div
-  class="flex items-center gap-2 border-b border-neutral-200 px-2 py-1 dark:border-neutral-700"
->
+<div class="flex items-center gap-2 border-b border-neutral-200 px-2 py-1 dark:border-neutral-700">
   <div
     class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     role="tablist"
