@@ -467,6 +467,7 @@
       }
     }
   });
+
   let responseFormat = $derived(getResponseFormat(response));
 </script>
 

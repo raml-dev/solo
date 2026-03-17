@@ -41,6 +41,28 @@ func NewScriptManager(ctx context.Context) *ScriptManager {
 		}
 	}
 
+	// Remove dangerous functions from base lib
+	for _, name := range []string{
+		"dofile",
+		"loadfile",
+		"load",
+		"rawget",
+		"rawset",
+		"rawequal",
+		"rawlen",
+	} {
+		L.SetGlobal(name, lua.LNil)
+	}
+
+	// Instruction limit to prevent CPU exhaustion / infinite loops
+	L.SetMx(10_000_000)
+
+	// Cancel the Lua state if the context is done
+	go func() {
+		<-ctx.Done()
+		L.Close()
+	}()
+
 	sm := &ScriptManager{
 		state:       L,
 		mutex:       sync.Mutex{},
