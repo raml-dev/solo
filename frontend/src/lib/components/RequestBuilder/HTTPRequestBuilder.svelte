@@ -274,10 +274,6 @@
 
   // --- Send request ---
   async function sendRequest() {
-    if (!$activeTabState?.requestId) {
-      showSaveDialog = true;
-      return;
-    }
     loading = true;
 
     // Keep token resolution aligned with backend env.get precedence:
@@ -446,7 +442,6 @@
         settings: requestSettings
       });
       showSaveDialog = false;
-      await sendRequest();
     } catch {
       /* shown by store */
     }
@@ -475,6 +470,8 @@
   let responseFormat = $derived(getResponseFormat(response));
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.ctrlKey && e.key === 's') { e.preventDefault(); handleSave(); } }} />
+
 {#if $activeTabState}
   <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
     <TokenTooltip />
@@ -487,7 +484,7 @@
         <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
           >{requestName || "New Request"}</span
         >
-        {#if $activeTabState.isDirty}
+        {#if !$activeTabState.requestId || $activeTabState.isDirty}
           <Button
             color="light"
             size="xs"

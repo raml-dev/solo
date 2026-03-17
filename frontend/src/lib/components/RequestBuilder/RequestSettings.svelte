@@ -1,9 +1,9 @@
 <script lang="ts">
+  import type { configuration as conf } from "$wails/go/models";
   import Helper from "flowbite-svelte/Helper.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import type { configuration as conf } from "$wails/go/models";
 
   interface Props {
     requestSettings: conf.RequestSettingsOverride;
@@ -18,7 +18,7 @@
   }
 </script>
 
-<div class="flex-1 overflow-y-auto p-3 space-y-4">
+<div class="flex-1 space-y-4 overflow-y-auto p-3">
   <div class="space-y-2">
     <Label for="timeout">Timeout (seconds)</Label>
     <Input
@@ -39,7 +39,7 @@
       id="user-agent"
       type="text"
       size="sm"
-      placeholder={`Global: ${globalConfig.request.defaultUserAgent || "Yapla/1.0"}`}
+      placeholder={`Global: ${globalConfig.request.defaultUserAgent || "Solo/1.0"}`}
       bind:value={requestSettings.defaultUserAgent}
       oninput={handleChange}
     />
