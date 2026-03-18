@@ -1,6 +1,10 @@
 <div align="center">
 
-# Solo
+<html>
+    <h2 align="center">
+      <img src="hack/icon/icon-ascii.svg" width="128"/>
+    </h2>
+</html>
 
 <pre>
            █
