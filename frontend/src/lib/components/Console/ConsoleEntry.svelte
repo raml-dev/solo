@@ -2,6 +2,7 @@
   import type { HistoryEntry } from "$src/lib/stores/historyStore";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import { getStatusBadgeColor, getMethodBadgeClass } from "$src/lib/utils/http";
 
   interface Props {
     entry: HistoryEntry;
@@ -38,14 +39,14 @@
     <span class="shrink-0 font-mono text-neutral-500 dark:text-neutral-400"
       >{formatTime(entry.timestamp)}</span
     >
-    <Badge color="red">
+    <span class={getMethodBadgeClass(entry.request.method)}>
       {entry.request.method}
-    </Badge>
+    </span>
 
     {#if entry.error}
       <Badge color="red">ERR</Badge>
     {:else if entry.response}
-      <Badge color="gray">
+      <Badge color={getStatusBadgeColor(entry.response.status)}>
         {entry.response.status}
       </Badge>
     {/if}

@@ -21,16 +21,20 @@
     tabStore,
     type TabResponse
   } from "$src/lib/stores/tabStore";
+  import { getStatusBadgeColor, getMethodBadgeClass } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
   import { main } from "$wails/go/models";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
+  import ChevronDownOutline from "flowbite-svelte-icons/ChevronDownOutline.svelte";
   import { onMount } from "svelte";
 
   interface Header {
@@ -447,12 +451,6 @@
     }
   }
 
-  function getStatusBadgeColor(status: number): "green" | "blue" | "yellow" | "red" {
-    if (status >= 200 && status < 300) return "green";
-    if (status >= 300 && status < 400) return "blue";
-    if (status >= 400 && status < 500) return "yellow";
-    return "red";
-  }
   // --- Tab switching: ONE-WAY, store → form only ---
   // Reload when active tab changes OR when the same preview tab id is recycled
   // to point at a different request.
