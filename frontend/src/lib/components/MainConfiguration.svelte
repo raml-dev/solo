@@ -418,7 +418,7 @@
           </p>
         </div>
 
-        <Toggle bind:checked={editableConfig.general.checkForUpdates}>
+        <Toggle bind:checked={editableConfig.general.checkForUpdates} disabled>
           Check for updates on startup
         </Toggle>
 
