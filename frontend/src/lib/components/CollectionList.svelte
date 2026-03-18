@@ -38,6 +38,7 @@
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount } from "svelte";
+  import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { SvelteSet } from "svelte/reactivity";
 
   interface Props {
@@ -432,20 +433,6 @@
     showDeleteRequestConfirmDialog = false;
     deleteRequestTarget = null;
     deleteRequestCollectionName = null;
-  }
-
-  function getMethodClass(method: string): string {
-    const m = method.toUpperCase();
-    if (m === "GET")
-      return "bg-success-100 text-success-700 dark:bg-success-900/50 dark:text-success-300";
-    if (m === "POST")
-      return "bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300";
-    if (m === "PUT" || m === "PATCH") {
-      return "bg-warning-100 text-warning-700 dark:bg-warning-900/50 dark:text-warning-300";
-    }
-    if (m === "DELETE")
-      return "bg-danger-100 text-danger-700 dark:bg-danger-900/50 dark:text-danger-300";
-    return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   }
 
   function clearMenu() {
@@ -886,11 +873,10 @@
                       tabindex="0"
                     >
                       <span
-                        class={`inline-flex min-w-14 justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${getMethodClass(request.verb)}`}
+                        class={getMethodBadgeClass(request.verb)}
                       >
                         {request.verb}
-                      </span>
-                      {#if isEditingRequest(request.id, collection.name)}
+                      </span>                      {#if isEditingRequest(request.id, collection.name)}
                         <Input
                           type="text"
                           size="sm"

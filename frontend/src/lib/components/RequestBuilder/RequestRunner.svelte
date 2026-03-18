@@ -17,6 +17,7 @@
   import { main, runner } from "$wails/go/models";
   import { EventsOff, EventsOn } from "$wails/runtime";
   import { onMount } from "svelte";
+  import { getStatusBadgeColor } from "$src/lib/utils/http";
 
   interface Header {
     id: string;
@@ -115,13 +116,6 @@
       running = false;
       EventsOff("runner:result");
     }
-  }
-
-  function getStatusBadgeColor(status: number): "green" | "blue" | "yellow" | "red" {
-    if (status >= 200 && status < 300) return "green";
-    if (status >= 300 && status < 400) return "blue";
-    if (status >= 400 && status < 500) return "yellow";
-    return "red";
   }
 
   onMount(() => {
