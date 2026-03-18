@@ -1,10 +1,5 @@
 <div align="center">
 
-<html>
-    <h2 align="center">
-      <img src="hack/icon/icon-lighning-spike.svg" width="128"/>
-    </h2>
-</html>
 
   <pre>
      █
@@ -21,6 +16,13 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/raml-dev/solo/pulls)
 
 [Features](#-features) • [Installation](#-installation) • [Contributing](#-contributing)
+
+
+<html>
+    <h2 align="center">
+      <img src="hack/icon/icon-lighning-spike.svg" width="128"/>
+    </h2>
+</html>
 
 </div>
 
