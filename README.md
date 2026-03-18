@@ -1,6 +1,11 @@
 <div align="center">
 
 
+<html>
+    <h2 align="center">
+      <img src="hack/icon/icon-lighning-spike.svg" width="128"/>
+    </h2>
+</html>
   <pre>
      █
  ▄▄▄  ▄▄▄ █  ▄▄▄
@@ -17,11 +22,6 @@
 [Features](#-features) • [Installation](#-installation) • [Contributing](#-contributing)
 
 
-<html>
-    <h2 align="center">
-      <img src="hack/icon/icon-lighning-spike.svg" width="128"/>
-    </h2>
-</html>
 
 </div>
 
