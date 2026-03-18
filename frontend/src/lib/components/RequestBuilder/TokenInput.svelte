@@ -19,6 +19,7 @@
     wrapperClass?: string;
     size?: "sm" | "md" | "lg";
     onChange?: () => void;
+    onEnter?: () => void;
   }
 
   let {
@@ -29,7 +30,8 @@
     inputClass = "",
     wrapperClass = "",
     size = "md",
-    onChange
+    onChange,
+    onEnter
   }: Props = $props();
 
   let inputEl: HTMLInputElement | undefined = $state();
@@ -86,6 +88,31 @@
   function focusInput() {
     inputEl?.focus();
   }
+
+  function handleKeydown(e: KeyboardEvent) {
+    const isMod = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+
+    if (isMod && key === "z") {
+      // Ctrl+Z or Ctrl+Shift+Z
+      if (e.shiftKey) {
+        document.execCommand("redo");
+      } else {
+        document.execCommand("undo");
+      }
+      e.preventDefault();
+    } else if (isMod && key === "y") {
+      // Ctrl+Y
+      document.execCommand("redo");
+      e.preventDefault();
+    } else if (isMod && key === "enter") {
+      // Ctrl+Enter to send request
+      e.preventDefault();
+      onEnter?.();
+    }
+  }
+
+  let paddingClass = $derived(size === "sm" ? "py-[7px] px-3" : "py-[11px] px-4");
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -95,7 +122,7 @@
     bind:elementRef={inputEl}
     type="text"
     {size}
-    class="![color:transparent] caret-neutral-900 dark:caret-neutral-100 {inputClass}"
+    class="![color:transparent] caret-neutral-900 dark:caret-neutral-100 font-sans text-sm antialiased tracking-normal leading-5 {paddingClass} {inputClass}"
     bind:value
     {disabled}
     role="combobox"
@@ -110,10 +137,11 @@
       onChange?.();
     }}
     onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
+    onkeydown={handleKeydown}
   />
   <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
     <div
-      class="flex h-full items-center px-2.5 text-sm whitespace-pre"
+      class="flex font-sans whitespace-pre text-sm antialiased tracking-normal leading-5 {paddingClass}"
       style={`transform: translateX(-${scrollLeft}px);`}
     >
       {#if !value && placeholder}
@@ -122,7 +150,7 @@
         {#each segments as segment, index (`${segment.isToken ? segment.tokenKey : "text"}-${index}`)}
           {#if segment.isToken}
             <span
-              class="pointer-events-auto rounded bg-primary-100 px-0.5 font-mono text-primary-700 dark:bg-primary-900 dark:text-primary-300"
+              class="pointer-events-auto rounded bg-primary-100 p-0 text-primary-700 dark:bg-primary-900 dark:text-primary-300"
               onmouseenter={(e) => handleTokenEnter(e, segment)}
               onmouseleave={handleTokenLeave}>{segment.text}</span
             >
