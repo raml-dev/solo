@@ -230,7 +230,7 @@
   });
 </script>
 
-<div class="relative">
+<div class="relative h-full">
   <div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>
   {#if showCopyPaste}
     <Clipboard

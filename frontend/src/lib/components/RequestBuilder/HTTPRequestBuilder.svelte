@@ -527,6 +527,7 @@
           {environmentEntries}
           wrapperClass="min-w-0 flex-1"
           onChange={onFieldChange}
+          onEnter={sendRequest}
         />
         <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <Button

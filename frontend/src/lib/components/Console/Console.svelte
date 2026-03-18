@@ -11,7 +11,7 @@
   let filterUrl = $state("");
 
   const METHOD_OPTIONS = [
-    { value: "", name: "All methods" },
+    { value: "", name: "All" },
     { value: "GET", name: "GET" },
     { value: "POST", name: "POST" },
     { value: "PUT", name: "PUT" },
@@ -20,7 +20,7 @@
   ];
 
   const STATUS_OPTIONS = [
-    { value: "", name: "All statuses" },
+    { value: "", name: "All" },
     { value: "2xx", name: "2xx Success" },
     { value: "3xx", name: "3xx Redirect" },
     { value: "4xx", name: "4xx Client error" },
@@ -59,36 +59,62 @@
 
 <div class="flex h-full min-h-0 w-full flex-col gap-3 overflow-hidden p-3">
   <div
-    class="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-3 dark:border-neutral-700"
+    class="flex flex-wrap items-center gap-4 border-b border-neutral-200 pb-3 dark:border-neutral-700"
   >
     <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
 
-    <Input
-      size="sm"
-      class="min-w-52 flex-1"
-      type="text"
-      placeholder="Filter URL…"
-      bind:value={filterUrl}
-    />
+    <div class="flex flex-1 items-center gap-2">
+      <span class="text-[10px] font-bold whitespace-nowrap text-neutral-500 uppercase">URL</span>
+      <Input
+        size="sm"
+        class="w-full min-w-40"
+        type="text"
+        placeholder="Filter URL…"
+        bind:value={filterUrl}
+      />
+    </div>
 
-    <Select size="sm" bind:value={filterMethod} items={METHOD_OPTIONS} class="w-40" />
-    <Select size="sm" bind:value={filterStatus} items={STATUS_OPTIONS} class="w-44" />
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold whitespace-nowrap text-neutral-500 uppercase">Method</span>
+      <Select
+        size="sm"
+        bind:value={filterMethod}
+        items={METHOD_OPTIONS}
+        class="w-24"
+        placeholder=""
+      />
+    </div>
 
-    <span class="ml-auto text-xs text-neutral-500 dark:text-neutral-400">
-      {filtered.length} / {$historyStore.length}
-    </span>
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold whitespace-nowrap text-neutral-500 uppercase">Status</span>
+      <Select
+        size="sm"
+        bind:value={filterStatus}
+        items={STATUS_OPTIONS}
+        class="w-32"
+        placeholder=""
+      />
+    </div>
 
-    <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
-      Export HAR
-    </Button>
-    <Button
-      color="alternative"
-      size="sm"
-      onclick={() => historyStore.clear()}
-      disabled={$historyStore.length === 0}
-    >
-      Clear
-    </Button>
+    <div class="ml-auto flex items-center gap-3">
+      <span
+        class="text-[10px] font-bold whitespace-nowrap text-neutral-400 uppercase dark:text-neutral-500"
+      >
+        {filtered.length} / {$historyStore.length}
+      </span>
+
+      <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
+        Export HAR
+      </Button>
+      <Button
+        color="alternative"
+        size="sm"
+        onclick={() => historyStore.clear()}
+        disabled={$historyStore.length === 0}
+      >
+        Clear
+      </Button>
+    </div>
   </div>
 
   <div class="min-h-0 flex-1 overflow-y-auto pr-1">

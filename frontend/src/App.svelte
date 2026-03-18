@@ -180,7 +180,12 @@
         <TerminalOutline size="xs" />
         Console
         {#if $historyStore.length > 0}
-          <Badge color="primary">{$historyStore.length}</Badge>
+          <Badge
+            color="primary"
+            class="ml-1 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]"
+          >
+            {$historyStore.length}
+          </Badge>
         {/if}
       </Button>
     </div>
