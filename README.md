@@ -45,7 +45,7 @@ For detailed guides and full documentation, please visit our documentation site.
 
 ### Download
 
-Download the latest version for your platform from the [Releases](https://github.com/mat/yapla/releases) page.
+Download the latest version for your platform from the [Releases](https://github.com/raml-dev/solo/releases) page.
 
 ### Build from source
 
