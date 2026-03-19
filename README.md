@@ -68,8 +68,8 @@ If you prefer to manage dependencies manually, ensure you have [Go](https://go.d
 
 We welcome all contributions! Whether it's a bug report, a feature suggestion, or a pull request, please feel free to:
 
-- Open an [Issue](https://github.com/mat/yapla/issues) for bugs or ideas.
-- Submit a [Pull Request](https://github.com/mat/yapla/pulls) with your changes.
+- Open an [Issue](https://github.com/raml-dev/solo/issues) for bugs or ideas.
+- Submit a [Pull Request](https://github.com/raml-dev/solo/pulls) with your changes.
 
 ---
 
