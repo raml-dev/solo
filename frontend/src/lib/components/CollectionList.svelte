@@ -249,6 +249,7 @@
       body: req.body || "",
       bodyFormat: "json",
       headers,
+      auth: req.auth,
       settings: req.settings || {},
       preRequestScript: req.preRequestScript || "",
       postResponseScript: req.postResponseScript || ""
@@ -411,6 +412,7 @@
           body: "",
           bodyFormat: "json",
           headers: [],
+          auth: newReq.auth,
           settings: {}
         });
       }

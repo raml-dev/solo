@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"yapla/internal/auth"
 	"yapla/internal/collection"
 	"yapla/internal/configuration"
 	"yapla/internal/environment"
@@ -38,6 +39,7 @@ type App struct {
 	configManager      *configuration.ConfigurationManager
 	hostManager        *host.HostManager
 	scriptManager      *script.ScriptManager
+	authManager        *auth.AuthManager
 	runner             *runner.Runner
 	gitManager         *git.Manager
 	closingMu          sync.Mutex
@@ -49,6 +51,7 @@ type RequestOptions struct {
 	URL                string                                 `json:"url"`
 	Headers            map[string]any                         `json:"headers"`
 	Body               string                                 `json:"body"`
+	Auth               *collection.AuthConfiguration          `json:"auth,omitempty"`
 	Settings           *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript   string                                 `json:"preRequestScript,omitempty"`
 	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
@@ -66,6 +69,7 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 		Body:               options.Body,
 		Headers:            options.Headers,
 		Cookies:            nil,
+		Auth:               options.Auth,
 		Settings:           options.Settings,
 		PreRequestScript:   options.PreRequestScript,
 		PostResponseScript: options.PostResponseScript,
@@ -99,11 +103,14 @@ func NewApp() *App {
 		slog.Warn("FATAL: Failed to initialize configuration manager", "error", err)
 	}
 
+	configDir, _ := tools.GetOrCreateConfigDir()
+	am := auth.NewAuthManager(configDir)
+
 	hm := host.NewHostManager()
 
 	// ScriptManager is created without context here; context is set in startup()
 	sm := script.NewScriptManager(context.TODO())
-	service := requester.NewService(cm, sm, hm)
+	service := requester.NewService(cm, sm, hm, am)
 
 	return &App{
 		service:            service,
@@ -112,6 +119,7 @@ func NewApp() *App {
 		configManager:      cm,
 		hostManager:        hm,
 		scriptManager:      sm,
+		authManager:        am,
 		runner:             runner.NewRunner(service),
 		gitManager:         git.NewManager(),
 		closingMu:          sync.Mutex{},
@@ -126,6 +134,14 @@ func (a *App) startup(ctx context.Context) {
 	// Inject the real Wails context into ScriptManager so env.set() can emit events
 	if a.scriptManager != nil {
 		a.scriptManager.SetContext(ctx)
+	}
+
+	if (a.authManager != nil) {
+		a.authManager.SetContext(ctx)
+	}
+
+	if (a.service != nil) {
+		a.service.SetContext(ctx)
 	}
 
 	if a.configManager != nil {
@@ -170,6 +186,7 @@ func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 		Body:               options.Body,
 		Headers:            options.Headers,
 		Cookies:            nil,
+		Auth:               options.Auth,
 		Settings:           options.Settings,
 		PreRequestScript:   options.PreRequestScript,
 		PostResponseScript: options.PostResponseScript,

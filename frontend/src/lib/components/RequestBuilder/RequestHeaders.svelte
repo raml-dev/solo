@@ -31,7 +31,7 @@
 
   function addHeader() {
     const newHeader: Header = {
-      id: new Date(Date.now()).toUTCString(),
+      id: crypto.randomUUID(),
       key: "",
       value: "",
       enabled: true

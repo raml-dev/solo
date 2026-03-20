@@ -1,6 +1,7 @@
 <script lang="ts">
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
+  import RequestAuth from "$src/lib/components/RequestBuilder/RequestAuth.svelte";
   import RequestBody from "$src/lib/components/RequestBuilder/RequestBody.svelte";
   import RequestHeaders from "$src/lib/components/RequestBuilder/RequestHeaders.svelte";
   import RequestRunner from "$src/lib/components/RequestBuilder/RequestRunner.svelte";
@@ -13,7 +14,6 @@
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
-  import { historyStore } from "$src/lib/stores/historyStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
@@ -21,20 +21,17 @@
     tabStore,
     type TabResponse
   } from "$src/lib/stores/tabStore";
-  import { getStatusBadgeColor, getMethodBadgeClass } from "$src/lib/utils/http";
+  import { getStatusBadgeColor } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
-  import { main } from "$wails/go/models";
+  import { collection, main } from "$wails/go/models";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
-  import ChevronDownOutline from "flowbite-svelte-icons/ChevronDownOutline.svelte";
   import { onMount } from "svelte";
 
   interface Header {
@@ -50,6 +47,14 @@
   let requestBody = $state("");
   let requestBodyFormat: InputFormat = $state("none");
   let headers: Header[] = $state([]);
+  let auth = $state(
+    collection.AuthConfiguration.createFrom({
+      enabled: false,
+      tokenUrl: "",
+      template: {},
+      tokenPath: "access_token"
+    })
+  );
   let requestSettings: conf.RequestSettingsOverride = $state({});
   let requestName = $state("");
   let preRequestScript = $state("");
@@ -66,6 +71,7 @@
   let requestError: string | null = $state(null);
   let loading = $state(false);
   let responseTab = $state("body");
+  let responseHeaderView = $state("received");
   let showSaveDialog = $state(false);
   let showCurlModal = $state(false);
   let curlPreview = $state("");
@@ -104,6 +110,7 @@
     requestBody = tab.body || "";
     requestBodyFormat = (tab.bodyFormat as InputFormat) || "none";
     headers = tab.headers ? [...tab.headers] : [];
+    auth = collection.AuthConfiguration.createFrom(tab.auth);
     requestSettings = { ...(tab.settings || {}) };
     requestName = tab.label || "";
     preRequestScript = tab.preRequestScript || "";
@@ -120,6 +127,12 @@
     requestBody = "";
     requestBodyFormat = "json";
     headers = [];
+    auth = collection.AuthConfiguration.createFrom({
+      enabled: false,
+      tokenUrl: "",
+      template: {},
+      tokenPath: "access_token"
+    });
     requestSettings = {};
     requestName = "";
     preRequestScript = "";
@@ -147,6 +160,7 @@
       body: requestBody,
       bodyFormat: requestBodyFormat,
       headers,
+      auth,
       settings: requestSettings,
       preRequestScript,
       postResponseScript
@@ -296,11 +310,25 @@
         {} as Record<string, string>
       );
 
+    // Resolve Auth tokens
+    const resolvedAuth = collection.AuthConfiguration.createFrom({
+      ...auth,
+      tokenUrl: resolveEnvironmentTokens(auth.tokenUrl, sessionVars),
+      template: Object.entries(auth.template || {}).reduce(
+        (acc, [k, v]) => ({
+          ...acc,
+          [k]: resolveEnvironmentTokens(v, sessionVars)
+        }),
+        {} as Record<string, string>
+      )
+    });
+
     const requestOptions = new main.RequestOptions({
       body: resolvedBody,
       headers: resolvedHeaders,
       method,
       url: resolvedUrl,
+      auth: resolvedAuth,
       settings: requestSettings,
       preRequestScript: preRequestScript || "",
       postResponseScript: postResponseScript || ""
@@ -317,36 +345,18 @@
         statusText: "TBD",
         time: responseData.duration,
         headers: responseData.headers,
+        requestHeaders: responseData.requestHeaders,
         body: prettyPrint(rawBody, fmt)
       };
       if (activeBuilderTabId) {
         tabStore.updateTabResponse(activeBuilderTabId, response, null);
       }
-      historyStore.push({
-        collectionName: $activeTabState?.collectionName ?? null,
-        requestName: requestName || null,
-        request: { method, url: resolvedUrl, headers: resolvedHeaders, body: resolvedBody },
-        response: {
-          status: responseData.statusCode,
-          time: responseData.duration,
-          headers: responseData.headers,
-          body: rawBody
-        },
-        error: null
-      });
     } catch (error) {
       response = null;
       requestError = String(error);
       if (activeBuilderTabId) {
         tabStore.updateTabResponse(activeBuilderTabId, null, requestError);
       }
-      historyStore.push({
-        collectionName: $activeTabState?.collectionName ?? null,
-        requestName: requestName || null,
-        request: { method, url: resolvedUrl, headers: resolvedHeaders, body: resolvedBody },
-        response: null,
-        error: requestError
-      });
     } finally {
       loading = false;
     }
@@ -443,6 +453,7 @@
         verb: method,
         body: requestBody,
         headers: headersObj,
+        auth,
         settings: requestSettings
       });
       showSaveDialog = false;
@@ -545,6 +556,16 @@
       <Tabs bind:selected={requestPaneTab} tabStyle="underline" classes={{ content: "hidden" }}>
         <TabItem key="Headers" title="Headers" />
         <TabItem key="Body" title="Body" />
+        <TabItem key="Auth">
+          {#snippet titleSlot()}
+            <span class="inline-flex items-center gap-1">
+              <span>OAuth</span>
+              {#if auth.enabled}
+                <span class="h-1.5 w-1.5 rounded-full bg-primary-500" aria-hidden="true"></span>
+              {/if}
+            </span>
+          {/snippet}
+        </TabItem>
         <TabItem key="Scripts">
           {#snippet titleSlot()}
             <span class="inline-flex items-center gap-1">
@@ -589,7 +610,7 @@
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       {#if requestPaneTab === "Headers"}
         {#key $activeTabState.id}
-          <RequestHeaders {headers} onChange={onFieldChange} />
+          <RequestHeaders bind:headers onChange={onFieldChange} />
         {/key}
       {:else if requestPaneTab === "Body"}
         {#key $activeTabState.id}
@@ -602,6 +623,10 @@
               onChange={onFieldChange}
             />
           {/if}
+        {/key}
+      {:else if requestPaneTab === "Auth"}
+        {#key $activeTabState.id}
+          <RequestAuth bind:auth onChange={onFieldChange} />
         {/key}
       {:else if requestPaneTab === "Scripts"}
         {#key $activeTabState.id}
@@ -632,8 +657,8 @@
             {method}
             {url}
             body={requestBody}
-            {headers}
-            settings={requestSettings}
+            bind:headers
+            bind:settings={requestSettings}
             {preRequestScript}
             {postResponseScript}
           />
@@ -733,19 +758,68 @@
                 />
               </div>
             {:else}
-              <div class="h-full overflow-y-auto">
-                {#each Object.entries(response.headers) as [key, value] (key)}
-                  <div
-                    class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800"
-                  >
-                    <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300"
-                      >{key}:</span
+              <div class="flex h-full flex-col overflow-hidden">
+                <div
+                  class="shrink-0 border-b border-neutral-100 bg-neutral-50 px-3 py-1 dark:border-neutral-800 dark:bg-neutral-900/50"
+                >
+                  <div class="flex gap-4 text-xs font-semibold text-neutral-500 uppercase">
+                    <button
+                      class="pb-1 {responseHeaderView === 'received'
+                        ? 'border-b-2 border-primary-500 text-primary-600'
+                        : ''}"
+                      onclick={() => (responseHeaderView = "received")}
                     >
-                    <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400"
-                      >{value}</span
+                      Received
+                    </button>
+                    <button
+                      class="pb-1 {responseHeaderView === 'sent'
+                        ? 'border-b-2 border-primary-500 text-primary-600'
+                        : ''}"
+                      onclick={() => (responseHeaderView = "sent")}
                     >
+                      Sent
+                    </button>
                   </div>
-                {/each}
+                </div>
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                  {#if responseHeaderView === "received"}
+                    {#each Object.entries(response.headers) as [key, value] (key)}
+                      <div
+                        class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800"
+                      >
+                        <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300"
+                          >{key}:</span
+                        >
+                        <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400"
+                          >{value}</span
+                        >
+                      </div>
+                    {/each}
+                  {:else}
+                    {#each Object.entries(response.requestHeaders || {}) as [key, value] (key)}
+                      <div
+                        class="flex items-start gap-2 border-b border-neutral-100 px-3 py-1.5 text-sm dark:border-neutral-800"
+                      >
+                        <span class="shrink-0 font-medium text-neutral-700 dark:text-neutral-300"
+                          >{key}:</span
+                        >
+                        <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400"
+                          >{value}</span
+                        >
+                        {#if key.toLowerCase() === "authorization" && auth.enabled}
+                          <Badge color="indigo" size="xs" class="ml-auto shrink-0"
+                            >Auto-injected</Badge
+                          >
+                        {/if}
+                      </div>
+                    {/each}
+                    {#if !response.requestHeaders}
+                      <div class="p-4 text-center text-sm text-neutral-500">
+                        Request headers not available for this request.
+                      </div>
+                    {/if}
+                  {/if}
+                </div>
               </div>
             {/if}
           </div>
