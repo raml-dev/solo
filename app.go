@@ -327,8 +327,8 @@ func (a *App) ImportPostmanCollection(path string) error {
 		return fmt.Errorf("failed to import collection: %w", err)
 	}
 
-	// Salviamo la collection importata usando il manager esistente.
-	// UpdateCollection scriverà l'intero oggetto JSON su disco usando il suo Name.
+	// Save the imported collection using the existing manager.
+	// UpdateCollection will write the entire JSON object to disk using its Name.
 	if err := a.collectionManager.UpdateCollection(*coll); err != nil {
 		return fmt.Errorf("failed to save imported collection: %w", err)
 	}

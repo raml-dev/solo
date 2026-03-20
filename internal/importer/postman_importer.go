@@ -22,12 +22,12 @@ func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
 	slog.Info("Importing Postman collection", "path", path)
 	fileData, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("impossibile leggere il file: %w", err)
+		return nil, fmt.Errorf("unable to read file: %w", err)
 	}
 
 	var pc postmanCollection
 	if err := json.Unmarshal(fileData, &pc); err != nil {
-		return nil, fmt.Errorf("errore nel parsing della collection Postman: %w", err)
+		return nil, fmt.Errorf("error parsing Postman collection: %w", err)
 	}
 
 	slog.Debug("Postman collection unmarshaled", "name", pc.Info.Name, "items_count", len(pc.Item))
@@ -203,7 +203,7 @@ func (u *postmanURL) UnmarshalJSON(data []byte) error {
 		if obj.Raw != "" {
 			u.Raw = obj.Raw
 		} else {
-			// Ricostruisce l'URL se il campo "raw" non è presente
+			// Reconstructs the URL if the "raw" field is not present
 			urlStr := ""
 			if obj.Protocol != "" {
 				urlStr += obj.Protocol + "://"
@@ -214,12 +214,11 @@ func (u *postmanURL) UnmarshalJSON(data []byte) error {
 			if len(obj.Path) > 0 {
 				urlStr += "/" + strings.Join(obj.Path, "/")
 			}
-			
-			// Aggiungiamo le query string
+
+			// Add query strings
 			if len(obj.Query) > 0 {
 				qs := []string{}
-				for _, q := range obj.Query {
-					if q.Value != "" {
+				for _, q := range obj.Query {					if q.Value != "" {
 						qs = append(qs, q.Key+"="+q.Value)
 					} else {
 						qs = append(qs, q.Key)

@@ -126,8 +126,8 @@
       {#if valueSource === "session"}
         <div class="mt-2 flex flex-col gap-1">
           <p class="text-xs text-neutral-500 dark:text-neutral-400">
-            Session override attivo: modificando qui cambi l'env salvato, ma il valore effettivo
-            resta quello di sessione finché non la svuoti.
+            Session override active: modifying here changes the saved environment value, but the
+            effective value remains the session one until you clear it.
           </p>
           <Button color="light" size="xs" onclick={clearSessionOverride}>Use env value</Button>
         </div>

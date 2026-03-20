@@ -30,12 +30,12 @@ type postmanEnvironmentValue struct {
 func (p *PostmanEnvironmentImporter) Import(path string) (*environment.Environment, error) {
 	fileData, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("impossibile leggere il file: %w", err)
+		return nil, fmt.Errorf("unable to read file: %w", err)
 	}
 
 	var payload postmanEnvironment
 	if err := json.Unmarshal(fileData, &payload); err != nil {
-		return nil, fmt.Errorf("errore nel parsing dell'environment Postman: %w", err)
+		return nil, fmt.Errorf("error parsing Postman environment: %w", err)
 	}
 
 	if payload.Name == "" {
