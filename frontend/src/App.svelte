@@ -9,6 +9,7 @@
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { historyStore } from "$src/lib/stores/historyStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { activeTab, tabStore } from "$src/lib/stores/tabStore";
   import { ForceQuit } from "$wails/go/main/App";
@@ -124,6 +125,62 @@
       } else {
         ForceQuit();
       }
+    });
+
+    EventsOn("auth:token-refreshed", (data: any) => {
+      if (data.error) {
+        notifications.error("OAuth2 Token Refresh Failed", `Provider returned status ${data.status}`);
+      } else {
+        notifications.success("OAuth2 Token Refreshed", "A new access token has been acquired.");
+      }
+
+      // Log to history store (Console)
+      historyStore.push({
+        collectionName: null,
+        requestName: "[Auth] Token Refresh",
+        request: {
+          method: data.method || "POST",
+          url: data.url || "",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: JSON.stringify(data.params || {}, null, 2)
+        },
+        response: data.error ? null : {
+          status: data.status,
+          time: 0,
+          headers: { "Content-Type": "application/json" },
+          body: data.body || ""
+        },
+        error: data.error ? `Auth request failed with status ${data.status}: ${data.body}` : null
+      });
+    });
+
+    EventsOn("request:executed", (data: any) => {
+      const opts = data.options || {};
+      const resp = data.response;
+      const currentTab = $activeTab;
+
+      historyStore.push({
+        collectionName: currentTab?.collectionName ?? null,
+        requestName: currentTab?.label ?? null,
+        request: {
+          method: opts.method || "GET",
+          url: opts.url || "",
+          headers: Object.entries(opts.headers || {}).reduce(
+            (acc, [k, v]) => ({ ...acc, [k]: String(v) }),
+            {} as Record<string, string>
+          ),
+          body: opts.body || ""
+        },
+        response: resp
+          ? {
+              status: resp.statusCode,
+              time: resp.duration,
+              headers: resp.headers,
+              body: resp.body
+            }
+          : null,
+        error: data.error || null
+      });
     });
 
     return () => {

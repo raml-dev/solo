@@ -19,6 +19,7 @@ type Request struct {
 	BodyType            string                                 `json:"bodyType"`
 	Headers             map[string]string                      `json:"headers"`
 	Cookies             map[string]string                      `json:"cookies"`
+	Auth                *AuthConfiguration                     `json:"auth,omitempty"`
 	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
 	PostResponseScript  string                                 `json:"postResponseScript,omitempty"`

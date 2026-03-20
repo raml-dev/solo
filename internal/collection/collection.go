@@ -14,14 +14,15 @@ import (
 // NOTE: This type is not safe for concurrent use.
 // If concurrent access is needed in the future, add sync.RWMutex.
 type Collection struct {
-	CreationTimestamp   time.Time `json:"creationTimestamp"`
-	LastUpdateTimestamp time.Time `json:"lastUpdateTimestamp"`
-	Requests            []Request `json:"requests"`
-	Name                string    `json:"name"`
-	Id                  string    `json:"id"`
-	GitRemote           string    `json:"gitRemote,omitempty"`
-	GitPath             string    `json:"gitPath,omitempty"`
-	GitProvider         string    `json:"gitProvider,omitempty"`
+	CreationTimestamp   time.Time         `json:"creationTimestamp"`
+	LastUpdateTimestamp time.Time         `json:"lastUpdateTimestamp"`
+	Requests            []Request         `json:"requests"`
+	Name                string            `json:"name"`
+	Id                  string            `json:"id"`
+	Auth                AuthConfiguration `json:"auth,omitempty"`
+	GitRemote           string            `json:"gitRemote,omitempty"`
+	GitPath             string            `json:"gitPath,omitempty"`
+	GitProvider         string            `json:"gitProvider,omitempty"`
 }
 
 func NewCollection(name string) Collection {
@@ -119,6 +120,12 @@ func (c *Collection) UpdateRequest(updated Request) error {
 
 		updatedField := vUpdated.Field(i)
 		existingField := vExisting.Field(i)
+
+		// Special handling for Auth pointer to ensure it's always copied if different
+		if fieldName == "Auth" {
+			existingField.Set(updatedField)
+			continue
+		}
 
 		if !reflect.DeepEqual(updatedField.Interface(), existingField.Interface()) {
 			existingField.Set(updatedField)

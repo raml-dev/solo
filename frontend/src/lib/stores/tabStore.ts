@@ -16,6 +16,7 @@ export interface TabResponse {
   statusText: string;
   time: number;
   headers: Record<string, string>;
+  requestHeaders?: Record<string, string>;
   body: string;
 }
 
@@ -36,6 +37,7 @@ export interface TabState {
   body: string;
   bodyFormat: string;
   headers: TabHeader[];
+  auth: collection.AuthConfiguration;
   settings: conf.RequestSettingsOverride;
   preRequestScript: string;
   postResponseScript: string;
@@ -65,6 +67,12 @@ function makeEmptyTab(): TabState {
     body: "",
     bodyFormat: "json",
     headers: [],
+    auth: collection.AuthConfiguration.createFrom({
+      enabled: false,
+      tokenUrl: "",
+      template: {},
+      tokenPath: "access_token"
+    }),
     settings: {},
     preRequestScript: "",
     postResponseScript: "",
@@ -95,6 +103,7 @@ function createTabStore() {
         body: string;
         bodyFormat: string;
         headers: TabHeader[];
+        auth?: collection.AuthConfiguration;
         settings: conf.RequestSettingsOverride;
         preRequestScript?: string;
         postResponseScript?: string;
@@ -118,6 +127,13 @@ function createTabStore() {
           tabToReplace = state.tabs.find((t) => t.isPreview);
         }
 
+        const defaultAuth = collection.AuthConfiguration.createFrom({
+          enabled: false,
+          tokenUrl: "",
+          template: {},
+          tokenPath: "access_token"
+        });
+
         if (tabToReplace) {
           return {
             ...state,
@@ -136,6 +152,7 @@ function createTabStore() {
                     body: meta.body,
                     bodyFormat: meta.bodyFormat,
                     headers: meta.headers,
+                    auth: meta.auth ? collection.AuthConfiguration.createFrom(meta.auth) : defaultAuth,
                     settings: meta.settings,
                     preRequestScript: meta.preRequestScript ?? "",
                     postResponseScript: meta.postResponseScript ?? "",
@@ -165,6 +182,7 @@ function createTabStore() {
           body: meta.body,
           bodyFormat: meta.bodyFormat,
           headers: meta.headers,
+          auth: meta.auth ? collection.AuthConfiguration.createFrom(meta.auth) : defaultAuth,
           settings: meta.settings,
           preRequestScript: meta.preRequestScript ?? "",
           postResponseScript: meta.postResponseScript ?? "",
@@ -223,6 +241,7 @@ function createTabStore() {
           | "body"
           | "bodyFormat"
           | "headers"
+          | "auth"
           | "settings"
           | "verb"
           | "label"
@@ -290,6 +309,7 @@ function createTabStore() {
             verb: tab.verb,
             body: tab.body,
             headers: headersObj,
+            auth: tab.auth,
             settings: tab.settings,
             preRequestScript: tab.preRequestScript,
             postResponseScript: tab.postResponseScript,
