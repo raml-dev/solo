@@ -48,6 +48,10 @@
     autocompleteState = state;
   }
 
+  function syncScroll() {
+    scrollLeft = inputEl?.scrollLeft ?? 0;
+  }
+
   $effect(() => {
     if (!inputEl) return;
 
@@ -112,7 +116,12 @@
     }
   }
 
-  let paddingClass = $derived(size === "sm" ? "py-[7px] px-3" : "py-[11px] px-4");
+  let paddingClass = $derived(
+    size === "sm" ? "py-1 px-2" : size === "lg" ? "py-3 px-3" : "py-2.5 px-2.5"
+  );
+  let fontClass = $derived(
+    size === "sm" ? "text-xs leading-4" : size === "lg" ? "text-base leading-6" : "text-sm leading-5"
+  );
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -122,7 +131,7 @@
     bind:elementRef={inputEl}
     type="text"
     {size}
-    class="![color:transparent] caret-neutral-900 dark:caret-neutral-100 font-sans text-sm antialiased tracking-normal leading-5 {paddingClass} {inputClass}"
+    class="![color:transparent] caret-neutral-900 dark:caret-neutral-100 font-sans antialiased tracking-normal {fontClass} {paddingClass} {inputClass}"
     bind:value
     {disabled}
     role="combobox"
@@ -133,15 +142,18 @@
       ? `${autocompleteListboxId}-option-${autocompleteState.activeIndex}`
       : undefined}
     oninput={() => {
-      scrollLeft = inputEl?.scrollLeft ?? 0;
+      syncScroll();
       onChange?.();
     }}
-    onscroll={() => (scrollLeft = inputEl?.scrollLeft ?? 0)}
+    onscroll={syncScroll}
+    onkeyup={syncScroll}
+    onclick={syncScroll}
+    onfocus={syncScroll}
     onkeydown={handleKeydown}
   />
   <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
     <div
-      class="flex font-sans whitespace-pre text-sm antialiased tracking-normal leading-5 {paddingClass}"
+      class="flex font-sans whitespace-pre antialiased tracking-normal border border-transparent {fontClass} {paddingClass}"
       style={`transform: translateX(-${scrollLeft}px);`}
     >
       {#if !value && placeholder}
