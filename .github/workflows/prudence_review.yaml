@@ -26,7 +26,7 @@ jobs:
             })
 
       - name: Checkout Prudence Agent
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: raml-dev/prudence
           path: prudence-agent
