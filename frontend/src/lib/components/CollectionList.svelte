@@ -9,6 +9,10 @@
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore";
+  import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
+  import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
+  import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
   import {
     ExportCollection,
     GetGitCollectionStatus,
@@ -37,7 +41,7 @@
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -52,6 +56,8 @@
   let showDeleteConfirmDialog = $state(false);
   let showDeleteRequestConfirmDialog = $state(false);
   let showImportSelector = $state(false);
+
+  let editingRequestNameInputEl: HTMLInputElement | undefined = $state();
 
   const collectionModalScope = `collections-${Math.random().toString(36).slice(2)}`;
   const newCollectionModalId = `${collectionModalScope}-new`;
@@ -123,9 +129,8 @@
   let deleteTarget: string | null = $state(null);
   let deleteRequestTarget: string | null = null;
   let deleteRequestCollectionName: string | null = null;
-  let expandedCollections = $state(new SvelteSet<string>());
+  let expandedCollections = new SvelteSet<string>();
   let searchQuery = $state("");
-  let activeMenu: string | null = $state(null);
   let isCollapsed = $state(false);
   let gitStatusCollectionId: string | null = $state(null);
   let gitStatusCollectionName: string | null = $state(null);
@@ -256,11 +261,15 @@
     return editingRequestId === requestId && editingRequestCollectionName === collectionName;
   }
 
-  function startRequestRename(e: Event, req: collection.Request, collectionName: string) {
+  async function startRequestRename(e: Event, req: collection.Request, collectionName: string) {
     e.stopPropagation();
     editingRequestId = req.id;
     editingRequestCollectionName = collectionName;
     editingRequestName = req.name || "";
+
+    await tick()
+    editingRequestNameInputEl?.focus()
+    editingRequestNameInputEl?.select()
   }
 
   function cancelRequestRename() {
@@ -299,7 +308,6 @@
     renameTarget = collectionName;
     renameCollectionName = collectionName;
     showRenameCollectionDialog = true;
-    activeMenu = null;
   }
 
   function closeNewCollectionDialog() {
@@ -364,7 +372,6 @@
   function handleDeleteCollection(collectionName: string) {
     deleteTarget = collectionName;
     showDeleteConfirmDialog = true;
-    activeMenu = null;
   }
 
   function closeDeleteConfirmDialog() {
@@ -433,12 +440,6 @@
     showDeleteRequestConfirmDialog = false;
     deleteRequestTarget = null;
     deleteRequestCollectionName = null;
-  }
-
-  function clearMenu() {
-    if (activeMenu) {
-      activeMenu = null;
-    }
   }
 
   function toggleCollapse() {
@@ -568,7 +569,6 @@
     } catch (err) {
       notifications.error("Failed to export collection", String(err));
     }
-    activeMenu = null;
   }
 
   async function handleSelectImportFormat(format: "postman" | "bruno" | "openapi") {
@@ -633,11 +633,7 @@
     }
   });
 
-  onMount(async () => {
-    document.addEventListener("click", clearMenu);
-  });
   onDestroy(async () => {
-    document.removeEventListener("click", clearMenu);
     modalStack.close(newCollectionModalId);
     modalStack.close(renameCollectionModalId);
     modalStack.close(deleteCollectionModalId);
@@ -735,18 +731,21 @@
               role="button"
               tabindex="0"
             >
-              <Button
-                color="light"
-                size="xs"
-                class="h-6 w-6 p-0 text-xs"
+              <button
+                class="h-6 w-6 p-0 text-xs hover:cursor-pointer dark:text-white"
                 onclick={(e: MouseEvent) => {
                   e.stopPropagation();
                   toggleCollection(collection.name);
                 }}
                 aria-label="Toggle collection"
               >
-                {isExpanded(collection.name) ? "▾" : "▸"}
-              </Button>
+                {#if isExpanded(collection.name)}
+                <AngleDownOutline />
+                {:else}
+                <AngleRightOutline />
+                {/if}
+
+              </button>
 
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
@@ -776,9 +775,8 @@
               </div>
 
               <div class="flex items-center gap-1">
-                <Button
-                  color="light"
-                  size="xs"
+                <button
+                  class="hover:cursor-pointer"
                   onclick={(e: MouseEvent) => {
                     e.stopPropagation();
                     handleAddRequest(e, collection.name);
@@ -786,18 +784,17 @@
                   title="Add request"
                   aria-label="Add request"
                 >
-                  +
-                </Button>
-                <Button
+                  <PlusOutline />
+                </button>
+                <button
                   id="collection-menu-{collection.id}"
-                  color="light"
-                  size="xs"
+                  class="ml-1 hover:cursor-pointer"
                   title="More actions"
                   aria-label="More actions"
                   onclick={(e: MouseEvent) => e.stopPropagation()}
                 >
-                  •••
-                </Button>
+                  <DotsHorizontalOutline />
+                </button>
                 <Dropdown triggeredBy="#collection-menu-{collection.id}" class="z-50 w-40">
                   {#if collection.gitRemote}
                     <DropdownItem
@@ -805,7 +802,6 @@
                       onclick={() => {
                         gitStatusCollectionId = collection.id;
                         gitStatusCollectionName = collection.name;
-                        activeMenu = null;
                       }}
                     >
                       Git status
@@ -815,7 +811,6 @@
                       disabled={syncingCollections.has(collection.id)}
                       onclick={() => {
                         handleSync(collection.id);
-                        activeMenu = null;
                       }}
                     >
                       {syncingCollections.has(collection.id) ? "Syncing…" : "Sync with Git"}
@@ -833,7 +828,6 @@
                     class="text-gray-900 dark:text-white"
                     onclick={() => {
                       openRenameCollection(collection.name);
-                      activeMenu = null;
                     }}
                   >
                     Rename
@@ -842,7 +836,6 @@
                     class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
                     onclick={() => {
                       handleDeleteCollection(collection.name);
-                      activeMenu = null;
                     }}
                   >
                     Delete
@@ -872,16 +865,16 @@
                       role="button"
                       tabindex="0"
                     >
-                      <span
-                        class={getMethodBadgeClass(request.verb)}
-                      >
+                      <span class={getMethodBadgeClass(request.verb)}>
                         {request.verb}
-                      </span>                      {#if isEditingRequest(request.id, collection.name)}
+                      </span>
+                      {#if isEditingRequest(request.id, collection.name)}
                         <Input
                           type="text"
                           size="sm"
                           class="min-w-0 flex-1"
                           bind:value={editingRequestName}
+                          bind:elementRef={editingRequestNameInputEl}
                           autofocus
                           onclick={(e) => e.stopPropagation()}
                           onkeydown={(e) => {
@@ -907,19 +900,36 @@
                           {request.name}
                         </span>
                       {/if}
-                      <Button
-                        color="light"
-                        size="xs"
-                        class="invisible group-hover:visible"
+                      <button
+                        class="invisible group-hover:visible hover:cursor-pointer"
+                        id="request-menu-{request.id}"
                         onclick={(e: MouseEvent) => {
                           e.stopPropagation();
-                          handleDeleteRequest(collection.name, request.id);
+
                         }}
-                        title="Delete request"
-                        aria-label="Delete request"
+                        title="Request actions"
+                        aria-label="Request actions"
                       >
-                        ×
-                      </Button>
+                        <DotsHorizontalOutline />
+                      </button>
+                      <Dropdown triggeredBy="#request-menu-{request.id}" class="z-50 w-40">
+                        <DropdownItem
+                          class="text-gray-900 dark:text-white"
+                          onclick={(e) => {
+                            startRequestRename(e, request, collection.name)
+                          }}
+                        >
+                          Rename
+                        </DropdownItem>
+                        <DropdownItem
+                          class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+                          onclick={() => {
+                            handleDeleteRequest(collection.name, request.id);
+                          }}
+                        >
+                          Delete
+                        </DropdownItem>
+                      </Dropdown>
                     </div>
                   {/each}
                 {/if}
@@ -1199,7 +1209,7 @@
               {:else}
                 <div class="flex gap-2">
                   <Select bind:value={curlTargetCollection} class="flex-1">
-                    {#each collections as coll}
+                    {#each collections as coll (coll.id)}
                       <option value={coll.name}>{coll.name}</option>
                     {/each}
                   </Select>
