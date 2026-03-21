@@ -59,6 +59,6 @@ description = "Add license headers to all files"
 run = '''
 echo "📄 Adding license headers..."
 addlicense -c "raml-dev" -y "2026-present" -v -s -l GPL-3.0-only ./frontend ./internal go.mod go.sum *.go\
--ignore frontend/node_modules/* *.toml
+-ignore frontend/node_modules/*
 echo "✅ License headers added!"
 '''
