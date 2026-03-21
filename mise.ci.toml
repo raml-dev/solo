@@ -9,19 +9,28 @@ run = "npm install"
 dir = "{{ config_root }}/frontend"
 run = "npm run lint"
 
+[tasks."ci:fe:build"]
+dir = "{{ config_root }}/frontend"
+depends = "ci:fe:build-wails-module"
+run = "npm run build"
+
 [tasks."ci:fe:build-wails-module"]
 dir = "{{ config_root }}"
-run = "wails generate module"
+run = """
+mkdir -p frontend/dist/assets
+touch frontend/dist/index.html
+wails generate module
+"""
 
 [tasks."ci:fe:check"]
 dir = "{{ config_root }}/frontend"
-depends = "ci:fe:build-wails-module"
+depends = "ci:fe:build"
 run = "npm run check"
 
 [tasks."ci:be:build"]
 run = "wails build -tags webkit2_41"
 
-[tasks."ci:be:test"]
+[tasks."ci:be:tests"]
 run = "go test -v ./..."
 
 # Development task definitions
