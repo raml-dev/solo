@@ -25,8 +25,9 @@ func TestApp_ConfigurationIntegration(t *testing.T) {
 
 	// 2. Initialize App
 	app := NewApp()
+
 	// Mock startup context if needed, but here we just test logic
-	app.startup(context.Background())
+	app.startup(context.TODO())
 
 	// 3. Create a slow mock server
 	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -301,7 +301,8 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 	}
 
 	// Emit event to frontend for console/history
-	if s.ctx != nil {
+	//TODO: absolutely no
+	if s.ctx != context.TODO() {
 		finalReqHeaders := opts.Headers
 		// If we have the actual executed request, use its headers
 		if req != nil {
