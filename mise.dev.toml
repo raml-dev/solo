@@ -1,3 +1,6 @@
+# Copyright 2026-present raml-dev
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 [tools]
 pnpm = "10.32.1"
 "npm:@mariozechner/pi-coding-agent" = "0.58.1"
@@ -50,3 +53,11 @@ if [ ! -d {{config_root}}/.mcp/flowbite-svelte-mcp ]; then
 fi
 cd {{config_root}}/.mcp/flowbite-svelte-mcp && pnpm install && pnpm run copy:llm && pnpm run build
 """
+
+[tasks.add-license]
+description = "Add license headers to all files"
+run = '''
+echo "📄 Adding license headers..."
+addlicense -c "raml-dev" -y "2026-present" -v -s -l GPL-2.0-or-later -ignore node_modules/* -ignore **/*.md -ignore .mcp/* -ignore .vscode -ignore agents/* -ignore .venv/* -ignore *.toml .
+echo "✅ License headers added!"
+'''
