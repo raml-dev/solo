@@ -120,10 +120,14 @@
     size === "sm" ? "py-1 px-2" : size === "lg" ? "py-3 px-3" : "py-2.5 px-2.5"
   );
   let fontClass = $derived(
-    size === "sm" ? "text-xs leading-4" : size === "lg" ? "text-base leading-6" : "text-sm leading-5"
+    size === "sm"
+      ? "text-xs leading-4"
+      : size === "lg"
+        ? "text-base leading-6"
+        : "text-sm leading-5"
   );
 </script>
-
+<!-- TODO a11y -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="relative {wrapperClass}" onclick={focusInput}>
@@ -131,7 +135,7 @@
     bind:elementRef={inputEl}
     type="text"
     {size}
-    class="![color:transparent] caret-neutral-900 dark:caret-neutral-100 font-sans antialiased tracking-normal {fontClass} {paddingClass} {inputClass}"
+    class="font-sans tracking-normal text-transparent! antialiased caret-neutral-900 dark:caret-neutral-100 {fontClass} {paddingClass} {inputClass}"
     bind:value
     {disabled}
     role="combobox"
@@ -153,7 +157,7 @@
   />
   <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
     <div
-      class="flex font-sans whitespace-pre antialiased tracking-normal border border-transparent {fontClass} {paddingClass}"
+      class="flex border border-transparent font-sans tracking-normal whitespace-pre antialiased {fontClass} {paddingClass}"
       style={`transform: translateX(-${scrollLeft}px);`}
     >
       {#if !value && placeholder}

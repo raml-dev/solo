@@ -32,6 +32,7 @@ func NewCollection(name string) Collection {
 		CreationTimestamp:   tsp,
 		LastUpdateTimestamp: tsp,
 		Name:                name,
+    Requests:            make([]Request, 0),
 	}
 }
 
