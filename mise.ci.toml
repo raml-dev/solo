@@ -15,3 +15,10 @@ run = "wails build"
 
 [tasks."ci:be:test"]
 run = "go test -v ./..."
+
+# Development task definitions
+[tasks."ci:check-license"]
+description = "Check license headers in all files"
+run = """
+addlicense -c "raml-dev" -v -l GPL-2.0-or-later --check .
+"""
