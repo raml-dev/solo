@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+
 <script lang="ts">
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";

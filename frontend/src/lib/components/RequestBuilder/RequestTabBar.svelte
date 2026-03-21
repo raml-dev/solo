@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+
 <script lang="ts">
   import Button from "flowbite-svelte/Button.svelte";
   import CloseButton from "flowbite-svelte/CloseButton.svelte";

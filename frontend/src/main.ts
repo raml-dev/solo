@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026-present raml-dev
+ * SPDX-License-Identifier: GPL-3.0-only
+ */
+
 import "$src/app.css";
 import App from "$src/App.svelte";
 import "$src/assets/styles/codemirror-theme.css";
