@@ -9,23 +9,23 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"solo/internal/auth"
+	"solo/internal/collection"
+	"solo/internal/configuration"
+	"solo/internal/environment"
+	"solo/internal/exporter"
+	"solo/internal/git"
+	"solo/internal/host"
+	"solo/internal/importer"
+	"solo/internal/requester"
+	"solo/internal/runner"
+	"solo/internal/script"
+	"solo/internal/theme"
+	"solo/internal/tools"
+	"solo/internal/troubleshooting"
 	"strings"
 	"sync"
 	"time"
-	"yapla/internal/auth"
-	"yapla/internal/collection"
-	"yapla/internal/configuration"
-	"yapla/internal/environment"
-	"yapla/internal/exporter"
-	"yapla/internal/git"
-	"yapla/internal/host"
-	"yapla/internal/importer"
-	"yapla/internal/requester"
-	"yapla/internal/runner"
-	"yapla/internal/script"
-	"yapla/internal/theme"
-	"yapla/internal/tools"
-	"yapla/internal/troubleshooting"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -136,11 +136,11 @@ func (a *App) startup(ctx context.Context) {
 		a.scriptManager.SetContext(ctx)
 	}
 
-	if (a.authManager != nil) {
+	if a.authManager != nil {
 		a.authManager.SetContext(ctx)
 	}
 
-	if (a.service != nil) {
+	if a.service != nil {
 		a.service.SetContext(ctx)
 	}
 
@@ -318,7 +318,7 @@ func (a *App) SetSelectedEnvironment(name string) error {
 
 // Collection Management Methods
 
-// ImportPostmanCollection imports a Postman v2.1 collection file into Yapla.
+// ImportPostmanCollection imports a Postman v2.1 collection file into Solo.
 func (a *App) ImportPostmanCollection(path string) error {
 	imp := importer.NewPostmanImporter()
 
@@ -337,7 +337,7 @@ func (a *App) ImportPostmanCollection(path string) error {
 }
 
 // ImportOpenAPICollection imports an OpenAPI 3.x or Swagger 2.x collection
-// (JSON or YAML) into Yapla.
+// (JSON or YAML) into Solo.
 // Returns a (possibly empty) list of warning messages to show to the user.
 func (a *App) ImportOpenAPICollection(path string) ([]string, error) {
 	imp := importer.NewOpenAPIImporter()
@@ -370,7 +370,7 @@ func (a *App) ImportCurlRequest(curlString, collectionName string) error {
 	return nil
 }
 
-// ExportCollection opens a native save dialog and writes the collection as Yapla-native JSON.
+// ExportCollection opens a native save dialog and writes the collection as Solo-native JSON.
 func (a *App) ExportCollection(collectionName string) error {
 	coll, err := a.collectionManager.LoadCollection(collectionName)
 	if err != nil {
@@ -398,7 +398,7 @@ func (a *App) ExportCollection(collectionName string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// ExportEnvironment opens a native save dialog and writes the environment as Yapla-native JSON.
+// ExportEnvironment opens a native save dialog and writes the environment as Solo-native JSON.
 func (a *App) ExportEnvironment(environmentName string) error {
 	env, err := a.environmentManager.LoadEnvironment(environmentName)
 	if err != nil {
@@ -426,10 +426,10 @@ func (a *App) ExportEnvironment(environmentName string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// ImportYaplaCollection imports a Yapla-native collection JSON file.
+// ImportSoloCollection imports a Solo-native collection JSON file.
 // If overwrite is false and a collection with the same name already exists,
 // returns an error of the form "collection <name> already exists".
-func (a *App) ImportYaplaCollection(path string, overwrite bool) error {
+func (a *App) ImportSoloCollection(path string, overwrite bool) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
@@ -437,7 +437,7 @@ func (a *App) ImportYaplaCollection(path string, overwrite bool) error {
 
 	var coll collection.Collection
 	if err := json.Unmarshal(data, &coll); err != nil {
-		return fmt.Errorf("invalid Yapla collection file: %w", err)
+		return fmt.Errorf("invalid %s collection file: %w", tools.APP_NAME, err)
 	}
 	if coll.Name == "" {
 		return fmt.Errorf("collection file has no name field")
@@ -456,10 +456,10 @@ func (a *App) ImportYaplaCollection(path string, overwrite bool) error {
 	return nil
 }
 
-// ImportYaplaEnvironment imports a Yapla-native environment JSON file.
+// ImportSoloEnvironment imports a Solo-native environment JSON file.
 // If overwrite is false and an environment with the same name already exists,
 // returns an error of the form "environment <name> already exists".
-func (a *App) ImportYaplaEnvironment(path string, overwrite bool) error {
+func (a *App) ImportSoloEnvironment(path string, overwrite bool) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
@@ -467,7 +467,7 @@ func (a *App) ImportYaplaEnvironment(path string, overwrite bool) error {
 
 	var env environment.Environment
 	if err := json.Unmarshal(data, &env); err != nil {
-		return fmt.Errorf("invalid Yapla environment file: %w", err)
+		return fmt.Errorf("invalid %s environment file: %w", tools.APP_NAME, err)
 	}
 	if env.Name == "" {
 		return fmt.Errorf("environment file has no name field")
@@ -526,7 +526,7 @@ func (a *App) ExportLogsZip() (bool, error) {
 		return false, fmt.Errorf("failed to build logs archive: %w", err)
 	}
 
-	defaultFilename := fmt.Sprintf("yapla-logs-%s.zip", time.Now().Format("20060102-150405"))
+	defaultFilename := fmt.Sprintf("%s-logs-%s.zip", tools.APP_NAME, time.Now().Format("20060102-150405"))
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:           "Export Logs",
 		DefaultFilename: defaultFilename,
@@ -802,7 +802,7 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 	hash := sha1.Sum([]byte(url))
 	storageDirName := fmt.Sprintf("%x", hash[:8])
 
-	// Determine local target directory: ~/.yapla/git_storage/<hash>
+	// Determine local target directory: ~/.solo/git_storage/<hash>
 	configRoot, err := tools.GetOrCreateConfigDir()
 	if err != nil {
 		return err
@@ -813,7 +813,7 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 		return err
 	}
 
-	// Detect format and create/update the local Yapla collection metadata
+	// Detect format and create/update the local Solo collection metadata
 	var coll collection.Collection
 
 	// Load the file content to create the metadata
@@ -832,7 +832,7 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 		}
 		coll = *c
 	} else {
-		// File (Yapla or Postman)
+		// File (Solo or Postman)
 		data, err := os.ReadFile(fullPath)
 		if err != nil {
 			return err
@@ -840,15 +840,15 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 
 		slog.Debug("File read from Git repo", "path", fullPath, "size", len(data))
 
-		// Try to detect format by attempting a Yapla-native unmarshal first.
-		// Yapla files contain "creationTimestamp" and "requests" fields;
+		// Try to detect format by attempting a Solo-native unmarshal first.
+		// Solo files contain "creationTimestamp" and "requests" fields;
 		// Postman files contain "info" and "item" fields instead.
-		// NOTE: "yapla_version" does NOT exist in the Collection struct,
+		// NOTE: "solo_version" does NOT exist in the Collection struct,
 		// so it must never be used as a detection key.
-		var tryYapla collection.Collection
-		if err := json.Unmarshal(data, &tryYapla); err == nil && tryYapla.Name != "" && tryYapla.Id != "" {
-			slog.Debug("Detected Yapla native format", "name", tryYapla.Name, "requests", len(tryYapla.Requests))
-			coll = tryYapla
+		var trySolo collection.Collection
+		if err := json.Unmarshal(data, &trySolo); err == nil && trySolo.Name != "" && trySolo.Id != "" {
+			slog.Debug("Detected native format", "name", trySolo.Name, "requests", len(trySolo.Requests))
+			coll = trySolo
 		} else {
 			slog.Debug("Detected Postman format, calling importer")
 			// Postman
@@ -887,7 +887,7 @@ func (a *App) SyncGitCollection(collectionId string) error {
 	}
 	gitFilePath := filepath.Join(gitRepoDir, targetColl.GitPath)
 
-	// 3. Save current Yapla state to the file in the Git repo before syncing
+	// 3. Save current Solo state to the file in the Git repo before syncing
 	// This ensures we push our latest local changes
 	jsonData, err := json.MarshalIndent(targetColl, "", "  ")
 	if err != nil {
@@ -902,7 +902,7 @@ func (a *App) SyncGitCollection(collectionId string) error {
 		return err
 	}
 
-	// 5. Reload the collection from the synced git file to update local Yapla state
+	// 5. Reload the collection from the synced git file to update local Solo state
 	updatedData, err := os.ReadFile(gitFilePath)
 	if err == nil {
 		var updatedColl collection.Collection
@@ -930,7 +930,7 @@ func (a *App) SetupGitEnvironment(url, remotePath, localName, providerType strin
 	hash := sha1.Sum([]byte(url))
 	storageDirName := fmt.Sprintf("env_%x", hash[:8])
 
-	// Determine local target directory: ~/.yapla/git_storage/<hash>
+	// Determine local target directory: ~/.solo/git_storage/<hash>
 	configRoot, err := tools.GetOrCreateConfigDir()
 	if err != nil {
 		return err
@@ -941,7 +941,7 @@ func (a *App) SetupGitEnvironment(url, remotePath, localName, providerType strin
 		return err
 	}
 
-	// Detect format and create/update the local Yapla environment metadata
+	// Detect format and create/update the local Solo environment metadata
 	var env environment.Environment
 
 	fullPath := filepath.Join(targetDir, remotePath)
@@ -969,7 +969,7 @@ func (a *App) SetupGitEnvironment(url, remotePath, localName, providerType strin
 		// Try to detect format
 		content := string(data)
 		if strings.Contains(content, "\"creation_timestamp\"") && strings.Contains(content, "\"values\"") {
-			// Yapla Native
+			// Solo Native
 			if err := json.Unmarshal(data, &env); err != nil {
 				return err
 			}
@@ -1145,7 +1145,7 @@ func (a *App) GitKeepTheirs(collectionId string) error {
 		return err
 	}
 	// After accepting remote changes, reload the collection from the git file
-	// so the local Yapla state reflects the remote version.
+	// so the local Solo state reflects the remote version.
 	gitFilePath := filepath.Join(dir, coll.GitPath)
 	data, err := os.ReadFile(gitFilePath)
 	if err != nil {

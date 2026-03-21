@@ -1,15 +1,11 @@
 <script lang="ts">
-  import Button from "flowbite-svelte/Button.svelte";
   import DropZone from "$src/lib/components/base/DropZone.svelte";
-  import Modal from "flowbite-svelte/Modal.svelte";
-  import TabItem from "flowbite-svelte/TabItem.svelte";
-  import Tabs from "flowbite-svelte/Tabs.svelte";
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import EnvironmentEditor from "$src/lib/components/Environment/EnvironmentEditor.svelte";
   import EnvironmentItem from "$src/lib/components/Environment/EnvironmentItem.svelte";
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
@@ -23,12 +19,16 @@
     GitEnvKeepTheirs,
     ImportBrunoEnvironment,
     ImportPostmanEnvironment,
-    ImportYaplaEnvironment,
+    ImportSoloEnvironment,
     OpenEnvironmentInTerminal,
     SelectFile,
     SyncGitEnvironment
   } from "$wails/go/main/App";
   import { environment } from "$wails/go/models";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import TabItem from "flowbite-svelte/TabItem.svelte";
+  import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -41,7 +41,7 @@
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
   let showOverwriteConfirmDialog = $state(false);
-  let pendingImport: { format: "postman" | "bruno" | "yapla"; path: string } | null = null;
+  let pendingImport: { format: "postman" | "bruno" | "solo"; path: string } | null = null;
   let overwriteTargetName: string | null = $state(null);
   let focusedEnvironmentName: string | null = $state(null);
   let syncingEnvironments: Set<string> = $state(new Set());
@@ -200,7 +200,7 @@
   }
 
   async function executeImport(
-    format: "postman" | "bruno" | "yapla",
+    format: "postman" | "bruno" | "solo",
     path: string,
     overwrite: boolean
   ) {
@@ -210,7 +210,7 @@
       } else if (format === "bruno") {
         await ImportBrunoEnvironment(path, overwrite);
       } else {
-        await ImportYaplaEnvironment(path, overwrite);
+        await ImportSoloEnvironment(path, overwrite);
       }
       await environmentStore.loadEnvironments();
       notifications.success("Environment imported successfully");
@@ -240,20 +240,20 @@
     await executeImport("bruno", filePath, false);
   }
 
-  async function handleImportYapla(path?: string) {
-    const filePath = path ?? (await SelectFile("Select Yapla Environment", "*.json", "JSON Files"));
+  async function handleImportSolo(path?: string) {
+    const filePath = path ?? (await SelectFile("Select solo Environment", "*.json", "JSON Files"));
     if (!filePath) return;
-    await executeImport("yapla", filePath, false);
+    await executeImport("solo", filePath, false);
   }
 
-  async function handleSelectImportFormat(format: "postman" | "bruno" | "yapla") {
+  async function handleSelectImportFormat(format: "postman" | "bruno" | "solo") {
     showImportSelector = false;
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
       await handleImportBruno();
     } else {
-      await handleImportYapla();
+      await handleImportSolo();
     }
   }
 
@@ -403,17 +403,17 @@
           </DropZone>
         </TabItem>
 
-        <TabItem key="yapla" title="Yapla">
+        <TabItem key="solo" title="solo">
           <DropZone
-            title="Drop your Yapla environment here"
-            subtitle="Supports Yapla environment JSON"
+            title="Drop your solo environment here"
+            subtitle="Supports solo environment JSON"
             onDrop={async (e) => {
               const paths = e.paths;
               showImportSelector = false;
               if (paths.length > 0) {
-                await executeImport("yapla", paths[0], false);
+                await executeImport("solo", paths[0], false);
               } else {
-                await handleImportYapla();
+                await handleImportSolo();
               }
             }}
           >
@@ -457,8 +457,8 @@
           <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
             >Select file…</Button
           >
-        {:else if importActiveTab === "yapla"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("yapla")}
+        {:else if importActiveTab === "solo"}
+          <Button color="primary" onclick={() => handleSelectImportFormat("solo")}
             >Select file…</Button
           >
         {:else if importActiveTab === "git"}

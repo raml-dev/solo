@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	models "yapla/internal/collection"
+	models "solo/internal/collection"
 )
 
 type PostmanImporter struct{}
@@ -57,7 +57,7 @@ func processItems(items []postmanItem, folderPath string, dest *[]models.Request
 				newPath = folderPath + item.Name + " / "
 			}
 			processItems(item.Item, newPath, dest)
-			// Note: We don't skip the rest of the loop because some exporters 
+			// Note: We don't skip the rest of the loop because some exporters
 			// might put a request and an item array in the same object.
 		}
 
@@ -218,7 +218,8 @@ func (u *postmanURL) UnmarshalJSON(data []byte) error {
 			// Add query strings
 			if len(obj.Query) > 0 {
 				qs := []string{}
-				for _, q := range obj.Query {					if q.Value != "" {
+				for _, q := range obj.Query {
+					if q.Value != "" {
 						qs = append(qs, q.Key+"="+q.Value)
 					} else {
 						qs = append(qs, q.Key)
@@ -226,7 +227,7 @@ func (u *postmanURL) UnmarshalJSON(data []byte) error {
 				}
 				urlStr += "?" + strings.Join(qs, "&")
 			}
-			
+
 			u.Raw = urlStr
 		}
 		return nil

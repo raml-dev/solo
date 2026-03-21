@@ -2,10 +2,10 @@ package runner
 
 import (
 	"context"
+	"solo/internal/requester"
 	"sort"
 	"sync"
 	"time"
-	"yapla/internal/requester"
 )
 
 type Runner struct {
@@ -19,12 +19,12 @@ func NewRunner(service *requester.Service) *Runner {
 func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(RunnerResult)) RunnerStats {
 	var wg sync.WaitGroup
 	resultChan := make(chan RunnerResult, opts.Iterations)
-	
+
 	// Semaphore to control concurrency
 	sem := make(chan struct{}, opts.Concurrency)
-	
+
 	startTime := time.Now()
-	
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -39,9 +39,9 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 				go func(idx int) {
 					defer wg.Done()
 					defer func() { <-sem }()
-					
+
 					res, err := r.service.ExecuteRequest(opts.Request)
-					
+
 					var runnerRes RunnerResult
 					runnerRes.Index = idx
 					if err != nil {
@@ -52,7 +52,7 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 					} else {
 						runnerRes.Response = res
 					}
-					
+
 					resultChan <- runnerRes
 					if onResult != nil {
 						onResult(runnerRes)
@@ -68,9 +68,9 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 	stats := RunnerStats{
 		StatusCounts: make(map[int]int),
 	}
-	
+
 	var durations []int64
-	
+
 	for res := range resultChan {
 		stats.TotalRequests++
 		if res.Error != "" {
@@ -81,13 +81,13 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 			durations = append(durations, res.Response.Duration)
 		}
 	}
-	
+
 	totalDuration := time.Since(startTime)
 	stats.TotalDuration = totalDuration.Milliseconds()
-	
+
 	if len(durations) > 0 {
 		sort.Slice(durations, func(i, j int) bool { return durations[i] < durations[j] })
-		
+
 		var sum int64
 		stats.MinLatency = durations[0]
 		stats.MaxLatency = durations[len(durations)-1]
@@ -95,14 +95,14 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 			sum += d
 		}
 		stats.AvgLatency = sum / int64(len(durations))
-		
+
 		p95Idx := int(float64(len(durations)) * 0.95)
 		if p95Idx >= len(durations) {
 			p95Idx = len(durations) - 1
 		}
 		stats.P95Latency = durations[p95Idx]
 	}
-	
+
 	if totalDuration.Seconds() > 0 {
 		stats.RequestsPerSec = float64(stats.TotalRequests) / totalDuration.Seconds()
 	}

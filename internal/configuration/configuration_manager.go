@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"solo/internal/theme"
+	"solo/internal/tools"
 	"sync"
-	"yapla/internal/theme"
-	"yapla/internal/tools"
 )
 
 type ConfigurationManager struct {

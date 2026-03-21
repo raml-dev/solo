@@ -36,7 +36,7 @@
     postResponseScript: string;
   }
 
-  let { method, url, body, headers, settings, preRequestScript, postResponseScript }: Props =
+  let { method, url, body, headers = $bindable(), settings = $bindable(), preRequestScript, postResponseScript }: Props =
     $props();
 
   let concurrency = $state(5);

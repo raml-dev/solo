@@ -105,9 +105,8 @@
     <div class="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="space-y-2">
-          <Label for="token-url">Token URL</Label>
+          <Label>Token URL</Label>
           <TokenInput
-            id="token-url"
             bind:value={tokenUrl}
             placeholder="https://auth.example.com/oauth2/token"
             {environmentEntries}
@@ -136,14 +135,14 @@
           <Label class="font-semibold">Token Request Template (POST Body)</Label>
           <Button color="light" size="xs" onclick={addRow}>+ Add Parameter</Button>
         </div>
-        
+
         <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-900/50">
           <div class="mb-2 grid grid-cols-[1fr_1.5fr_auto] gap-2 px-2 text-xs font-medium uppercase text-neutral-500">
             <div>Key</div>
             <div>Value</div>
             <div class="w-8"></div>
           </div>
-          
+
           <div class="space-y-2">
             {#each templateRows as row (row.id)}
               <div class="grid grid-cols-[1fr_1.5fr_auto] items-center gap-2">
@@ -175,7 +174,7 @@
                 </Button>
               </div>
             {/each}
-            
+
             {#if templateRows.length === 0}
               <div class="py-4 text-center text-sm text-neutral-500">
                 No parameters defined. Add common ones like <code>grant_type</code>, <code>client_id</code>, etc.

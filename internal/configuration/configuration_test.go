@@ -2,13 +2,13 @@ package configuration
 
 import (
 	"os"
+	"solo/internal/theme"
+	"solo/internal/tools"
 	"testing"
-	"yapla/internal/theme"
-	"yapla/internal/tools"
 )
 
 func setupTestEnvironment(t *testing.T) func() {
-	tempHome, err := os.MkdirTemp("", "yapla_test_config")
+	tempHome, err := os.MkdirTemp("", "solo_test_config")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

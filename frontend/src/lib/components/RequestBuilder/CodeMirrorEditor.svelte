@@ -1,7 +1,4 @@
 <script lang="ts">
-  import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
-  import ClipboardCleanSolid from "flowbite-svelte-icons/ClipboardCleanSolid.svelte";
-  import Clipboard from "flowbite-svelte/Clipboard.svelte";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import {
     autocompletion,
@@ -34,6 +31,9 @@
   } from "@codemirror/view";
   import { tags } from "@lezer/highlight";
   import { indentationMarkers } from "@replit/codemirror-indentation-markers";
+  import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
+  import ClipboardCleanSolid from "flowbite-svelte-icons/ClipboardCleanSolid.svelte";
+  import Clipboard from "flowbite-svelte/Clipboard.svelte";
   import { onDestroy, onMount } from "svelte";
 
   interface Props {
@@ -149,7 +149,7 @@
             const end = start + match[0].length;
             builder.push(
               Decoration.mark({
-                class: "cm-yapla-token",
+                class: "cm-solo-token",
                 attributes: { "data-token-key": match[1].trim() }
               }).range(start, end)
             );
@@ -163,7 +163,7 @@
       eventHandlers: {
         mouseover: (e) => {
           const target = e.target as HTMLElement;
-          if (target.classList.contains("cm-yapla-token")) {
+          if (target.classList.contains("cm-solo-token")) {
             const tokenKey = target.dataset.tokenKey;
             if (tokenKey) {
               const rect = target.getBoundingClientRect();
@@ -173,7 +173,7 @@
         },
         mouseout: (e) => {
           const target = e.target as HTMLElement;
-          if (target.classList.contains("cm-yapla-token")) hideTokenTooltipDelay();
+          if (target.classList.contains("cm-solo-token")) hideTokenTooltipDelay();
         },
         mouseleave: () => hideTokenTooltipDelay()
       }
@@ -206,7 +206,7 @@
     ".cm-foldGutter .cm-gutterElement": {
       cursor: "pointer"
     },
-    ".cm-yapla-token": {
+    ".cm-solo-token": {
       cursor: "pointer"
     }
   });

@@ -1,6 +1,6 @@
 package configuration
 
-import "yapla/internal/theme"
+import "solo/internal/theme"
 
 type Configuration struct {
 	General      GeneralSettings `json:"general"`

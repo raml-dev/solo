@@ -100,7 +100,7 @@ function createHistoryStore() {
         {
           log: {
             version: "1.2",
-            creator: { name: "yapla", version: "1.0" },
+            creator: { name: "solo", version: "1.0" },
             entries: harEntries
           }
         },

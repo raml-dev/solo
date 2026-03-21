@@ -2,9 +2,9 @@ package importer
 
 import (
 	"path/filepath"
+	"solo/internal/collection"
 	"strings"
 	"testing"
-	"yapla/internal/collection"
 )
 
 func TestBrunoImporter_Import(t *testing.T) {

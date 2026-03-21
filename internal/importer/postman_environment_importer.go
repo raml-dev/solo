@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"solo/internal/environment"
 	"strings"
 	"time"
-	"yapla/internal/environment"
 )
 
 type PostmanEnvironmentImporter struct{}
@@ -17,7 +17,7 @@ func NewPostmanEnvironmentImporter() *PostmanEnvironmentImporter {
 }
 
 type postmanEnvironment struct {
-	Name   string                `json:"name"`
+	Name   string                    `json:"name"`
 	Values []postmanEnvironmentValue `json:"values"`
 }
 

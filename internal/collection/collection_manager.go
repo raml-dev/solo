@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"solo/internal/tools"
+	fs "solo/internal/tools"
 	"strings"
-	"yapla/internal/tools"
-	fs "yapla/internal/tools"
 )
 
 type CollectionManager struct {

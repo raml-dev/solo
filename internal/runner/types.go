@@ -1,7 +1,7 @@
 package runner
 
 import (
-	"yapla/internal/requester"
+	"solo/internal/requester"
 )
 
 // RunnerOptions defines the parameters for a parallel execution run.
@@ -21,14 +21,14 @@ type RunnerResult struct {
 
 // RunnerStats provides aggregated metrics for the entire run.
 type RunnerStats struct {
-	TotalRequests int            `json:"totalRequests"`
-	SuccessCount  int            `json:"successCount"`
-	ErrorCount    int            `json:"errorCount"`
-	MinLatency    int64          `json:"minLatency"`
-	MaxLatency    int64          `json:"maxLatency"`
-	AvgLatency    int64          `json:"avgLatency"`
-	P95Latency    int64          `json:"p95Latency"`
-	TotalDuration int64          `json:"totalDuration"` // Total time for the whole run
-	RequestsPerSec float64       `json:"requestsPerSec"`
-	StatusCounts  map[int]int    `json:"statusCounts"`
+	TotalRequests  int         `json:"totalRequests"`
+	SuccessCount   int         `json:"successCount"`
+	ErrorCount     int         `json:"errorCount"`
+	MinLatency     int64       `json:"minLatency"`
+	MaxLatency     int64       `json:"maxLatency"`
+	AvgLatency     int64       `json:"avgLatency"`
+	P95Latency     int64       `json:"p95Latency"`
+	TotalDuration  int64       `json:"totalDuration"` // Total time for the whole run
+	RequestsPerSec float64     `json:"requestsPerSec"`
+	StatusCounts   map[int]int `json:"statusCounts"`
 }

@@ -14,9 +14,9 @@ func TestBuildLogsZip_IncludesAllRegularFiles(t *testing.T) {
 	logsDir := t.TempDir()
 
 	files := map[string]string{
-		"yapla.log":      "main-log-content",
-		"yapla.log.1":    "rotated-log-content",
-		"yapla.log.2.gz": "compressed-by-lumberjack",
+		"solo.log":      "main-log-content",
+		"solo.log.1":    "rotated-log-content",
+		"solo.log.2.gz": "compressed-by-lumberjack",
 	}
 
 	for name, content := range files {

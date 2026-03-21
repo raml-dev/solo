@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"yapla/internal/tools"
+	"solo/internal/tools"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -23,14 +23,14 @@ var programLevel = new(slog.LevelVar) // default info
 func getLogPath() string {
 	baseDir, err := tools.GetOrCreateConfigDir()
 	if err != nil {
-		return "app.log"
+		return tools.APP_NAME + ".log"
 	}
 
 	logDir := filepath.Join(baseDir, "logs")
 
 	os.MkdirAll(logDir, 0755)
 
-	return filepath.Join(logDir, "yapla.log")
+	return filepath.Join(logDir, tools.APP_NAME + ".log")
 }
 
 func main() {
@@ -55,7 +55,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "yapla",
+		Title:  tools.APP_NAME,
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{

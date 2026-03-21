@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"solo/internal/collection"
 	"strings"
 	"time"
-	"yapla/internal/collection"
 )
 
 // BrunoImporter implements the Importer interface for Bruno collections.

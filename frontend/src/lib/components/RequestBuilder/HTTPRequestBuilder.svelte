@@ -96,9 +96,9 @@
     const handleSaveNew = () => {
       showSaveDialog = true;
     };
-    window.addEventListener("yapla:save-request-new", handleSaveNew);
+    window.addEventListener("solo:save-request-new", handleSaveNew);
     return () => {
-      window.removeEventListener("yapla:save-request-new", handleSaveNew);
+      window.removeEventListener("solo:save-request-new", handleSaveNew);
     };
   });
 
@@ -806,11 +806,6 @@
                         <span class="min-w-0 break-all text-neutral-500 dark:text-neutral-400"
                           >{value}</span
                         >
-                        {#if key.toLowerCase() === "authorization" && auth.enabled}
-                          <Badge color="indigo" size="xs" class="ml-auto shrink-0"
-                            >Auto-injected</Badge
-                          >
-                        {/if}
                       </div>
                     {/each}
                     {#if !response.requestHeaders}

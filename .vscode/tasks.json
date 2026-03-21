@@ -33,7 +33,7 @@
         "-gcflags",
         "all=-N -l",
         "-o",
-        "build/bin/yapla"
+        "build/bin/solo"
       ]
     },
     {
@@ -68,7 +68,7 @@
         "-gcflags",
         "all=-N -l",
         "-o",
-        "build/bin/yapla"
+        "build/bin/solo"
       ]
     },
     {
@@ -103,7 +103,7 @@
         "-gcflags",
         "all=-N -l",
         "-o",
-        "build/bin/yapla"
+        "build/bin/solo"
       ]
     },
     {

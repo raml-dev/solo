@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+	"solo/internal/configuration"
+	"solo/internal/tools"
 	"strings"
 	"time"
-	"yapla/internal/configuration"
-	"yapla/internal/tools"
 )
 
 type Request struct {
@@ -34,17 +34,17 @@ func (req *Request) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(req),
 	}
-	
+
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	
+
 	if req.BodyType == "" {
 		req.BodyType = "json"
 	} else {
 		req.BodyType = strings.ToLower(req.BodyType)
 	}
-	
+
 	return nil
 }
 

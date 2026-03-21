@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	fs "solo/internal/tools"
 	"sync"
 	"time"
-	fs "yapla/internal/tools"
 )
 
 type HostManager struct {
@@ -41,7 +41,7 @@ func (hm *HostManager) UpsertHost(config Host) error {
 	defer hm.mu.Unlock()
 
 	hm.configs[config.Name] = config
-	
+
 	// Clear all pooled clients for this hostname (across all ports)
 	for key := range hm.clientPool {
 		h, _, err := net.SplitHostPort(key)
@@ -117,7 +117,7 @@ func (hm *HostManager) DeleteHost(hostname string) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 	delete(hm.configs, hostname)
-	
+
 	for key := range hm.clientPool {
 		h, _, err := net.SplitHostPort(key)
 		if err != nil {
@@ -140,12 +140,12 @@ func (hm *HostManager) GetClientForUrl(resolvedUrl string) (*http.Client, error)
 		slog.Error("Failed to parse URL", "url", resolvedUrl, "error", err)
 		return nil, err
 	}
-	
+
 	// Separate hostname from port for configuration lookup
 	hostname := parsed.Hostname()
 
 	hm.mu.RLock()
-	// We still use the full host (with port) for the client pool to avoid sharing 
+	// We still use the full host (with port) for the client pool to avoid sharing
 	// connections between different ports, but we use hostname for config.
 	transport, exists := hm.clientPool[parsed.Host]
 	hm.mu.RUnlock()
@@ -211,8 +211,8 @@ func buildTLS(config TLSConfig, hostname string) *tls.Config {
 				"key_path", config.PrivateKeyFilePath,
 				"error", err)
 		}
-	} else if (config.PublicCertificateFilePath != "" && config.PrivateKeyFilePath == "") || 
-	          (config.PublicCertificateFilePath == "" && config.PrivateKeyFilePath != "") {
+	} else if (config.PublicCertificateFilePath != "" && config.PrivateKeyFilePath == "") ||
+		(config.PublicCertificateFilePath == "" && config.PrivateKeyFilePath != "") {
 		slog.Warn("mTLS configuration incomplete: both certificate and key are required", "hostname", hostname)
 	}
 

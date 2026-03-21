@@ -9,12 +9,12 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"solo/internal/auth"
+	"solo/internal/collection"
+	"solo/internal/configuration"
+	"solo/internal/host"
+	"solo/internal/script"
 	"time"
-	"yapla/internal/auth"
-	"yapla/internal/collection"
-	"yapla/internal/configuration"
-	"yapla/internal/host"
-	"yapla/internal/script"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
