@@ -58,6 +58,14 @@ cd {{config_root}}/.mcp/flowbite-svelte-mcp && pnpm install && pnpm run copy:llm
 description = "Add license headers to all files"
 run = '''
 echo "📄 Adding license headers..."
-addlicense -c "raml-dev" -y "2026-present" -v -s -l GPL-2.0-or-later -ignore node_modules/* -ignore **/*.md -ignore .mcp/* -ignore .vscode -ignore agents/* -ignore .venv/* -ignore *.toml .
+addlicense -c "raml-dev" -y "2026-present" -v -s -l GPL-3.0-only \
+-ignore node_modules/* \
+  **/*.md \
+  .mcp/* \
+  .vscode \
+  agents/* \
+  hack/.venv/* \
+  *.toml \
+  .
 echo "✅ License headers added!"
 '''
