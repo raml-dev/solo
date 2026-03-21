@@ -1,0 +1,17 @@
+[tasks."ci:fe:install"]
+dir = "{{ config_root }}/frontend"
+run = "npm install"
+
+[tasks."ci:fe:lint"]
+dir = "{{ config_root }}/frontend"
+run = "npm run lint"
+
+[tasks."ci:fe:check"]
+dir = "{{ config_root }}/frontend"
+run = "npm run check"
+
+[tasks."ci:be:build"]
+run = "wails build"
+
+[tasks."ci:be:test"]
+run = "go test -v ./..."
