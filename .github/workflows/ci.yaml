@@ -82,10 +82,10 @@ jobs:
       MISE_ENV: ci
     steps:
       - uses: actions/checkout@v6
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: libgtk-3-0 libwebkit2gtk-4.1-dev
-          version: 1.0
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -yq install libgtk-3-0 libwebkit2gtk-4.1-dev gcc-aarch64-linux-gnu
       # https://github.com/actions/cache/blob/main/examples.md#node---npm
       - name: Get npm cache directory
         id: npm-cache-dir

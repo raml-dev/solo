@@ -9,9 +9,14 @@ run = "npm install"
 dir = "{{ config_root }}/frontend"
 run = "npm run lint"
 
+[tasks."ci:fe:build-wails-module"]
+dir = "{{ config_root }}"
+run = "wails generate module"
+
 [tasks."ci:fe:check"]
 dir = "{{ config_root }}/frontend"
-run = "wails generate module && npm run check"
+depends = "ci:fe:build-wails-module"
+run = "npm run check"
 
 [tasks."ci:be:build"]
 run = "wails build -tags webkit2_41"
