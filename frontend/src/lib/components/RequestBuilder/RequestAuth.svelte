@@ -18,6 +18,40 @@
     onChange?.();
   }
 
+  // Local reactive state to ensure UI updates when toggling auth.enabled
+  let enabled = $state(auth.enabled);
+  // Keep local state in sync when the auth object is replaced by parent
+  $effect(() => {
+    auth;
+    enabled = auth.enabled;
+  });
+  // Propagate user changes to the model without marking dirty on mount
+  $effect(() => {
+    if (auth.enabled !== enabled) {
+      auth.enabled = enabled;
+      onChange?.();
+    }
+  });
+
+  // Local reactive state to keep TokenInput rendering in sync
+  let tokenUrl = $state(auth.tokenUrl ?? "");
+  let tokenPath = $state(auth.tokenPath ?? "access_token");
+  $effect(() => {
+    auth;
+    tokenUrl = auth.tokenUrl ?? "";
+    tokenPath = auth.tokenPath ?? "access_token";
+  });
+  $effect(() => {
+    if (auth.tokenUrl !== tokenUrl) {
+      auth.tokenUrl = tokenUrl;
+      onChange?.();
+    }
+    if (auth.tokenPath !== tokenPath) {
+      auth.tokenPath = tokenPath;
+      onChange?.();
+    }
+  });
+
   // Convert map to array for easier editing in UI
   let templateRows = $state(
     Object.entries(auth.template || {}).map(([key, value], i) => ({
@@ -64,17 +98,17 @@
         Automatically fetch and inject Bearer tokens into your requests.
       </div>
     </div>
-    <Toggle bind:checked={auth.enabled} size="default" onchange={handleChange} />
+    <Toggle bind:checked={enabled} size="default" />
   </div>
 
-  {#if auth.enabled}
+  {#if enabled}
     <div class="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="space-y-2">
           <Label for="token-url">Token URL</Label>
           <TokenInput
             id="token-url"
-            bind:value={auth.tokenUrl}
+            bind:value={tokenUrl}
             placeholder="https://auth.example.com/oauth2/token"
             {environmentEntries}
             onChange={handleChange}
@@ -90,7 +124,7 @@
             type="text"
             size="sm"
             placeholder="access_token"
-            bind:value={auth.tokenPath}
+            bind:value={tokenPath}
             oninput={handleChange}
           />
           <div class="text-xs text-neutral-500">The field in the JSON response containing the access token.</div>
