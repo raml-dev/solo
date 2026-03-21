@@ -23,5 +23,5 @@ run = "go test -v ./..."
 [tasks."ci:check-license"]
 description = "Check license headers in all files"
 run = """
-addlicense -check -c "raml-dev" -v -s -l GPL-3.0-only ./frontend ./internal go.mod go.sum *.go -ignore frontend/node_modules/*
+addlicense -check -c "raml-dev" -v -s -l GPL-3.0-only -ignore frontend/node_modules/* ./frontend ./internal go.mod go.sum *.go
 """
