@@ -599,7 +599,7 @@ func TestEnvironmentManagerUpdateValue(t *testing.T) {
 
 // Helper functions
 func setupTestManager(t *testing.T) *EnvironmentManager {
-	tmpDir := filepath.Join(os.TempDir(), "yapla-test-"+t.Name())
+	tmpDir := filepath.Join(os.TempDir(), "solo-test-"+t.Name())
 	if err := os.MkdirAll(tmpDir, 0700); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}

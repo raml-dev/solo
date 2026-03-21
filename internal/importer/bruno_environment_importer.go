@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
+	"solo/internal/environment"
 	"strings"
 	"time"
-	"yapla/internal/environment"
 )
 
 type BrunoEnvironmentImporter struct{}
@@ -81,4 +81,3 @@ func (b *BrunoEnvironmentImporter) Import(path string) (*environment.Environment
 		LastUpdateTimestamp: now,
 	}, nil
 }
-

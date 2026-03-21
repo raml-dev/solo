@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"solo/internal/tools"
 	"strings"
 	"time"
 )
@@ -19,7 +20,7 @@ type GitResource struct {
 	Path        string `json:"path"`
 	Name        string `json:"name"`
 	IsDirectory bool   `json:"isDirectory"`
-	Format      string `json:"format"` // yapla, postman, bruno, unknown
+	Format      string `json:"format"` // solo, postman, bruno, unknown
 }
 
 // GitLogEntry represents a single commit in the recent log.
@@ -56,7 +57,7 @@ func (m *Manager) IdentifyProvider(url string) string {
 	// Strip branch suffix if present for identification
 	cleanUrl := strings.Split(url, "#")[0]
 	cleanUrl = strings.ToLower(cleanUrl)
-	
+
 	if strings.Contains(cleanUrl, "github.com") {
 		return "github"
 	}
@@ -127,7 +128,7 @@ func (m *Manager) SetupGitCollection(url, remotePath, targetDir string) error {
 	if _, err := m.executeWithTimeout(10*time.Second, absTargetDir, "init"); err != nil {
 		return err
 	}
-	
+
 	// 2. Ensure remote is set correctly
 	_, _ = m.executeWithTimeout(5*time.Second, absTargetDir, "remote", "remove", "origin")
 	if _, err := m.executeWithTimeout(10*time.Second, absTargetDir, "remote", "add", "origin", gitUrl); err != nil {
@@ -211,7 +212,7 @@ func (m *Manager) SyncGitCollection(dir, filename, commitMessage string) error {
 	hasPending, _ := m.HasUncommittedChanges(dir)
 	if hasPending {
 		if commitMessage == "" {
-			commitMessage = fmt.Sprintf("[%s] - Yapla Sync: %s", time.Now().Format(time.RFC3339), filename)
+			commitMessage = fmt.Sprintf("[%s] - Sync: %s - %s", tools.APP_NAME, filename, time.Now().Format(time.RFC3339))
 		}
 		if _, err := m.executeWithTimeout(15*time.Second, dir, "commit", "-m", commitMessage); err != nil {
 			return fmt.Errorf("sync commit failed: %w", err)
@@ -248,18 +249,18 @@ func (m *Manager) executeWithTimeout(timeout time.Duration, dir string, args ...
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
-	
-	cmd.Env = append(os.Environ(), 
+
+	cmd.Env = append(os.Environ(),
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=15",
 		"GIT_ASKPASS=echo",
 	)
-	
+
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
-	
+
 	err := cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
@@ -319,17 +320,17 @@ func (m *Manager) IsBehind(dir string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	
+
 	remoteTracking, err := m.executeWithTimeout(10*time.Second, dir, "rev-parse", "--abbrev-ref", mainBranch+"@{upstream}")
 	if err != nil {
 		return false, nil
 	}
-	
+
 	out, err := m.executeWithTimeout(10*time.Second, dir, "rev-list", "--left-right", "--count", mainBranch+"..."+remoteTracking)
 	if err != nil {
 		return false, err
 	}
-	
+
 	parts := strings.Fields(out)
 	if len(parts) == 2 {
 		if parts[1] != "0" {
@@ -622,7 +623,7 @@ func (m *Manager) continueOrCommitRebase(dir string) error {
 		// If not in rebase, do a plain commit instead
 		if strings.Contains(msg, "no rebase in progress") {
 			_, err2 := m.executeWithTimeout(15*time.Second, dir, "commit",
-				"-m", fmt.Sprintf("[yapla] conflict resolved — %s", time.Now().Format(time.RFC3339)))
+				"-m", fmt.Sprintf("[%s] conflict resolved - %s", tools.APP_NAME, time.Now().Format(time.RFC3339)))
 			return err2
 		}
 		return errors.New(msg)

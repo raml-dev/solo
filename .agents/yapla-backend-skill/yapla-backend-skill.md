@@ -1,18 +1,18 @@
 ---
-name: yapla-backend-skill
-description: Guidelines for Yapla Backend Developer
+name: solo-backend-skill
+description: Guidelines for Solo Backend Developer
 ---
-# Yapla Backend Developer Skill (v1.0)
+# Solo Backend Developer Skill (v1.0)
 
-You are a Senior Backend Engineer for Yapla. Your goal is to extend the Go backend of this Wails desktop app cleanly, consistently, and without breaking the existing architecture.
+You are a Senior Backend Engineer for Solo. Your goal is to extend the Go backend of this Wails desktop app cleanly, consistently, and without breaking the existing architecture.
 
 ---
 
 ## Stack & Entry Points
 
-- **Language**: Go (module `yapla`, requires Go 1.25+)
+- **Language**: Go (module `solo`, requires Go 1.25+)
 - **Desktop framework**: [Wails v2](https://wails.io/) — the `App` struct in `app.go` is the single boundary between the Go backend and the Svelte frontend.
-- **Logging**: `log/slog` (structured JSON, written to `~/.yapla/logs/yapla.log` via `lumberjack`). Log levels can be toggled at runtime via `App.SetDebugMode(bool)`.
+- **Logging**: `log/slog` (structured JSON, written to `~/.solo/logs/solo.log` via `lumberjack`). Log levels can be toggled at runtime via `App.SetDebugMode(bool)`.
 - **Scripting runtime**: `gopher-lua` (Lua 5.1) — sandboxed, no I/O or OS libs, 500 ms execution timeout per script.
 - **Key external deps**: `github.com/google/uuid` (ID generation), `github.com/samber/lo` (utilities).
 
@@ -210,14 +210,14 @@ When adding a new importer: implement the interface, add a `New<Format>Importer(
 - **Sparse-checkout** is used to clone only the relevant path from large repos.
 - URL format supports branch selection: `https://github.com/org/repo#branch`.
 - **Sync flow** (`SyncGitCollection`): stage local changes → commit if dirty → fetch → rebase on top of remote → push.
-- Git repos are stored at `~/.yapla/git_storage/<sha1(url)[:8]>` (collections) or `~/.yapla/git_storage/env_<sha1(url)[:8]>` (environments).
+- Git repos are stored at `~/.solo/git_storage/<sha1(url)[:8]>` (collections) or `~/.solo/git_storage/env_<sha1(url)[:8]>` (environments).
 - `CollectionStatus` captures: branch, rebase-in-progress flag, conflict files, dirty flag, ahead/behind counts, last 5 log entries.
 
 ---
 
 ## File Storage (`internal/tools/`)
 
-All user data lives under `os.UserConfigDir()/yapla/`:
+All user data lives under `os.UserConfigDir()/solo/`:
 
 | Path | Content |
 |---|---|
@@ -226,7 +226,7 @@ All user data lives under `os.UserConfigDir()/yapla/`:
 | `environments/<name>.json` | One `Environment` per file |
 | `hosts/host.json` | `[]Host` array |
 | `git_storage/<hash>/` | Sparse-checkout git repos |
-| `logs/yapla.log` | Rotating JSON log (10 MB max, 3 backups, 1 day) |
+| `logs/solo.log` | Rotating JSON log (10 MB max, 3 backups, 1 day) |
 
 Helper functions in `tools/fs.go`:
 

@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"solo/internal/collection"
 	"strings"
 	"time"
-	"yapla/internal/collection"
 
 	"gopkg.in/yaml.v3"
 )
@@ -270,11 +270,11 @@ type openAPIPathItem struct {
 }
 
 type openAPIOperation struct {
-	OperationId string             `json:"operationId" yaml:"operationId"`
-	Summary     string             `json:"summary"     yaml:"summary"`
-	Parameters  []openAPIParameter `json:"parameters"  yaml:"parameters"`
+	OperationId string              `json:"operationId" yaml:"operationId"`
+	Summary     string              `json:"summary"     yaml:"summary"`
+	Parameters  []openAPIParameter  `json:"parameters"  yaml:"parameters"`
 	RequestBody *openAPIRequestBody `json:"requestBody" yaml:"requestBody"` // OpenAPI 3.x only
-	Consumes    []string           `json:"consumes"    yaml:"consumes"`    // Swagger 2.x only
+	Consumes    []string            `json:"consumes"    yaml:"consumes"`    // Swagger 2.x only
 }
 
 type openAPIParameter struct {

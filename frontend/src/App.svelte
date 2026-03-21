@@ -9,8 +9,8 @@
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { historyStore } from "$src/lib/stores/historyStore";
-  import { notifications } from "$src/lib/stores/notificationStore";
   import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import { activeTab, tabStore } from "$src/lib/stores/tabStore";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
@@ -90,7 +90,7 @@
           await tabStore.saveTab(tab.id);
         } else {
           // Trigger the Save modal in HTTPRequestBuilder for new requests
-          window.dispatchEvent(new CustomEvent("yapla:save-request-new"));
+          window.dispatchEvent(new CustomEvent("solo:save-request-new"));
         }
       }
     }
@@ -129,7 +129,10 @@
 
     EventsOn("auth:token-refreshed", (data: any) => {
       if (data.error) {
-        notifications.error("OAuth2 Token Refresh Failed", `Provider returned status ${data.status}`);
+        notifications.error(
+          "OAuth2 Token Refresh Failed",
+          `Provider returned status ${data.status}`
+        );
       } else {
         notifications.success("OAuth2 Token Refreshed", "A new access token has been acquired.");
       }
@@ -144,12 +147,14 @@
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: JSON.stringify(data.params || {}, null, 2)
         },
-        response: data.error ? null : {
-          status: data.status,
-          time: 0,
-          headers: { "Content-Type": "application/json" },
-          body: data.body || ""
-        },
+        response: data.error
+          ? null
+          : {
+              status: data.status,
+              time: 0,
+              headers: { "Content-Type": "application/json" },
+              body: data.body || ""
+            },
         error: data.error ? `Auth request failed with status ${data.status}: ${data.body}` : null
       });
     });

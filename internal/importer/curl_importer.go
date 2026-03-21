@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"solo/internal/collection"
 	"strings"
 	"time"
-	"yapla/internal/collection"
 )
 
 // CurlImporter parses a cURL command string and converts it to a collection.Request.
@@ -166,15 +166,15 @@ var curlBoolFlag = map[string]bool{
 	"-G": true, "--get": true,
 	"-n": true, "--netrc": true,
 	"-N": true, "--no-buffer": true,
-	"--compressed": true,
-	"--http1.0": true,
-	"--http1.1": true,
-	"--http2": true,
-	"--http3": true,
-	"--ipv4": true,
-	"--ipv6": true,
+	"--compressed":   true,
+	"--http1.0":      true,
+	"--http1.1":      true,
+	"--http2":        true,
+	"--http3":        true,
+	"--ipv4":         true,
+	"--ipv6":         true,
 	"--no-keepalive": true,
-	"--fail": true, "-f": true,
+	"--fail":         true, "-f": true,
 	"--silent-show-error": true, "-S": true,
 }
 

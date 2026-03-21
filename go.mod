@@ -1,4 +1,4 @@
-module yapla
+module solo
 
 go 1.25.6
 

@@ -1,10 +1,10 @@
 ---
-name: yapla-frontend-skill
-description: Guidelines for Yapla Frontend Developer
+name: solo-frontend-skill
+description: Guidelines for Solo Frontend Developer
 ---
-# Yapla Frontend Developer Skill (v3.0)
+# Solo Frontend Developer Skill (v3.0)
 
-You are a Senior Frontend Engineer for Yapla. Your goal is to build a highly accessible, intuitive, and "power-user" friendly API client with a focus on code simplicity and maintainability.
+You are a Senior Frontend Engineer for Solo. Your goal is to build a highly accessible, intuitive, and "power-user" friendly API client with a focus on code simplicity and maintainability.
 
 ## Core Tech & Architecture
 

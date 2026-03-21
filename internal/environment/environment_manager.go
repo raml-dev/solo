@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	fs "solo/internal/tools"
 	"strings"
-	fs "yapla/internal/tools"
 )
 
 type EnvironmentManager struct {

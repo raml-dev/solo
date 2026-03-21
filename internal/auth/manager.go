@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"time"
 
-	"yapla/internal/collection"
-	"yapla/internal/tools"
+	"solo/internal/collection"
+	"solo/internal/tools"
 
 	"github.com/tidwall/gjson"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -86,8 +86,8 @@ func (m *AuthManager) fetchToken(config collection.AuthConfiguration) (*Token, e
 		data.Set(k, v)
 	}
 
-	slog.Debug("Attempting OAuth2 token acquisition", 
-		"url", config.TokenURL, 
+	slog.Debug("Attempting OAuth2 token acquisition",
+		"url", config.TokenURL,
 		"params_count", len(config.Template))
 
 	resp, err := http.PostForm(config.TokenURL, data)
@@ -123,10 +123,10 @@ func (m *AuthManager) fetchToken(config collection.AuthConfiguration) (*Token, e
 	}
 
 	if resp.StatusCode >= 400 {
-		slog.Error("OAuth2 provider returned error", 
-			"status", resp.StatusCode, 
+		slog.Error("OAuth2 provider returned error",
+			"status", resp.StatusCode,
 			"body", string(body))
-		
+
 		if m.ctx != nil {
 			eventData["error"] = true
 			runtime.EventsEmit(m.ctx, "auth:token-refreshed", eventData)

@@ -51,7 +51,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "yapla-export.har";
+    a.download = "solo-export.har";
     a.click();
     URL.revokeObjectURL(url);
   }

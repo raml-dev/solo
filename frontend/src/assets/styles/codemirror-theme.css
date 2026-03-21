@@ -37,7 +37,7 @@
   border-left: 1px solid color-mix(in oklab, var(--color-neutral-400) 35%, transparent);
 }
 
-.cm-yapla-token {
+.cm-solo-token {
   color: var(--color-primary-700);
   font-weight: 600;
 }
@@ -68,6 +68,6 @@
   background: color-mix(in oklab, var(--color-primary-700) 35%, transparent) !important;
 }
 
-.dark .cm-yapla-token {
+.dark .cm-solo-token {
   color: var(--color-primary-300);
 }

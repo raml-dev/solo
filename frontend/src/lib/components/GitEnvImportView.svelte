@@ -160,6 +160,6 @@
   </div>
 
   <Alert color="blue">
-    Yapla will automatically detect the environment name from the file content.
+    solo will automatically detect the environment name from the file content.
   </Alert>
 </div>

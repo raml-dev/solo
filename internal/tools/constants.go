@@ -1,7 +1,8 @@
 package tools
 
 const (
-	MAIN_DIR              = "yapla"
+	APP_NAME              = "solo"
+	MAIN_DIR              = "solo"
 	CONFIG_JSON_FILENAME  = "config.json"
 	CONFIG_COLLECTION_DIR = "collections"
 	CONFIG_HOST_DIR       = "hosts"

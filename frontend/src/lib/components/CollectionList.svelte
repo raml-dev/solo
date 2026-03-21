@@ -9,10 +9,7 @@
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore";
-  import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
-  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
-  import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
-  import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
+  import { getMethodBadgeClass } from "$src/lib/utils/http";
   import {
     ExportCollection,
     GetGitCollectionStatus,
@@ -24,13 +21,17 @@
     ImportCurlRequest,
     ImportOpenAPICollection,
     ImportPostmanCollection,
-    ImportYaplaCollection,
+    ImportSoloCollection,
     OpenCollectionInTerminal,
     SelectDirectory,
     SelectFile,
     SyncGitCollection
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
+  import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
+  import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
+  import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
@@ -42,7 +43,6 @@
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount, tick } from "svelte";
-  import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { SvelteSet } from "svelte/reactivity";
 
   interface Props {
@@ -65,7 +65,7 @@
   const deleteCollectionModalId = `${collectionModalScope}-delete-collection`;
   const deleteRequestModalId = `${collectionModalScope}-delete-request`;
   const importCollectionModalId = `${collectionModalScope}-import`;
-  const yaplaCollectionOverwriteModalId = `${collectionModalScope}-yapla-overwrite`;
+  const soloCollectionOverwriteModalId = `${collectionModalScope}-solo-overwrite`;
 
   $effect(() => {
     if (showNewCollectionDialog) {
@@ -107,15 +107,15 @@
     }
   });
 
-  let showYaplaCollectionOverwriteDialog = $state(false);
-  let yaplaCollectionOverwriteName: string | null = $state(null);
-  let pendingYaplaCollectionPath: string | null = null;
+  let showSoloCollectionOverwriteDialog = $state(false);
+  let soloCollectionOverwriteName: string | null = $state(null);
+  let pendingSoloCollectionPath: string | null = null;
 
   $effect(() => {
-    if (showYaplaCollectionOverwriteDialog) {
-      modalStack.open(yaplaCollectionOverwriteModalId);
+    if (showSoloCollectionOverwriteDialog) {
+      modalStack.open(soloCollectionOverwriteModalId);
     } else {
-      modalStack.close(yaplaCollectionOverwriteModalId);
+      modalStack.close(soloCollectionOverwriteModalId);
     }
   });
 
@@ -268,9 +268,9 @@
     editingRequestCollectionName = collectionName;
     editingRequestName = req.name || "";
 
-    await tick()
-    editingRequestNameInputEl?.focus()
-    editingRequestNameInputEl?.select()
+    await tick();
+    editingRequestNameInputEl?.focus();
+    editingRequestNameInputEl?.select();
   }
 
   function cancelRequestRename() {
@@ -531,37 +531,37 @@
     return match ? match[1] : null;
   }
 
-  async function executeYaplaCollectionImport(path: string, overwrite: boolean) {
+  async function executeSoloCollectionImport(path: string, overwrite: boolean) {
     try {
-      await ImportYaplaCollection(path, overwrite);
+      await ImportSoloCollection(path, overwrite);
       await collectionStore.loadCollections();
       notifications.success("Collection imported successfully");
     } catch (err) {
       const message = String(err ?? "Failed to import collection");
       const existingName = parseCollectionNameFromError(message);
       if (!overwrite && existingName) {
-        pendingYaplaCollectionPath = path;
-        yaplaCollectionOverwriteName = existingName;
-        showYaplaCollectionOverwriteDialog = true;
+        pendingSoloCollectionPath = path;
+        soloCollectionOverwriteName = existingName;
+        showSoloCollectionOverwriteDialog = true;
         return;
       }
       notifications.error("Failed to import collection", message);
     }
   }
 
-  async function handleImportYaplaCollection(path?: string) {
-    const filePath = path ?? (await SelectFile("Select Yapla Collection", "*.json", "JSON Files"));
+  async function handleImportSoloCollection(path?: string) {
+    const filePath = path ?? (await SelectFile("Select Solo Collection", "*.json", "JSON Files"));
     if (!filePath) return;
     showImportSelector = false;
-    await executeYaplaCollectionImport(filePath, false);
+    await executeSoloCollectionImport(filePath, false);
   }
 
-  async function confirmYaplaCollectionOverwrite() {
-    if (!pendingYaplaCollectionPath) return;
-    const path = pendingYaplaCollectionPath;
-    pendingYaplaCollectionPath = null;
-    showYaplaCollectionOverwriteDialog = false;
-    await executeYaplaCollectionImport(path, true);
+  async function confirmSoloCollectionOverwrite() {
+    if (!pendingSoloCollectionPath) return;
+    const path = pendingSoloCollectionPath;
+    pendingSoloCollectionPath = null;
+    showSoloCollectionOverwriteDialog = false;
+    await executeSoloCollectionImport(path, true);
   }
 
   async function handleExportCollection(collectionName: string) {
@@ -641,7 +641,7 @@
     modalStack.close(deleteCollectionModalId);
     modalStack.close(deleteRequestModalId);
     modalStack.close(importCollectionModalId);
-    modalStack.close(yaplaCollectionOverwriteModalId);
+    modalStack.close(soloCollectionOverwriteModalId);
   });
   let collections = $derived($collectionStore.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
@@ -742,11 +742,10 @@
                 aria-label="Toggle collection"
               >
                 {#if isExpanded(collection.name)}
-                <AngleDownOutline />
+                  <AngleDownOutline />
                 {:else}
-                <AngleRightOutline />
+                  <AngleRightOutline />
                 {/if}
-
               </button>
 
               <div class="min-w-0 flex-1">
@@ -907,7 +906,6 @@
                         id="request-menu-{request.id}"
                         onclick={(e: MouseEvent) => {
                           e.stopPropagation();
-
                         }}
                         title="Request actions"
                         aria-label="Request actions"
@@ -918,7 +916,7 @@
                         <DropdownItem
                           class="text-gray-900 dark:text-white"
                           onclick={(e) => {
-                            startRequestRename(e, request, collection.name)
+                            startRequestRename(e, request, collection.name);
                           }}
                         >
                           Rename
@@ -1224,17 +1222,17 @@
           </div>
         </TabItem>
 
-        <TabItem key="yapla" title="Yapla">
+        <TabItem key="solo" title="Solo">
           <DropZone
-            title="Drop your Yapla collection here"
-            subtitle="Supports Yapla collection JSON"
+            title="Drop your Solo collection here"
+            subtitle="Supports Solo collection JSON"
             onDrop={async (e) => {
               const paths = e.paths;
               showImportSelector = false;
               if (paths.length > 0) {
-                await executeYaplaCollectionImport(paths[0], false);
+                await executeSoloCollectionImport(paths[0], false);
               } else {
-                await handleImportYaplaCollection();
+                await handleImportSoloCollection();
               }
             }}
           >
@@ -1290,9 +1288,9 @@
           >
             Import Request
           </Button>
-        {:else if importActiveTab === "yapla"}
-          <Button color="primary" onclick={() => handleImportYaplaCollection()}>
-            Select file…
+        {:else if importActiveTab === "solo"}
+          <Button color="primary" onclick={() => handleImportSoloCollection()}>
+            Select file...
           </Button>
         {:else if importActiveTab === "git"}
           <Button
@@ -1309,25 +1307,25 @@
   </Modal>
 {/if}
 
-{#if showYaplaCollectionOverwriteDialog}
+{#if showSoloCollectionOverwriteDialog}
   <Modal
     title="Overwrite collection?"
-    bind:open={showYaplaCollectionOverwriteDialog}
+    bind:open={showSoloCollectionOverwriteDialog}
     onclose={() => {
-      pendingYaplaCollectionPath = null;
-      yaplaCollectionOverwriteName = null;
-      showYaplaCollectionOverwriteDialog = false;
+      pendingSoloCollectionPath = null;
+      soloCollectionOverwriteName = null;
+      showSoloCollectionOverwriteDialog = false;
     }}
     size="xl"
   >
-    {#if $topModalId === yaplaCollectionOverwriteModalId}
+    {#if $topModalId === soloCollectionOverwriteModalId}
       <ToastContainer />
     {/if}
-    <p>Collection "{yaplaCollectionOverwriteName}" already exists.</p>
+    <p>Collection "{soloCollectionOverwriteName}" already exists.</p>
     <p class="text-sm text-neutral-600 dark:text-neutral-400">Do you want to overwrite it?</p>
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">
-        <Button color="red" onclick={confirmYaplaCollectionOverwrite}>Overwrite</Button>
+        <Button color="red" onclick={confirmSoloCollectionOverwrite}>Overwrite</Button>
       </div>
     {/snippet}
   </Modal>
