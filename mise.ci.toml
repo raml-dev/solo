@@ -14,7 +14,7 @@ dir = "{{ config_root }}/frontend"
 run = "npm run check"
 
 [tasks."ci:be:build"]
-run = "wails build -tags webkit2_41"
+run = "wails build"
 
 [tasks."ci:be:test"]
 run = "go test -v ./..."
