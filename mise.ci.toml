@@ -11,10 +11,10 @@ run = "npm run lint"
 
 [tasks."ci:fe:check"]
 dir = "{{ config_root }}/frontend"
-run = "npm run check"
+run = "wails generate module && npm run check"
 
 [tasks."ci:be:build"]
-run = "wails build"
+run = "wails build -tags webkit2_41"
 
 [tasks."ci:be:test"]
 run = "go test -v ./..."
