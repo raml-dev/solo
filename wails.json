@@ -6,8 +6,14 @@
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
+  "info": {
+    "companyName": "raml-dev",
+    "productName": "solo",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright raml-dev 2026"
+  },
+  "obfuscated": true,
   "author": {
-    "name": "mat",
-    "email": "matteo.stabile2@gmail.com"
+    "name": "raml-dev"
   }
 }
