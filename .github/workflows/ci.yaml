@@ -4,13 +4,13 @@ on:
   push:
     branches: ["main"]
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
+      - "**/*.md"
+      - "docs/**"
   pull_request:
     branches: ["main"]
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
+      - "**/*.md"
+      - "docs/**"
 
 # cancel in-progress runs when a new commit is pushed to the same PR
 concurrency:
@@ -42,7 +42,7 @@ jobs:
               - 'mise.ci.toml'
 
   test-frontend:
-    needs: [changes, setup]
+    needs: [changes]
     if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -74,7 +74,7 @@ jobs:
         run: mise run ci:fe:check
 
   test-backend:
-    needs: [changes, setup]
+    needs: [changes]
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
