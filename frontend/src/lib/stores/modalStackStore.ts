@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026-present raml-dev
+ * SPDX-License-Identifier: GPL-3.0-only
+ */
+
 import { derived, writable } from "svelte/store";
 
 const stack = writable<string[]>([]);

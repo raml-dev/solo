@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+
 <script lang="ts">
   import Toast from "flowbite-svelte/Toast.svelte";
   import ToastContainer from "flowbite-svelte/ToastContainer.svelte";

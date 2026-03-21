@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026-present raml-dev
+ * SPDX-License-Identifier: GPL-3.0-only
+ */
+
 import { ClearSessionVars, GetSessionVars, RemoveSessionVar } from "$wails/go/main/App";
 import { EventsOn } from "$wails/runtime/runtime";
 import { writable } from "svelte/store";

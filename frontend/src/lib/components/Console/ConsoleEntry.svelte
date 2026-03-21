@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+
 <script lang="ts">
   import type { HistoryEntry } from "$src/lib/stores/historyStore";
   import Badge from "flowbite-svelte/Badge.svelte";

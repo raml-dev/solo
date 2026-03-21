@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+
 <script lang="ts">
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";

@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+
 <script lang="ts">
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
