@@ -12,7 +12,6 @@
     "productVersion": "0.1.0",
     "copyright": "Copyright raml-dev 2026"
   },
-  "obfuscated": true,
   "author": {
     "name": "raml-dev"
   }

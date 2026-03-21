@@ -18,6 +18,11 @@ on:
         type: boolean
         required: false
         default: true
+      obfuscate:
+        description: "Obfuscate the build"
+        type: boolean
+        required: false
+        default: true
 
 jobs:
   build:
@@ -45,4 +50,4 @@ jobs:
           package: ${{ inputs.package }}
           go-version: 1.25.6
           node-version: 24.12.0
-          build-obfuscate: true
+          build-obfuscate: ${{ inputs.obfuscate }}
