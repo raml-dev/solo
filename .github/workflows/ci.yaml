@@ -82,10 +82,10 @@ jobs:
       MISE_ENV: ci
     steps:
       - uses: actions/checkout@v6
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: libgtk-3-dev libwebkit2gtk-4.0-dev
-          version: 1.0
+      # - uses: awalsh128/cache-apt-pkgs-action@latest
+      # with:
+      #   packages: libgtk-3-dev libwebkit2gtk-4.0-dev
+      #   version: 1.0
       # https://github.com/actions/cache/blob/main/examples.md#node---npm
       - name: Get npm cache directory
         id: npm-cache-dir
