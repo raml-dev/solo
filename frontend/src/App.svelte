@@ -127,6 +127,8 @@
       }
     });
 
+    // TODO any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     EventsOn("auth:token-refreshed", (data: any) => {
       if (data.error) {
         notifications.error(
@@ -159,6 +161,8 @@
       });
     });
 
+    // TODO any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     EventsOn("request:executed", (data: any) => {
       const opts = data.options || {};
       const resp = data.response;

@@ -19,10 +19,12 @@
   }
 
   // Local reactive state to ensure UI updates when toggling auth.enabled
+  // TODO refactor to avoid recursive effects
+  // eslint-disable-next-line svelte/prefer-writable-derived
   let enabled = $state(auth.enabled);
   // Keep local state in sync when the auth object is replaced by parent
   $effect(() => {
-    auth;
+    // console.log(auth);
     enabled = auth.enabled;
   });
   // Propagate user changes to the model without marking dirty on mount
@@ -36,8 +38,9 @@
   // Local reactive state to keep TokenInput rendering in sync
   let tokenUrl = $state(auth.tokenUrl ?? "");
   let tokenPath = $state(auth.tokenPath ?? "access_token");
+  // TODO refactor to avoid recursive effects
   $effect(() => {
-    auth;
+    // auth;
     tokenUrl = auth.tokenUrl ?? "";
     tokenPath = auth.tokenPath ?? "access_token";
   });
@@ -91,7 +94,9 @@
 </script>
 
 <div class="flex-1 space-y-6 overflow-y-auto p-4">
-  <div class="flex items-center justify-between border-b border-neutral-100 pb-4 dark:border-neutral-800">
+  <div
+    class="flex items-center justify-between border-b border-neutral-100 pb-4 dark:border-neutral-800"
+  >
     <div class="space-y-0.5">
       <Label class="text-base font-semibold">Enable Integrated OAuth2</Label>
       <div class="text-sm text-neutral-500 dark:text-neutral-400">
@@ -102,7 +107,7 @@
   </div>
 
   {#if enabled}
-    <div class="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+    <div class="animate-in fade-in slide-in-from-top-1 space-y-4 duration-200">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="space-y-2">
           <Label>Token URL</Label>
@@ -113,7 +118,9 @@
             onChange={handleChange}
             size="sm"
           />
-          <div class="text-xs text-neutral-500">The endpoint where the POST request for the token will be sent.</div>
+          <div class="text-xs text-neutral-500">
+            The endpoint where the POST request for the token will be sent.
+          </div>
         </div>
 
         <div class="space-y-2">
@@ -126,7 +133,9 @@
             bind:value={tokenPath}
             oninput={handleChange}
           />
-          <div class="text-xs text-neutral-500">The field in the JSON response containing the access token.</div>
+          <div class="text-xs text-neutral-500">
+            The field in the JSON response containing the access token.
+          </div>
         </div>
       </div>
 
@@ -136,8 +145,12 @@
           <Button color="light" size="xs" onclick={addRow}>+ Add Parameter</Button>
         </div>
 
-        <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-900/50">
-          <div class="mb-2 grid grid-cols-[1fr_1.5fr_auto] gap-2 px-2 text-xs font-medium uppercase text-neutral-500">
+        <div
+          class="rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-900/50"
+        >
+          <div
+            class="mb-2 grid grid-cols-[1fr_1.5fr_auto] gap-2 px-2 text-xs font-medium text-neutral-500 uppercase"
+          >
             <div>Key</div>
             <div>Value</div>
             <div class="w-8"></div>
@@ -169,7 +182,12 @@
                   title="Remove parameter"
                 >
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </Button>
               </div>
@@ -177,7 +195,8 @@
 
             {#if templateRows.length === 0}
               <div class="py-4 text-center text-sm text-neutral-500">
-                No parameters defined. Add common ones like <code>grant_type</code>, <code>client_id</code>, etc.
+                No parameters defined. Add common ones like <code>grant_type</code>,
+                <code>client_id</code>, etc.
               </div>
             {/if}
           </div>

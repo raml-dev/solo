@@ -152,7 +152,9 @@ function createTabStore() {
                     body: meta.body,
                     bodyFormat: meta.bodyFormat,
                     headers: meta.headers,
-                    auth: meta.auth ? collection.AuthConfiguration.createFrom(meta.auth) : defaultAuth,
+                    auth: meta.auth
+                      ? collection.AuthConfiguration.createFrom(meta.auth)
+                      : defaultAuth,
                     settings: meta.settings,
                     preRequestScript: meta.preRequestScript ?? "",
                     postResponseScript: meta.postResponseScript ?? "",

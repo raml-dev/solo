@@ -28,7 +28,8 @@ export function getStatusBadgeColor(status: number): StatusBadgeColor {
  * @returns CSS class string
  */
 export function getMethodBadgeClass(method: string): string {
-  const base = "inline-flex min-w-14 justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase";
+  const base =
+    "inline-flex min-w-14 justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase";
   const m = (method || "GET").toUpperCase();
   let colorClass = "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
 
@@ -48,16 +49,30 @@ export function getMethodBadgeClass(method: string): string {
  * Legacy Method Badge Colors (Flowbite native colors)
  * Kept for backward compatibility if needed, but getMethodBadgeClass is preferred for consistency.
  */
-export type MethodBadgeColor = "green" | "blue" | "yellow" | "red" | "dark" | "none" | "purple" | "indigo" | "pink";
+export type MethodBadgeColor =
+  | "green"
+  | "blue"
+  | "yellow"
+  | "red"
+  | "dark"
+  | "none"
+  | "purple"
+  | "indigo"
+  | "pink";
 
 export function getMethodBadgeColor(verb: string): MethodBadgeColor {
   const family = HTTP_METHOD_COLOR_MAP[(verb || "GET").toUpperCase() as HttpMethod] || "neutral";
-  
+
   switch (family) {
-    case "success": return "green";
-    case "primary": return "blue";
-    case "warning": return "yellow";
-    case "danger":  return "red";
-    default:        return "dark";
+    case "success":
+      return "green";
+    case "primary":
+      return "blue";
+    case "warning":
+      return "yellow";
+    case "danger":
+      return "red";
+    default:
+      return "dark";
   }
 }
