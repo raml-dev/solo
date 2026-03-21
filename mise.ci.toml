@@ -1,3 +1,6 @@
+# Copyright 2026 raml-dev
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 [tasks."ci:fe:install"]
 dir = "{{ config_root }}/frontend"
 run = "npm install"
@@ -20,5 +23,13 @@ run = "go test -v ./..."
 [tasks."ci:check-license"]
 description = "Check license headers in all files"
 run = """
-addlicense -c "raml-dev" -v -l GPL-2.0-or-later --check .
+addlicense -check -c "raml-dev" -v -s -l GPL-3.0-only \
+  -ignore node_modules/* \
+  **/*.md \
+  .mcp/* \
+  .vscode \
+  agents/* \
+  hack/.venv/* \
+  *.toml \
+  .
 """
