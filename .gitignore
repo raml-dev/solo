@@ -38,3 +38,5 @@ solo
 .DS_Store
 plans/
 solo
+
+mise.local.toml

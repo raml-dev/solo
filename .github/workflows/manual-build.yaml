@@ -1,0 +1,48 @@
+name: Cross-platform Build
+
+on:
+  push:
+    tags:
+      - "*"
+  # Allows workflow to be manually triggered.
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Log level"
+        required: true
+        type: choice
+        options: [info, warning, debug]
+        default: "warning"
+      package:
+        description: "Upload artifacts"
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [
+          { name: "solo.exe", platform: windows/amd64, os: windows-latest },
+          { name: "solo", platform: linux/amd64, os: ubuntu-latest },
+          { name: "solo", platform: darwin/universal, os: macos-latest }
+        ]
+
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: The-Egg-Corp/wails-build-action@v2.1
+        with:
+          name: solo
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
+          nsis: false
+          package: ${{ inputs.package }}
+          go-version: 1.25.6
+          node-version: 24.12.0
+          build-obfuscate: true
