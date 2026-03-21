@@ -3,34 +3,38 @@ name: Wails build
 on:
   push:
     tags:
-      # Match any new tag
-      - "*"
+      - '*'
 
 env:
-  # Necessary for most environments as build failure can occur due to OOM issues
   NODE_OPTIONS: "--max-old-space-size=4096"
+
+permissions:
+  contents: write
 
 jobs:
   build:
     strategy:
-      # Failure in one platform build won't impact the others
       fail-fast: false
       matrix:
         build:
-          - name: "App"
-            platform: "linux/amd64"
-            os: "ubuntu-latest"
-          - name: "App"
-            platform: "windows/amd64"
-            os: "windows-latest"
-          - name: "App"
-            platform: "darwin/universal"
-            os: "macos-latest"
+          - name: App
+            platform: linux/amd64
+            os: ubuntu-latest
+            artifact_name: app-linux-amd64
+          - name: App
+            platform: windows/amd64
+            os: windows-latest
+            artifact_name: app-windows-amd64
+          - name: App
+            platform: darwin/universal
+            os: macos-latest
+            artifact_name: app-macos-universal
 
     runs-on: ${{ matrix.build.os }}
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -41,4 +45,34 @@ jobs:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
           package: false
-          go-version: "1.25.6"
+          go-version: '1.20'
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.build.artifact_name }}
+          path: |
+            build/bin/**
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: release-assets
+
+      - name: Show downloaded files
+        run: find release-assets -type f
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release-assets/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
