@@ -57,7 +57,7 @@ jobs:
       - uses: jdx/mise-action@v4
         with:
           cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
-          install: false
+          version: "2026.3.10"
       # https://github.com/actions/cache/blob/main/examples.md#node---npm
       - name: Get npm cache directory
         id: npm-cache-dir
@@ -105,7 +105,7 @@ jobs:
       - uses: jdx/mise-action@v4
         with:
           cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
-          install: false
+          version: "2026.3.10"
       # https://github.com/actions/cache/blob/main/examples.md#go---modules
       - uses: actions/cache@v5
         with:
