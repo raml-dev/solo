@@ -14,12 +14,12 @@ jobs:
       make_latest: ${{ steps.tag_meta.outputs.make_latest }}
     steps:
       - uses: actions/checkout@v6
+
       - name: Detect release channel from tag
         id: tag_meta
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME}"
-          # prerelease if tag matches: X.Y.Z-rcN  (e.g. 1.2.3-rc1)
           if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
             echo "make_latest=false" >> "$GITHUB_OUTPUT"
@@ -27,30 +27,16 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
             echo "make_latest=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Verify release notes file exists
+
+      - name: Require notes for stable tags
+        if: steps.tag_meta.outputs.prerelease != 'true'
         shell: bash
         run: |
           NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
-          IS_RC="${{ steps.tag_meta.outputs.prerelease == 'true' }}"
-
-          if [ -f "$NOTES_FILE" ]; then
-            cp "$NOTES_FILE" RELEASE_NOTES.md
-            echo "Using release notes: $NOTES_FILE"
-          else
-            if [ "$IS_RC" = "true" ]; then
-              echo "No release note file for RC tag (${GITHUB_REF_NAME}); continuing."
-              echo "Pre-release ${GITHUB_REF_NAME}" > RELEASE_NOTES.md
-            else
-              echo "ERROR: Missing release notes for stable tag: $NOTES_FILE"
-              exit 1
-            fi
+          if [ ! -f "$NOTES_FILE" ]; then
+            echo "ERROR: Missing release notes for stable tag: $NOTES_FILE"
+            exit 1
           fi
-      - name: Upload prepared release notes
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-notes
-          path: RELEASE_NOTES.md
-          if-no-files-found: error
   build:
     needs: [validate]
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
@@ -136,11 +122,32 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Download prepared release notes
-        uses: actions/download-artifact@v8
-        with:
-          name: release-notes
-          path: .
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          IS_RC="${{ needs.validate.outputs.prerelease }}"
+
+          if [ "$IS_RC" = "true" ]; then
+            RC_NOTES="docs/releases/${TAG}.md"
+            BASE_TAG="${TAG%-rc*}"   # 1.2.3-rc1 -> 1.2.3
+            BASE_NOTES="docs/releases/${BASE_TAG}.md"
+
+            if [ -f "$RC_NOTES" ]; then
+              cp "$RC_NOTES" RELEASE_NOTES.md
+              echo "Using RC-specific release notes: $RC_NOTES"
+            elif [ -f "$BASE_NOTES" ]; then
+              cp "$BASE_NOTES" RELEASE_NOTES.md
+              echo "Using base release notes for RC: $BASE_NOTES"
+            else
+              echo "No release notes found for ${TAG} or ${BASE_TAG}; using fallback."
+              echo "Pre-release ${TAG}" > RELEASE_NOTES.md
+            fi
+          else
+            NOTES_FILE="docs/releases/${TAG}.md"
+            cp "$NOTES_FILE" RELEASE_NOTES.md
+            echo "Using stable release notes: $NOTES_FILE"
+          fi
       - name: Generate SHA256 checksums
         shell: bash
         run: |
