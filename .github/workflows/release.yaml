@@ -62,8 +62,8 @@ jobs:
           { name: "solo-windows-arm64.exe", platform: windows/arm64, os: windows-11-arm },
           { name: "solo-linux-amd64", platform: linux/amd64, os: ubuntu-24.04 },
           { name: "solo-linux-arm64", platform: linux/arm64, os: ubuntu-24.04-arm },
-          { name: "solo-darwin-amd64", platform: darwin/amd64, os: macos-26-intel },
-          { name: "solo-darwin-arm64", platform: darwin/arm64, os: macos-26 }
+          { name: "solo-darwin-amd64.dmg", platform: darwin/amd64, os: macos-26-intel },
+          { name: "solo-darwin-arm64.dmg", platform: darwin/arm64, os: macos-26 }
         ]
 
     runs-on: ${{ matrix.build.os }}
@@ -75,13 +75,34 @@ jobs:
       - uses: The-Egg-Corp/wails-build-action@v2.1
         with:
           name: solo
-          build-name: ${{ matrix.build.name }}
+          build-name: ${{ startsWith(matrix.build.platform, 'darwin/') && 'solo' || matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
           nsis: false
           package: false
           go-version: 1.25.6
           node-version: 24.12.0
           build-obfuscate: true
+      - name: Create macOS DMG
+        if: startsWith(matrix.build.platform, 'darwin/')
+        shell: bash
+        run: |
+          APP_PATH="build/bin/solo.app"
+          DMG_PATH="build/bin/${{ matrix.build.name }}"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Missing app bundle: $APP_PATH"
+            ls -la build/bin || true
+            exit 1
+          fi
+
+          hdiutil create \
+            -volname "solo" \
+            -srcfolder "$APP_PATH" \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH"
+
+          echo "Created $DMG_PATH"
       - name: Upload matrix artifact
         uses: actions/upload-artifact@v7
         with:
@@ -89,7 +110,6 @@ jobs:
           if-no-files-found: error
           path: |
             build/bin/${{ matrix.build.name }}
-            build/bin/${{ matrix.build.name }}.app.zip
   release:
     needs: [validate, build]
     runs-on: ubuntu-latest
