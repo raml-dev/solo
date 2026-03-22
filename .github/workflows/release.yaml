@@ -81,7 +81,7 @@ jobs:
           package: false
           go-version: 1.25.6
           node-version: 24.12.0
-          build-obfuscate: true
+          build-obfuscate: false
       - name: Create macOS DMG
         if: startsWith(matrix.build.platform, 'darwin/')
         shell: bash
@@ -94,6 +94,15 @@ jobs:
             ls -la build/bin || true
             exit 1
           fi
+
+          # Sign nested frameworks/libs/binaries and the bundle itself
+          codesign --force --deep --sign - "$APP_PATH"
+
+          # Verify signature integrity
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          # print signing info for debugging
+          codesign -dv --verbose=4 "$APP_PATH" || true
 
           hdiutil create \
             -volname "solo" \
@@ -137,10 +146,10 @@ jobs:
         run: |
           cd dist
           find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
-      - name: Attest release artifacts provenance
-        uses: actions/attest@v4
-        with:
-          subject-checksums: dist/SHA256SUMS
+      # - name: Attest release artifacts provenance
+      #   uses: actions/attest@v4
+      #   with:
+      #     subject-checksums: dist/SHA256SUMS
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
