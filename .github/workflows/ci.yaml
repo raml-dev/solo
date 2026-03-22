@@ -17,6 +17,10 @@ concurrency:
   group: ci-${{ github.head_ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   # Outputs variables to decide which jobs to run after this
   changes:
