@@ -1,104 +1,151 @@
-name: Wails build
+name: Cross-platform Build
 
 on:
   push:
     tags:
-      - "*"
-
-env:
-  NODE_OPTIONS: "--max-old-space-size=4096"
-
-permissions:
-  contents: write
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+  # Allows workflow to be manually triggered.
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Log level"
+        required: true
+        type: choice
+        options: [info, warning, debug]
+        default: "warning"
+      obfuscate:
+        description: "Obfuscate the build"
+        type: boolean
+        required: false
+        default: true
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    outputs:
+      prerelease: ${{ steps.tag_meta.outputs.prerelease }}
+      make_latest: ${{ steps.tag_meta.outputs.make_latest }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Detect release channel from tag
+        id: tag_meta
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ${{github.event_name}} == 'workflow_dispatch' ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
+          # prerelease if tag matches: X.Y.Z-rcN  (e.g. 1.2.3-rc1)
+          elif [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify release notes file exists
+        shell: bash
+        if: ${{github.event_name != 'workflow_dispatch'}}
+        run: |
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
+          IS_RC="${{ steps.tag_meta.outputs.prerelease == 'true' }}"
+
+          if [ -f "$NOTES_FILE" ]; then
+            cp "$NOTES_FILE" RELEASE_NOTES.md
+            echo "Using release notes: $NOTES_FILE"
+          else
+            if [ "$IS_RC" = "true" ]; then
+              echo "No release note file for RC tag (${GITHUB_REF_NAME}); continuing."
+              echo "Pre-release ${GITHUB_REF_NAME}" > RELEASE_NOTES.md
+            else
+              echo "ERROR: Missing release notes for stable tag: $NOTES_FILE"
+              exit 1
+            fi
+          fi
+      - name: Upload prepared release notes
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: RELEASE_NOTES.md
+          if-no-files-found: error
   build:
+    needs: [validate]
+    if: github.event_name == 'workflow_dispatch' || needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux/amd64
-            artifact: App-linux-amd64
-          - os: windows-latest
-            platform: windows/amd64
-            artifact: App-windows-amd64
-          - os: macos-latest
-            platform: darwin/universal
-            artifact: App-macos-universal
+        build: [
+          { name: "solo-windows-amd64.exe", platform: windows/amd64, os: windows-2025 },
+          { name: "solo-windows-arm64.exe", platform: windows/arm64, os: windows-11-arm },
+          { name: "solo-linux-amd64", platform: linux/amd64, os: ubuntu-24.04 },
+          { name: "solo-linux-arm64", platform: linux/arm64, os: ubuntu-24.04-arm },
+          { name: "solo-darwin-amd64", platform: darwin/amd64, os: macos-26-intel },
+          { name: "solo-darwin-arm64", platform: darwin/arm64, os: macos-26 }
+        ]
 
-    runs-on: ${{ matrix.os }}
-
+    runs-on: ${{ matrix.build.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: The-Egg-Corp/wails-build-action@v2.1
         with:
-          go-version: "1.25.6"
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+          name: solo
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
+          nsis: false
+          package: false
+          go-version: 1.25.6
+          node-version: 24.12.0
+          build-obfuscate: ${{ inputs.obfuscate }}
+      - name: Upload matrix artifact
+        uses: actions/upload-artifact@v7
         with:
-          node-version: 20
-
-      - name: Install Wails
-        shell: bash
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Install frontend deps
-        run: npm ci
-        working-directory: ./frontend
-
-      - name: Build (Linux/macOS)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          ~/go/bin/wails build -clean -platform ${{ matrix.platform }}
-
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          wails build -clean -platform ${{ matrix.platform }}
-
-      - name: Zip artifacts (Linux/macOS)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          cd build/bin
-          zip -r "../../${{ matrix.artifact }}.zip" .
-
-      - name: Zip artifacts (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Compress-Archive -Path build/bin/* -DestinationPath "${{ matrix.artifact }}.zip"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.zip
+          name: ${{ matrix.build.name }}
           if-no-files-found: error
-
+          path: |
+            build/bin/${{ matrix.build.name }}
+            build/bin/${{ matrix.build.name }}.app.zip
   release:
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
-
+    if: startsWith(github.ref, 'refs/tags/') && (needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true')
+    permissions:
+     contents: write
+     id-token: write
+     attestations: write
+     artifact-metadata: write
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v5
-        with:
-          path: release-assets
+      - uses: actions/checkout@v6
 
-      - name: Create release
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Download prepared release notes
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: release-notes
+          path: .
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+      - name: Attest release artifacts provenance
+        uses: actions/attest@v4
+        with:
+          subject-checksums: dist/SHA256SUMS
+      - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: release-assets/**/*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          body_path: RELEASE_NOTES.md
+          files: dist/**
+          fail_on_unmatched_files: true
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.validate.outputs.make_latest == 'true' }}
