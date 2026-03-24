@@ -119,7 +119,13 @@
     (async () => {
       await initializeApp();
     })();
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault() // necessary, otherwise drop won't fire
+    })
 
+    window.addEventListener('drop', (e) => {
+      e.preventDefault() // stops WebKitGTK navigation
+    })
     window.addEventListener("keydown", handleKeyDown);
 
     EventsOn("app:request-close", () => {
