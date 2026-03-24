@@ -242,6 +242,7 @@
   let editingHost: host.Host | null = $state(null);
   let editingHostName = $state("");
   let editingCookies: HostCookieRow[] = $state([]);
+  let customTlsEnabled = $state(false);
 
   // Delete confirm modal
   const deleteHostModalId = `settings-delete-host-${Math.random().toString(36).slice(2)}`;
@@ -276,6 +277,7 @@
     editingHost = newHost;
     editingHostName = "";
     editingCookies = [];
+    customTlsEnabled = newHost.tlsConfig.enabled;
   }
 
   function editExistingHost(h: host.Host) {
@@ -613,11 +615,9 @@
               />
             </div>
 
-            <Toggle bind:checked={editingHost.tlsConfig.enabled}>
-              Enable Custom TLS Configuration
-            </Toggle>
+            <Toggle bind:checked={customTlsEnabled}>Enable Custom TLS Configuration</Toggle>
 
-            {#if editingHost.tlsConfig.enabled}
+            {#if customTlsEnabled}
               <div
                 class="flex flex-col gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
               >

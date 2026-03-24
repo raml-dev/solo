@@ -19,6 +19,7 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
 //go:embed build/linux/icon.png
 var icon []byte
 var programLevel = new(slog.LevelVar) // default info
@@ -33,7 +34,7 @@ func getLogPath() string {
 
 	os.MkdirAll(logDir, 0755)
 
-	return filepath.Join(logDir, tools.APP_NAME + ".log")
+	return filepath.Join(logDir, tools.APP_NAME+".log")
 }
 
 func main() {
@@ -68,15 +69,15 @@ func main() {
 		OnStartup:        app.startup,
 		OnBeforeClose:    app.beforeClose,
 		DragAndDrop: &options.DragAndDrop{
-			EnableFileDrop:    true,
-			DisableWebViewDrop: false,
+			EnableFileDrop:     true,
+			DisableWebViewDrop: true,
 		},
 		Bind: []interface{}{
 			app,
 		},
-    Linux: &linux.Options{
-      Icon: icon,
-    },
+		Linux: &linux.Options{
+			Icon: icon,
+		},
 	})
 
 	if err != nil {

@@ -23,12 +23,19 @@ func GetOrCreateConfigDir() (string, error) {
 }
 
 func GetMainConfig(name string) (string, error) {
-	configPath, err := GetOrCreateConfigDir()
+	mainConfigDir, err := GetOrCreateConfigDir()
 
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(configPath, name), nil
+
+	currentConfigDir := filepath.Join(mainConfigDir, name)
+
+	if err := os.MkdirAll(currentConfigDir, 0755); err != nil {
+		return "", err
+	}
+
+	return currentConfigDir, nil
 }
 
 func ReadConfigDirectory(configPath string) ([]os.DirEntry, error) {
