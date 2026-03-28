@@ -41,11 +41,9 @@
   let showDeleteConfirmDialog = $state(false);
   let deleteTarget: string | null = $state(null);
   let activeMenu: string | null = $state(null);
-  let showImportSelector = $state(false);
   let importActiveTab = $state("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
-  let showOverwriteConfirmDialog = $state(false);
   let pendingImport: { format: "postman" | "bruno" | "solo"; path: string } | null = null;
   let overwriteTargetName: string | null = $state(null);
   let focusedEnvironmentName: string | null = $state(null);
@@ -57,21 +55,8 @@
   const importEnvironmentModalId = `${environmentManagerModalScope}-import`;
   const overwriteEnvironmentModalId = `${environmentManagerModalScope}-overwrite`;
 
-  $effect(() => {
-    if (showImportSelector) {
-      modalStack.open(importEnvironmentModalId);
-    } else {
-      modalStack.close(importEnvironmentModalId);
-    }
-  });
-
-  $effect(() => {
-    if (showOverwriteConfirmDialog) {
-      modalStack.open(overwriteEnvironmentModalId);
-    } else {
-      modalStack.close(overwriteEnvironmentModalId);
-    }
-  });
+  const showImportSelector = modalStack.binding(importEnvironmentModalId);
+  const showOverwriteConfirmDialog = modalStack.binding(overwriteEnvironmentModalId);
 
   onDestroy(() => {
     modalStack.close(importEnvironmentModalId);
@@ -196,7 +181,7 @@
   function openImportModal() {
     importActiveTab = "postman";
     gitImportActionState = null;
-    showImportSelector = true;
+    showImportSelector.set(true);
   }
 
   function parseExistingNameFromError(message: string): string | null {
@@ -225,7 +210,7 @@
       if (!overwrite && existingName) {
         pendingImport = { format, path };
         overwriteTargetName = existingName;
-        showOverwriteConfirmDialog = true;
+        showOverwriteConfirmDialog.set(true);
         return;
       }
       notifications.error("Failed to import environment", message);
@@ -252,7 +237,7 @@
   }
 
   async function handleSelectImportFormat(format: "postman" | "bruno" | "solo") {
-    showImportSelector = false;
+    showImportSelector.set(false);
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
@@ -266,14 +251,14 @@
     if (!pendingImport) return;
     const { format, path } = pendingImport;
     pendingImport = null;
-    showOverwriteConfirmDialog = false;
+    showOverwriteConfirmDialog.set(false);
     await executeImport(format, path, true);
   }
 
   function closeOverwriteConfirmDialog() {
     pendingImport = null;
     overwriteTargetName = null;
-    showOverwriteConfirmDialog = false;
+    showOverwriteConfirmDialog.set(false);
   }
 </script>
 
@@ -336,8 +321,8 @@
   onCloseDelete={() => (showDeleteConfirmDialog = false)}
 />
 
-{#if showImportSelector}
-  <Modal title="Import Environment" bind:open={showImportSelector} size="xl">
+{#if $showImportSelector}
+  <Modal title="Import Environment" bind:open={$showImportSelector} size="xl">
     {#if $topModalId === importEnvironmentModalId}
       <ToastContainer />
     {/if}
@@ -349,7 +334,7 @@
             subtitle="Supports Postman Environment JSON"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 await handleImportPostman(paths[0]);
               } else {
@@ -382,7 +367,7 @@
             subtitle="Supports Bruno environment .bru files"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 await handleImportBruno(paths[0]);
               } else {
@@ -414,7 +399,7 @@
             subtitle="Supports solo environment JSON"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 await executeImport("solo", paths[0], false);
               } else {
@@ -443,7 +428,7 @@
 
         <TabItem key="git" title="Git">
           <GitEnvImportView
-            onImported={() => (showImportSelector = false)}
+            onImported={() => showImportSelector.set(false)}
             onActionStateChange={(state) => {
               gitImportActionState = state;
             }}
@@ -481,10 +466,10 @@
   </Modal>
 {/if}
 
-{#if showOverwriteConfirmDialog}
+{#if $showOverwriteConfirmDialog}
   <Modal
     title="Overwrite environment?"
-    bind:open={showOverwriteConfirmDialog}
+    bind:open={$showOverwriteConfirmDialog}
     onclose={closeOverwriteConfirmDialog}
     size="xl"
   >

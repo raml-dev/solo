@@ -37,6 +37,7 @@
 
   const saveRequestModalId = `save-request-${Math.random().toString(36).slice(2)}`;
 
+  // Sync the bindable show prop with the modal stack
   $effect(() => {
     if (show) {
       modalStack.open(saveRequestModalId);

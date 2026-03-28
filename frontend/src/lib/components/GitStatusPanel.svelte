@@ -72,22 +72,16 @@
   let lastOutput = $state("");
   let showDiscardConfirm = $state(false);
   let errorMessage = $state("");
-  let open = $state(true);
 
   const gitStatusPanelModalId = `git-status-${Math.random().toString(36).slice(2)}`;
+  const open = modalStack.binding(gitStatusPanelModalId);
+
+  // Open immediately on mount
+  open.set(true);
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   onMount(() => {
     refresh();
-  });
-
-  $effect(() => {
-    if (open) {
-      modalStack.open(gitStatusPanelModalId);
-    } else {
-      modalStack.close(gitStatusPanelModalId);
-      onClose?.();
-    }
   });
 
   onDestroy(() => {
@@ -142,7 +136,8 @@
   }
 
   function requestClose() {
-    open = false;
+    open.set(false);
+    onClose?.();
   }
 
   // ── Derived helpers ──────────────────────────────────────────────────────
@@ -173,7 +168,7 @@
   }
 </script>
 
-<Modal bind:open title="Git Status" size="xl" onclose={requestClose}>
+<Modal bind:open={$open} title="Git Status" size="xl" onclose={requestClose}>
   {#if $topModalId === gitStatusPanelModalId}
     <ToastContainer />
   {/if}

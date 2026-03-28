@@ -56,12 +56,6 @@
 
   let { onRequestSelect = () => {} }: Props = $props();
 
-  let showNewCollectionDialog = $state(false);
-  let showRenameCollectionDialog = $state(false);
-  let showDeleteConfirmDialog = $state(false);
-  let showDeleteRequestConfirmDialog = $state(false);
-  let showImportSelector = $state(false);
-
   let editingRequestNameInputEl: HTMLInputElement | undefined = $state();
 
   const collectionModalScope = `collections-${Math.random().toString(36).slice(2)}`;
@@ -72,57 +66,15 @@
   const importCollectionModalId = `${collectionModalScope}-import`;
   const soloCollectionOverwriteModalId = `${collectionModalScope}-solo-overwrite`;
 
-  $effect(() => {
-    if (showNewCollectionDialog) {
-      modalStack.open(newCollectionModalId);
-    } else {
-      modalStack.close(newCollectionModalId);
-    }
-  });
+  const showNewCollectionDialog = modalStack.binding(newCollectionModalId);
+  const showRenameCollectionDialog = modalStack.binding(renameCollectionModalId);
+  const showDeleteConfirmDialog = modalStack.binding(deleteCollectionModalId);
+  const showDeleteRequestConfirmDialog = modalStack.binding(deleteRequestModalId);
+  const showImportSelector = modalStack.binding(importCollectionModalId);
+  const showSoloCollectionOverwriteDialog = modalStack.binding(soloCollectionOverwriteModalId);
 
-  $effect(() => {
-    if (showRenameCollectionDialog) {
-      modalStack.open(renameCollectionModalId);
-    } else {
-      modalStack.close(renameCollectionModalId);
-    }
-  });
-
-  $effect(() => {
-    if (showDeleteConfirmDialog) {
-      modalStack.open(deleteCollectionModalId);
-    } else {
-      modalStack.close(deleteCollectionModalId);
-    }
-  });
-
-  $effect(() => {
-    if (showDeleteRequestConfirmDialog) {
-      modalStack.open(deleteRequestModalId);
-    } else {
-      modalStack.close(deleteRequestModalId);
-    }
-  });
-
-  $effect(() => {
-    if (showImportSelector) {
-      modalStack.open(importCollectionModalId);
-    } else {
-      modalStack.close(importCollectionModalId);
-    }
-  });
-
-  let showSoloCollectionOverwriteDialog = $state(false);
   let soloCollectionOverwriteName: string | null = $state(null);
   let pendingSoloCollectionPath: string | null = null;
-
-  $effect(() => {
-    if (showSoloCollectionOverwriteDialog) {
-      modalStack.open(soloCollectionOverwriteModalId);
-    } else {
-      modalStack.close(soloCollectionOverwriteModalId);
-    }
-  });
 
   let importActiveTab = $state("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
@@ -152,7 +104,7 @@
 
   // Pre-select the active collection when the import modal opens
   $effect(() => {
-    if (showImportSelector && $collectionStore.selectedCollectionName) {
+    if ($showImportSelector && $collectionStore.selectedCollectionName) {
       curlTargetCollection = $collectionStore.selectedCollectionName;
     }
   });
@@ -313,16 +265,16 @@
   function openRenameCollection(collectionName: string) {
     renameTarget = collectionName;
     renameCollectionName = collectionName;
-    showRenameCollectionDialog = true;
+    showRenameCollectionDialog.set(true);
   }
 
   function closeNewCollectionDialog() {
-    showNewCollectionDialog = false;
+    showNewCollectionDialog.set(false);
     newCollectionName = "";
   }
 
   function closeRenameDialog() {
-    showRenameCollectionDialog = false;
+    showRenameCollectionDialog.set(false);
     renameTarget = null;
     renameCollectionName = "";
   }
@@ -377,11 +329,11 @@
 
   function handleDeleteCollection(collectionName: string) {
     deleteTarget = collectionName;
-    showDeleteConfirmDialog = true;
+    showDeleteConfirmDialog.set(true);
   }
 
   function closeDeleteConfirmDialog() {
-    showDeleteConfirmDialog = false;
+    showDeleteConfirmDialog.set(false);
     deleteTarget = null;
   }
 
@@ -429,7 +381,7 @@
   async function handleDeleteRequest(collectionName: string, requestId: string) {
     deleteRequestCollectionName = collectionName;
     deleteRequestTarget = requestId;
-    showDeleteRequestConfirmDialog = true;
+    showDeleteRequestConfirmDialog.set(true);
   }
 
   async function confirmDeleteRequest() {
@@ -444,7 +396,7 @@
   }
 
   function closeDeleteRequestConfirmDialog() {
-    showDeleteRequestConfirmDialog = false;
+    showDeleteRequestConfirmDialog.set(false);
     deleteRequestTarget = null;
     deleteRequestCollectionName = null;
   }
@@ -547,7 +499,7 @@
       if (!overwrite && existingName) {
         pendingSoloCollectionPath = path;
         soloCollectionOverwriteName = existingName;
-        showSoloCollectionOverwriteDialog = true;
+        showSoloCollectionOverwriteDialog.set(true);
         return;
       }
       notifications.error("Failed to import collection", message);
@@ -557,7 +509,7 @@
   async function handleImportSoloCollection(path?: string) {
     const filePath = path ?? (await SelectFile("Select Solo Collection", "*.json", "JSON Files"));
     if (!filePath) return;
-    showImportSelector = false;
+    showImportSelector.set(false);
     await executeSoloCollectionImport(filePath, false);
   }
 
@@ -565,7 +517,7 @@
     if (!pendingSoloCollectionPath) return;
     const path = pendingSoloCollectionPath;
     pendingSoloCollectionPath = null;
-    showSoloCollectionOverwriteDialog = false;
+    showSoloCollectionOverwriteDialog.set(false);
     await executeSoloCollectionImport(path, true);
   }
 
@@ -579,7 +531,7 @@
   }
 
   async function handleSelectImportFormat(format: "postman" | "bruno" | "openapi") {
-    showImportSelector = false;
+    showImportSelector.set(false);
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
@@ -616,7 +568,7 @@
   }
 
   function closeImportModal() {
-    showImportSelector = false;
+    showImportSelector.set(false);
     curlInput = "";
     curlCreatingNew = false;
     curlNewCollectionName = "";
@@ -625,7 +577,7 @@
   function openImportModal() {
     importActiveTab = "postman";
     gitImportActionState = null;
-    showImportSelector = true;
+    showImportSelector.set(true);
   }
 
   onMount(() => {
@@ -679,7 +631,7 @@
       <div class="flex items-center gap-1">
         {#if !isCollapsed}
           <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
-          <Button color="primary" size="sm" onclick={() => (showNewCollectionDialog = true)}>
+          <Button color="primary" size="sm" onclick={() => showNewCollectionDialog.set(true)}>
             New
           </Button>
         {/if}
@@ -956,9 +908,9 @@
   {/if}
 </div>
 
-{#if showNewCollectionDialog}
+{#if $showNewCollectionDialog}
   <Modal
-    bind:open={showNewCollectionDialog}
+    bind:open={$showNewCollectionDialog}
     onclose={closeNewCollectionDialog}
     title="New Collection"
   >
@@ -984,9 +936,9 @@
   </Modal>
 {/if}
 
-{#if showRenameCollectionDialog}
+{#if $showRenameCollectionDialog}
   <Modal
-    bind:open={showRenameCollectionDialog}
+    bind:open={$showRenameCollectionDialog}
     onclose={closeRenameDialog}
     title="Rename Collection"
   >
@@ -1012,9 +964,9 @@
   </Modal>
 {/if}
 
-{#if showDeleteConfirmDialog}
+{#if $showDeleteConfirmDialog}
   <Modal
-    bind:open={showDeleteConfirmDialog}
+    bind:open={$showDeleteConfirmDialog}
     onclose={closeDeleteConfirmDialog}
     title="Delete Collection"
   >
@@ -1034,9 +986,9 @@
     {/snippet}
   </Modal>
 {/if}
-{#if showDeleteRequestConfirmDialog}
+{#if $showDeleteRequestConfirmDialog}
   <Modal
-    bind:open={showDeleteRequestConfirmDialog}
+    bind:open={$showDeleteRequestConfirmDialog}
     onclose={closeDeleteRequestConfirmDialog}
     title="Delete Request"
   >
@@ -1057,10 +1009,10 @@
   </Modal>
 {/if}
 
-{#if showImportSelector}
+{#if $showImportSelector}
   <Modal
     title="Import Collection or Request"
-    bind:open={showImportSelector}
+    bind:open={$showImportSelector}
     onclose={closeImportModal}
     size="xl"
   >
@@ -1075,7 +1027,7 @@
             subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 await ImportPostmanCollection(paths[0]);
                 await collectionStore.loadCollections();
@@ -1109,7 +1061,7 @@
             subtitle="Supports Bruno collection folders (.bru files)"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 await ImportBrunoCollection(paths[0]);
                 await collectionStore.loadCollections();
@@ -1142,7 +1094,7 @@
             subtitle="Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 const warnings = await ImportOpenAPICollection(paths[0]);
                 await collectionStore.loadCollections();
@@ -1233,7 +1185,7 @@
             subtitle="Supports Solo collection JSON"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector = false;
+              showImportSelector.set(false);
               if (paths.length > 0) {
                 await executeSoloCollectionImport(paths[0], false);
               } else {
@@ -1262,7 +1214,7 @@
 
         <TabItem key="git" title="Git">
           <GitImportView
-            onImported={() => (showImportSelector = false)}
+            onImported={() => showImportSelector.set(false)}
             onActionStateChange={(state) => {
               gitImportActionState = state;
             }}
@@ -1312,14 +1264,14 @@
   </Modal>
 {/if}
 
-{#if showSoloCollectionOverwriteDialog}
+{#if $showSoloCollectionOverwriteDialog}
   <Modal
     title="Overwrite collection?"
-    bind:open={showSoloCollectionOverwriteDialog}
+    bind:open={$showSoloCollectionOverwriteDialog}
     onclose={() => {
       pendingSoloCollectionPath = null;
       soloCollectionOverwriteName = null;
-      showSoloCollectionOverwriteDialog = false;
+      showSoloCollectionOverwriteDialog.set(false);
     }}
     size="xl"
   >

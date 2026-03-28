@@ -244,15 +244,9 @@
   let editingCookies: HostCookieRow[] = $state([]);
   let customTlsEnabled = $state(false);
 
-  // Delete confirm modal
   const deleteHostModalId = `settings-delete-host-${Math.random().toString(36).slice(2)}`;
-  let showDeleteHostModal = $state(false);
+  const showDeleteHostModal = modalStack.binding(deleteHostModalId);
   let hostToDelete = $state("");
-
-  $effect(() => {
-    if (showDeleteHostModal) modalStack.open(deleteHostModalId);
-    else modalStack.close(deleteHostModalId);
-  });
 
   async function fetchHosts() {
     try {
@@ -335,11 +329,11 @@
 
   function handleDeleteHost(name: string) {
     hostToDelete = name;
-    showDeleteHostModal = true;
+    showDeleteHostModal.set(true);
   }
 
   async function confirmDeleteHost() {
-    showDeleteHostModal = false;
+    showDeleteHostModal.set(false);
     try {
       await DeleteHost(hostToDelete);
       await fetchHosts();
@@ -737,8 +731,8 @@
 </div>
 
 <!-- Delete host confirm modal -->
-{#if showDeleteHostModal}
-  <Modal title="Delete Host" bind:open={showDeleteHostModal} size="sm">
+{#if $showDeleteHostModal}
+  <Modal title="Delete Host" bind:open={$showDeleteHostModal} size="sm">
     {#if $topModalId === deleteHostModalId}
       <ToastContainer />
     {/if}
@@ -748,7 +742,7 @@
     </p>
     {#snippet footer()}
       <div class="flex w-full items-center justify-end gap-2">
-        <Button color="light" onclick={() => (showDeleteHostModal = false)}>Cancel</Button>
+        <Button color="light" onclick={() => showDeleteHostModal.set(false)}>Cancel</Button>
         <Button color="red" onclick={confirmDeleteHost}>Delete</Button>
       </div>
     {/snippet}
