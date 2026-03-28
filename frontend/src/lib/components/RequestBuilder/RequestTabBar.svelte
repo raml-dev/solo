@@ -17,18 +17,10 @@
   let activeTabId = $derived($tabStore.activeTabId);
 
   let tabToCloseId: string | null = $state(null);
-  let showConfirmClose = $state(false);
 
   const tabBarModalScope = `tabbar-${Math.random().toString(36).slice(2)}`;
   const confirmCloseModalId = `${tabBarModalScope}-confirm-close`;
-
-  $effect(() => {
-    if (showConfirmClose) {
-      modalStack.open(confirmCloseModalId);
-    } else {
-      modalStack.close(confirmCloseModalId);
-    }
-  });
+  const showConfirmClose = modalStack.binding(confirmCloseModalId);
 
   onDestroy(() => {
     modalStack.close(confirmCloseModalId);
@@ -89,7 +81,7 @@
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.isDirty) {
       tabToCloseId = tabId;
-      showConfirmClose = true;
+      showConfirmClose.set(true);
     } else {
       tabStore.closeTab(tabId);
     }
@@ -113,7 +105,7 @@
   }
 
   function closeConfirmModal() {
-    showConfirmClose = false;
+    showConfirmClose.set(false);
     tabToCloseId = null;
   }
 </script>
@@ -175,8 +167,8 @@
   </Button>
 </div>
 
-{#if showConfirmClose}
-  <Modal title="Unsaved Changes" bind:open={showConfirmClose}>
+{#if $showConfirmClose}
+  <Modal title="Unsaved Changes" bind:open={$showConfirmClose}>
     {#if $topModalId === confirmCloseModalId}
       <ToastContainer />
     {/if}

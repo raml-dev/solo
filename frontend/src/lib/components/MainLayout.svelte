@@ -20,35 +20,19 @@
   }
 
   let { title = "solo", navbar_actions, children, bottom_bar }: Props = $props();
-  let showEnvironmentManager = $state(false);
-  let showMainConfiguration = $state(false);
-
   const layoutModalScope = `layout-${Math.random().toString(36).slice(2)}`;
   const environmentManagerModalId = `${layoutModalScope}-environments`;
   const settingsModalId = `${layoutModalScope}-settings`;
 
-  $effect(() => {
-    if (showEnvironmentManager) {
-      modalStack.open(environmentManagerModalId);
-    } else {
-      modalStack.close(environmentManagerModalId);
-    }
-  });
-
-  $effect(() => {
-    if (showMainConfiguration) {
-      modalStack.open(settingsModalId);
-    } else {
-      modalStack.close(settingsModalId);
-    }
-  });
+  const showEnvironmentManager = modalStack.binding(environmentManagerModalId);
+  const showMainConfiguration = modalStack.binding(settingsModalId);
 
   function toggleEnvironmentManager() {
-    showEnvironmentManager = !showEnvironmentManager;
+    showEnvironmentManager.update((v) => !v);
   }
 
   function toggleMainConfiguration() {
-    showMainConfiguration = !showMainConfiguration;
+    showMainConfiguration.update((v) => !v);
   }
 
   onDestroy(() => {
@@ -87,8 +71,8 @@
   </div>
 </div>
 
-{#if showEnvironmentManager}
-  <Modal bind:open={showEnvironmentManager} fullscreen size="none">
+{#if $showEnvironmentManager}
+  <Modal bind:open={$showEnvironmentManager} fullscreen size="none">
     {#if $topModalId === environmentManagerModalId}
       <ToastContainer />
     {/if}
@@ -96,10 +80,10 @@
   </Modal>
 {/if}
 
-{#if showMainConfiguration}
+{#if $showMainConfiguration}
   <Modal
     title="Settings"
-    bind:open={showMainConfiguration}
+    bind:open={$showMainConfiguration}
     size="xl"
     bodyClass="h-[600px] overflow-hidden p-4"
   >
