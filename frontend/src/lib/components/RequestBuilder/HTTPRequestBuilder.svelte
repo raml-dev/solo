@@ -22,13 +22,14 @@
   import { notifications } from "$src/lib/stores/notificationStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
-    activeTab as activeTabState,
-    tabStore,
+    getActiveTab,
+    saveTab,
+    tabsStore,
+    updateTabResponse,
     type TabResponse
-  } from "$src/lib/stores/tabStore";
+  } from "$src/lib/stores/tabStore.svelte";
   import { getStatusBadgeColor } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
-  import type { configuration as conf } from "$wails/go/models";
   import { collection, main } from "$wails/go/models";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
@@ -39,38 +40,8 @@
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onMount } from "svelte";
 
-  interface Header {
-    id: string;
-    key: string;
-    value: string;
-    enabled: boolean;
-  }
 
-  // --- Local form state ---
-  let method = $state("GET");
-  let url = $state("");
-  let requestBody = $state("");
-  let requestBodyFormat: InputFormat = $state("none");
-  let headers: Header[] = $state([]);
-  let auth = $state(
-    collection.AuthConfiguration.createFrom({
-      enabled: false,
-      tokenUrl: "",
-      template: {},
-      tokenPath: "access_token"
-    })
-  );
-  let requestSettings: conf.RequestSettingsOverride = $state({});
-  let requestName = $state("");
-  let preRequestScript = $state("");
-  let postResponseScript = $state("");
-
-  // Tracks which tab request is currently loaded — prevents re-loading while typing,
-  // but still reloads when a preview tab is recycled to another request.
-  let activeBuilderTabId: string | null = $state(null);
-  let activeBuilderRequestId: string | null = $state(null);
-
-  // UI state
+  // UI-only local state (not tab data)
   let requestPaneTab = $state("Body");
   let response: TabResponse | null = $state(null);
   let requestError: string | null = $state(null);
@@ -93,6 +64,8 @@
 
   const { config: globalConfig } = configurationStore;
 
+  let requestName = $derived(tabsStore.tabs[tabsStore.activeTabIndex]?.label || "")
+
   onMount(() => {
     if (builderElement) {
       responseHeight = Math.floor(builderElement.clientHeight * 0.35);
@@ -105,82 +78,40 @@
     return () => {
       window.removeEventListener("solo:save-request-new", handleSaveNew);
     };
+
   });
 
-  function loadTabIntoForm(tab: NonNullable<typeof $activeTabState>) {
-    activeBuilderTabId = tab.id;
-    activeBuilderRequestId = tab.requestId;
-    method = tab.verb || "GET";
-    url = tab.url || "";
-    requestBody = tab.body || "";
-    requestBodyFormat = (tab.bodyFormat as InputFormat) || "none";
-    headers = tab.headers ? [...tab.headers] : [];
-    auth = collection.AuthConfiguration.createFrom(tab.auth);
-    requestSettings = { ...(tab.settings || {}) };
-    requestName = tab.label || "";
-    preRequestScript = tab.preRequestScript || "";
-    postResponseScript = tab.postResponseScript || "";
-    response = tab.response ?? null;
-    requestError = tab.requestError ?? null;
-  }
-
-  function resetForm() {
-    activeBuilderTabId = null;
-    activeBuilderRequestId = null;
-    method = "GET";
-    url = "";
-    requestBody = "";
-    requestBodyFormat = "json";
-    headers = [];
-    auth = collection.AuthConfiguration.createFrom({
-      enabled: false,
-      tokenUrl: "",
-      template: {},
-      tokenPath: "access_token"
-    });
-    requestSettings = {};
-    requestName = "";
-    preRequestScript = "";
-    postResponseScript = "";
-    response = null;
-    requestError = null;
+  // Field change handler - mutation already happened via bind:, just update metadata
+  function onFieldChange() {
+    const tab = getActiveTab()
+    if (!tab) return;
+    tab.isDirty = true;
+    tab.isPreview = false;
   }
 
   async function handleSave() {
-    if (!activeBuilderTabId) return;
-    if (!$activeTabState?.requestId) {
+    const tab = getActiveTab()
+    if (!tab?.id || !tab.requestId) {
       showSaveDialog = true;
       return;
     }
-    await tabStore.saveTab(activeBuilderTabId);
-  }
-
-  // --- Field change handlers (called from template on user interaction) ---
-  function onFieldChange() {
-    // Sync in-memory tab state
-    if (!activeBuilderTabId) return;
-    tabStore.updateTabFormState(activeBuilderTabId, {
-      verb: method,
-      url,
-      body: requestBody,
-      bodyFormat: requestBodyFormat,
-      headers,
-      auth,
-      settings: requestSettings,
-      preRequestScript,
-      postResponseScript
-    });
+    await saveTab(tab.id);
   }
 
   function handleMethodChange(value: string) {
-    method = value;
+    const tab = getActiveTab()
+    if (tab) {
+      tab.verb = value;
+    }
     onFieldChange();
   }
 
   function handleBodyFormatChange(value: string) {
-    requestBodyFormat = value as InputFormat;
+    const tab = getActiveTab()
+    if (!tab) return;
+    tab.bodyFormat = value as InputFormat;
     // Also update Content-Type header
-    const ct = headers.find((h) => h.key.toLowerCase() === "content-type");
+    const ct = tab.headers.find((h) => h.key.toLowerCase() === "content-type");
     if (ct) {
       ct.value =
         value === "json"
@@ -190,7 +121,7 @@
             : value === "text"
               ? "text/plain"
               : "";
-      headers = [...headers];
+      tab.headers = [...tab.headers];
     }
     onFieldChange();
   }
@@ -233,15 +164,16 @@
 
   // --- Beautify ---
   function formatBody() {
-    if (!requestBody?.trim()) return;
-    if (requestBodyFormat === "json") {
+    const tab = getActiveTab()
+    if (!tab || !tab.body?.trim()) return;
+    if (tab.bodyFormat === "json") {
       try {
-        requestBody = JSON.stringify(JSON.parse(requestBody), null, 2);
+        tab.body = JSON.stringify(JSON.parse(tab.body), null, 2);
       } catch {
         // do nothing
       }
-    } else if (requestBodyFormat === "xml") {
-      requestBody = prettifyXml(requestBody);
+    } else if (tab.bodyFormat === "xml") {
+      tab.body = prettifyXml(tab.body);
     }
     onFieldChange();
   }
@@ -299,13 +231,19 @@
   async function sendRequest() {
     loading = true;
 
+    const tab = getActiveTab()
+    if (!tab) {
+      loading = false;
+      return;
+    }
+
     // Keep token resolution aligned with backend env.get precedence:
     // session vars first, then selected environment.
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
-    const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
-    const resolvedBody = resolveEnvironmentTokens(requestBody, sessionVars);
-    const resolvedHeaders = headers
+    const resolvedUrl = resolveEnvironmentTokens(tab.url, sessionVars);
+    const resolvedBody = resolveEnvironmentTokens(tab.body, sessionVars);
+    const resolvedHeaders = tab.headers
       .filter((h) => h.enabled)
       .reduce(
         (acc, { key, value }) => ({
@@ -317,9 +255,9 @@
 
     // Resolve Auth tokens
     const resolvedAuth = collection.AuthConfiguration.createFrom({
-      ...auth,
-      tokenUrl: resolveEnvironmentTokens(auth.tokenUrl, sessionVars),
-      template: Object.entries(auth.template || {}).reduce(
+      ...tab.auth,
+      tokenUrl: resolveEnvironmentTokens(tab.auth.tokenUrl, sessionVars),
+      template: Object.entries(tab.auth.template || {}).reduce(
         (acc, [k, v]) => ({
           ...acc,
           [k]: resolveEnvironmentTokens(v, sessionVars)
@@ -331,12 +269,12 @@
     const requestOptions = new main.RequestOptions({
       body: resolvedBody,
       headers: resolvedHeaders,
-      method,
+      method: tab.verb,
       url: resolvedUrl,
       auth: resolvedAuth,
-      settings: requestSettings,
-      preRequestScript: preRequestScript || "",
-      postResponseScript: postResponseScript || ""
+      settings: tab.settings,
+      preRequestScript: tab.preRequestScript || "",
+      postResponseScript: tab.postResponseScript || ""
     });
 
     try {
@@ -353,27 +291,26 @@
         requestHeaders: responseData.requestHeaders,
         body: prettyPrint(rawBody, fmt)
       };
-      if (activeBuilderTabId) {
-        tabStore.updateTabResponse(activeBuilderTabId, response, null);
-      }
+      updateTabResponse(tab.id, response, null);
     } catch (error) {
       response = null;
       requestError = String(error);
-      if (activeBuilderTabId) {
-        tabStore.updateTabResponse(activeBuilderTabId, null, requestError);
-      }
+      updateTabResponse(tab.id, null, requestError);
     } finally {
       loading = false;
     }
   }
 
   async function handleExportCurl() {
+    const tab = getActiveTab()
+    if (!tab) return;
+
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
-    const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
-    const resolvedBody = requestBody ? resolveEnvironmentTokens(requestBody, sessionVars) : "";
+    const resolvedUrl = resolveEnvironmentTokens(tab.url, sessionVars);
+    const resolvedBody = tab.body ? resolveEnvironmentTokens(tab.body, sessionVars) : "";
 
-    const resolvedHeaders = headers
+    const resolvedHeaders = tab.headers
       .filter((h) => h.enabled && h.key)
       .reduce(
         (acc, { key, value }) => ({
@@ -384,12 +321,11 @@
       );
 
     // Add cookies from the saved request as Cookie header if present
-    const collName = $activeTabState?.collectionName ?? null;
-    const reqId = $activeTabState?.requestId ?? null;
-    if (collName && reqId) {
-      const savedReq = $collectionStore.collections
-        .find((c) => c.name === collName)
-        ?.requests.find((r) => r.id === reqId);
+    if (tab.collectionName && tab.requestId) {
+      const collections = $collectionStore.collections;
+      const savedReq = collections
+        .find((c) => c.name === tab.collectionName)
+        ?.requests.find((r) => r.id === tab.requestId);
       const cookieEntries = Object.entries(savedReq?.cookies ?? {});
       if (cookieEntries.length > 0) {
         resolvedHeaders["Cookie"] = cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ");
@@ -407,7 +343,7 @@
 
     try {
       const curl = await GenerateCurl({
-        method,
+        method: tab.verb,
         url: resolvedUrl,
         headers: resolvedHeaders,
         body: resolvedBody
@@ -446,41 +382,26 @@
   }
 
   async function handleSaveRequest(data: { name: string; collection: string | null }) {
-    const { name, collection: targetCollection } = data;
-    if (!targetCollection || !activeBuilderTabId) return;
+    const tab = getActiveTab()
+    if (!tab || !data.collection) return;
     try {
-      const headersObj = headers
+      const headersObj = tab.headers
         .filter((h) => h.enabled && h.key)
         .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
-      await collectionStore.addRequest(targetCollection, {
-        name: name || "Untitled Request",
-        url,
-        verb: method,
-        body: requestBody,
+      await collectionStore.addRequest(data.collection, {
+        name: data.name || "Untitled Request",
+        url: tab.url,
+        verb: tab.verb,
+        body: tab.body,
         headers: headersObj,
-        auth,
-        settings: requestSettings
+        auth: tab.auth,
+        settings: tab.settings
       });
       showSaveDialog = false;
     } catch {
       /* shown by store */
     }
   }
-
-  // --- Tab switching: ONE-WAY, store → form only ---
-  // Reload when active tab changes OR when the same preview tab id is recycled
-  // to point at a different request.
-  $effect(() => {
-    const nextTabId = $activeTabState?.id ?? null;
-    const nextRequestId = $activeTabState?.requestId ?? null;
-    if (nextTabId !== activeBuilderTabId || nextRequestId !== activeBuilderRequestId) {
-      if ($activeTabState) {
-        loadTabIntoForm($activeTabState);
-      } else {
-        resetForm();
-      }
-    }
-  });
 
   let responseFormat = $derived(getResponseFormat(response));
 </script>
@@ -494,7 +415,8 @@
   }}
 />
 
-{#if $activeTabState}
+{#if tabsStore.tabs[tabsStore.activeTabIndex]}
+  {@const tab = tabsStore.tabs[tabsStore.activeTabIndex]}
   <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
     <TokenTooltip />
 
@@ -504,9 +426,9 @@
     >
       <div class="flex items-center gap-2">
         <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
-          >{requestName || "New Request"}</span
+          >{tabsStore.tabs[tabsStore.activeTabIndex].label || "New Request"}</span
         >
-        {#if !$activeTabState.requestId || $activeTabState.isDirty}
+        {#if !tab.requestId || tab.isDirty}
           <Button
             color="light"
             size="xs"
@@ -528,17 +450,17 @@
       <div class="flex items-stretch">
         <div class="shrink-0">
           <Select
-            bind:value={method}
+            bind:value={tab.verb}
             items={methodOptions}
             placeholder=""
             size="sm"
-            onchange={() => handleMethodChange(method)}
+            onchange={() => handleMethodChange(tab.verb)}
             class="h-full rounded-none border-0 bg-transparent px-3 py-0 font-semibold"
           />
         </div>
         <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <TokenInput
-          bind:value={url}
+          bind:value={tab.url}
           placeholder="Enter request URL"
           {environmentEntries}
           wrapperClass="min-w-0 flex-1"
@@ -565,7 +487,7 @@
           {#snippet titleSlot()}
             <span class="inline-flex items-center gap-1">
               <span>OAuth</span>
-              {#if auth.enabled}
+              {#if tab.auth.enabled}
                 <span class="h-1.5 w-1.5 rounded-full bg-primary-500" aria-hidden="true"></span>
               {/if}
             </span>
@@ -575,7 +497,7 @@
           {#snippet titleSlot()}
             <span class="inline-flex items-center gap-1">
               <span>Scripts</span>
-              {#if preRequestScript.trim() || postResponseScript.trim()}
+              {#if tab.preRequestScript.trim() || tab.postResponseScript.trim()}
                 <span aria-hidden="true">●</span>
               {/if}
             </span>
@@ -587,25 +509,25 @@
 
       {#if requestPaneTab === "Body"}
         <div class="ml-auto flex items-center gap-1 px-2">
-          {#if requestBodyFormat !== "none"}
+          {#if tab.bodyFormat !== "none"}
             <Button
               color="light"
               size="xs"
               title="Prettify / Format body"
               onclick={formatBody}
-              disabled={requestBodyFormat === "text"}
+              disabled={tab.bodyFormat === "text"}
             >
               Beautify
             </Button>
             <span class="text-neutral-300 dark:text-neutral-600">|</span>
           {/if}
           <Select
-            bind:value={requestBodyFormat}
+            bind:value={tab.bodyFormat}
             items={bodyFormatOptions}
             placeholder=""
             size="sm"
             underline
-            onchange={() => handleBodyFormatChange(requestBodyFormat)}
+            onchange={() => handleBodyFormatChange(tab.bodyFormat)}
           />
         </div>
       {/if}
@@ -614,60 +536,48 @@
     <!-- Request tab content -->
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       {#if requestPaneTab === "Headers"}
-        {#key $activeTabState.id}
-          <RequestHeaders bind:headers onChange={onFieldChange} />
-        {/key}
+        <RequestHeaders bind:headers={tab.headers} onChange={onFieldChange} />
       {:else if requestPaneTab === "Body"}
-        {#key $activeTabState.id}
-          {#if requestBodyFormat === "none"}
-            <FeedbackEmptyState variant="info" title="This request does not have a body" compact />
-          {:else}
-            <RequestBody
-              bind:requestBody
-              bind:format={requestBodyFormat}
-              onChange={onFieldChange}
-            />
-          {/if}
-        {/key}
-      {:else if requestPaneTab === "Auth"}
-        {#key $activeTabState.id}
-          <RequestAuth bind:auth onChange={onFieldChange} />
-        {/key}
-      {:else if requestPaneTab === "Scripts"}
-        {#key $activeTabState.id}
-          <RequestScripts
-            bind:preRequestScript
-            bind:postResponseScript
-            onPreChange={(val) => {
-              preRequestScript = val;
-              onFieldChange();
-            }}
-            onPostChange={(val) => {
-              postResponseScript = val;
-              onFieldChange();
-            }}
-          />
-        {/key}
-      {:else if requestPaneTab === "Settings"}
-        {#key $activeTabState.id}
-          <RequestSettings
-            bind:requestSettings
-            globalConfig={$globalConfig}
+        {#if tab.bodyFormat === "none"}
+          <FeedbackEmptyState variant="info" title="This request does not have a body" compact />
+        {:else}
+          <RequestBody
+            bind:requestBody={tab.body}
+            bind:format={tab.bodyFormat}
             onChange={onFieldChange}
           />
-        {/key}
+        {/if}
+      {:else if requestPaneTab === "Auth"}
+        <RequestAuth bind:auth={tab.auth} onChange={onFieldChange} />
+      {:else if requestPaneTab === "Scripts"}
+        <RequestScripts
+          bind:preRequestScript={tab.preRequestScript}
+          bind:postResponseScript={tab.postResponseScript}
+          onPreChange={(val) => {
+            tab.preRequestScript = val;
+            onFieldChange();
+          }}
+          onPostChange={(val) => {
+            tab.postResponseScript = val;
+            onFieldChange();
+          }}
+        />
+      {:else if requestPaneTab === "Settings"}
+        <RequestSettings
+          bind:requestSettings={tab.settings}
+          globalConfig={$globalConfig}
+          onChange={onFieldChange}
+        />
       {:else if requestPaneTab === "Runner"}
-        {#key $activeTabState.id}
-          <RequestRunner
-            {method}
-            {url}
-            body={requestBody}
-            bind:headers
-            bind:settings={requestSettings}
-            {preRequestScript}
-            {postResponseScript}
-          />
-        {/key}
+        <RequestRunner
+          method={tab.verb}
+          url={tab.url}
+          body={tab.body}
+          bind:headers={tab.headers}
+          bind:settings={tab.settings}
+          preRequestScript={tab.preRequestScript}
+          postResponseScript={tab.postResponseScript}
+        />
       {/if}
     </div>
 
@@ -863,7 +773,7 @@
 
 <SaveRequestModal
   bind:show={showSaveDialog}
-  bind:requestName
+  bind:requestName={requestName}
   onSave={handleSaveRequest}
   onCancel={() => (showSaveDialog = false)}
 />
