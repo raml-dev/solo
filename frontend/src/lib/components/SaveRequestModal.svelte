@@ -28,12 +28,10 @@
   let selectedCollectionName = $state("");
   let creatingNew = $state(false);
   let newCollectionName = $state("");
-  let collectionOptions = $state(
-    collectionStoreState.collections.map((c) => ({
+  let collectionOptions = collectionStoreState.collections.map((c) => ({
       value: c.name,
       name: c.name
     }))
-  );
 
   const saveRequestModalId = `save-request-${Math.random().toString(36).slice(2)}`;
 
@@ -49,7 +47,7 @@
   // If a collection is already selected in the sidebar, use it by default
   onMount(() => {
     if (collectionStoreState.selectedCollectionName) {
-      selectedCollectionName = collectionStoreState.selectedCollectionName as unknown as string;
+      selectedCollectionName = collectionStoreState.selectedCollectionName
     }
   });
 
