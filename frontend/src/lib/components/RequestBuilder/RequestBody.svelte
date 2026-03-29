@@ -6,7 +6,7 @@
 <script lang="ts">
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
-  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
 
   interface Props {
     requestBody: string;
@@ -16,8 +16,14 @@
 
   let { requestBody = $bindable(), format = $bindable(), onChange }: Props = $props();
 
+  let selectedEnvironment = $derived(
+    environmentStoreState.environments.find(
+      (e) => e.name === environmentStoreState.selectedEnvironmentName
+    ) || null
+  );
+
   let environmentEntries = $derived(
-    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
       key,
       value: String(val?.value ?? "")
     }))

@@ -7,7 +7,7 @@
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
-  import { environmentStore, selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
     cancelHideTokenTooltip,
@@ -25,11 +25,16 @@
   let tooltipState = $derived($tokenTooltipStore);
   let tokenKey = $derived(tooltipState.tokenKey);
   let visible = $derived(tooltipState.visible);
+  let selectedEnvironment = $derived(
+    environmentStoreState.environments.find(
+      (e) => e.name === environmentStoreState.selectedEnvironmentName
+    ) || null
+  );
 
   let sessionValue = $derived(tokenKey ? $sessionVarsStore[tokenKey] : undefined);
-  let envValue = $derived($selectedEnvironment?.values[tokenKey]?.value ?? "");
+  let envValue = $derived(selectedEnvironment?.values[tokenKey]?.value ?? "");
   let hasSessionValue = $derived(sessionValue !== undefined);
-  let hasEnvValue = $derived($selectedEnvironment?.values[tokenKey] !== undefined);
+  let hasEnvValue = $derived(selectedEnvironment?.values[tokenKey] !== undefined);
   let displayValue = $derived(hasSessionValue ? String(sessionValue) : envValue);
   let exists = $derived(hasSessionValue || hasEnvValue);
   let valueSource = $derived(hasSessionValue ? "session" : hasEnvValue ? "environment" : "none");
@@ -53,14 +58,14 @@
   }
 
   async function save() {
-    if (!$selectedEnvironment) return;
-    const processedValues = { ...$selectedEnvironment.values };
+    if (!selectedEnvironment) return;
+    const processedValues = { ...selectedEnvironment.values };
     processedValues[tokenKey] = new environment.ValueType({
       value: editValue,
       type: "string"
     });
     const envToSave = new environment.Environment({
-      ...$selectedEnvironment,
+      ...selectedEnvironment,
       values: processedValues
     });
     await environmentStore.updateEnvironment(envToSave);

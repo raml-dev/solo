@@ -18,7 +18,7 @@
   import SaveRequestModal from "$src/lib/components/SaveRequestModal.svelte";
   import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
-  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
@@ -54,8 +54,14 @@
   let responseCollapsed = $state(false);
   let isResizing = $state(false);
   let builderElement: HTMLElement | undefined = $state();
+  let selectedEnvironment = $derived(
+    environmentStoreState.environments.find(
+      (e) => e.name === environmentStoreState.selectedEnvironmentName
+    ) || null
+  );
+
   let environmentEntries: { key: string; value: string }[] = $derived(
-    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
       key,
       value: String(val?.value ?? "")
     }))

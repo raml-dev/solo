@@ -16,7 +16,7 @@
   import TableHead from "flowbite-svelte/TableHead.svelte";
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import { selectedEnvironment } from "$src/lib/stores/environmentStore";
+  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { GetSessionVars, RunParallel } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
   import { main, runner } from "$wails/go/models";
@@ -51,6 +51,12 @@
     postResponseScript
   }: Props = $props();
 
+  let selectedEnvironment = $derived(
+    environmentStoreState.environments.find(
+      (e) => e.name === environmentStoreState.selectedEnvironmentName
+    ) || null
+  );
+
   let concurrency = $state(5);
   let iterations = $state(20);
   let stopOnError = $state(false);
@@ -62,7 +68,7 @@
   const MAX_VISIBLE_RESULTS = 50;
 
   let environmentEntries = $derived(
-    Object.entries($selectedEnvironment?.values ?? {}).map(([key, val]) => ({
+    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
       key,
       value: String(val?.value ?? "")
     }))
