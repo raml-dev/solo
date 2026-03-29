@@ -10,7 +10,7 @@
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Select from "flowbite-svelte/Select.svelte";
-  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
     GetGitRemoteBranches,

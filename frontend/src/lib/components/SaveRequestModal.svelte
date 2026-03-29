@@ -12,7 +12,7 @@
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { onDestroy, onMount } from "svelte";
 
@@ -28,10 +28,10 @@
   let selectedCollectionName = $state("");
   let creatingNew = $state(false);
   let newCollectionName = $state("");
-  const collectionOptions = $derived(
-    $collectionStore.collections.map((collection) => ({
-      value: collection.name,
-      name: collection.name
+  let collectionOptions = $state(
+    collectionStoreState.collections.map((c) => ({
+      value: c.name,
+      name: c.name
     }))
   );
 
@@ -48,8 +48,8 @@
 
   // If a collection is already selected in the sidebar, use it by default
   onMount(() => {
-    if ($collectionStore.selectedCollectionName) {
-      selectedCollectionName = $collectionStore.selectedCollectionName;
+    if (collectionStoreState.selectedCollectionName) {
+      selectedCollectionName = collectionStoreState.selectedCollectionName as unknown as string;
     }
   });
 

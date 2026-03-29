@@ -10,7 +10,7 @@
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
-  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
@@ -109,8 +109,8 @@
 
   // Pre-select the active collection when the import modal opens
   $effect(() => {
-    if ($showImportSelector && $collectionStore.selectedCollectionName) {
-      curlTargetCollection = $collectionStore.selectedCollectionName;
+    if ($showImportSelector && collectionStoreState.selectedCollectionName) {
+      curlTargetCollection = collectionStoreState.selectedCollectionName;
     }
   });
 
@@ -288,8 +288,8 @@
     const trimmed = newCollectionName.trim();
     if (!trimmed) return;
 
-    const exists = collections.some(
-      (collection) => collection.name.toLowerCase() === trimmed.toLowerCase()
+    const exists = collectionStoreState.collections.some(
+      (c) => c.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) {
       notifications.warning(`Collection "${trimmed}" already exists`);
@@ -312,8 +312,8 @@
       return;
     }
 
-    const exists = collections.some(
-      (collection) => collection.name.toLowerCase() === trimmed.toLowerCase()
+    const exists = collectionStoreState.collections.some(
+      (c) => c.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) {
       notifications.warning(`Collection "${trimmed}" already exists`);
@@ -595,6 +595,7 @@
     if (stored !== null) {
       isCollapsed = stored === "true";
     }
+    collectionStore.loadCollections();
   });
 
   onDestroy(async () => {
@@ -605,11 +606,12 @@
     modalStack.close(importCollectionModalId);
     modalStack.close(soloCollectionOverwriteModalId);
   });
-  let collections = $derived($collectionStore.collections);
+  let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
   let selectedRequestId = $derived(
     tabsStore.tabs.find((t) => t.id === getActiveTab().id)?.id ?? null
   );
+
   let normalizedQuery = $derived(searchQuery.trim().toLowerCase());
   let isSearching = $derived(normalizedQuery.length > 0);
   let filteredCollections = $derived(
@@ -622,10 +624,12 @@
   class:collapsed={isCollapsed}
   style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
 >
-  <div
-    class="absolute top-0 right-0 z-20 h-full w-1 cursor-col-resize"
+  <button
+    type="button"
+    class="absolute top-0 right-0 z-20 h-full w-1 cursor-col-resize bg-transparent p-0"
     onmousedown={startResize}
-  ></div>
+    aria-label="Resize sidebar"
+  ></button>
 
   <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
     <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
@@ -671,7 +675,7 @@
 
   {#if !isCollapsed}
     <div class="min-h-0 flex-1 overflow-y-auto p-2">
-      {#if $collectionStore.loading}
+      {#if collectionStoreState.loading}
         <div class="p-3 text-sm text-neutral-500 dark:text-neutral-400">Loading collections...</div>
       {/if}
 
@@ -901,7 +905,7 @@
         {/each}
       </div>
 
-      {#if filteredCollections.length === 0 && !$collectionStore.loading}
+      {#if filteredCollections.length === 0 && !collectionStoreState.loading}
         <div class="pt-2">
           <FeedbackEmptyState
             title={isSearching ? "No matching collections or requests" : "No collections yet"}
@@ -1171,7 +1175,7 @@
               {:else}
                 <div class="flex gap-2">
                   <Select bind:value={curlTargetCollection} class="flex-1">
-                    {#each collections as coll (coll.id)}
+                    {#each collectionStoreState.collections as coll (coll.id)}
                       <option value={coll.name}>{coll.name}</option>
                     {/each}
                   </Select>

@@ -231,11 +231,13 @@
         class="flex flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
         style="height: {consoleHeight}px"
       >
-        <div
-          class="h-1 shrink-0 cursor-row-resize bg-neutral-200 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
+        <button
+          type="button"
+          class="h-1 shrink-0 cursor-row-resize bg-neutral-200 p-0 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
           class:bg-primary-500={isResizing}
           onmousedown={startResize}
-        ></div>
+          aria-label="Resize console"
+        ></button>
         <div class="min-h-0 flex-1 overflow-hidden">
           <Console />
         </div>
