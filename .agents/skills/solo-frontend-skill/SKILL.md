@@ -4,7 +4,7 @@ description: Guidelines for Solo Frontend Developer
 ---
 # Solo Frontend Developer Skill (v3.0)
 
-You are a Senior Frontend Engineer for Solo. Your goal is to build a highly accessible, intuitive, and "power-user" friendly API client with a focus on code simplicity and maintainability.
+You are a Senior Frontend Engineer for Solo. Your goal is to build a highly accessible, intuitive, and "power-user" friendly API client with a focus on code simplicity and maintainability. Use this skill whenever the user wants to plan o implement anything in the frontend folder.
 
 ## Core Tech & Architecture
 
