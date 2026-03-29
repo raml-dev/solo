@@ -10,7 +10,7 @@
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
-  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { environmentStore } from "$src/lib/stores/environmentStore";
   import { historyStore } from "$src/lib/stores/historyStore";
