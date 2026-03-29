@@ -12,7 +12,7 @@
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
-  import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
@@ -63,13 +63,13 @@
     modalStack.close(overwriteEnvironmentModalId);
   });
 
-  let environments = $derived($environmentStore.environments);
+  let environments = $derived(environmentStoreState.environments);
   $effect(() => {
     const exists =
       focusedEnvironmentName && environments.some((e) => e.name === focusedEnvironmentName);
     if (!exists) {
       focusedEnvironmentName =
-        $environmentStore.selectedEnvironmentName || environments[0]?.name || null;
+        environmentStoreState.selectedEnvironmentName || environments[0]?.name || null;
     }
   });
   let selectedEnvironment = $derived(
@@ -275,7 +275,7 @@
       </Button>
     </div>
 
-    {#if $environmentStore.loading}
+    {#if environmentStoreState.loading}
       <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">
         Loading environments...
       </div>
@@ -286,7 +286,7 @@
         <EnvironmentItem
           env={environment}
           menuOpen={activeMenu === environment.name}
-          isActive={environment.name === $environmentStore.selectedEnvironmentName}
+          isActive={environment.name === environmentStoreState.selectedEnvironmentName}
           isFocused={environment.name === focusedEnvironmentName}
           isSyncing={syncingEnvironments.has(environment.id)}
           onOpen={openEnvironment}
@@ -299,7 +299,7 @@
         />
       {/each}
     </div>
-    {#if environments.length === 0 && !$environmentStore.loading}
+    {#if environments.length === 0 && !environmentStoreState.loading}
       <FeedbackEmptyState
         title="No environments yet"
         detail="Create your first environment to get started"

@@ -12,7 +12,7 @@
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
-  import { environmentStore } from "$src/lib/stores/environmentStore";
+  import { environmentStore } from "$src/lib/stores/environmentStore.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
   import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
