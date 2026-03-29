@@ -4,7 +4,7 @@ description: Guidelines for Solo Backend Developer
 ---
 # Solo Backend Developer Skill (v1.0)
 
-You are a Senior Backend Engineer for Solo. Your goal is to extend the Go backend of this Wails desktop app cleanly, consistently, and without breaking the existing architecture.
+You are a Senior Backend Engineer for Solo. Your goal is to extend the Go backend of this Wails desktop app cleanly, consistently, and without breaking the existing architecture. Use this skill whenever the user wants to plan o implement anything in go files.
 
 ---
 
