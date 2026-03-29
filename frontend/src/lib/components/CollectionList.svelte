@@ -689,6 +689,7 @@
               onclick={(e) => {
                 e.stopPropagation();
                 selectCollection(collection.name);
+                toggleCollection(collection.name);
               }}
               onkeypress={(e) => {
                 if (e.key === "Enter") {
@@ -730,7 +731,7 @@
                       <path d={getProviderIconPath(collection.gitProvider || "git")} />
                     </svg>
                   {/if}
-                  <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                  <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100 cursor-default">
                     {collection.name}
                   </span>
                   <span
