@@ -595,7 +595,6 @@
     if (stored !== null) {
       isCollapsed = stored === "true";
     }
-    collectionStore.loadCollections();
   });
 
   onDestroy(async () => {
