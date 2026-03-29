@@ -33,7 +33,7 @@
 
   function onDragEnter(event: DragEvent) {
     event.preventDefault();
-    event.stopPropagation() // don't let it bubble to window
+    event.stopPropagation(); // don't let it bubble to window
     dragOver = true;
   }
 
@@ -44,13 +44,13 @@
 
   function onDragOver(event: DragEvent) {
     event.preventDefault();
-    event.stopPropagation() // don't let it bubble to window
+    event.stopPropagation(); // don't let it bubble to window
     dragOver = true;
   }
 
   function onDropEvent(event: DragEvent) {
     event.preventDefault();
-    event.stopPropagation() // don't let it bubble to window
+    event.stopPropagation(); // don't let it bubble to window
     dragOver = false;
   }
 

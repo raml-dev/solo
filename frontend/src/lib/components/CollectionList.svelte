@@ -13,7 +13,12 @@
   import { collectionStore } from "$src/lib/stores/collectionStore";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { getActiveTab, openTab, renameTabsByRequestId, tabsStore } from "$src/lib/stores/tabStore.svelte";
+  import {
+    getActiveTab,
+    openTab,
+    renameTabsByRequestId,
+    tabsStore
+  } from "$src/lib/stores/tabStore.svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import {
     ExportCollection,
@@ -603,7 +608,8 @@
   let collections = $derived($collectionStore.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
   let selectedRequestId = $derived(
-    tabsStore.tabs.find((t) => t.id === getActiveTab().id)?.id ?? null);
+    tabsStore.tabs.find((t) => t.id === getActiveTab().id)?.id ?? null
+  );
   let normalizedQuery = $derived(searchQuery.trim().toLowerCase());
   let isSearching = $derived(normalizedQuery.length > 0);
   let filteredCollections = $derived(

@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
 import { collectionStore } from "$src/lib/stores/collectionStore";
 import { notifications } from "$src/lib/stores/notificationStore";
+import { filterInPlace } from "$src/lib/utils/helpers";
 import type { configuration as conf } from "$wails/go/models";
 import { collection } from "$wails/go/models";
-import { get } from "svelte/store";
-import { filterInPlace } from "$src/lib/utils/helpers";
-import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
 import { SvelteDate } from "svelte/reactivity";
+import { get } from "svelte/store";
 
 export interface TabHeader {
   id: string;
@@ -56,7 +56,7 @@ export interface TabState {
 
 interface TabStoreState {
   tabs: TabState[];
-  activeTabIndex: number;  // -1 when no active tab
+  activeTabIndex: number; // -1 when no active tab
 }
 
 const EMPTY_TAB_LABEL = "New Request";
@@ -73,7 +73,7 @@ export function getActiveTab(): TabState {
 }
 
 function getTabIndexById(tabId: string): number {
-  return tabsStore.tabs.findIndex(t => t.id === tabId);
+  return tabsStore.tabs.findIndex((t) => t.id === tabId);
 }
 
 export function makeEmptyTab(): TabState {
@@ -246,8 +246,13 @@ export function updateTabFormState(
 }
 
 /** Called after a successful save: bind a previously-unsaved tab to a real requestId */
-export function bindTabToRequest(tabId: string, requestId: string, collectionName: string, label: string) {
-  const tab = tabsStore.tabs.find(t => t.id === tabId);
+export function bindTabToRequest(
+  tabId: string,
+  requestId: string,
+  collectionName: string,
+  label: string
+) {
+  const tab = tabsStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.requestId = requestId;
     tab.collectionName = collectionName;
@@ -302,8 +307,12 @@ export async function saveTab(tabId: string) {
   }
 }
 
-export function updateTabResponse(tabId: string, response: TabResponse | null, requestError: string | null) {
-  const tab = tabsStore.tabs.find(t => t.id === tabId);
+export function updateTabResponse(
+  tabId: string,
+  response: TabResponse | null,
+  requestError: string | null
+) {
+  const tab = tabsStore.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.response = response;
     tab.requestError = requestError;
@@ -312,7 +321,7 @@ export function updateTabResponse(tabId: string, response: TabResponse | null, r
 }
 
 export function renameTabsByRequestId(requestId: string, label: string) {
-  const tab = tabsStore.tabs.find(t => t.requestId === requestId);
+  const tab = tabsStore.tabs.find((t) => t.requestId === requestId);
   if (tab) {
     tab.label = label;
   }
