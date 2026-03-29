@@ -40,7 +40,6 @@
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onMount } from "svelte";
 
-
   // UI-only local state (not tab data)
   let requestPaneTab = $state("Body");
   let response: TabResponse | null = $state(null);
@@ -64,7 +63,7 @@
 
   const { config: globalConfig } = configurationStore;
 
-  let requestName = $derived(tabsStore.tabs[tabsStore.activeTabIndex]?.label || "")
+  let requestName = $derived(tabsStore.tabs[tabsStore.activeTabIndex]?.label || "");
 
   onMount(() => {
     if (builderElement) {
@@ -78,19 +77,18 @@
     return () => {
       window.removeEventListener("solo:save-request-new", handleSaveNew);
     };
-
   });
 
   // Field change handler - mutation already happened via bind:, just update metadata
   function onFieldChange() {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab) return;
     tab.isDirty = true;
     tab.isPreview = false;
   }
 
   async function handleSave() {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab?.id || !tab.requestId) {
       showSaveDialog = true;
       return;
@@ -99,7 +97,7 @@
   }
 
   function handleMethodChange(value: string) {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (tab) {
       tab.verb = value;
     }
@@ -107,7 +105,7 @@
   }
 
   function handleBodyFormatChange(value: string) {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab) return;
     tab.bodyFormat = value as InputFormat;
     // Also update Content-Type header
@@ -164,7 +162,7 @@
 
   // --- Beautify ---
   function formatBody() {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab || !tab.body?.trim()) return;
     if (tab.bodyFormat === "json") {
       try {
@@ -231,7 +229,7 @@
   async function sendRequest() {
     loading = true;
 
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab) {
       loading = false;
       return;
@@ -302,7 +300,7 @@
   }
 
   async function handleExportCurl() {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab) return;
 
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
@@ -382,7 +380,7 @@
   }
 
   async function handleSaveRequest(data: { name: string; collection: string | null }) {
-    const tab = getActiveTab()
+    const tab = getActiveTab();
     if (!tab || !data.collection) return;
     try {
       const headersObj = tab.headers
@@ -426,7 +424,7 @@
     >
       <div class="flex items-center gap-2">
         <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
-          >{tabsStore.tabs[tabsStore.activeTabIndex].label || "New Request"}</span
+          >{requestName || "New Request"}</span
         >
         {#if !tab.requestId || tab.isDirty}
           <Button
@@ -773,7 +771,7 @@
 
 <SaveRequestModal
   bind:show={showSaveDialog}
-  bind:requestName={requestName}
+  bind:requestName
   onSave={handleSaveRequest}
   onCancel={() => (showSaveDialog = false)}
 />

@@ -8,7 +8,14 @@
   import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { closeTab, getActiveTab, makeEmptyTab, saveTab, setActiveTab, tabsStore } from "$src/lib/stores/tabStore.svelte";
+  import {
+    closeTab,
+    getActiveTab,
+    makeEmptyTab,
+    saveTab,
+    setActiveTab,
+    tabsStore
+  } from "$src/lib/stores/tabStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { onDestroy } from "svelte";
