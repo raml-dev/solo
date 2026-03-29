@@ -4,13 +4,12 @@
  */
 
 import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
-import { collectionStore } from "$src/lib/stores/collectionStore";
+import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
 import { filterInPlace } from "$src/lib/utils/helpers";
 import type { configuration as conf } from "$wails/go/models";
 import { collection } from "$wails/go/models";
 import { SvelteDate } from "svelte/reactivity";
-import { get } from "svelte/store";
 
 export interface TabHeader {
   id: string;
@@ -266,7 +265,7 @@ export async function saveTab(tabId: string) {
   const tab = tabsStore.tabs.find((t) => t.id === tabId);
   if (!tab || !tab.requestId || !tab.collectionName) return;
 
-  const collections = get(collectionStore).collections;
+  const collections = collectionStoreState.collections;
   let originalRequest: collection.Request | null = null;
   for (const coll of collections) {
     const found = coll.requests.find((r) => r.id === tab.requestId);

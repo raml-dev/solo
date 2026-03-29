@@ -16,7 +16,7 @@
   import TokenTooltip from "$src/lib/components/RequestBuilder/TokenTooltip.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
   import SaveRequestModal from "$src/lib/components/SaveRequestModal.svelte";
-  import { collectionStore } from "$src/lib/stores/collectionStore";
+  import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore";
   import { selectedEnvironment } from "$src/lib/stores/environmentStore";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -320,8 +320,8 @@
 
     // Add cookies from the saved request as Cookie header if present
     if (tab.collectionName && tab.requestId) {
-      const collections = $collectionStore.collections;
-      const savedReq = collections
+      const colls = collectionStoreState.collections;
+      const savedReq = colls
         .find((c) => c.name === tab.collectionName)
         ?.requests.find((r) => r.id === tab.requestId);
       const cookieEntries = Object.entries(savedReq?.cookies ?? {});
