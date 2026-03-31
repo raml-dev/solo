@@ -34,6 +34,7 @@
 -- request.method, request.url, request.headers, request.body  (pre only, mutable)
 -- response.status, response.headers, response.body, response.time  (post only)
 -- env.get("key")  /  env.set("key", "value")  /  env.key = "value"
+-- json.parse(s)  /  json.stringify(t)  /  xml.parse(s)
 -- env.log("message")`;
 </script>
 

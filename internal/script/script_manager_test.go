@@ -207,3 +207,59 @@ func TestScriptManager_PanicRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestScriptManager_JsonAPI(t *testing.T) {
+	sm := NewScriptManager(nil)
+	req, _ := http.NewRequest("GET", "http://dummy", nil)
+
+	script := `
+        local body = '{"id": "inst-123", "meta": {"active": true}, "tags": ["prod", "web"]}'
+        local data = json.parse(body)
+        
+        if data.id ~= "inst-123" then error("id mismatch") end
+        if data.meta.active ~= true then error("meta.active mismatch") end
+        if data.tags[1] ~= "prod" then error("tags[1] mismatch") end
+        
+        env.parsedId = data.id
+        
+        local back = json.stringify(data)
+        if not string.find(back, "inst-123", 1, true) then error("stringify failed") end
+    `
+
+	if err := sm.ExecutePreRequest(script, req); err != nil {
+		t.Fatalf("JsonAPI test failed: %v", err)
+	}
+
+	vars := sm.GetSessionVars()
+	if vars["parsedId"] != "inst-123" {
+		t.Errorf("parsedId = %v, want 'inst-123'", vars["parsedId"])
+	}
+}
+
+func TestScriptManager_XmlAPI(t *testing.T) {
+	sm := NewScriptManager(nil)
+	req, _ := http.NewRequest("GET", "http://dummy", nil)
+
+	script := `
+        local body = '<root id="1"><item name="foo">Content</item></root>'
+        local data = xml.parse(body)
+        
+        if data.name ~= "root" then error("root name mismatch") end
+        if data.attrs.id ~= "1" then error("attr id mismatch") end
+        if data.item.name ~= "item" then error("child name mismatch") end
+        if data.item.attrs.name ~= "foo" then error("child attr mismatch") end
+        if data.item.content ~= "Content" then error("child content mismatch") end
+        
+        env.xmlName = data.name
+    `
+
+	if err := sm.ExecutePreRequest(script, req); err != nil {
+		t.Fatalf("XmlAPI test failed: %v", err)
+	}
+
+	vars := sm.GetSessionVars()
+	if vars["xmlName"] != "root" {
+		t.Errorf("xmlName = %v, want 'root'", vars["xmlName"])
+	}
+}
+
