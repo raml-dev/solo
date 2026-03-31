@@ -82,6 +82,10 @@ func NewScriptManager(ctx context.Context) *ScriptManager {
 	// Register global 'env' table and API
 	NewEnvAPI(sm).Register(L)
 
+	// Register global 'json' and 'xml' APIs
+	NewJsonAPI().Register(L)
+	NewXmlAPI().Register(L)
+
 	return sm
 }
 
