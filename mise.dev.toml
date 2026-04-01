@@ -3,7 +3,7 @@
 
 [tools]
 pnpm = "10.32.1"
-"npm:@mariozechner/pi-coding-agent" = "0.63.2"
+"npm:@mariozechner/pi-coding-agent" = "0.64.0"
 "go:github.com/rhysd/actionlint/cmd/actionlint" = "1.7.11"
 
 [hooks]
@@ -68,3 +68,56 @@ echo "✅ License headers added!"
 description = "Lint GitHub Actions workflows"
 dir = "{{ config_root }}"
 run = "actionlint -color"
+
+[tasks.gen-tls]
+dir="{{ config_root }}/test/self-signed-tls"
+run = '''
+OUTDIR="${PWD}/localhost.localdomain"
+mkdir -p "${OUTDIR}"
+# Generate a new private key for the Certificate Authority (CA)
+openssl genrsa -out "${OUTDIR}/ca-key.pem" 2048
+
+# Create a new CA certificate valid for 3650 days
+openssl req -x509 -new -days 3650 -nodes -key "${OUTDIR}/ca-key.pem" -out "${OUTDIR}/ca.crt" -subj "/CN=self-signed-ca"
+
+# Generate a new private key for the SSL certificate
+openssl genrsa -out "${OUTDIR}/tls.key" 2048
+
+cat > /tmp/req-dns.conf <<EOF
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+[req_distinguished_name]
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = localhost.localdomain
+DNS.2 = *.localhost.localdomain
+
+EOF
+
+# Generate a Certificate Signing Request (CSR) using the new key
+openssl req -new -key "${OUTDIR}/tls.key" -out "${OUTDIR}/csr.pem" -subj "/CN=localhost" -config /tmp/req-dns.conf
+
+# Create the SSL certificate using the CA
+openssl x509 -req -in "${OUTDIR}/csr.pem" -CA "${OUTDIR}/ca.crt" -CAkey "${OUTDIR}/ca-key.pem" -out "${OUTDIR}/tls.crt" -days 365 -extensions v3_req -extfile /tmp/req-dns.conf
+rm /tmp/req-dns.conf
+'''
+
+[tasks.run-localhost-server]
+dir = "{{ config_root }}/test/self-signed-tls"
+run = """
+python server.py &
+SERVER_PID=$!
+
+cleanup() { kill $SERVER_PID 2>/dev/null; }
+trap cleanup EXIT
+
+timeout 10 bash -c 'until bash -c "echo > /dev/tcp/localhost/4443" 2>/dev/null; do sleep 0.1; done'
+echo "server up"
+while true; do
+sleep 1
+done
+"""
