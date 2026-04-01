@@ -38,5 +38,6 @@ solo
 .DS_Store
 plans/
 solo
+localhost.localdomain/
 
 mise.local.toml
