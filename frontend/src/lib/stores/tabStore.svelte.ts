@@ -75,6 +75,31 @@ function getTabIndexById(tabId: string): number {
   return tabsStore.tabs.findIndex((t) => t.id === tabId);
 }
 
+function normalizeRequestSettings(
+  settings?: conf.RequestSettingsOverride | null
+): conf.RequestSettingsOverride {
+  if (!settings) return {};
+  return {
+    timeoutSeconds: settings.timeoutSeconds,
+    followRedirects: settings.followRedirects,
+    maxRedirects: settings.maxRedirects,
+    validateSSL: settings.validateSSL,
+    defaultUserAgent: settings.defaultUserAgent,
+    proxyUrl: settings.proxyUrl
+  };
+}
+
+function normalizeAuthConfiguration(
+  auth?: collection.AuthConfiguration | null
+): collection.AuthConfiguration {
+  return {
+    enabled: auth?.enabled ?? false,
+    tokenUrl: auth?.tokenUrl ?? "",
+    template: { ...(auth?.template ?? {}) },
+    tokenPath: auth?.tokenPath ?? "access_token"
+  };
+}
+
 export function makeEmptyTab(): TabState {
   const newTab: TabState = {
     id: crypto.randomUUID(),
@@ -88,13 +113,8 @@ export function makeEmptyTab(): TabState {
     body: "",
     bodyFormat: "json",
     headers: [],
-    auth: collection.AuthConfiguration.createFrom({
-      enabled: false,
-      tokenUrl: "",
-      template: {},
-      tokenPath: "access_token"
-    }),
-    settings: {},
+    auth: normalizeAuthConfiguration(),
+    settings: normalizeRequestSettings(),
     preRequestScript: "",
     postResponseScript: "",
     response: null,
@@ -138,12 +158,7 @@ export function openTab(
     tabIndexToReplace = tabsStore.tabs.findIndex((t) => t.isPreview);
   }
 
-  const defaultAuth = collection.AuthConfiguration.createFrom({
-    enabled: false,
-    tokenUrl: "",
-    template: {},
-    tokenPath: "access_token"
-  });
+  const defaultAuth = normalizeAuthConfiguration();
 
   if (tabIndexToReplace !== undefined && tabIndexToReplace >= 0) {
     const tab = tabsStore.tabs[tabIndexToReplace];
@@ -157,8 +172,8 @@ export function openTab(
     tab.body = meta.body;
     tab.bodyFormat = meta.bodyFormat;
     tab.headers = meta.headers;
-    tab.auth = meta.auth ? collection.AuthConfiguration.createFrom(meta.auth) : defaultAuth;
-    tab.settings = meta.settings;
+    tab.auth = normalizeAuthConfiguration(meta.auth ?? defaultAuth);
+    tab.settings = normalizeRequestSettings(meta.settings);
     tab.preRequestScript = meta.preRequestScript ?? "";
     tab.postResponseScript = meta.postResponseScript ?? "";
     tab.response = null;
@@ -185,8 +200,8 @@ export function openTab(
     body: meta.body,
     bodyFormat: meta.bodyFormat,
     headers: meta.headers,
-    auth: meta.auth ? collection.AuthConfiguration.createFrom(meta.auth) : defaultAuth,
-    settings: meta.settings,
+    auth: normalizeAuthConfiguration(meta.auth ?? defaultAuth),
+    settings: normalizeRequestSettings(meta.settings),
     preRequestScript: meta.preRequestScript ?? "",
     postResponseScript: meta.postResponseScript ?? "",
     response: null,

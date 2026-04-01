@@ -730,7 +730,9 @@
                       <path d={getProviderIconPath(collection.gitProvider || "git")} />
                     </svg>
                   {/if}
-                  <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100 cursor-default">
+                  <span
+                    class="cursor-default truncate text-sm font-medium text-neutral-800 dark:text-neutral-100"
+                  >
                     {collection.name}
                   </span>
                   <span
@@ -762,7 +764,11 @@
                 >
                   <DotsHorizontalOutline />
                 </button>
-                <Dropdown triggeredBy="#collection-menu-{collection.id}" class="z-50 w-40" triggerDelay={0}>
+                <Dropdown
+                  triggeredBy="#collection-menu-{collection.id}"
+                  class="z-50 w-40"
+                  triggerDelay={0}
+                >
                   {#if collection.gitRemote}
                     <DropdownItem
                       class="text-gray-900 dark:text-white"
@@ -878,7 +884,11 @@
                       >
                         <DotsHorizontalOutline />
                       </button>
-                      <Dropdown triggeredBy="#request-menu-{request.id}" class="z-50 w-40" triggerDelay={0}>
+                      <Dropdown
+                        triggeredBy="#request-menu-{request.id}"
+                        class="z-50 w-40"
+                        triggerDelay={0}
+                      >
                         <DropdownItem
                           class="text-gray-900 dark:text-white"
                           onclick={(e) => {

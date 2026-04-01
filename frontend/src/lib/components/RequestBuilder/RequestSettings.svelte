@@ -21,6 +21,26 @@
   function handleChange() {
     onChange?.();
   }
+
+  function getFollowRedirectsValue(): boolean {
+    return requestSettings.followRedirects ?? globalConfig.request.followRedirects ?? true;
+  }
+
+  function getValidateSSLValue(): boolean {
+    return requestSettings.validateSSL ?? globalConfig.request.validateSSL ?? true;
+  }
+
+  function handleFollowRedirectsChange(event: Event) {
+    const checked = (event.currentTarget as HTMLInputElement | null)?.checked ?? false;
+    requestSettings.followRedirects = checked;
+    handleChange();
+  }
+
+  function handleValidateSSLChange(event: Event) {
+    const checked = (event.currentTarget as HTMLInputElement | null)?.checked ?? false;
+    requestSettings.validateSSL = checked;
+    handleChange();
+  }
 </script>
 
 <div class="flex-1 space-y-4 overflow-y-auto p-3">
@@ -52,8 +72,10 @@
 
   <div class="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
     <div class="md:pb-1">
-      <Toggle bind:checked={requestSettings.followRedirects} size="small" onchange={handleChange}
-        >Follow Redirects</Toggle
+      <Toggle
+        checked={getFollowRedirectsValue()}
+        size="small"
+        onchange={handleFollowRedirectsChange}>Follow Redirects</Toggle
       >
     </div>
     <div class="space-y-2">
@@ -73,7 +95,7 @@
   </div>
 
   <div>
-    <Toggle bind:checked={requestSettings.validateSSL} size="small" onchange={handleChange}
+    <Toggle checked={getValidateSSLValue()} size="small" onchange={handleValidateSSLChange}
       >Validate SSL Certificates</Toggle
     >
   </div>
