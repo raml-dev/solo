@@ -17,6 +17,7 @@ import (
 	"solo/internal/configuration"
 	"solo/internal/host"
 	"solo/internal/script"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -163,8 +164,15 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, *http.Request,
 	// 1. Set User-Agent and other defaults
 	if s.configManager != nil {
 		cfg := s.configManager.Get()
-		if cfg.Request.DefaultUserAgent != "" {
-			request.Header.Set("User-Agent", cfg.Request.DefaultUserAgent)
+		userAgent := cfg.Request.DefaultUserAgent
+		if opts.Settings != nil && opts.Settings.DefaultUserAgent != nil {
+			override := strings.TrimSpace(*opts.Settings.DefaultUserAgent)
+			if override != "" {
+				userAgent = override
+			}
+		}
+		if userAgent != "" {
+			request.Header.Set("User-Agent", userAgent)
 		}
 	}
 
