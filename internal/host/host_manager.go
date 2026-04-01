@@ -44,22 +44,7 @@ func (hm *HostManager) UpsertHost(config Host) error {
 	defer hm.mu.Unlock()
 
 	hm.configs[config.Name] = config
-
-	// Clear all pooled clients for this hostname (across all ports)
-	for key := range hm.clientPool {
-		h, _, err := net.SplitHostPort(key)
-		if err != nil {
-			// key doesn't have a port, it's just the hostname
-			if key == config.Name {
-				delete(hm.clientPool, key)
-			}
-		} else {
-			// key has a port, compare only the host part
-			if h == config.Name {
-				delete(hm.clientPool, key)
-			}
-		}
-	}
+	hm.clearPooledClientsForConfigName(config.Name)
 
 	return hm.saveHosts()
 }
@@ -67,8 +52,17 @@ func (hm *HostManager) UpsertHost(config Host) error {
 func (hm *HostManager) GetHost(hostname string) (Host, bool) {
 	hm.mu.RLock()
 	defer hm.mu.RUnlock()
-	h, ok := hm.configs[hostname]
-	return h, ok
+
+	if h, ok := hm.configs[hostname]; ok {
+		return h, true
+	}
+
+	if hostOnly, hasPort := splitHostPortIfPresent(hostname); hasPort {
+		h, ok := hm.configs[hostOnly]
+		return h, ok
+	}
+
+	return Host{}, false
 }
 
 func (hm *HostManager) GetAllHosts() []Host {
@@ -120,19 +114,7 @@ func (hm *HostManager) DeleteHost(hostname string) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 	delete(hm.configs, hostname)
-
-	for key := range hm.clientPool {
-		h, _, err := net.SplitHostPort(key)
-		if err != nil {
-			if key == hostname {
-				delete(hm.clientPool, key)
-			}
-		} else {
-			if h == hostname {
-				delete(hm.clientPool, key)
-			}
-		}
-	}
+	hm.clearPooledClientsForConfigName(hostname)
 
 	return hm.saveHosts()
 }
@@ -171,11 +153,16 @@ func (hm *HostManager) createNewClient(fullHost string, hostname string) (*http.
 		return &http.Client{Transport: t}, nil
 	}
 
-	host, ok := hm.configs[hostname]
+	host, ok := hm.configs[fullHost]
+	matchedKey := fullHost
 	if !ok {
-		slog.Debug("No custom host configuration found", "hostname", hostname)
+		host, ok = hm.configs[hostname]
+		matchedKey = hostname
+	}
+	if !ok {
+		slog.Debug("No custom host configuration found", "host", fullHost, "hostname", hostname)
 	} else {
-		slog.Info("Custom host configuration found", "hostname", hostname, "tls_enabled", host.TlsConfig.Enabled)
+		slog.Info("Custom host configuration found", "host", fullHost, "hostname", hostname, "matched_key", matchedKey, "tls_enabled", host.TlsConfig.Enabled)
 	}
 
 	transport := &http.Transport{
@@ -188,6 +175,34 @@ func (hm *HostManager) createNewClient(fullHost string, hostname string) (*http.
 	hm.clientPool[fullHost] = transport
 	slog.Info("Created new HTTP client", "host", fullHost, "hostname", hostname)
 	return &http.Client{Transport: transport}, nil
+}
+
+func splitHostPortIfPresent(value string) (string, bool) {
+	host, port, err := net.SplitHostPort(value)
+	if err == nil && port != "" {
+		return host, true
+	}
+	return value, false
+}
+
+func (hm *HostManager) clearPooledClientsForConfigName(configName string) {
+	configHost, hasPort := splitHostPortIfPresent(configName)
+
+	for key := range hm.clientPool {
+		if key == configName {
+			delete(hm.clientPool, key)
+			continue
+		}
+
+		if hasPort {
+			continue
+		}
+
+		poolHost, _ := splitHostPortIfPresent(key)
+		if poolHost == configHost {
+			delete(hm.clientPool, key)
+		}
+	}
 }
 
 func buildTLS(config TLSConfig, hostname string) *tls.Config {

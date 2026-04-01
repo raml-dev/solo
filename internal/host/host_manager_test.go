@@ -404,6 +404,100 @@ func TestPersistenceAcrossOperations(t *testing.T) {
 	}
 }
 
+func TestGetClientForURL_HostPortPrecedence(t *testing.T) {
+	hm := setupTestHostManager(t)
+	defer cleanupTestDir(hm.config)
+
+	hm.configs["localhost"] = Host{
+		Id:   "host-only",
+		Name: "localhost",
+		TlsConfig: TLSConfig{
+			Enabled:            true,
+			InsecureSkipVerify: false,
+		},
+	}
+	hm.configs["localhost:8443"] = Host{
+		Id:   "host-port",
+		Name: "localhost:8443",
+		TlsConfig: TLSConfig{
+			Enabled:            true,
+			InsecureSkipVerify: true,
+		},
+	}
+
+	client, err := hm.GetClientForUrl("https://localhost:8443/health")
+	if err != nil {
+		t.Fatalf("GetClientForUrl failed: %v", err)
+	}
+
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected *http.Transport, got %T", client.Transport)
+	}
+	if transport.TLSClientConfig == nil {
+		t.Fatalf("expected TLSClientConfig to be set")
+	}
+
+	if !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatalf("expected host:port TLS config to win (InsecureSkipVerify=true)")
+	}
+}
+
+func TestGetClientForURL_FallsBackToHostnameWhenHostPortNotConfigured(t *testing.T) {
+	hm := setupTestHostManager(t)
+	defer cleanupTestDir(hm.config)
+
+	hm.configs["localhost"] = Host{
+		Id:   "host-only",
+		Name: "localhost",
+		TlsConfig: TLSConfig{
+			Enabled:            true,
+			InsecureSkipVerify: true,
+		},
+	}
+
+	client, err := hm.GetClientForUrl("https://localhost:9443/health")
+	if err != nil {
+		t.Fatalf("GetClientForUrl failed: %v", err)
+	}
+
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected *http.Transport, got %T", client.Transport)
+	}
+	if transport.TLSClientConfig == nil {
+		t.Fatalf("expected TLSClientConfig to be set")
+	}
+
+	if !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatalf("expected hostname fallback TLS config to be applied (InsecureSkipVerify=true)")
+	}
+}
+
+func TestGetHost_HostPortThenHostnameFallback(t *testing.T) {
+	hm := setupTestHostManager(t)
+	defer cleanupTestDir(hm.config)
+
+	hm.configs["localhost"] = Host{Id: "host-only", Name: "localhost"}
+	hm.configs["localhost:8443"] = Host{Id: "host-port", Name: "localhost:8443"}
+
+	h, ok := hm.GetHost("localhost:8443")
+	if !ok {
+		t.Fatalf("expected exact host:port match")
+	}
+	if h.Id != "host-port" {
+		t.Fatalf("expected host-port config, got %q", h.Id)
+	}
+
+	h, ok = hm.GetHost("localhost:9443")
+	if !ok {
+		t.Fatalf("expected hostname fallback match")
+	}
+	if h.Id != "host-only" {
+		t.Fatalf("expected hostname fallback config, got %q", h.Id)
+	}
+}
+
 // Helper functions
 func setupTestHostManager(t *testing.T) *HostManager {
 	tmpDir := filepath.Join(os.TempDir(), "solo-test-host-"+t.Name())
