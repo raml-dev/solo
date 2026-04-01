@@ -17,7 +17,7 @@
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
   import SaveRequestModal from "$src/lib/components/SaveRequestModal.svelte";
   import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
-  import { configurationStore } from "$src/lib/stores/configurationStore";
+  import { configurationStoreState } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
@@ -67,7 +67,7 @@
     }))
   );
 
-  const { config: globalConfig } = configurationStore;
+  const globalConfig = $derived(configurationStoreState.config);
 
   let requestName = $derived(tabsStore.tabs[tabsStore.activeTabIndex]?.label || "");
 
@@ -569,7 +569,7 @@
       {:else if requestPaneTab === "Settings"}
         <RequestSettings
           bind:requestSettings={tab.settings}
-          globalConfig={$globalConfig}
+          {globalConfig}
           onChange={onFieldChange}
         />
       {:else if requestPaneTab === "Runner"}
