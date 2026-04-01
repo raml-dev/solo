@@ -7,7 +7,11 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
-  import { configurationStore } from "$src/lib/stores/configurationStore";
+  import {
+    configurationStore,
+    configurationStoreState,
+    getConfigSnapshot
+  } from "$src/lib/stores/configurationStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { debounce } from "$src/lib/utils/debounce";
@@ -52,10 +56,11 @@
   ];
 
   // --- Store ---
-  const { config, allThemes } = configurationStore;
+  const configState = $derived(configurationStoreState.config);
+  const themesState = $derived(configurationStoreState.allThemes);
 
   function findTheme(id: string) {
-    return ($allThemes || []).find((t) => t.id === id) || null;
+    return (themesState || []).find((t) => t.id === id) || null;
   }
 
   function formatThemeName(label: string): string {
@@ -63,27 +68,18 @@
   }
 
   // --- Theme UI state ---
-  let activeThemeId = $state("");
-  let selectedThemeMode = $state("system");
-
-  let initialized = $state(false);
-  $effect(() => {
-    if (!initialized && $config?.general?.activeTheme && ($allThemes || []).length > 0) {
-      activeThemeId = $config.general.activeTheme;
-      selectedThemeMode = $config.general.themeMode || "system";
-      initialized = true;
-    }
-  });
+  let activeThemeId = $state(configurationStoreState.config?.general?.activeTheme || "");
+  let selectedThemeMode = $state(configurationStoreState.config?.general?.themeMode || "system");
 
   async function applyAndSaveTheme(themeId: string) {
     if (!findTheme(themeId)) return;
     activeThemeId = themeId;
     try {
-      const current = new configuration.Configuration(JSON.parse(JSON.stringify($config)));
-      if (!current.general) current.general = new configuration.GeneralSettings();
+      const current = buildNormalizedConfigSnapshot();
       current.general.activeTheme = themeId;
       await configurationStore.save(current);
       await configurationStore.changeTheme(themeId);
+      refreshEditableConfigFromStore();
     } catch {
       /* shown by store */
     }
@@ -123,23 +119,26 @@
     });
   }
 
+  function buildNormalizedConfigSnapshot() {
+    const copy = new configuration.Configuration(getConfigSnapshot());
+    if (!copy.general) copy.general = new configuration.GeneralSettings();
+    if (!copy.request) copy.request = new configuration.RequestSettings();
+    return copy;
+  }
+
+  function refreshEditableConfigFromStore() {
+    const copy = buildNormalizedConfigSnapshot();
+    copy.general.debugMode = true;
+    editableConfig = copy;
+    lastPersistedSignature = toSignature(copy);
+  }
+
   onMount(() => {
     let disposed = false;
 
-    const unsub = config.subscribe((value) => {
-      if (disposed) return;
-      if (value?.request) {
-        const copy = new configuration.Configuration(JSON.parse(JSON.stringify(value)));
-        if (!copy.general) copy.general = new configuration.GeneralSettings();
-        if (!copy.request) copy.request = new configuration.RequestSettings();
-        copy.general.debugMode = true;
-        const sig = toSignature(copy);
-        if (sig !== lastPersistedSignature) {
-          editableConfig = copy;
-          lastPersistedSignature = sig;
-        }
-      }
-    });
+    activeThemeId = configState?.general?.activeTheme || "";
+    selectedThemeMode = configState?.general?.themeMode || "system";
+    refreshEditableConfigFromStore();
 
     void (async () => {
       try {
@@ -162,7 +161,6 @@
 
     return () => {
       disposed = true;
-      unsub();
     };
   });
 
@@ -172,10 +170,8 @@
       const timeoutSeconds = parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
       const maxRedirects = parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
 
-      // Work on a detached copy to avoid mutating $config in-place (deep proxy).
-      const current = new configuration.Configuration(JSON.parse(JSON.stringify($config)));
-      if (!current.general) current.general = new configuration.GeneralSettings();
-      if (!current.request) current.request = new configuration.RequestSettings();
+      // Work on a detached copy to avoid mutating shared reactive state in-place.
+      const current = buildNormalizedConfigSnapshot();
 
       current.general.checkForUpdates = editableConfig.general.checkForUpdates;
       current.general.themeMode = editableConfig.general.themeMode;
@@ -192,7 +188,7 @@
         return;
       }
       await configurationStore.save(current);
-      lastPersistedSignature = sig;
+      refreshEditableConfigFromStore();
       saveStatus = "saved";
       setTimeout(() => {
         saveStatus = "idle";
@@ -203,19 +199,19 @@
   }
 
   const debouncedSave = debounce(persistRequestSettings, 800);
-  $effect(() => {
-    if (editableConfig.request || editableConfig.general) debouncedSave();
-  });
 
-  $effect(() => {
-    if (!initialized) return;
+  function handleRequestSettingsChange() {
+    debouncedSave();
+  }
+
+  function handleThemeModeChange() {
     configurationStore.applyThemeMode(selectedThemeMode);
-    editableConfig.general = new configuration.GeneralSettings({
-      ...editableConfig.general,
-      themeMode: selectedThemeMode
-    });
+    if (!editableConfig.general) {
+      editableConfig.general = new configuration.GeneralSettings();
+    }
+    editableConfig.general.themeMode = selectedThemeMode;
     void persistRequestSettings();
-  });
+  }
 
   let isExportingLogs = $state(false);
 
@@ -277,6 +273,16 @@
   function editExistingHost(h: host.Host) {
     editingHost = JSON.parse(JSON.stringify(h)) as host.Host;
     if (!editingHost.cookies) editingHost.cookies = {};
+    if (!editingHost.tlsConfig) {
+      editingHost.tlsConfig = new host.TLSConfig({
+        enabled: false,
+        insecureSkipVerify: false,
+        publicCertificateFilePath: "",
+        privateKeyFilePath: "",
+        caCertificateFilePath: ""
+      });
+    }
+    customTlsEnabled = Boolean(editingHost.tlsConfig.enabled);
     editingHostName = editingHost.name ?? "";
     const cookieRecord = Object.fromEntries(
       Object.entries(editingHost.cookies).map(([key, value]) => [key, String(value ?? "")])
@@ -317,6 +323,17 @@
       });
       editingHost.cookies = cookieMap;
 
+      if (!editingHost.tlsConfig) {
+        editingHost.tlsConfig = new host.TLSConfig({
+          enabled: false,
+          insecureSkipVerify: false,
+          publicCertificateFilePath: "",
+          privateKeyFilePath: "",
+          caCertificateFilePath: ""
+        });
+      }
+      editingHost.tlsConfig.enabled = customTlsEnabled;
+
       await UpsertHost(editingHost);
       await fetchHosts();
       editingHost = null;
@@ -343,11 +360,12 @@
     }
   }
 
-  $effect(() => {
-    if (activeSection === "hosts" && hostsList.length === 0) {
-      fetchHosts();
+  function handleSectionChange(section: SettingsSection) {
+    activeSection = section;
+    if (section === "hosts" && hostsList.length === 0) {
+      void fetchHosts();
     }
-  });
+  }
 </script>
 
 <div class="flex h-full gap-6">
@@ -357,7 +375,7 @@
       <Button
         color={activeSection === item.id ? "primary" : "light"}
         class="justify-start"
-        onclick={() => (activeSection = item.id)}
+        onclick={() => handleSectionChange(item.id)}
       >
         {item.label}
       </Button>
@@ -380,15 +398,18 @@
           <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Display mode</p>
           <div class="flex gap-4">
             {#each [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }] as mode (mode.value)}
-              <Radio name="themeMode" bind:group={selectedThemeMode} value={mode.value}
-                >{mode.label}</Radio
+              <Radio
+                name="themeMode"
+                bind:group={selectedThemeMode}
+                value={mode.value}
+                onchange={handleThemeModeChange}>{mode.label}</Radio
               >
             {/each}
           </div>
         </div>
 
         <div class="grid grid-cols-3 gap-3">
-          {#each $allThemes || [] as t (t.id)}
+          {#each themesState || [] as t (t.id)}
             <Button
               color="light"
               class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {activeThemeId ===
@@ -419,7 +440,11 @@
           </p>
         </div>
 
-        <Toggle bind:checked={editableConfig.general.checkForUpdates} disabled>
+        <Toggle
+          bind:checked={editableConfig.general.checkForUpdates}
+          disabled
+          onchange={handleRequestSettingsChange}
+        >
           Check for updates on startup
         </Toggle>
 
@@ -439,6 +464,7 @@
                   min="0"
                   step="1"
                   placeholder="Default: {defaultConfig.request.timeoutSeconds}"
+                  oninput={handleRequestSettingsChange}
                 />
               </div>
               <div class="flex flex-col gap-1">
@@ -452,6 +478,7 @@
                   step="1"
                   placeholder="Default: {defaultConfig.request.maxRedirects}"
                   disabled={!editableConfig.request.followRedirects}
+                  oninput={handleRequestSettingsChange}
                 />
               </div>
             </div>
@@ -464,6 +491,7 @@
                 size="sm"
                 bind:value={editableConfig.request.defaultUserAgent}
                 placeholder="Default: {defaultConfig.request.defaultUserAgent}"
+                oninput={handleRequestSettingsChange}
               />
             </div>
 
@@ -475,14 +503,21 @@
                 size="sm"
                 bind:value={editableConfig.request.proxyUrl}
                 placeholder="http://user:pass@host:port (optional)"
+                oninput={handleRequestSettingsChange}
               />
             </div>
 
             <div class="flex flex-col gap-3">
-              <Toggle bind:checked={editableConfig.request.followRedirects}>
+              <Toggle
+                bind:checked={editableConfig.request.followRedirects}
+                onchange={handleRequestSettingsChange}
+              >
                 Follow Redirects
               </Toggle>
-              <Toggle bind:checked={editableConfig.request.validateSSL}>
+              <Toggle
+                bind:checked={editableConfig.request.validateSSL}
+                onchange={handleRequestSettingsChange}
+              >
                 Validate SSL Certificates
               </Toggle>
             </div>
