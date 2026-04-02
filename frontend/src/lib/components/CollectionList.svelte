@@ -710,7 +710,7 @@
               </button>
 
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 cursor-pointer">
                   {#if collection.gitRemote}
                     <svg
                       width="12"
@@ -726,7 +726,7 @@
                     </svg>
                   {/if}
                   <span
-                    class="cursor-default truncate text-sm font-medium text-neutral-800 dark:text-neutral-100"
+                    class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100"
                   >
                     {collection.name}
                   </span>
@@ -823,7 +823,7 @@
                 {:else}
                   {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
                     <div
-                      class={`group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
+                      class={`cursor-pointer group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
                       onclick={() => selectRequest(request, collection.name)}
                       ondblclick={(e) => startRequestRename(e, request, collection.name)}
                       onkeypress={(e) =>
