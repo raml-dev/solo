@@ -10,11 +10,10 @@
   import {
     configurationStore,
     configurationStoreState,
-    getConfigSnapshot
+    saveConfig
   } from "$src/lib/stores/configurationStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { debounce } from "$src/lib/utils/debounce";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
     DeleteHost,
@@ -65,13 +64,7 @@
   // 3) $state vars
   let activeSection: SettingsSection = $state("general");
 
-  let activeThemeId = $state(configurationStoreState.config?.general?.activeTheme || "");
-  let selectedThemeMode = $state(configurationStoreState.config?.general?.themeMode || "system");
-
   let defaultConfig = $state(createEmptyConfig());
-  let editableConfig = $state(createEmptyConfig());
-  let saveStatus: "idle" | "saving" | "saved" = $state("idle");
-  let lastPersistedSignature: string | null = null;
 
   let isExportingLogs = $state(false);
 
@@ -83,8 +76,8 @@
   let hostToDelete = $state("");
 
   // 4) $derived vars
-  const configState = $derived(configurationStoreState.config);
   const themesState = $derived(configurationStoreState.allThemes);
+  const configSaveStatus = $derived(configurationStoreState.saveStatus);
 
   // 5) helper functions
   function findTheme(id: string) {
@@ -103,101 +96,26 @@
     return cfg;
   }
 
-  function toSignature(cfg: configuration.Configuration): string {
-    return JSON.stringify({
-      themeMode: cfg.general?.themeMode ?? "light",
-      checkForUpdates: cfg.general?.checkForUpdates ?? false,
-      debugMode: cfg.general?.debugMode ?? false,
-      request: {
-        timeoutSeconds: cfg.request?.timeoutSeconds ?? 0,
-        defaultUserAgent: cfg.request?.defaultUserAgent ?? "",
-        followRedirects: cfg.request?.followRedirects ?? true,
-        maxRedirects: cfg.request?.maxRedirects ?? 0,
-        validateSSL: cfg.request?.validateSSL ?? true,
-        proxyUrl: cfg.request?.proxyUrl ?? ""
-      }
-    });
-  }
-
-  function buildNormalizedConfigSnapshot() {
-    const copy = new configuration.Configuration(getConfigSnapshot());
-    if (!copy.general) copy.general = new configuration.GeneralSettings();
-    if (!copy.request) copy.request = new configuration.RequestSettings();
-    return copy;
-  }
-
-  function refreshEditableConfigFromStore() {
-    const copy = buildNormalizedConfigSnapshot();
-    copy.general.debugMode = true;
-    editableConfig = copy;
-    lastPersistedSignature = toSignature(copy);
-  }
-
-  async function applyAndSaveTheme(themeId: string) {
+  async function handleThemeSelect(themeId: string) {
     if (!findTheme(themeId)) return;
-    activeThemeId = themeId;
     try {
-      const current = buildNormalizedConfigSnapshot();
-      current.general.activeTheme = themeId;
-      await configurationStore.save(current);
       await configurationStore.changeTheme(themeId);
-      refreshEditableConfigFromStore();
     } catch {
       /* shown by store */
     }
   }
 
-  async function handleThemeSelect(themeId: string) {
-    await applyAndSaveTheme(themeId);
+  function handleTextSettingChange() {
+    saveConfig();
   }
 
-  async function persistRequestSettings() {
-    try {
-      saveStatus = "saving";
-      const timeoutSeconds = parseInt(String(editableConfig.request.timeoutSeconds), 10) || 0;
-      const maxRedirects = parseInt(String(editableConfig.request.maxRedirects), 10) || 0;
-
-      // Work on a detached copy to avoid mutating shared reactive state in-place.
-      const current = buildNormalizedConfigSnapshot();
-
-      current.general.checkForUpdates = editableConfig.general.checkForUpdates;
-      current.general.themeMode = editableConfig.general.themeMode;
-      current.general.debugMode = true;
-      current.request = new configuration.RequestSettings({
-        ...editableConfig.request,
-        timeoutSeconds,
-        maxRedirects
-      });
-
-      const sig = toSignature(current);
-      if (sig === lastPersistedSignature) {
-        saveStatus = "idle";
-        return;
-      }
-      await configurationStore.save(current);
-      refreshEditableConfigFromStore();
-      saveStatus = "saved";
-      setTimeout(() => {
-        saveStatus = "idle";
-      }, 2000);
-    } catch {
-      saveStatus = "idle";
-    }
-  }
-
-  const debouncedSave = debounce(persistRequestSettings, 800);
-
-  function handleRequestSettingsChange() {
-    debouncedSave();
+  function handleToggleSettingChange() {
+    saveConfig();
   }
 
   function handleThemeModeChange() {
-    configurationStore.applyThemeMode(selectedThemeMode);
-    if (!editableConfig.general) {
-      editableConfig.general = new configuration.GeneralSettings();
-    }
-    editableConfig.general.themeMode = selectedThemeMode;
-    void persistRequestSettings();
+    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode || "system");
+    saveConfig();
   }
 
   async function handleLogsExport() {
@@ -343,10 +261,7 @@
   onMount(() => {
     let disposed = false;
 
-    activeThemeId = configState?.general?.activeTheme || "";
-    selectedThemeMode = configState?.general?.themeMode || "system";
-    refreshEditableConfigFromStore();
-
+    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode || "system");
     void (async () => {
       try {
         await SetDebugMode(true);
@@ -407,7 +322,7 @@
             {#each [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }] as mode (mode.value)}
               <Radio
                 name="themeMode"
-                bind:group={selectedThemeMode}
+                bind:group={configurationStoreState.config.general.themeMode}
                 value={mode.value}
                 onchange={handleThemeModeChange}>{mode.label}</Radio
               >
@@ -419,8 +334,8 @@
           {#each themesState || [] as t (t.id)}
             <Button
               color="light"
-              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {activeThemeId ===
-              t.id
+              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {configurationStoreState
+                .config.general.activeTheme === t.id
                 ? 'border-primary-500 ring-2 ring-primary-500'
                 : 'border-neutral-200 dark:border-neutral-700'}"
               onclick={() => handleThemeSelect(t.id)}
@@ -431,7 +346,7 @@
               <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">
                 {formatThemeName(t.label)}
               </p>
-              {#if activeThemeId === t.id}
+              {#if configurationStoreState.config.general.activeTheme === t.id}
                 <Badge color="primary" class="mt-1">Active</Badge>
               {/if}
             </Button>
@@ -448,9 +363,9 @@
         </div>
 
         <Toggle
-          bind:checked={editableConfig.general.checkForUpdates}
+          bind:checked={configurationStoreState.config.general.checkForUpdates}
           disabled
-          onchange={handleRequestSettingsChange}
+          onchange={handleToggleSettingChange}
         >
           Check for updates on startup
         </Toggle>
@@ -467,11 +382,11 @@
                   id="timeout"
                   type="number"
                   size="sm"
-                  bind:value={editableConfig.request.timeoutSeconds}
+                  bind:value={configurationStoreState.config.request.timeoutSeconds}
                   min="0"
                   step="1"
                   placeholder="Default: {defaultConfig.request.timeoutSeconds}"
-                  oninput={handleRequestSettingsChange}
+                  oninput={handleTextSettingChange}
                 />
               </div>
               <div class="flex flex-col gap-1">
@@ -480,12 +395,12 @@
                   id="max-redirects"
                   type="number"
                   size="sm"
-                  bind:value={editableConfig.request.maxRedirects}
+                  bind:value={configurationStoreState.config.request.maxRedirects}
                   min="0"
                   step="1"
                   placeholder="Default: {defaultConfig.request.maxRedirects}"
-                  disabled={!editableConfig.request.followRedirects}
-                  oninput={handleRequestSettingsChange}
+                  disabled={!configurationStoreState.config.request.followRedirects}
+                  oninput={handleTextSettingChange}
                 />
               </div>
             </div>
@@ -496,9 +411,9 @@
                 id="user-agent"
                 type="text"
                 size="sm"
-                bind:value={editableConfig.request.defaultUserAgent}
+                bind:value={configurationStoreState.config.request.defaultUserAgent}
                 placeholder="Default: {defaultConfig.request.defaultUserAgent}"
-                oninput={handleRequestSettingsChange}
+                oninput={handleTextSettingChange}
               />
             </div>
 
@@ -508,22 +423,22 @@
                 id="proxy"
                 type="text"
                 size="sm"
-                bind:value={editableConfig.request.proxyUrl}
+                bind:value={configurationStoreState.config.request.proxyUrl}
                 placeholder="http://user:pass@host:port (optional)"
-                oninput={handleRequestSettingsChange}
+                oninput={handleTextSettingChange}
               />
             </div>
 
             <div class="flex flex-col gap-3">
               <Toggle
-                bind:checked={editableConfig.request.followRedirects}
-                onchange={handleRequestSettingsChange}
+                bind:checked={configurationStoreState.config.request.followRedirects}
+                onchange={handleToggleSettingChange}
               >
                 Follow Redirects
               </Toggle>
               <Toggle
-                bind:checked={editableConfig.request.validateSSL}
-                onchange={handleRequestSettingsChange}
+                bind:checked={configurationStoreState.config.request.validateSSL}
+                onchange={handleToggleSettingChange}
               >
                 Validate SSL Certificates
               </Toggle>
@@ -531,9 +446,9 @@
           </div>
         </div>
 
-        {#if saveStatus === "saving"}
+        {#if configSaveStatus === "saving"}
           <Helper color="gray">Saving…</Helper>
-        {:else if saveStatus === "saved"}
+        {:else if configSaveStatus === "saved"}
           <Helper color="green">Saved</Helper>
         {/if}
       </div>
@@ -555,7 +470,7 @@
           <p class="text-sm text-neutral-500 dark:text-neutral-400">
             Enable detailed runtime logs. This can increase log volume.
           </p>
-          <Toggle bind:checked={editableConfig.general.debugMode} disabled>
+          <Toggle bind:checked={configurationStoreState.config.general.debugMode} disabled>
             Enable debug mode
           </Toggle>
         </div>

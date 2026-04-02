@@ -5,6 +5,7 @@
 
 import { notifications } from "$src/lib/stores/notificationStore";
 import { THEME_PRESETS, type ThemeMode, type ThemeSeeds } from "$src/lib/theme/themeModel";
+import { debounce } from "$src/lib/utils/debounce";
 import {
   GetAllThemes,
   GetConfiguration,
@@ -13,12 +14,63 @@ import {
 } from "$wails/go/main/App";
 import { configuration, theme } from "$wails/go/models";
 
-function createEmptyConfig() {
-  const cfg = new configuration.Configuration();
-  cfg.general = new configuration.GeneralSettings();
-  cfg.request = new configuration.RequestSettings();
-  cfg.customThemes = [] as theme.Theme[];
-  return cfg;
+const SAVE_DEBOUNCE_MS = 800;
+const SAVED_STATUS_TIMEOUT_MS = 1500;
+
+function createEmptyConfig(): configuration.Configuration {
+  const general = { ...new configuration.GeneralSettings() };
+  const request = { ...new configuration.RequestSettings() };
+
+  return {
+    general,
+    request,
+    customThemes: []
+  } as unknown as configuration.Configuration;
+}
+
+function cloneConfig(configToClone: configuration.Configuration): configuration.Configuration {
+  return JSON.parse(JSON.stringify(configToClone)) as configuration.Configuration;
+}
+
+function normalizeConfig(raw?: configuration.Configuration | null): configuration.Configuration {
+  const base = createEmptyConfig();
+  if (!raw) return base;
+
+  const source = cloneConfig(raw);
+  return {
+    general: {
+      ...base.general,
+      ...(source.general || {})
+    },
+    request: {
+      ...base.request,
+      ...(source.request || {})
+    },
+    customThemes: (source.customThemes || []).map((t) => new theme.Theme(t))
+  } as unknown as configuration.Configuration;
+}
+
+function getPersistenceSignature(cfg: configuration.Configuration): string {
+  return JSON.stringify({
+    general: {
+      activeTheme: cfg.general?.activeTheme ?? "",
+      themeMode: cfg.general?.themeMode ?? "system",
+      checkForUpdates: cfg.general?.checkForUpdates ?? false,
+      debugMode: cfg.general?.debugMode ?? false,
+      dayTheme: cfg.general?.dayTheme ?? "",
+      nightTheme: cfg.general?.nightTheme ?? "",
+      selectedEnvironment: cfg.general?.selectedEnvironment ?? ""
+    },
+    request: {
+      timeoutSeconds: cfg.request?.timeoutSeconds ?? 30,
+      followRedirects: cfg.request?.followRedirects ?? true,
+      maxRedirects: cfg.request?.maxRedirects ?? 10,
+      validateSSL: cfg.request?.validateSSL ?? true,
+      defaultUserAgent: cfg.request?.defaultUserAgent ?? "",
+      proxyUrl: cfg.request?.proxyUrl ?? ""
+    },
+    customThemes: cfg.customThemes || []
+  });
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -139,7 +191,6 @@ function applyThemeToDom(t: theme.Theme) {
   } else {
     root.style.removeProperty("--color-surface");
   }
-  // Mode is not read from the theme — it is applied separately via general.themeMode.
 }
 
 let mediaQueryCleanup: (() => void) | null = null;
@@ -165,8 +216,6 @@ function ensureSystemThemeSyncListener() {
   }
 }
 
-// --- $state-based store ---
-
 export interface ConfigurationStoreState {
   config: configuration.Configuration;
   allThemes: theme.Theme[];
@@ -181,10 +230,11 @@ export const configurationStoreState: ConfigurationStoreState = $state({
   saveStatus: "idle"
 });
 
-// --- Helper getters ---
+let isHydratingConfig = false;
+let lastPersistedSignature: string | null = null;
 
 export function getConfigSnapshot(): configuration.Configuration {
-  return JSON.parse(JSON.stringify(configurationStoreState.config));
+  return cloneConfig(configurationStoreState.config);
 }
 
 export function getActiveTheme(): theme.Theme | null {
@@ -195,109 +245,73 @@ export function getActiveTheme(): theme.Theme | null {
   return allThemes.find((t) => t.id === config.general.activeTheme) || null;
 }
 
-// --- Persistence helpers ---
-
-import { debounce } from "$src/lib/utils/debounce";
-
-const SAVE_DEBOUNCE_MS = 800;
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function applyActiveTheme() {
+  const currentTheme = getActiveTheme();
+  if (currentTheme) {
+    applyThemeToDom(currentTheme);
+  }
+}
 
 async function persistConfig() {
-  const cfg = configurationStoreState.config;
-  if (!cfg) return;
+  if (!configurationStoreState.initialized || isHydratingConfig) return;
+
+  const snapshot = getConfigSnapshot();
+  const signature = getPersistenceSignature(snapshot);
+  if (signature === lastPersistedSignature) return;
 
   configurationStoreState.saveStatus = "saving";
   try {
-    await UpdateConfiguration(cfg);
+    await UpdateConfiguration(snapshot);
+    lastPersistedSignature = signature;
     configurationStoreState.saveStatus = "saved";
-    setTimeout(() => (configurationStoreState.saveStatus = "idle"), 600);
+    setTimeout(() => {
+      if (configurationStoreState.saveStatus === "saved") {
+        configurationStoreState.saveStatus = "idle";
+      }
+    }, SAVED_STATUS_TIMEOUT_MS);
   } catch (err) {
     configurationStoreState.saveStatus = "error";
     notifications.error("Could not save settings", String(err));
   }
 }
 
-const debouncedPersistConfig = debounce(persistConfig, SAVE_DEBOUNCE_MS);
-
-export async function saveConfig(immediate = false) {
-  if (saveTimer) {
-    clearTimeout(saveTimer);
-    saveTimer = null;
-  }
-  if (immediate) {
-    await persistConfig();
-    return;
-  }
-  debouncedPersistConfig();
-}
-
-export function scheduleConfigSave(isTextInput = true) {
-  if (isTextInput) {
-    debouncedPersistConfig();
-  } else {
-    void saveConfig(true);
-  }
-}
-
-// --- Imperative API ---
-
-function applyActiveTheme() {
-  const theme = getActiveTheme();
-  if (theme) {
-    applyThemeToDom(theme);
-  }
+export function saveConfig() {debounce(() => {
+  void persistConfig();
+}, SAVE_DEBOUNCE_MS);
 }
 
 export const configurationStore = {
   async init() {
+    isHydratingConfig = true;
     try {
       const [cfg, themes] = await Promise.all([GetConfiguration(), GetAllThemes()]);
-      const normalized = new configuration.Configuration(cfg);
-      if (!normalized.general) normalized.general = new configuration.GeneralSettings();
-      if (!normalized.request) normalized.request = new configuration.RequestSettings();
-      if (!normalized.customThemes) normalized.customThemes = [] as theme.Theme[];
-
+      const normalizedConfig = normalizeConfig(cfg);
       const normalizedThemes = (themes || []).map((t) => new theme.Theme(t));
 
-      // Direct state mutation
-      configurationStoreState.config = normalized;
+      configurationStoreState.config = normalizedConfig;
       configurationStoreState.allThemes = normalizedThemes;
       configurationStoreState.initialized = true;
+      configurationStoreState.saveStatus = "idle";
+      lastPersistedSignature = getPersistenceSignature(normalizedConfig);
 
-      // Apply theme immediately after load
-      applyActiveTheme();
-
-      // Apply mode
-      const mode = normalized.general?.themeMode;
+      const mode = normalizedConfig.general?.themeMode;
       if (mode) {
         activeThemeMode = mode;
         applyThemeMode(mode);
       }
+      applyActiveTheme();
     } catch (error) {
       notifications.error("Failed to initialize configuration", String(error), true);
-    }
-  },
-
-  async save(newConfig: configuration.Configuration) {
-    try {
-      await UpdateConfiguration(newConfig);
-      configurationStoreState.config = newConfig;
-    } catch (error) {
-      notifications.error("Failed to save configuration", String(error));
-      throw error;
+    } finally {
+      isHydratingConfig = false;
     }
   },
 
   async changeTheme(themeId: string) {
     try {
-      if (!configurationStoreState.config.general) {
-        configurationStoreState.config.general = new configuration.GeneralSettings();
-      }
       configurationStoreState.config.general.activeTheme = themeId;
-
       await SetActiveTheme(themeId);
-
-      // Apply theme to DOM
+      lastPersistedSignature = getPersistenceSignature(configurationStoreState.config);
       applyActiveTheme();
     } catch (error) {
       notifications.error("Failed to change theme", String(error));
@@ -311,5 +325,4 @@ export const configurationStore = {
   }
 };
 
-// --- Initialize system theme listener ---
 ensureSystemThemeSyncListener();
