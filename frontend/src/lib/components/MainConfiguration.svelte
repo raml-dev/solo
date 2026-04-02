@@ -44,10 +44,14 @@
   import Toggle from "flowbite-svelte/Toggle.svelte";
   import { onMount } from "svelte";
 
-  // --- Nav ---
+  // 1) custom types
   type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts";
-  let activeSection: SettingsSection = $state("general");
+  type HostCookieRow = { id: string; key: string; value: string };
 
+  // 2) props
+  // no props in this component
+
+  // constants
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
     { id: "themes", label: "Themes" },
@@ -55,10 +59,34 @@
     { id: "troubleshooting", label: "Troubleshooting" }
   ];
 
-  // --- Store ---
+  const deleteHostModalId = `settings-delete-host-${Math.random().toString(36).slice(2)}`;
+  const showDeleteHostModal = modalStack.binding(deleteHostModalId);
+
+  // 3) $state vars
+  let activeSection: SettingsSection = $state("general");
+
+  let activeThemeId = $state(configurationStoreState.config?.general?.activeTheme || "");
+  let selectedThemeMode = $state(configurationStoreState.config?.general?.themeMode || "system");
+
+  let defaultConfig = $state(createEmptyConfig());
+  let editableConfig = $state(createEmptyConfig());
+  let saveStatus: "idle" | "saving" | "saved" = $state("idle");
+  let lastPersistedSignature: string | null = null;
+
+  let isExportingLogs = $state(false);
+
+  let hostsList: host.Host[] = $state([]);
+  let editingHost: host.Host | null = $state(null);
+  let editingHostName = $state("");
+  let editingCookies: HostCookieRow[] = $state([]);
+  let customTlsEnabled = $state(false);
+  let hostToDelete = $state("");
+
+  // 4) $derived vars
   const configState = $derived(configurationStoreState.config);
   const themesState = $derived(configurationStoreState.allThemes);
 
+  // 5) helper functions
   function findTheme(id: string) {
     return (themesState || []).find((t) => t.id === id) || null;
   }
@@ -67,29 +95,6 @@
     return label || "Untitled Theme";
   }
 
-  // --- Theme UI state ---
-  let activeThemeId = $state(configurationStoreState.config?.general?.activeTheme || "");
-  let selectedThemeMode = $state(configurationStoreState.config?.general?.themeMode || "system");
-
-  async function applyAndSaveTheme(themeId: string) {
-    if (!findTheme(themeId)) return;
-    activeThemeId = themeId;
-    try {
-      const current = buildNormalizedConfigSnapshot();
-      current.general.activeTheme = themeId;
-      await configurationStore.save(current);
-      await configurationStore.changeTheme(themeId);
-      refreshEditableConfigFromStore();
-    } catch {
-      /* shown by store */
-    }
-  }
-
-  async function handleThemeSelect(themeId: string) {
-    await applyAndSaveTheme(themeId);
-  }
-
-  // --- General / Request settings ---
   function createEmptyConfig() {
     const cfg = new configuration.Configuration();
     cfg.general = new configuration.GeneralSettings({ debugMode: true });
@@ -97,11 +102,6 @@
     cfg.customThemes = [] as theme.Theme[];
     return cfg;
   }
-
-  let defaultConfig = $state(createEmptyConfig());
-  let editableConfig = $state(createEmptyConfig());
-  let saveStatus: "idle" | "saving" | "saved" = $state("idle");
-  let lastPersistedSignature: string | null = null;
 
   function toSignature(cfg: configuration.Configuration): string {
     return JSON.stringify({
@@ -133,36 +133,23 @@
     lastPersistedSignature = toSignature(copy);
   }
 
-  onMount(() => {
-    let disposed = false;
+  async function applyAndSaveTheme(themeId: string) {
+    if (!findTheme(themeId)) return;
+    activeThemeId = themeId;
+    try {
+      const current = buildNormalizedConfigSnapshot();
+      current.general.activeTheme = themeId;
+      await configurationStore.save(current);
+      await configurationStore.changeTheme(themeId);
+      refreshEditableConfigFromStore();
+    } catch {
+      /* shown by store */
+    }
+  }
 
-    activeThemeId = configState?.general?.activeTheme || "";
-    selectedThemeMode = configState?.general?.themeMode || "system";
-    refreshEditableConfigFromStore();
-
-    void (async () => {
-      try {
-        await SetDebugMode(true);
-      } catch (err) {
-        console.warn("Failed to enable debug mode at runtime", err);
-      }
-
-      try {
-        const loaded = await GetDefaultConfiguration();
-        if (disposed) return;
-        defaultConfig = new configuration.Configuration(loaded);
-        if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
-        if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
-      } catch (err) {
-        if (disposed) return;
-        notifications.error("Failed to load default configuration", String(err));
-      }
-    })();
-
-    return () => {
-      disposed = true;
-    };
-  });
+  async function handleThemeSelect(themeId: string) {
+    await applyAndSaveTheme(themeId);
+  }
 
   async function persistRequestSettings() {
     try {
@@ -213,8 +200,6 @@
     void persistRequestSettings();
   }
 
-  let isExportingLogs = $state(false);
-
   async function handleLogsExport() {
     if (isExportingLogs) return;
 
@@ -230,19 +215,6 @@
       isExportingLogs = false;
     }
   }
-
-  // --- Hosts ---
-  type HostCookieRow = { id: string; key: string; value: string };
-
-  let hostsList: host.Host[] = $state([]);
-  let editingHost: host.Host | null = $state(null);
-  let editingHostName = $state("");
-  let editingCookies: HostCookieRow[] = $state([]);
-  let customTlsEnabled = $state(false);
-
-  const deleteHostModalId = `settings-delete-host-${Math.random().toString(36).slice(2)}`;
-  const showDeleteHostModal = modalStack.binding(deleteHostModalId);
-  let hostToDelete = $state("");
 
   async function fetchHosts() {
     try {
@@ -366,6 +338,41 @@
       void fetchHosts();
     }
   }
+
+  // 6) onMount and onDestroy
+  onMount(() => {
+    let disposed = false;
+
+    activeThemeId = configState?.general?.activeTheme || "";
+    selectedThemeMode = configState?.general?.themeMode || "system";
+    refreshEditableConfigFromStore();
+
+    void (async () => {
+      try {
+        await SetDebugMode(true);
+      } catch (err) {
+        console.warn("Failed to enable debug mode at runtime", err);
+      }
+
+      try {
+        const loaded = await GetDefaultConfiguration();
+        if (disposed) return;
+        defaultConfig = new configuration.Configuration(loaded);
+        if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
+        if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
+      } catch (err) {
+        if (disposed) return;
+        notifications.error("Failed to load default configuration", String(err));
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  });
+
+  // 7) $effects
+  // none
 </script>
 
 <div class="flex h-full gap-6">
