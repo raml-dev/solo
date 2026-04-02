@@ -29,42 +29,15 @@
     onChange?.();
   }
 
-  // Local reactive state to ensure UI updates when toggling auth.enabled
-  // TODO refactor to avoid recursive effects
-  // eslint-disable-next-line svelte/prefer-writable-derived
-  let enabled = $state(auth.enabled);
-  // Keep local state in sync when the auth object is replaced by parent
-  $effect(() => {
-    // console.log(auth);
-    enabled = auth.enabled;
-  });
-  // Propagate user changes to the model without marking dirty on mount
-  $effect(() => {
-    if (auth.enabled !== enabled) {
-      auth.enabled = enabled;
-      onChange?.();
-    }
-  });
+  function handleTokenUrlChange(value: string) {
+    auth.tokenUrl = value;
+    onChange?.();
+  }
 
-  // Local reactive state to keep TokenInput rendering in sync
-  let tokenUrl = $state(auth.tokenUrl ?? "");
-  let tokenPath = $state(auth.tokenPath ?? "access_token");
-  // TODO refactor to avoid recursive effects
-  $effect(() => {
-    // auth;
-    tokenUrl = auth.tokenUrl ?? "";
-    tokenPath = auth.tokenPath ?? "access_token";
-  });
-  $effect(() => {
-    if (auth.tokenUrl !== tokenUrl) {
-      auth.tokenUrl = tokenUrl;
-      onChange?.();
-    }
-    if (auth.tokenPath !== tokenPath) {
-      auth.tokenPath = tokenPath;
-      onChange?.();
-    }
-  });
+  function handleTokenPathChange(value: string) {
+    auth.tokenPath = value;
+    onChange?.();
+  }
 
   // Convert map to array for easier editing in UI
   let templateRows = $state(
@@ -75,8 +48,7 @@
     }))
   );
 
-  // Sync rows back to auth.template map
-  $effect(() => {
+  function syncTemplateToAuth() {
     const newTemplate: Record<string, string> = {};
     templateRows.forEach((row) => {
       if (row.key) {
@@ -84,15 +56,33 @@
       }
     });
     auth.template = newTemplate;
-  });
+  }
 
   function addRow() {
     templateRows = [...templateRows, { id: `row-${Date.now()}`, key: "", value: "" }];
+    syncTemplateToAuth();
     handleChange();
   }
 
   function removeRow(id: string) {
     templateRows = templateRows.filter((r) => r.id !== id);
+    syncTemplateToAuth();
+    handleChange();
+  }
+
+  function updateTemplateRowKey(id: string, value: string) {
+    const row = templateRows.find((r) => r.id === id);
+    if (!row) return;
+    row.key = value;
+    syncTemplateToAuth();
+    handleChange();
+  }
+
+  function updateTemplateRowValue(id: string, value: string) {
+    const row = templateRows.find((r) => r.id === id);
+    if (!row) return;
+    row.value = value;
+    syncTemplateToAuth();
     handleChange();
   }
 
@@ -114,19 +104,19 @@
         Automatically fetch and inject Bearer tokens into your requests.
       </div>
     </div>
-    <Toggle bind:checked={enabled} size="default" />
+    <Toggle bind:checked={auth.enabled} onchange={handleChange} size="default" />
   </div>
 
-  {#if enabled}
+  {#if auth.enabled}
     <div class="animate-in fade-in slide-in-from-top-1 space-y-4 duration-200">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="space-y-2">
           <Label>Token URL</Label>
           <TokenInput
-            bind:value={tokenUrl}
+            bind:value={auth.tokenUrl}
             placeholder="https://auth.example.com/oauth2/token"
             {environmentEntries}
-            onChange={handleChange}
+            onChange={() => handleTokenUrlChange(auth.tokenUrl)}
             size="sm"
           />
           <div class="text-xs text-neutral-500">
@@ -141,8 +131,8 @@
             type="text"
             size="sm"
             placeholder="access_token"
-            bind:value={tokenPath}
-            oninput={handleChange}
+            bind:value={auth.tokenPath}
+            oninput={() => handleTokenPathChange(auth.tokenPath ?? "")}
           />
           <div class="text-xs text-neutral-500">
             The field in the JSON response containing the access token.
@@ -175,14 +165,14 @@
                   size="sm"
                   placeholder="grant_type"
                   bind:value={row.key}
-                  oninput={handleChange}
+                  oninput={() => updateTemplateRowKey(row.id, row.key)}
                   class="bg-white dark:bg-neutral-800"
                 />
                 <TokenInput
                   bind:value={row.value}
                   placeholder="client_credentials"
                   {environmentEntries}
-                  onChange={handleChange}
+                  onChange={() => updateTemplateRowValue(row.id, row.value)}
                   size="sm"
                 />
                 <Button

@@ -39,22 +39,16 @@
   let exists = $derived(hasSessionValue || hasEnvValue);
   let valueSource = $derived(hasSessionValue ? "session" : hasEnvValue ? "environment" : "none");
 
-  $effect(() => {
-    if (visible && !isEditing) {
-      editValue = envValue;
-    }
-  });
-
-  $effect(() => {
-    if (!visible) {
-      isEditing = false;
-    }
-  });
-
   async function handleEditClick() {
+    editValue = envValue;
     isEditing = true;
     await tick();
     inputElement?.focus();
+  }
+
+  function handleTooltipMouseLeave() {
+    isEditing = false;
+    tooltipMouseLeave();
   }
 
   async function save() {
@@ -93,7 +87,7 @@
     class="fixed z-50 w-max rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
     style="left: {tooltipState.x}px; top: {tooltipState.y}px;"
     onmouseenter={cancelHideTokenTooltip}
-    onmouseleave={tooltipMouseLeave}
+    onmouseleave={handleTooltipMouseLeave}
   >
     {#if isEditing}
       <div class="flex flex-col gap-2">
