@@ -61,18 +61,18 @@ interface TabStoreState {
 const EMPTY_TAB_LABEL = "New Request";
 const MAX_OPEN_TABS = 15;
 
-export const tabsStore: TabStoreState = $state({
+export const tabStoreState: TabStoreState = $state({
   tabs: [],
   activeTabIndex: -1
 });
 
 /** Get mutable reference to active tab */
 export function getActiveTab(): TabState {
-  return tabsStore.tabs[tabsStore.activeTabIndex];
+  return tabStoreState.tabs[tabStoreState.activeTabIndex];
 }
 
 function getTabIndexById(tabId: string): number {
-  return tabsStore.tabs.findIndex((t) => t.id === tabId);
+  return tabStoreState.tabs.findIndex((t) => t.id === tabId);
 }
 
 function normalizeRequestSettings(
@@ -120,8 +120,8 @@ export function makeEmptyTab(): TabState {
     response: null,
     requestError: null
   };
-  tabsStore.tabs.push(newTab);
-  tabsStore.activeTabIndex = tabsStore.tabs.length - 1;
+  tabStoreState.tabs.push(newTab);
+  tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
   return newTab;
 }
 
@@ -142,9 +142,9 @@ export function openTab(
   }
 ) {
   // 1. If already open, just activate it
-  const existingIndex = tabsStore.tabs.findIndex((t) => t.requestId === requestId);
+  const existingIndex = tabStoreState.tabs.findIndex((t) => t.requestId === requestId);
   if (existingIndex !== -1) {
-    tabsStore.activeTabIndex = existingIndex;
+    tabStoreState.activeTabIndex = existingIndex;
     return;
   }
 
@@ -153,15 +153,15 @@ export function openTab(
 
   let tabIndexToReplace: number | undefined;
   if (activeTab && activeTab.isPreview) {
-    tabIndexToReplace = tabsStore.activeTabIndex;
+    tabIndexToReplace = tabStoreState.activeTabIndex;
   } else {
-    tabIndexToReplace = tabsStore.tabs.findIndex((t) => t.isPreview);
+    tabIndexToReplace = tabStoreState.tabs.findIndex((t) => t.isPreview);
   }
 
   const defaultAuth = normalizeAuthConfiguration();
 
   if (tabIndexToReplace !== undefined && tabIndexToReplace >= 0) {
-    const tab = tabsStore.tabs[tabIndexToReplace];
+    const tab = tabStoreState.tabs[tabIndexToReplace];
     tab.requestId = requestId;
     tab.collectionName = collectionName;
     tab.label = meta.label;
@@ -178,12 +178,12 @@ export function openTab(
     tab.postResponseScript = meta.postResponseScript ?? "";
     tab.response = null;
     tab.requestError = null;
-    tabsStore.activeTabIndex = tabIndexToReplace;
+    tabStoreState.activeTabIndex = tabIndexToReplace;
     return;
   }
 
   // 3. If no replaceable tab, create a new one (respecting limit)
-  if (tabsStore.tabs.length >= MAX_OPEN_TABS) {
+  if (tabStoreState.tabs.length >= MAX_OPEN_TABS) {
     notifications.warning(`Maximum ${MAX_OPEN_TABS} tabs open. Close a tab to open another.`);
     return;
   }
@@ -207,28 +207,28 @@ export function openTab(
     response: null,
     requestError: null
   };
-  tabsStore.tabs.push(newTab);
-  tabsStore.activeTabIndex = tabsStore.tabs.length - 1;
+  tabStoreState.tabs.push(newTab);
+  tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
 }
 
 export function closeTab(tabId: string) {
   const idx = getTabIndexById(tabId);
   if (idx === -1) return;
-  tabsStore.tabs.splice(idx, 1);
-  if (tabsStore.activeTabIndex === idx) {
-    if (tabsStore.tabs.length === 0) {
-      tabsStore.activeTabIndex = -1;
+  tabStoreState.tabs.splice(idx, 1);
+  if (tabStoreState.activeTabIndex === idx) {
+    if (tabStoreState.tabs.length === 0) {
+      tabStoreState.activeTabIndex = -1;
     } else {
-      tabsStore.activeTabIndex = Math.max(0, idx - 1);
+      tabStoreState.activeTabIndex = Math.max(0, idx - 1);
     }
-  } else if (tabsStore.activeTabIndex > idx) {
-    tabsStore.activeTabIndex--;
+  } else if (tabStoreState.activeTabIndex > idx) {
+    tabStoreState.activeTabIndex--;
   }
 }
 
 export function setActiveTab(tabId: string) {
   const idx = getTabIndexById(tabId);
-  tabsStore.activeTabIndex = idx;
+  tabStoreState.activeTabIndex = idx;
 }
 
 export function updateTabFormState(
@@ -250,7 +250,7 @@ export function updateTabFormState(
     >
   >
 ) {
-  const tab = tabsStore.tabs.find((t) => t.id === tabId);
+  const tab = tabStoreState.tabs.find((t) => t.id === tabId);
   if (tab) {
     Object.assign(tab, partial, {
       isDirty: partial.isDirty ?? true,
@@ -266,7 +266,7 @@ export function bindTabToRequest(
   collectionName: string,
   label: string
 ) {
-  const tab = tabsStore.tabs.find((t) => t.id === tabId);
+  const tab = tabStoreState.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.requestId = requestId;
     tab.collectionName = collectionName;
@@ -277,7 +277,7 @@ export function bindTabToRequest(
 }
 
 export async function saveTab(tabId: string) {
-  const tab = tabsStore.tabs.find((t) => t.id === tabId);
+  const tab = tabStoreState.tabs.find((t) => t.id === tabId);
   if (!tab || !tab.requestId || !tab.collectionName) return;
 
   const collections = collectionStoreState.collections;
@@ -326,7 +326,7 @@ export function updateTabResponse(
   response: TabResponse | null,
   requestError: string | null
 ) {
-  const tab = tabsStore.tabs.find((t) => t.id === tabId);
+  const tab = tabStoreState.tabs.find((t) => t.id === tabId);
   if (tab) {
     tab.response = response;
     tab.requestError = requestError;
@@ -335,7 +335,7 @@ export function updateTabResponse(
 }
 
 export function renameTabsByRequestId(requestId: string, label: string) {
-  const tab = tabsStore.tabs.find((t) => t.requestId === requestId);
+  const tab = tabStoreState.tabs.find((t) => t.requestId === requestId);
   if (tab) {
     tab.label = label;
   }
@@ -343,9 +343,23 @@ export function renameTabsByRequestId(requestId: string, label: string) {
 
 /** Remove all tabs referencing a deleted request */
 export function removeTabsForRequest(requestId: string) {
-  const wasActiveTab = tabsStore.tabs[tabsStore.activeTabIndex]?.requestId === requestId;
-  filterInPlace(tabsStore.tabs, (t) => t.requestId !== requestId);
+  const wasActiveTab = tabStoreState.tabs[tabStoreState.activeTabIndex]?.requestId === requestId;
+  filterInPlace(tabStoreState.tabs, (t) => t.requestId !== requestId);
   if (wasActiveTab) {
-    tabsStore.activeTabIndex = tabsStore.tabs.length > 0 ? tabsStore.tabs.length - 1 : -1;
+    tabStoreState.activeTabIndex =
+      tabStoreState.tabs.length > 0 ? tabStoreState.tabs.length - 1 : -1;
   }
 }
+
+export const tabStore = {
+  makeEmptyTab,
+  openTab,
+  closeTab,
+  setActiveTab,
+  updateTabFormState,
+  bindTabToRequest,
+  saveTab,
+  updateTabResponse,
+  renameTabsByRequestId,
+  removeTabsForRequest
+};

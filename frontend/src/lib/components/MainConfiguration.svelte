@@ -115,7 +115,9 @@
   }
 
   function handleThemeModeChange() {
-    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode as ThemeMode || "system");
+    configurationStore.applyThemeMode(
+      (configurationStoreState.config.general.themeMode as ThemeMode) || "system"
+    );
     saveConfig();
   }
 
@@ -262,7 +264,9 @@
   onMount(() => {
     let disposed = false;
 
-    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode as ThemeMode || "system");
+    configurationStore.applyThemeMode(
+      (configurationStoreState.config.general.themeMode as ThemeMode) || "system"
+    );
     void (async () => {
       try {
         await SetDebugMode(true);

@@ -16,7 +16,7 @@
   import { historyStore } from "$src/lib/stores/historyStore";
   import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { getActiveTab, saveTab, tabsStore } from "$src/lib/stores/tabStore.svelte";
+  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
   import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
@@ -92,7 +92,7 @@
 
       if (tab) {
         if (tab.requestId) {
-          await saveTab(tab.id);
+          await tabStore.saveTab(tab.id);
         } else {
           // Trigger the Save modal in HTTPRequestBuilder for new requests
           window.dispatchEvent(new CustomEvent("solo:save-request-new"));
@@ -102,11 +102,11 @@
   }
 
   async function handleSaveAllAndQuit() {
-    const dirtyTabs = tabsStore.tabs.filter((t) => t.isDirty && t.requestId);
+    const dirtyTabs = tabStoreState.tabs.filter((t) => t.isDirty && t.requestId);
 
     for (const tab of dirtyTabs) {
       try {
-        await saveTab(tab.id);
+        await tabStore.saveTab(tab.id);
       } catch (err) {
         console.error("Failed to save tab", tab.label, err);
       }
@@ -129,7 +129,7 @@
     window.addEventListener("keydown", handleKeyDown);
 
     EventsOn("app:request-close", () => {
-      const dirtyTabs = tabsStore.tabs.filter((t) => t.isDirty);
+      const dirtyTabs = tabStoreState.tabs.filter((t) => t.isDirty);
 
       if (dirtyTabs.length > 0) {
         showGlobalUnsavedModal = true;

@@ -23,9 +23,8 @@
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
     getActiveTab,
-    saveTab,
-    tabsStore,
-    updateTabResponse,
+    tabStore,
+    tabStoreState,
     type TabResponse
   } from "$src/lib/stores/tabStore.svelte";
   import { getStatusBadgeColor } from "$src/lib/utils/http";
@@ -69,7 +68,7 @@
 
   const globalConfig = $derived(configurationStoreState.config);
 
-  let requestName = $derived(tabsStore.tabs[tabsStore.activeTabIndex]?.label || "");
+  let requestName = $derived(tabStoreState.tabs[tabStoreState.activeTabIndex]?.label || "");
 
   onMount(() => {
     if (builderElement) {
@@ -99,7 +98,7 @@
       showSaveDialog = true;
       return;
     }
-    await saveTab(tab.id);
+    await tabStore.saveTab(tab.id);
   }
 
   function handleMethodChange(value: string) {
@@ -295,11 +294,11 @@
         requestHeaders: responseData.requestHeaders,
         body: prettyPrint(rawBody, fmt)
       };
-      updateTabResponse(tab.id, response, null);
+      tabStore.updateTabResponse(tab.id, response, null);
     } catch (error) {
       response = null;
       requestError = String(error);
-      updateTabResponse(tab.id, null, requestError);
+      tabStore.updateTabResponse(tab.id, null, requestError);
     } finally {
       loading = false;
     }
@@ -419,8 +418,8 @@
   }}
 />
 
-{#if tabsStore.tabs[tabsStore.activeTabIndex]}
-  {@const tab = tabsStore.tabs[tabsStore.activeTabIndex]}
+{#if tabStoreState.tabs[tabStoreState.activeTabIndex]}
+  {@const tab = tabStoreState.tabs[tabStoreState.activeTabIndex]}
   <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
     <TokenTooltip />
 
