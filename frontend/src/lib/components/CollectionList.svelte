@@ -13,12 +13,7 @@
   import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import {
-    getActiveTab,
-    openTab,
-    renameTabsByRequestId,
-    tabsStore
-  } from "$src/lib/stores/tabStore.svelte";
+  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import {
     ExportCollection,
@@ -204,7 +199,7 @@
         }))
       : [];
 
-    openTab(req.id, collectionName, {
+    tabStore.openTab(req.id, collectionName, {
       label: req.name || "Request",
       verb: req.verb || "GET",
       url: req.url || "",
@@ -259,7 +254,7 @@
           lastUpdateTimestamp: new Date().toISOString()
         })
       );
-      renameTabsByRequestId(req.id, nextName);
+      tabStore.renameTabsByRequestId(req.id, nextName);
     } catch {
       // error already shown by store
     } finally {
@@ -367,7 +362,7 @@
       expandedCollections.add(collectionName);
 
       if (newReq?.id) {
-        openTab(newReq.id, collectionName, {
+        tabStore.openTab(newReq.id, collectionName, {
           label: "New Request",
           verb: "GET",
           url: "",
@@ -608,7 +603,7 @@
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
   let selectedRequestId = $derived(
-    tabsStore.tabs.find((t) => t.id === getActiveTab().id)?.id ?? null
+    tabStoreState.tabs.find((t) => t.id === getActiveTab().id)?.id ?? null
   );
 
   let normalizedQuery = $derived(searchQuery.trim().toLowerCase());

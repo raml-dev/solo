@@ -186,7 +186,6 @@ export const configurationStore = {
   },
 
   applyThemeMode(mode: ThemeMode) {
-    console.log("mode: " + mode)
     setActiveThemeMode(mode);
     applyThemeModeRuntime(mode);
   }

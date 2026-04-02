@@ -8,19 +8,12 @@
   import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import {
-    closeTab,
-    getActiveTab,
-    makeEmptyTab,
-    saveTab,
-    setActiveTab,
-    tabsStore
-  } from "$src/lib/stores/tabStore.svelte";
+  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { onDestroy } from "svelte";
 
-  let tabs = $derived(tabsStore.tabs);
+  let tabs = $derived(tabStoreState.tabs);
   let activeTabId = $derived(getActiveTab().id);
 
   let tabToCloseId: string | null = $state(null);
@@ -40,7 +33,7 @@
     const normalized = ((index % tabs.length) + tabs.length) % tabs.length;
     const targetTabId = tabs[normalized]?.id;
     if (!targetTabId) return;
-    setActiveTab(targetTabId);
+    tabStore.setActiveTab(targetTabId);
     const button = document.querySelector<HTMLButtonElement>(`[data-tab-id="${targetTabId}"]`);
     button?.focus();
   }
@@ -72,7 +65,7 @@
 
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      setActiveTab(tabId);
+      tabStore.setActiveTab(tabId);
       return;
     }
 
@@ -90,23 +83,23 @@
       tabToCloseId = tabId;
       showConfirmClose.set(true);
     } else {
-      closeTab(tabId);
+      tabStore.closeTab(tabId);
     }
   }
 
   async function confirmCloseSave() {
     if (tabToCloseId) {
       if (tabToClose?.requestId) {
-        await saveTab(tabToCloseId);
+        await tabStore.saveTab(tabToCloseId);
       }
-      closeTab(tabToCloseId);
+      tabStore.closeTab(tabToCloseId);
     }
     closeConfirmModal();
   }
 
   function confirmCloseDiscard() {
     if (tabToCloseId) {
-      closeTab(tabToCloseId);
+      tabStore.closeTab(tabToCloseId);
     }
     closeConfirmModal();
   }
@@ -139,7 +132,7 @@
           aria-selected={tab.id === activeTabId}
           tabindex={tab.id === activeTabId ? 0 : -1}
           data-tab-id={tab.id}
-          onclick={() => setActiveTab(tab.id)}
+          onclick={() => tabStore.setActiveTab(tab.id)}
           ondblclick={() => (tab.isPreview = false)}
           onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
           title={tab.label}
@@ -166,7 +159,7 @@
     color="light"
     size="xs"
     class="shrink-0"
-    onclick={() => makeEmptyTab()}
+    onclick={() => tabStore.makeEmptyTab()}
     title="New request"
     aria-label="New request"
   >
