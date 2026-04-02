@@ -42,6 +42,7 @@
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
   import { onMount } from "svelte";
+  import type { ThemeMode } from "../theme/themeModel";
 
   // 1) custom types
   type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts";
@@ -114,7 +115,7 @@
   }
 
   function handleThemeModeChange() {
-    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode || "system");
+    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode as ThemeMode || "system");
     saveConfig();
   }
 
@@ -261,7 +262,7 @@
   onMount(() => {
     let disposed = false;
 
-    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode || "system");
+    configurationStore.applyThemeMode(configurationStoreState.config.general.themeMode as ThemeMode || "system");
     void (async () => {
       try {
         await SetDebugMode(true);
