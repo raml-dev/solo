@@ -116,7 +116,12 @@
   >
     {#each tabs as tab, index (tab.id)}
       <div
-        class={`group inline-flex max-w-xs items-center rounded-md border ${
+        role="tab"
+        tabindex="0"
+        onclick={() => tabStore.setActiveTab(tab.id)}
+        ondblclick={() => (tab.isPreview = false)}
+        onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
+        class={`group inline-flex max-w-xs items-center rounded-md border focus-within:inset-ring-1 inset-ring-primary-500 focus-within:outline-hidden focus:outline-hidden ${
           tab.id === activeTabId
             ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
             : "border-transparent bg-neutral-100/70 hover:bg-neutral-200/70 dark:bg-neutral-800/60 dark:hover:bg-neutral-700/70"
@@ -125,14 +130,10 @@
         <Button
           color="light"
           size="xs"
-          class="inline-flex min-w-0 items-center gap-2 border-0 bg-transparent px-2 py-1.5 text-sm shadow-none hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent"
-          role="tab"
+          tabindex={-1}
+          class="focus:ring-0 focus:outline-none inline-flex min-w-0 items-center gap-2 border-0 bg-transparent px-2 py-1.5 text-sm shadow-none hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent"
           aria-selected={tab.id === activeTabId}
-          tabindex={tab.id === activeTabId ? 0 : -1}
           data-tab-id={tab.id}
-          onclick={() => tabStore.setActiveTab(tab.id)}
-          ondblclick={() => (tab.isPreview = false)}
-          onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
           title={tab.label}
         >
           <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
