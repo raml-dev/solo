@@ -1036,19 +1036,11 @@
           size="sm"
           class="flex-1"
           type="text"
+          clearable
+          clearableSvgClass="h-3 w-3"
           placeholder="Search collections or requests"
           bind:value={searchQuery}
         />
-        {#if searchQuery}
-          <Button
-            color="light"
-            size="sm"
-            onclick={() => (searchQuery = "")}
-            aria-label="Clear search"
-          >
-            Clear
-          </Button>
-        {/if}
       </div>
     {/if}
   </div>
