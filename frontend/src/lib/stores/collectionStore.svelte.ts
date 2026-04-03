@@ -32,6 +32,44 @@ const initialState: CollectionState = {
   loading: false
 };
 
+function moveRequestById(
+  requests: collection.Request[],
+  sourceRequestId: string,
+  targetRequestId: string,
+  position: "before" | "after"
+): collection.Request[] | null {
+  if (!sourceRequestId || !targetRequestId || sourceRequestId === targetRequestId) {
+    return null;
+  }
+
+  const sourceIndex = requests.findIndex((request) => request.id === sourceRequestId);
+  const targetIndex = requests.findIndex((request) => request.id === targetRequestId);
+
+  if (sourceIndex === -1 || targetIndex === -1) {
+    return null;
+  }
+
+  const reorderedRequests = [...requests];
+  const [sourceRequest] = reorderedRequests.splice(sourceIndex, 1);
+
+  if (!sourceRequest) {
+    return null;
+  }
+
+  const nextTargetIndex = reorderedRequests.findIndex((request) => request.id === targetRequestId);
+  if (nextTargetIndex === -1) {
+    return null;
+  }
+
+  const insertAt = position === "before" ? nextTargetIndex : nextTargetIndex + 1;
+  reorderedRequests.splice(insertAt, 0, sourceRequest);
+
+  const didChangeOrder = reorderedRequests.some(
+    (request, index) => request.id !== requests[index]?.id
+  );
+  return didChangeOrder ? reorderedRequests : null;
+}
+
 export const collectionStoreState = $state<CollectionState>({ ...initialState });
 
 export const collectionStore = {
@@ -207,6 +245,52 @@ export const collectionStore = {
     } catch (err) {
       notifications.error("Failed to remove request", String(err));
       collectionStoreState.loading = false;
+      throw err;
+    }
+  },
+
+  // Reorder requests inside a collection
+  async reorderRequests(
+    collectionName: string,
+    sourceRequestId: string,
+    targetRequestId: string,
+    position: "before" | "after"
+  ) {
+    const targetCollection = collectionStoreState.collections.find(
+      (currentCollection) => currentCollection.name === collectionName
+    );
+
+    if (!targetCollection) {
+      return;
+    }
+
+    const reorderedRequests = moveRequestById(
+      targetCollection.requests || [],
+      sourceRequestId,
+      targetRequestId,
+      position
+    );
+
+    if (!reorderedRequests) {
+      return;
+    }
+
+    const previousCollections = collectionStoreState.collections;
+    const updatedCollection = collection.Collection.createFrom({
+      ...targetCollection,
+      requests: reorderedRequests,
+      lastUpdateTimestamp: new SvelteDate().toISOString()
+    });
+
+    collectionStoreState.collections = collectionStoreState.collections.map((currentCollection) =>
+      currentCollection.name === collectionName ? updatedCollection : currentCollection
+    );
+
+    try {
+      await UpdateCollection(updatedCollection);
+    } catch (err) {
+      collectionStoreState.collections = previousCollections;
+      notifications.error("Failed to reorder requests", String(err));
       throw err;
     }
   },
