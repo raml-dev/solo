@@ -19,6 +19,7 @@
   import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStoreState } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import { modalStack } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import {
@@ -37,7 +38,7 @@
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
 
   // UI-only local state (not tab data)
   let requestPaneTab = $state("Body");
@@ -46,7 +47,7 @@
   let loading = $state(false);
   let responseTab = $state("body");
   let responseHeaderView = $state("received");
-  let showSaveDialog = $state(false);
+  let showSaveDialog = modalStack.createModal("save-request");
   let showCurlModal = $state(false);
   let curlPreview = $state("");
   let responseHeight = $state(300);
@@ -76,13 +77,17 @@
     }
 
     const handleSaveNew = () => {
-      showSaveDialog = true;
+      showSaveDialog.open = true;
     };
     window.addEventListener("solo:save-request-new", handleSaveNew);
     return () => {
       window.removeEventListener("solo:save-request-new", handleSaveNew);
     };
   });
+
+  onDestroy(() => {
+    modalStack.destroyModal("save-request")
+  })
 
   // Field change handler - mutation already happened via bind:, just update metadata
   function onFieldChange() {
@@ -95,7 +100,7 @@
   async function handleSave() {
     const tab = getActiveTab();
     if (!tab?.id || !tab.requestId) {
-      showSaveDialog = true;
+      showSaveDialog.open = true;
       return;
     }
     await tabStore.saveTab(tab.id);
@@ -400,7 +405,7 @@
         auth: tab.auth,
         settings: tab.settings
       });
-      showSaveDialog = false;
+      showSaveDialog.open = false;
     } catch {
       /* shown by store */
     }
@@ -775,8 +780,9 @@
 {/if}
 
 <SaveRequestModal
-  bind:show={showSaveDialog}
+  bind:show={showSaveDialog.open}
+  modalId={showSaveDialog.id}
   bind:requestName
   onSave={handleSaveRequest}
-  onCancel={() => (showSaveDialog = false)}
+  onCancel={() => (showSaveDialog.open = false)}
 />

@@ -11,7 +11,7 @@
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
@@ -58,20 +58,12 @@
 
   let editingRequestNameInputEl: HTMLInputElement | undefined = $state();
 
-  const collectionModalScope = `collections-${Math.random().toString(36).slice(2)}`;
-  const newCollectionModalId = `${collectionModalScope}-new`;
-  const renameCollectionModalId = `${collectionModalScope}-rename`;
-  const deleteCollectionModalId = `${collectionModalScope}-delete-collection`;
-  const deleteRequestModalId = `${collectionModalScope}-delete-request`;
-  const importCollectionModalId = `${collectionModalScope}-import`;
-  const soloCollectionOverwriteModalId = `${collectionModalScope}-solo-overwrite`;
-
-  const showNewCollectionDialog = modalStack.binding(newCollectionModalId);
-  const showRenameCollectionDialog = modalStack.binding(renameCollectionModalId);
-  const showDeleteConfirmDialog = modalStack.binding(deleteCollectionModalId);
-  const showDeleteRequestConfirmDialog = modalStack.binding(deleteRequestModalId);
-  const showImportSelector = modalStack.binding(importCollectionModalId);
-  const showSoloCollectionOverwriteDialog = modalStack.binding(soloCollectionOverwriteModalId);
+  const newCollectionModal = modalStack.createModal("collections-new");
+  const renameCollectionModal = modalStack.createModal("collections-rename");
+  const deleteCollectionModal = modalStack.createModal("collections-delete-collection");
+  const deleteRequestModal = modalStack.createModal("collections-delete-request");
+  const importCollectionModal = modalStack.createModal("collections-import");
+  const soloCollectionOverwriteModal = modalStack.createModal("collections-solo-overwrite");
 
   let soloCollectionOverwriteName: string | null = $state(null);
   let pendingSoloCollectionPath: string | null = null;
@@ -104,7 +96,7 @@
 
   // Pre-select the active collection when the import modal opens
   $effect(() => {
-    if ($showImportSelector && collectionStoreState.selectedCollectionName) {
+    if (importCollectionModal.open && collectionStoreState.selectedCollectionName) {
       curlTargetCollection = collectionStoreState.selectedCollectionName;
     }
   });
@@ -265,16 +257,16 @@
   function openRenameCollection(collectionName: string) {
     renameTarget = collectionName;
     renameCollectionName = collectionName;
-    showRenameCollectionDialog.set(true);
+    renameCollectionModal.open = true;
   }
 
   function closeNewCollectionDialog() {
-    showNewCollectionDialog.set(false);
+    newCollectionModal.open = false;
     newCollectionName = "";
   }
 
   function closeRenameDialog() {
-    showRenameCollectionDialog.set(false);
+    renameCollectionModal.open = false;
     renameTarget = null;
     renameCollectionName = "";
   }
@@ -329,11 +321,11 @@
 
   function handleDeleteCollection(collectionName: string) {
     deleteTarget = collectionName;
-    showDeleteConfirmDialog.set(true);
+    deleteCollectionModal.open = true;
   }
 
   function closeDeleteConfirmDialog() {
-    showDeleteConfirmDialog.set(false);
+    deleteCollectionModal.open = false;
     deleteTarget = null;
   }
 
@@ -381,7 +373,7 @@
   async function handleDeleteRequest(collectionName: string, requestId: string) {
     deleteRequestCollectionName = collectionName;
     deleteRequestTarget = requestId;
-    showDeleteRequestConfirmDialog.set(true);
+    deleteRequestModal.open = true;
   }
 
   async function confirmDeleteRequest() {
@@ -396,7 +388,7 @@
   }
 
   function closeDeleteRequestConfirmDialog() {
-    showDeleteRequestConfirmDialog.set(false);
+    deleteRequestModal.open = false;
     deleteRequestTarget = null;
     deleteRequestCollectionName = null;
   }
@@ -499,7 +491,7 @@
       if (!overwrite && existingName) {
         pendingSoloCollectionPath = path;
         soloCollectionOverwriteName = existingName;
-        showSoloCollectionOverwriteDialog.set(true);
+        soloCollectionOverwriteModal.open = true;
         return;
       }
       notifications.error("Failed to import collection", message);
@@ -509,7 +501,7 @@
   async function handleImportSoloCollection(path?: string) {
     const filePath = path ?? (await SelectFile("Select Solo Collection", "*.json", "JSON Files"));
     if (!filePath) return;
-    showImportSelector.set(false);
+    importCollectionModal.open = false;
     await executeSoloCollectionImport(filePath, false);
   }
 
@@ -517,7 +509,7 @@
     if (!pendingSoloCollectionPath) return;
     const path = pendingSoloCollectionPath;
     pendingSoloCollectionPath = null;
-    showSoloCollectionOverwriteDialog.set(false);
+    soloCollectionOverwriteModal.open = false;
     await executeSoloCollectionImport(path, true);
   }
 
@@ -531,7 +523,7 @@
   }
 
   async function handleSelectImportFormat(format: "postman" | "bruno" | "openapi") {
-    showImportSelector.set(false);
+    importCollectionModal.open = false;
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
@@ -568,7 +560,7 @@
   }
 
   function closeImportModal() {
-    showImportSelector.set(false);
+    importCollectionModal.open = false;
     curlInput = "";
     curlCreatingNew = false;
     curlNewCollectionName = "";
@@ -577,7 +569,7 @@
   function openImportModal() {
     importActiveTab = "postman";
     gitImportActionState = null;
-    showImportSelector.set(true);
+    importCollectionModal.open = true;
   }
 
   onMount(() => {
@@ -593,12 +585,12 @@
   });
 
   onDestroy(async () => {
-    modalStack.close(newCollectionModalId);
-    modalStack.close(renameCollectionModalId);
-    modalStack.close(deleteCollectionModalId);
-    modalStack.close(deleteRequestModalId);
-    modalStack.close(importCollectionModalId);
-    modalStack.close(soloCollectionOverwriteModalId);
+    modalStack.destroyModal(newCollectionModal.id);
+    modalStack.destroyModal(renameCollectionModal.id);
+    modalStack.destroyModal(deleteCollectionModal.id);
+    modalStack.destroyModal(deleteRequestModal.id);
+    modalStack.destroyModal(importCollectionModal.id);
+    modalStack.destroyModal(soloCollectionOverwriteModal.id);
   });
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
@@ -634,7 +626,7 @@
       <div class="flex items-center gap-1">
         {#if !isCollapsed}
           <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
-          <Button color="primary" size="sm" onclick={() => showNewCollectionDialog.set(true)}>
+          <Button color="primary" size="sm" onclick={() => (newCollectionModal.open = true)}>
             New
           </Button>
         {/if}
@@ -710,7 +702,7 @@
               </button>
 
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2 cursor-pointer">
+                <div class="flex cursor-pointer items-center gap-2">
                   {#if collection.gitRemote}
                     <svg
                       width="12"
@@ -725,9 +717,7 @@
                       <path d={getProviderIconPath(collection.gitProvider || "git")} />
                     </svg>
                   {/if}
-                  <span
-                    class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100"
-                  >
+                  <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
                     {collection.name}
                   </span>
                   <span
@@ -823,7 +813,7 @@
                 {:else}
                   {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
                     <div
-                      class={`cursor-pointer group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
+                      class={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
                       onclick={() => selectRequest(request, collection.name)}
                       ondblclick={(e) => startRequestRename(e, request, collection.name)}
                       onkeypress={(e) =>
@@ -922,13 +912,13 @@
   {/if}
 </div>
 
-{#if $showNewCollectionDialog}
+{#if newCollectionModal.open}
   <Modal
-    bind:open={$showNewCollectionDialog}
+    bind:open={newCollectionModal.open}
     onclose={closeNewCollectionDialog}
     title="New Collection"
   >
-    {#if $topModalId === newCollectionModalId}
+    {#if $topModalId === newCollectionModal.id}
       <ToastContainer />
     {/if}
     <div class="space-y-2">
@@ -950,13 +940,13 @@
   </Modal>
 {/if}
 
-{#if $showRenameCollectionDialog}
+{#if renameCollectionModal.open}
   <Modal
-    bind:open={$showRenameCollectionDialog}
+    bind:open={renameCollectionModal.open}
     onclose={closeRenameDialog}
     title="Rename Collection"
   >
-    {#if $topModalId === renameCollectionModalId}
+    {#if $topModalId === renameCollectionModal.id}
       <ToastContainer />
     {/if}
     <div class="space-y-2">
@@ -978,13 +968,13 @@
   </Modal>
 {/if}
 
-{#if $showDeleteConfirmDialog}
+{#if deleteCollectionModal.open}
   <Modal
-    bind:open={$showDeleteConfirmDialog}
+    bind:open={deleteCollectionModal.open}
     onclose={closeDeleteConfirmDialog}
     title="Delete Collection"
   >
-    {#if $topModalId === deleteCollectionModalId}
+    {#if $topModalId === deleteCollectionModal.id}
       <ToastContainer />
     {/if}
     <div class="space-y-2 text-sm">
@@ -1000,13 +990,13 @@
     {/snippet}
   </Modal>
 {/if}
-{#if $showDeleteRequestConfirmDialog}
+{#if deleteRequestModal.open}
   <Modal
-    bind:open={$showDeleteRequestConfirmDialog}
+    bind:open={deleteRequestModal.open}
     onclose={closeDeleteRequestConfirmDialog}
     title="Delete Request"
   >
-    {#if $topModalId === deleteRequestModalId}
+    {#if $topModalId === deleteRequestModal.id}
       <ToastContainer />
     {/if}
     <div class="space-y-2 text-sm">
@@ -1023,14 +1013,14 @@
   </Modal>
 {/if}
 
-{#if $showImportSelector}
+{#if importCollectionModal.open}
   <Modal
     title="Import Collection or Request"
-    bind:open={$showImportSelector}
+    bind:open={importCollectionModal.open}
     onclose={closeImportModal}
     size="xl"
   >
-    {#if $topModalId === importCollectionModalId}
+    {#if $topModalId === importCollectionModal.id}
       <ToastContainer />
     {/if}
     <div class="flex flex-col gap-4">
@@ -1041,7 +1031,7 @@
             subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importCollectionModal.open = false;
               if (paths.length > 0) {
                 await ImportPostmanCollection(paths[0]);
                 await collectionStore.loadCollections();
@@ -1075,7 +1065,7 @@
             subtitle="Supports Bruno collection folders (.bru files)"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importCollectionModal.open = false;
               if (paths.length > 0) {
                 await ImportBrunoCollection(paths[0]);
                 await collectionStore.loadCollections();
@@ -1108,7 +1098,7 @@
             subtitle="Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importCollectionModal.open = false;
               if (paths.length > 0) {
                 const warnings = await ImportOpenAPICollection(paths[0]);
                 await collectionStore.loadCollections();
@@ -1199,7 +1189,7 @@
             subtitle="Supports Solo collection JSON"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importCollectionModal.open = false;
               if (paths.length > 0) {
                 await executeSoloCollectionImport(paths[0], false);
               } else {
@@ -1228,7 +1218,7 @@
 
         <TabItem key="git" title="Git">
           <GitImportView
-            onImported={() => showImportSelector.set(false)}
+            onImported={() => (importCollectionModal.open = false)}
             onActionStateChange={(state) => {
               gitImportActionState = state;
             }}
@@ -1278,18 +1268,18 @@
   </Modal>
 {/if}
 
-{#if $showSoloCollectionOverwriteDialog}
+{#if soloCollectionOverwriteModal.open}
   <Modal
     title="Overwrite collection?"
-    bind:open={$showSoloCollectionOverwriteDialog}
+    bind:open={soloCollectionOverwriteModal.open}
     onclose={() => {
       pendingSoloCollectionPath = null;
       soloCollectionOverwriteName = null;
-      showSoloCollectionOverwriteDialog.set(false);
+      soloCollectionOverwriteModal.open = false;
     }}
     size="xl"
   >
-    {#if $topModalId === soloCollectionOverwriteModalId}
+    {#if $topModalId === soloCollectionOverwriteModal.id}
       <ToastContainer />
     {/if}
     <p>Collection "{soloCollectionOverwriteName}" already exists.</p>
