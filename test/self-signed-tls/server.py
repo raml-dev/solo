@@ -1,6 +1,5 @@
 import http.server
 import ssl
-import os
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
