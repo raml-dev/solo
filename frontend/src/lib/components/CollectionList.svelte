@@ -1004,21 +1004,23 @@
 
   <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
     <div class="flex items-center justify-between">
-    <div class="flex items-center gap-2 h-10">
-      <button
-          class="flex-1 h-6 w-6 p-0 text-xs hover:cursor-pointer dark:text-white"
+      <div class="flex h-10 items-center gap-2">
+        <button
+          class="h-6 w-6 flex-1 p-0 text-xs hover:cursor-pointer dark:text-white"
           onclick={toggleCollapse}
           aria-label="Toggle collection list sidebar"
         >
           {#if isCollapsed}
-            <OpenSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70"/>
+            <OpenSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70" />
           {:else}
             <CloseSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70" />
           {/if}
         </button>
-      {#if !isCollapsed}
-        <h3 class="flex-1 text-sm font-semibold text-neutral-800 dark:text-neutral-100">Collections</h3>
-      {/if}
+        {#if !isCollapsed}
+          <h3 class="flex-1 text-sm font-semibold text-neutral-800 dark:text-neutral-100">
+            Collections
+          </h3>
+        {/if}
       </div>
       <div class="flex items-center gap-2">
         {#if !isCollapsed}
@@ -1037,7 +1039,7 @@
           class="flex-1"
           type="text"
           clearable
-          clearableSvgClass="h-3 w-3"
+          classes={{ svg: "h-3 w-3" }}
           placeholder="Search collections or requests"
           bind:value={searchQuery}
         />
@@ -1057,7 +1059,7 @@
             class="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/40"
           >
             <div
-              class="relative flex items-center gap-2 px-2 py-2"
+              class="relative flex items-center px-2 py-2"
               onclick={(e) => handleCollectionHeaderActivate(e, collection.name)}
               onkeypress={(e) => {
                 if (e.key === "Enter") {
@@ -1069,7 +1071,7 @@
               tabindex="0"
             >
               <button
-                class="h-6 w-6 p-0 text-xs hover:cursor-pointer dark:text-white"
+                class="h-6 w-4 p-0 text-xs hover:cursor-pointer dark:text-white"
                 onclick={(e: MouseEvent) => {
                   e.stopPropagation();
                   toggleCollection(collection.name);
@@ -1077,9 +1079,9 @@
                 aria-label="Toggle collection"
               >
                 {#if isExpanded(collection.name)}
-                  <AngleDownOutline />
+                  <AngleDownOutline class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70" />
                 {:else}
-                  <AngleRightOutline />
+                  <AngleRightOutline class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70" />
                 {/if}
               </button>
 
@@ -1121,7 +1123,7 @@
                   title="Add request"
                   aria-label="Add request"
                 >
-                  <PlusOutline />
+                  <PlusOutline class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70" />
                 </button>
                 <button
                   data-no-drag="true"
@@ -1138,7 +1140,9 @@
                     e.stopPropagation();
                   }}
                 >
-                  <DotsHorizontalOutline />
+                  <DotsHorizontalOutline
+                    class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70"
+                  />
                 </button>
                 {@render collectionActionsDropdown(
                   collection,
