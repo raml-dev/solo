@@ -6,6 +6,7 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
+  import About from "$src/lib/components/Settings/About.svelte";
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
   import {
     configurationStore,
@@ -45,7 +46,7 @@
   import type { ThemeMode } from "../theme/themeModel";
 
   // 1) custom types
-  type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts";
+  type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts" | "about";
   type HostCookieRow = { id: string; key: string; value: string };
 
   // 2) props
@@ -56,7 +57,8 @@
     { id: "general", label: "General" },
     { id: "themes", label: "Themes" },
     { id: "hosts", label: "Hosts" },
-    { id: "troubleshooting", label: "Troubleshooting" }
+    { id: "troubleshooting", label: "Troubleshooting" },
+    { id: "about", label: "About" }
   ];
 
   const deleteHostModal = modalStack.createModal("settings-delete-host");
@@ -688,6 +690,8 @@
           </div>
         {/if}
       </div>
+    {:else if activeSection === "about"}
+      <About />
     {/if}
   </div>
 </div>

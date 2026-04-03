@@ -86,8 +86,8 @@
   });
 
   onDestroy(() => {
-    modalStack.destroyModal("save-request")
-  })
+    modalStack.destroyModal("save-request");
+  });
 
   // Field change handler - mutation already happened via bind:, just update metadata
   function onFieldChange() {

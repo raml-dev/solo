@@ -6,12 +6,14 @@ package main
 import (
 	"context"
 	"crypto/sha1"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"solo/internal/appinfo"
 	"solo/internal/auth"
 	"solo/internal/collection"
 	"solo/internal/configuration"
@@ -32,6 +34,9 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+//go:embed wails.json
+var wailsJSON []byte
 
 // App struct
 type App struct {
@@ -58,6 +63,10 @@ type RequestOptions struct {
 	Settings           *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript   string                                 `json:"preRequestScript,omitempty"`
 	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
+}
+
+func (a *App) GetAppInfo() (appinfo.AppInfo) {
+  return appinfo.GetAppInfo(wailsJSON)
 }
 
 // RunParallel performs parallel HTTP requests for load testing.
