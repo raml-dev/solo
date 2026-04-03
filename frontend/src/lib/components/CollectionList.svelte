@@ -92,6 +92,12 @@
   let dragTargetRequestId: string | null = $state(null);
   let dragTargetCollectionName: string | null = $state(null);
   let dragPosition: "before" | "after" | null = $state(null);
+  let requestContextMenuRequestId: string | null = $state(null);
+  let requestContextMenuCollectionName: string | null = $state(null);
+  let requestContextMenuX = $state(0);
+  let requestContextMenuY = $state(0);
+  let requestContextMenuOpenKey = $state(0);
+  let isRequestContextMenuOpen = $state(false);
 
   // cURL import state
   let curlInput = $state("");
@@ -395,6 +401,69 @@
 
   function handleRequestDragEnd() {
     resetRequestDragState();
+  }
+
+  function closeRequestContextMenu() {
+    isRequestContextMenuOpen = false;
+    requestContextMenuRequestId = null;
+    requestContextMenuCollectionName = null;
+  }
+
+  function getRequestMenuTriggerId(requestId: string): string {
+    return `request-menu-${requestId}`;
+  }
+
+  function getRequestContextMenuTriggerId(): string {
+    return `request-context-menu-trigger-${requestContextMenuOpenKey}`;
+  }
+
+  function getRequestContextMenuPositionStyle(): string {
+    return `left: ${requestContextMenuX + 2}px; top: ${requestContextMenuY + 2}px;`;
+  }
+
+  function getContextMenuRequest(): collection.Request | null {
+    if (!requestContextMenuRequestId || !requestContextMenuCollectionName) {
+      return null;
+    }
+
+    const contextCollection = collections.find(
+      (currentCollection) => currentCollection.name === requestContextMenuCollectionName
+    );
+
+    if (!contextCollection) {
+      return null;
+    }
+
+    return (
+      contextCollection.requests.find((request) => request.id === requestContextMenuRequestId) ||
+      null
+    );
+  }
+
+  async function handleRequestContextMenu(
+    event: MouseEvent,
+    request: collection.Request,
+    collectionName: string
+  ) {
+    if (
+      dragSourceRequestId ||
+      isEditingRequest(request.id, collectionName) ||
+      isNoDragTarget(event.target)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    isRequestContextMenuOpen = false;
+    requestContextMenuRequestId = request.id;
+    requestContextMenuCollectionName = collectionName;
+    requestContextMenuX = event.clientX;
+    requestContextMenuY = event.clientY;
+    requestContextMenuOpenKey += 1;
+
+    await tick();
+    isRequestContextMenuOpen = true;
   }
 
   function openRenameCollection(collectionName: string) {
@@ -734,6 +803,7 @@
     modalStack.destroyModal(deleteRequestModal.id);
     modalStack.destroyModal(importCollectionModal.id);
     modalStack.destroyModal(soloCollectionOverwriteModal.id);
+    closeRequestContextMenu();
   });
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
@@ -746,7 +816,37 @@
   let filteredCollections = $derived(
     collections.filter((collection) => shouldShowCollection(collection, normalizedQuery))
   );
+  let contextMenuRequest = $derived(getContextMenuRequest());
 </script>
+
+{#snippet requestActionsDropdown(
+  request: collection.Request,
+  collectionName: string,
+  triggeredBy: string,
+  isOpen: boolean | undefined,
+  onClose: () => void
+)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={(e) => {
+        startRequestRename(e, request, collectionName);
+        onClose();
+      }}
+    >
+      Rename
+    </DropdownItem>
+    <DropdownItem
+      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+      onclick={() => {
+        handleDeleteRequest(collectionName, request.id);
+        onClose();
+      }}
+    >
+      Delete
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
 
 <div
   class="relative flex h-full shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
@@ -975,6 +1075,8 @@
                           e.key === "Enter" &&
                           !isEditingRequest(request.id, collection.name) &&
                           selectRequest(request, collection.name)}
+                        oncontextmenu={(e) =>
+                          void handleRequestContextMenu(e, request, collection.name)}
                         ondragstart={(e) =>
                           handleRequestDragStart(
                             e,
@@ -1030,9 +1132,10 @@
                           data-no-drag="true"
                           draggable={false}
                           class="invisible group-hover:visible hover:cursor-pointer"
-                          id="request-menu-{request.id}"
+                          id={getRequestMenuTriggerId(request.id)}
                           onclick={(e: MouseEvent) => {
                             e.stopPropagation();
+                            closeRequestContextMenu();
                           }}
                           onmousedown={(e: MouseEvent) => {
                             e.stopPropagation();
@@ -1046,28 +1149,13 @@
                         >
                           <DotsHorizontalOutline />
                         </button>
-                        <Dropdown
-                          triggeredBy="#request-menu-{request.id}"
-                          class="z-50 w-40"
-                          triggerDelay={0}
-                        >
-                          <DropdownItem
-                            class="text-gray-900 dark:text-white"
-                            onclick={(e) => {
-                              startRequestRename(e, request, collection.name);
-                            }}
-                          >
-                            Rename
-                          </DropdownItem>
-                          <DropdownItem
-                            class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
-                            onclick={() => {
-                              handleDeleteRequest(collection.name, request.id);
-                            }}
-                          >
-                            Delete
-                          </DropdownItem>
-                        </Dropdown>
+                        {@render requestActionsDropdown(
+                          request,
+                          collection.name,
+                          `#${getRequestMenuTriggerId(request.id)}`,
+                          undefined,
+                          closeRequestContextMenu
+                        )}
                       </div>
 
                       {#if isDropTarget(request.id, collection.name, "after")}
@@ -1095,6 +1183,24 @@
     </div>
   {/if}
 </div>
+
+{#if contextMenuRequest && requestContextMenuCollectionName}
+  <button
+    id={getRequestContextMenuTriggerId()}
+    type="button"
+    class="pointer-events-none fixed z-[90] h-0 w-0 opacity-0"
+    style={getRequestContextMenuPositionStyle()}
+    tabindex="-1"
+    aria-hidden="true"
+  ></button>
+  {@render requestActionsDropdown(
+    contextMenuRequest,
+    requestContextMenuCollectionName,
+    `#${getRequestContextMenuTriggerId()}`,
+    isRequestContextMenuOpen,
+    closeRequestContextMenu
+  )}
+{/if}
 
 {#if newCollectionModal.open}
   <Modal
