@@ -35,6 +35,8 @@
   import { collection } from "$wails/go/models";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
+  import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
+  import CloseSidebarSolid from "flowbite-svelte-icons/CloseSidebarSolid.svelte";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
@@ -1001,26 +1003,35 @@
   ></button>
 
   <div class="border-b border-neutral-200 p-3 dark:border-neutral-800">
-    <div class="mb-2 flex flex-wrap items-center justify-between gap-1">
+    <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2 h-10">
+      <button
+          class="flex-1 h-6 w-6 p-0 text-xs hover:cursor-pointer dark:text-white"
+          onclick={toggleCollapse}
+          aria-label="Toggle collection list sidebar"
+        >
+          {#if isCollapsed}
+            <OpenSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70"/>
+          {:else}
+            <CloseSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70" />
+          {/if}
+        </button>
       {#if !isCollapsed}
-        <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Collections</h3>
+        <h3 class="flex-1 text-sm font-semibold text-neutral-800 dark:text-neutral-100">Collections</h3>
       {/if}
-
-      <div class="flex items-center gap-1">
+      </div>
+      <div class="flex items-center gap-2">
         {#if !isCollapsed}
-          <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
-          <Button color="primary" size="sm" onclick={() => (newCollectionModal.open = true)}>
+          <Button color="light" size="xs" onclick={openImportModal}>Import</Button>
+          <Button color="primary" size="xs" onclick={() => (newCollectionModal.open = true)}>
             New
           </Button>
         {/if}
-        <Button color="light" size="sm" onclick={toggleCollapse}>
-          {isCollapsed ? ">" : "<"}
-        </Button>
       </div>
     </div>
 
     {#if !isCollapsed}
-      <div class="flex items-center gap-2">
+      <div class="mt-2 flex items-center gap-2">
         <Input
           size="sm"
           class="flex-1"
@@ -1293,7 +1304,7 @@
   <button
     id={getCollectionContextMenuTriggerId()}
     type="button"
-    class="pointer-events-none fixed z-[90] h-0 w-0 opacity-0"
+    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
     style={getCollectionContextMenuPositionStyle()}
     tabindex="-1"
     aria-hidden="true"
@@ -1310,7 +1321,7 @@
   <button
     id={getRequestContextMenuTriggerId()}
     type="button"
-    class="pointer-events-none fixed z-[90] h-0 w-0 opacity-0"
+    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
     style={getRequestContextMenuPositionStyle()}
     tabindex="-1"
     aria-hidden="true"
