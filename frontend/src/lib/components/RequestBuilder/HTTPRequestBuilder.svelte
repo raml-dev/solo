@@ -430,11 +430,12 @@
 
     <!-- Request Header -->
     <div
-      class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-700"
+      class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-1 dark:border-neutral-700"
     >
       <div class="flex items-center gap-2">
         <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
-          >{requestName || "New Request"}</span
+          >{tab.collectionName ? `${tab.collectionName} / ` : ""}{requestName ||
+            "New Request"}</span
         >
         {#if !tab.requestId || tab.isDirty}
           <Button
