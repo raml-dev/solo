@@ -87,6 +87,11 @@
   let editingRequestId: string | null = $state(null);
   let editingRequestCollectionName: string | null = $state(null);
   let editingRequestName = $state("");
+  let dragSourceRequestId: string | null = $state(null);
+  let dragSourceCollectionName: string | null = $state(null);
+  let dragTargetRequestId: string | null = $state(null);
+  let dragTargetCollectionName: string | null = $state(null);
+  let dragPosition: "before" | "after" | null = $state(null);
 
   // cURL import state
   let curlInput = $state("");
@@ -252,6 +257,144 @@
     } finally {
       cancelRequestRename();
     }
+  }
+
+  function resetRequestDragState() {
+    dragSourceRequestId = null;
+    dragSourceCollectionName = null;
+    dragTargetRequestId = null;
+    dragTargetCollectionName = null;
+    dragPosition = null;
+  }
+
+  function canDragRequests(
+    collectionName: string,
+    requestId: string,
+    requestCount: number
+  ): boolean {
+    return !isSearching && requestCount > 1 && !isEditingRequest(requestId, collectionName);
+  }
+
+  function isDragSource(requestId: string, collectionName: string): boolean {
+    return dragSourceRequestId === requestId && dragSourceCollectionName === collectionName;
+  }
+
+  function isDropTarget(
+    requestId: string,
+    collectionName: string,
+    position: "before" | "after"
+  ): boolean {
+    return (
+      dragTargetRequestId === requestId &&
+      dragTargetCollectionName === collectionName &&
+      dragPosition === position
+    );
+  }
+
+  function isNoDragTarget(target: EventTarget | null): boolean {
+    return target instanceof HTMLElement && target.closest('[data-no-drag="true"]') !== null;
+  }
+
+  function getDragPosition(event: DragEvent): "before" | "after" | null {
+    const currentTarget = event.currentTarget;
+    if (!(currentTarget instanceof HTMLElement)) {
+      return null;
+    }
+
+    const bounds = currentTarget.getBoundingClientRect();
+    const midpoint = bounds.top + bounds.height / 2;
+    return event.clientY < midpoint ? "before" : "after";
+  }
+
+  function handleRequestDragStart(
+    event: DragEvent,
+    request: collection.Request,
+    collectionName: string,
+    requestCount: number
+  ) {
+    if (
+      isNoDragTarget(event.target) ||
+      !canDragRequests(collectionName, request.id, requestCount)
+    ) {
+      event.preventDefault();
+      resetRequestDragState();
+      return;
+    }
+
+    dragSourceRequestId = request.id;
+    dragSourceCollectionName = collectionName;
+    dragTargetRequestId = null;
+    dragTargetCollectionName = null;
+    dragPosition = null;
+
+    event.dataTransfer?.setData("text/plain", request.id);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+    }
+  }
+
+  function handleRequestDragOver(
+    event: DragEvent,
+    request: collection.Request,
+    collectionName: string
+  ) {
+    if (!dragSourceRequestId || !dragSourceCollectionName) {
+      return;
+    }
+
+    if (dragSourceCollectionName !== collectionName || dragSourceRequestId === request.id) {
+      return;
+    }
+
+    const nextDragPosition = getDragPosition(event);
+    if (!nextDragPosition) {
+      return;
+    }
+
+    event.preventDefault();
+    dragTargetRequestId = request.id;
+    dragTargetCollectionName = collectionName;
+    dragPosition = nextDragPosition;
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  }
+
+  async function handleRequestDrop(
+    event: DragEvent,
+    request: collection.Request,
+    collectionName: string
+  ) {
+    event.preventDefault();
+
+    if (
+      !dragSourceRequestId ||
+      !dragSourceCollectionName ||
+      dragSourceCollectionName !== collectionName ||
+      dragSourceRequestId === request.id ||
+      dragTargetRequestId !== request.id ||
+      dragTargetCollectionName !== collectionName ||
+      !dragPosition
+    ) {
+      resetRequestDragState();
+      return;
+    }
+
+    try {
+      await collectionStore.reorderRequests(
+        collectionName,
+        dragSourceRequestId,
+        request.id,
+        dragPosition
+      );
+    } finally {
+      resetRequestDragState();
+    }
+  }
+
+  function handleRequestDragEnd() {
+    resetRequestDragState();
   }
 
   function openRenameCollection(collectionName: string) {
@@ -812,85 +955,126 @@
                   </div>
                 {:else}
                   {#each getVisibleRequests(collection, normalizedQuery) as request (request.id)}
-                    <div
-                      class={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""}`}
-                      onclick={() => selectRequest(request, collection.name)}
-                      ondblclick={(e) => startRequestRename(e, request, collection.name)}
-                      onkeypress={(e) =>
-                        e.key === "Enter" &&
-                        !isEditingRequest(request.id, collection.name) &&
-                        selectRequest(request, collection.name)}
-                      role="button"
-                      tabindex="0"
-                    >
-                      <span class={getMethodBadgeClass(request.verb)}>
-                        {request.verb}
-                      </span>
-                      {#if isEditingRequest(request.id, collection.name)}
-                        <Input
-                          type="text"
-                          size="sm"
-                          class="min-w-0 flex-1"
-                          bind:value={editingRequestName}
-                          bind:elementRef={editingRequestNameInputEl}
-                          autofocus
-                          onclick={(e) => e.stopPropagation()}
-                          onkeydown={(e) => {
-                            e.stopPropagation();
-                            if (e.key === "Enter") {
-                              void commitRequestRename(request, collection.name);
-                            }
-                            if (e.key === "Escape") {
-                              cancelRequestRename();
-                            }
-                          }}
-                          onblur={() => void commitRequestRename(request, collection.name)}
-                        />
-                      {:else}
-                        <span
-                          class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
-                          role="button"
-                          tabindex="0"
-                          ondblclick={(e) => startRequestRename(e, request, collection.name)}
-                          onkeydown={(e) =>
-                            e.key === "Enter" && startRequestRename(e, request, collection.name)}
-                        >
-                          {request.name}
-                        </span>
+                    <div class="relative">
+                      {#if isDropTarget(request.id, collection.name, "before")}
+                        <div
+                          class="pointer-events-none absolute inset-x-2 top-0 h-0.5 rounded bg-primary-500"
+                        ></div>
                       {/if}
-                      <button
-                        class="invisible group-hover:visible hover:cursor-pointer"
-                        id="request-menu-{request.id}"
-                        onclick={(e: MouseEvent) => {
-                          e.stopPropagation();
-                        }}
-                        title="Request actions"
-                        aria-label="Request actions"
+
+                      <div
+                        class={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selectedRequestId === request.id ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""} ${isDragSource(request.id, collection.name) ? "opacity-50" : ""}`}
+                        draggable={canDragRequests(
+                          collection.name,
+                          request.id,
+                          collection.requests?.length || 0
+                        )}
+                        onclick={() => selectRequest(request, collection.name)}
+                        ondblclick={(e) => startRequestRename(e, request, collection.name)}
+                        onkeypress={(e) =>
+                          e.key === "Enter" &&
+                          !isEditingRequest(request.id, collection.name) &&
+                          selectRequest(request, collection.name)}
+                        ondragstart={(e) =>
+                          handleRequestDragStart(
+                            e,
+                            request,
+                            collection.name,
+                            collection.requests?.length || 0
+                          )}
+                        ondragover={(e) => handleRequestDragOver(e, request, collection.name)}
+                        ondrop={(e) => void handleRequestDrop(e, request, collection.name)}
+                        ondragend={handleRequestDragEnd}
+                        role="button"
+                        tabindex="0"
                       >
-                        <DotsHorizontalOutline />
-                      </button>
-                      <Dropdown
-                        triggeredBy="#request-menu-{request.id}"
-                        class="z-50 w-40"
-                        triggerDelay={0}
-                      >
-                        <DropdownItem
-                          class="text-gray-900 dark:text-white"
-                          onclick={(e) => {
-                            startRequestRename(e, request, collection.name);
+                        <span class={getMethodBadgeClass(request.verb)}>
+                          {request.verb}
+                        </span>
+                        {#if isEditingRequest(request.id, collection.name)}
+                          <div data-no-drag="true" class="min-w-0 flex-1">
+                            <Input
+                              type="text"
+                              size="sm"
+                              class="min-w-0 flex-1"
+                              bind:value={editingRequestName}
+                              bind:elementRef={editingRequestNameInputEl}
+                              autofocus
+                              onclick={(e) => e.stopPropagation()}
+                              onmousedown={(e) => e.stopPropagation()}
+                              onkeydown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === "Enter") {
+                                  void commitRequestRename(request, collection.name);
+                                }
+                                if (e.key === "Escape") {
+                                  cancelRequestRename();
+                                }
+                              }}
+                              onblur={() => void commitRequestRename(request, collection.name)}
+                            />
+                          </div>
+                        {:else}
+                          <span
+                            class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
+                            role="button"
+                            tabindex="0"
+                            ondblclick={(e) => startRequestRename(e, request, collection.name)}
+                            onkeydown={(e) =>
+                              e.key === "Enter" && startRequestRename(e, request, collection.name)}
+                          >
+                            {request.name}
+                          </span>
+                        {/if}
+                        <button
+                          data-no-drag="true"
+                          draggable={false}
+                          class="invisible group-hover:visible hover:cursor-pointer"
+                          id="request-menu-{request.id}"
+                          onclick={(e: MouseEvent) => {
+                            e.stopPropagation();
                           }}
-                        >
-                          Rename
-                        </DropdownItem>
-                        <DropdownItem
-                          class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
-                          onclick={() => {
-                            handleDeleteRequest(collection.name, request.id);
+                          onmousedown={(e: MouseEvent) => {
+                            e.stopPropagation();
                           }}
+                          ondragstart={(e: DragEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          title="Request actions"
+                          aria-label="Request actions"
                         >
-                          Delete
-                        </DropdownItem>
-                      </Dropdown>
+                          <DotsHorizontalOutline />
+                        </button>
+                        <Dropdown
+                          triggeredBy="#request-menu-{request.id}"
+                          class="z-50 w-40"
+                          triggerDelay={0}
+                        >
+                          <DropdownItem
+                            class="text-gray-900 dark:text-white"
+                            onclick={(e) => {
+                              startRequestRename(e, request, collection.name);
+                            }}
+                          >
+                            Rename
+                          </DropdownItem>
+                          <DropdownItem
+                            class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+                            onclick={() => {
+                              handleDeleteRequest(collection.name, request.id);
+                            }}
+                          >
+                            Delete
+                          </DropdownItem>
+                        </Dropdown>
+                      </div>
+
+                      {#if isDropTarget(request.id, collection.name, "after")}
+                        <div
+                          class="pointer-events-none absolute inset-x-2 bottom-0 h-0.5 rounded bg-primary-500"
+                        ></div>
+                      {/if}
                     </div>
                   {/each}
                 {/if}
