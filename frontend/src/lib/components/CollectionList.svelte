@@ -1011,9 +1011,13 @@
           aria-label="Toggle collection list sidebar"
         >
           {#if isCollapsed}
-            <OpenSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70" />
+            <OpenSidebarSolid
+              class="h-6 w-6 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+            />
           {:else}
-            <CloseSidebarSolid class="h-6 w-6 text-neutral-800/70 dark:text-neutral-100/70" />
+            <CloseSidebarSolid
+              class="h-6 w-6 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+            />
           {/if}
         </button>
         {#if !isCollapsed}
@@ -1079,9 +1083,13 @@
                 aria-label="Toggle collection"
               >
                 {#if isExpanded(collection.name)}
-                  <AngleDownOutline class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70" />
+                  <AngleDownOutline
+                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                  />
                 {:else}
-                  <AngleRightOutline class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70" />
+                  <AngleRightOutline
+                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                  />
                 {/if}
               </button>
 
@@ -1123,7 +1131,9 @@
                   title="Add request"
                   aria-label="Add request"
                 >
-                  <PlusOutline class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70" />
+                  <PlusOutline
+                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                  />
                 </button>
                 <button
                   data-no-drag="true"
@@ -1141,7 +1151,7 @@
                   }}
                 >
                   <DotsHorizontalOutline
-                    class="h-3 w-3 text-neutral-800/70 dark:text-neutral-100/70"
+                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
                   />
                 </button>
                 {@render collectionActionsDropdown(
