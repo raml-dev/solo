@@ -81,7 +81,7 @@
     title="Settings"
     bind:open={settingsModal.open}
     size="xl"
-    bodyClass="h-[600px] overflow-hidden p-4"
+    classes={{ body: "h-[600px] overflow-hidden p-4" }}
   >
     {#if $topModalId === settingsModal.id}
       <ToastContainer />

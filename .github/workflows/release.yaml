@@ -57,6 +57,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Inject version into wails.json
+        uses: sergeysova/jq-action@v2
+        with:
+          cmd: |
+            jq --arg v "$GITHUB_REF_NAME" '.info.productVersion = "\($v)"' \
+              wails.json > wails.tmp.json && mv wails.tmp.json wails.json
 
       - uses: The-Egg-Corp/wails-build-action@v2.1
         with:

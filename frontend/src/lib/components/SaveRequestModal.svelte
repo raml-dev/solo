@@ -18,21 +18,29 @@
 
   interface Props {
     show?: boolean;
-    modalId: string
+    modalId: string;
     requestName?: string;
     onSave?: (data: { name: string; collection: string | null }) => void;
     onCancel?: () => void;
   }
 
-  let { show = $bindable(false), requestName = $bindable(""), modalId, onSave, onCancel }: Props = $props();
+  let {
+    show = $bindable(false),
+    requestName = $bindable(""),
+    modalId,
+    onSave,
+    onCancel
+  }: Props = $props();
 
   let selectedCollectionName = $derived(collectionStoreState.selectedCollectionName);
   let creatingNew = $state(false);
   let newCollectionName = $state("");
-  let collectionOptions = $derived(collectionStoreState.collections.map((c) => ({
-    value: c.name,
-    name: c.name
-  })));
+  let collectionOptions = $derived(
+    collectionStoreState.collections.map((c) => ({
+      value: c.name,
+      name: c.name
+    }))
+  );
 
   // If a collection is already selected in the sidebar, use it by default
   onMount(() => {
@@ -64,11 +72,11 @@
   function handleCancel() {
     show = false;
     creatingNew = false;
-    requestName = "New Request"
+    requestName = "New Request";
     if (collectionStoreState.selectedCollectionName) {
       selectedCollectionName = collectionStoreState.selectedCollectionName;
     } else {
-      selectedCollectionName = ""
+      selectedCollectionName = "";
     }
     onCancel?.();
   }

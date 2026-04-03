@@ -9,8 +9,12 @@
   "info": {
     "companyName": "raml-dev",
     "productName": "solo",
-    "productVersion": "0.1.0-rc2",
-    "copyright": "Copyright raml-dev 2026"
+    "productVersion": "dev",
+    "copyright": "Copyright by raml-dev 2026-present, see license terms",
+    "license": "GNU General Public License v3.0",
+    "docsLink": "",
+    "ghLink": "",
+    "orgLink": "https://github.com/raml-dev"
   },
   "author": {
     "name": "raml-dev"
