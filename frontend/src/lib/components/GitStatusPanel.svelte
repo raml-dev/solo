@@ -10,7 +10,7 @@
   import Modal from "flowbite-svelte/Modal.svelte";
   import Spinner from "flowbite-svelte/Spinner.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { onDestroy, onMount } from "svelte";
 
@@ -73,11 +73,10 @@
   let showDiscardConfirm = $state(false);
   let errorMessage = $state("");
 
-  const gitStatusPanelModalId = `git-status-${Math.random().toString(36).slice(2)}`;
-  const open = modalStack.binding(gitStatusPanelModalId);
+  const gitStatusPanelModal = modalStack.createModal("git-status");
 
   // Open immediately on mount
-  open.set(true);
+  gitStatusPanelModal.open = true;
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   onMount(() => {
@@ -85,7 +84,7 @@
   });
 
   onDestroy(() => {
-    modalStack.close(gitStatusPanelModalId);
+    modalStack.destroyModal(gitStatusPanelModal.id);
   });
 
   async function refresh() {
@@ -136,7 +135,7 @@
   }
 
   function requestClose() {
-    open.set(false);
+    gitStatusPanelModal.open = false;
     onClose?.();
   }
 
@@ -168,8 +167,8 @@
   }
 </script>
 
-<Modal bind:open={$open} title="Git Status" size="xl" onclose={requestClose}>
-  {#if $topModalId === gitStatusPanelModalId}
+<Modal bind:open={gitStatusPanelModal.open} title="Git Status" size="xl" onclose={requestClose}>
+  {#if $topModalId === gitStatusPanelModal.id}
     <ToastContainer />
   {/if}
 

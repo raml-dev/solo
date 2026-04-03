@@ -9,7 +9,7 @@
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { onDestroy } from "svelte";
 
@@ -18,12 +18,10 @@
 
   let tabToCloseId: string | null = $state(null);
 
-  const tabBarModalScope = `tabbar-${Math.random().toString(36).slice(2)}`;
-  const confirmCloseModalId = `${tabBarModalScope}-confirm-close`;
-  const showConfirmClose = modalStack.binding(confirmCloseModalId);
+  const confirmCloseModal = modalStack.createModal("tabbar-confirm-close");
 
   onDestroy(() => {
-    modalStack.close(confirmCloseModalId);
+    modalStack.destroyModal(confirmCloseModal.id);
   });
 
   let tabToClose = $derived(tabs.find((t) => t.id === tabToCloseId));
@@ -81,7 +79,7 @@
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.isDirty) {
       tabToCloseId = tabId;
-      showConfirmClose.set(true);
+      confirmCloseModal.open = true;
     } else {
       tabStore.closeTab(tabId);
     }
@@ -105,7 +103,7 @@
   }
 
   function closeConfirmModal() {
-    showConfirmClose.set(false);
+    confirmCloseModal.open = false;
     tabToCloseId = null;
   }
 </script>
@@ -167,9 +165,9 @@
   </Button>
 </div>
 
-{#if $showConfirmClose}
-  <Modal title="Unsaved Changes" bind:open={$showConfirmClose}>
-    {#if $topModalId === confirmCloseModalId}
+{#if confirmCloseModal.open}
+  <Modal title="Unsaved Changes" bind:open={confirmCloseModal.open}>
+    {#if $topModalId === confirmCloseModal.id}
       <ToastContainer />
     {/if}
     <div class="flex flex-col gap-2">

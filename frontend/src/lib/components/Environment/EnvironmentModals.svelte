@@ -10,7 +10,7 @@
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { onDestroy } from "svelte";
 
   interface Props {
@@ -35,29 +35,24 @@
 
   let newEnvironmentName = $state("");
 
-  const environmentModalScope = `environment-modals-${Math.random().toString(36).slice(2)}`;
-  const newEnvironmentModalId = `${environmentModalScope}-new`;
-  const deleteEnvironmentModalId = `${environmentModalScope}-delete`;
+  const newEnvironmentModal = modalStack.createModal("environment-modals-new");
+  const deleteEnvironmentModal = modalStack.createModal("environment-modals-delete");
 
   $effect(() => {
-    if (showNewEnvironmentDialog) {
-      modalStack.open(newEnvironmentModalId);
-    } else {
-      modalStack.close(newEnvironmentModalId);
+    if (newEnvironmentModal.open !== showNewEnvironmentDialog) {
+      newEnvironmentModal.open = showNewEnvironmentDialog;
     }
   });
 
   $effect(() => {
-    if (showDeleteConfirmDialog) {
-      modalStack.open(deleteEnvironmentModalId);
-    } else {
-      modalStack.close(deleteEnvironmentModalId);
+    if (deleteEnvironmentModal.open !== showDeleteConfirmDialog) {
+      deleteEnvironmentModal.open = showDeleteConfirmDialog;
     }
   });
 
   onDestroy(() => {
-    modalStack.close(newEnvironmentModalId);
-    modalStack.close(deleteEnvironmentModalId);
+    modalStack.destroyModal(newEnvironmentModal.id);
+    modalStack.destroyModal(deleteEnvironmentModal.id);
   });
 
   function closeNewEnvironmentDialog() {
@@ -80,13 +75,13 @@
   }
 </script>
 
-{#if showNewEnvironmentDialog}
+{#if newEnvironmentModal.open}
   <Modal
-    bind:open={showNewEnvironmentDialog}
+    bind:open={newEnvironmentModal.open}
     onclose={closeNewEnvironmentDialog}
     title="New Environment"
   >
-    {#if $topModalId === newEnvironmentModalId}
+    {#if $topModalId === newEnvironmentModal.id}
       <ToastContainer />
     {/if}
     <div class="space-y-2">
@@ -114,13 +109,13 @@
   </Modal>
 {/if}
 
-{#if showDeleteConfirmDialog}
+{#if deleteEnvironmentModal.open}
   <Modal
-    bind:open={showDeleteConfirmDialog}
+    bind:open={deleteEnvironmentModal.open}
     onclose={closeDeleteConfirmDialog}
     title="Delete Environment"
   >
-    {#if $topModalId === deleteEnvironmentModalId}
+    {#if $topModalId === deleteEnvironmentModal.id}
       <ToastContainer />
     {/if}
     <div class="space-y-2">

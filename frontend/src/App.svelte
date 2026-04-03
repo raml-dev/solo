@@ -14,7 +14,7 @@
   import { configurationStore } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
-  import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import { ForceQuit } from "$wails/go/main/App";
@@ -32,22 +32,11 @@
   let isResizing = $state(false);
   let resizeStartY = 0;
   let resizeStartH = 0;
-  let showGlobalUnsavedModal = $state(false);
-
   const appNameAscii = `           █
  ▄▄▄  ▄▄▄  █  ▄▄▄
 ▀▄▄  █   █ █ █   █
 ▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀`;
-  const appModalScope = `app-${Math.random().toString(36).slice(2)}`;
-  const globalUnsavedModalId = `${appModalScope}-unsaved`;
-
-  $effect(() => {
-    if (showGlobalUnsavedModal) {
-      modalStack.open(globalUnsavedModalId);
-    } else {
-      modalStack.close(globalUnsavedModalId);
-    }
-  });
+  const globalUnsavedModal = modalStack.createModal("app-unsaved");
 
   async function initializeApp() {
     await Promise.all([
@@ -132,7 +121,7 @@
       const dirtyTabs = tabStoreState.tabs.filter((t) => t.isDirty);
 
       if (dirtyTabs.length > 0) {
-        showGlobalUnsavedModal = true;
+        globalUnsavedModal.open = true;
       } else {
         ForceQuit();
       }
@@ -204,7 +193,7 @@
     });
 
     return () => {
-      modalStack.close(globalUnsavedModalId);
+      modalStack.destroyModal(globalUnsavedModal.id);
       window.removeEventListener("keydown", handleKeyDown);
     };
   });
@@ -271,9 +260,9 @@
   {/snippet}
 </MainLayout>
 
-{#if showGlobalUnsavedModal}
-  <Modal title="Unsaved Changes" bind:open={showGlobalUnsavedModal}>
-    {#if $topModalId === globalUnsavedModalId}
+{#if globalUnsavedModal.open}
+  <Modal title="Unsaved Changes" bind:open={globalUnsavedModal.open}>
+    {#if $topModalId === globalUnsavedModal.id}
       <ToastContainer />
     {/if}
     <div class="flex flex-col gap-2">
@@ -287,7 +276,7 @@
       <div class="flex w-full items-center gap-2">
         <Button color="red" onclick={() => ForceQuit()}>Discard and Quit</Button>
         <div class="ml-auto flex items-center gap-2">
-          <Button color="light" onclick={() => (showGlobalUnsavedModal = false)}>Cancel</Button>
+          <Button color="light" onclick={() => (globalUnsavedModal.open = false)}>Cancel</Button>
           <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
         </div>
       </div>

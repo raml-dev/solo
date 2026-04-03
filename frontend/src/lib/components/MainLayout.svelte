@@ -9,7 +9,7 @@
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { onDestroy } from "svelte";
 
   interface Props {
@@ -20,24 +20,20 @@
   }
 
   let { title = "solo", navbar_actions, children, bottom_bar }: Props = $props();
-  const layoutModalScope = `layout-${Math.random().toString(36).slice(2)}`;
-  const environmentManagerModalId = `${layoutModalScope}-environments`;
-  const settingsModalId = `${layoutModalScope}-settings`;
-
-  const showEnvironmentManager = modalStack.binding(environmentManagerModalId);
-  const showMainConfiguration = modalStack.binding(settingsModalId);
+  const environmentManagerModal = modalStack.createModal("layout-environments");
+  const settingsModal = modalStack.createModal("layout-settings");
 
   function toggleEnvironmentManager() {
-    showEnvironmentManager.update((v) => !v);
+    environmentManagerModal.open = !environmentManagerModal.open;
   }
 
   function toggleMainConfiguration() {
-    showMainConfiguration.update((v) => !v);
+    settingsModal.open = !settingsModal.open;
   }
 
   onDestroy(() => {
-    modalStack.close(environmentManagerModalId);
-    modalStack.close(settingsModalId);
+    modalStack.destroyModal(environmentManagerModal.id);
+    modalStack.destroyModal(settingsModal.id);
   });
 </script>
 
@@ -71,23 +67,23 @@
   </div>
 </div>
 
-{#if $showEnvironmentManager}
-  <Modal bind:open={$showEnvironmentManager} fullscreen size="none">
-    {#if $topModalId === environmentManagerModalId}
+{#if environmentManagerModal.open}
+  <Modal bind:open={environmentManagerModal.open} fullscreen size="none">
+    {#if $topModalId === environmentManagerModal.id}
       <ToastContainer />
     {/if}
     <EnvironmentManager />
   </Modal>
 {/if}
 
-{#if $showMainConfiguration}
+{#if settingsModal.open}
   <Modal
     title="Settings"
-    bind:open={$showMainConfiguration}
+    bind:open={settingsModal.open}
     size="xl"
     bodyClass="h-[600px] overflow-hidden p-4"
   >
-    {#if $topModalId === settingsModalId}
+    {#if $topModalId === settingsModal.id}
       <ToastContainer />
     {/if}
     <MainConfiguration />

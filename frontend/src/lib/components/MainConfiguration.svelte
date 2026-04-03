@@ -12,7 +12,7 @@
     configurationStoreState,
     saveConfig
   } from "$src/lib/stores/configurationStore.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
@@ -59,8 +59,7 @@
     { id: "troubleshooting", label: "Troubleshooting" }
   ];
 
-  const deleteHostModalId = `settings-delete-host-${Math.random().toString(36).slice(2)}`;
-  const showDeleteHostModal = modalStack.binding(deleteHostModalId);
+  const deleteHostModal = modalStack.createModal("settings-delete-host");
 
   // 3) $state vars
   let activeSection: SettingsSection = $state("general");
@@ -239,11 +238,11 @@
 
   function handleDeleteHost(name: string) {
     hostToDelete = name;
-    showDeleteHostModal.set(true);
+    deleteHostModal.open = true;
   }
 
   async function confirmDeleteHost() {
-    showDeleteHostModal.set(false);
+    deleteHostModal.open = false;
     try {
       await DeleteHost(hostToDelete);
       await fetchHosts();
@@ -288,6 +287,7 @@
 
     return () => {
       disposed = true;
+      modalStack.destroyModal(deleteHostModal.id);
     };
   });
 
@@ -693,9 +693,9 @@
 </div>
 
 <!-- Delete host confirm modal -->
-{#if $showDeleteHostModal}
-  <Modal title="Delete Host" bind:open={$showDeleteHostModal} size="sm">
-    {#if $topModalId === deleteHostModalId}
+{#if deleteHostModal.open}
+  <Modal title="Delete Host" bind:open={deleteHostModal.open} size="sm">
+    {#if $topModalId === deleteHostModal.id}
       <ToastContainer />
     {/if}
     <p class="text-neutral-700 dark:text-neutral-300">
@@ -704,7 +704,7 @@
     </p>
     {#snippet footer()}
       <div class="flex w-full items-center justify-end gap-2">
-        <Button color="light" onclick={() => showDeleteHostModal.set(false)}>Cancel</Button>
+        <Button color="light" onclick={() => (deleteHostModal.open = false)}>Cancel</Button>
         <Button color="red" onclick={confirmDeleteHost}>Delete</Button>
       </div>
     {/snippet}

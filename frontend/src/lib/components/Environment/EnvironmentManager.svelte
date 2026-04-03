@@ -13,7 +13,7 @@
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import {
     ExportEnvironment,
@@ -51,16 +51,12 @@
   let gitStatusEnvId: string | null = $state(null);
   let gitStatusEnvName: string | null = $state(null);
 
-  const environmentManagerModalScope = `environment-manager-${Math.random().toString(36).slice(2)}`;
-  const importEnvironmentModalId = `${environmentManagerModalScope}-import`;
-  const overwriteEnvironmentModalId = `${environmentManagerModalScope}-overwrite`;
-
-  const showImportSelector = modalStack.binding(importEnvironmentModalId);
-  const showOverwriteConfirmDialog = modalStack.binding(overwriteEnvironmentModalId);
+  const importEnvironmentModal = modalStack.createModal("environment-manager-import");
+  const overwriteEnvironmentModal = modalStack.createModal("environment-manager-overwrite");
 
   onDestroy(() => {
-    modalStack.close(importEnvironmentModalId);
-    modalStack.close(overwriteEnvironmentModalId);
+    modalStack.destroyModal(importEnvironmentModal.id);
+    modalStack.destroyModal(overwriteEnvironmentModal.id);
   });
 
   let environments = $derived(environmentStoreState.environments);
@@ -181,7 +177,7 @@
   function openImportModal() {
     importActiveTab = "postman";
     gitImportActionState = null;
-    showImportSelector.set(true);
+    importEnvironmentModal.open = true;
   }
 
   function parseExistingNameFromError(message: string): string | null {
@@ -210,7 +206,7 @@
       if (!overwrite && existingName) {
         pendingImport = { format, path };
         overwriteTargetName = existingName;
-        showOverwriteConfirmDialog.set(true);
+        overwriteEnvironmentModal.open = true;
         return;
       }
       notifications.error("Failed to import environment", message);
@@ -237,7 +233,7 @@
   }
 
   async function handleSelectImportFormat(format: "postman" | "bruno" | "solo") {
-    showImportSelector.set(false);
+    importEnvironmentModal.open = false;
     if (format === "postman") {
       await handleImportPostman();
     } else if (format === "bruno") {
@@ -251,14 +247,14 @@
     if (!pendingImport) return;
     const { format, path } = pendingImport;
     pendingImport = null;
-    showOverwriteConfirmDialog.set(false);
+    overwriteEnvironmentModal.open = false;
     await executeImport(format, path, true);
   }
 
   function closeOverwriteConfirmDialog() {
     pendingImport = null;
     overwriteTargetName = null;
-    showOverwriteConfirmDialog.set(false);
+    overwriteEnvironmentModal.open = false;
   }
 </script>
 
@@ -321,9 +317,9 @@
   onCloseDelete={() => (showDeleteConfirmDialog = false)}
 />
 
-{#if $showImportSelector}
-  <Modal title="Import Environment" bind:open={$showImportSelector} size="xl">
-    {#if $topModalId === importEnvironmentModalId}
+{#if importEnvironmentModal.open}
+  <Modal title="Import Environment" bind:open={importEnvironmentModal.open} size="xl">
+    {#if $topModalId === importEnvironmentModal.id}
       <ToastContainer />
     {/if}
     <div class="flex flex-col gap-4">
@@ -334,7 +330,7 @@
             subtitle="Supports Postman Environment JSON"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importEnvironmentModal.open = false;
               if (paths.length > 0) {
                 await handleImportPostman(paths[0]);
               } else {
@@ -367,7 +363,7 @@
             subtitle="Supports Bruno environment .bru files"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importEnvironmentModal.open = false;
               if (paths.length > 0) {
                 await handleImportBruno(paths[0]);
               } else {
@@ -399,7 +395,7 @@
             subtitle="Supports solo environment JSON"
             onDrop={async (e) => {
               const paths = e.paths;
-              showImportSelector.set(false);
+              importEnvironmentModal.open = false;
               if (paths.length > 0) {
                 await executeImport("solo", paths[0], false);
               } else {
@@ -428,7 +424,7 @@
 
         <TabItem key="git" title="Git">
           <GitEnvImportView
-            onImported={() => showImportSelector.set(false)}
+            onImported={() => (importEnvironmentModal.open = false)}
             onActionStateChange={(state) => {
               gitImportActionState = state;
             }}
@@ -466,14 +462,14 @@
   </Modal>
 {/if}
 
-{#if $showOverwriteConfirmDialog}
+{#if overwriteEnvironmentModal.open}
   <Modal
     title="Overwrite environment?"
-    bind:open={$showOverwriteConfirmDialog}
+    bind:open={overwriteEnvironmentModal.open}
     onclose={closeOverwriteConfirmDialog}
     size="xl"
   >
-    {#if $topModalId === overwriteEnvironmentModalId}
+    {#if $topModalId === overwriteEnvironmentModal.id}
       <ToastContainer />
     {/if}
     <p>Environment "{overwriteTargetName}" already exists.</p>

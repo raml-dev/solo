@@ -13,17 +13,18 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore";
-  import { onDestroy, onMount } from "svelte";
+  import { topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import { onMount } from "svelte";
 
   interface Props {
     show?: boolean;
+    modalId: string
     requestName?: string;
     onSave?: (data: { name: string; collection: string | null }) => void;
     onCancel?: () => void;
   }
 
-  let { show = $bindable(false), requestName = $bindable(""), onSave, onCancel }: Props = $props();
+  let { show = $bindable(false), requestName = $bindable(""), modalId, onSave, onCancel }: Props = $props();
 
   let selectedCollectionName = $derived(collectionStoreState.selectedCollectionName);
   let creatingNew = $state(false);
@@ -33,26 +34,11 @@
     name: c.name
   })));
 
-  const saveRequestModalId = `save-request-${Math.random().toString(36).slice(2)}`;
-
-  // Sync the bindable show prop with the modal stack
-  $effect(() => {
-    if (show) {
-      modalStack.open(saveRequestModalId);
-    } else {
-      modalStack.close(saveRequestModalId);
-    }
-  });
-
   // If a collection is already selected in the sidebar, use it by default
   onMount(() => {
     if (collectionStoreState.selectedCollectionName) {
       selectedCollectionName = collectionStoreState.selectedCollectionName;
     }
-  });
-
-  onDestroy(() => {
-    modalStack.close(saveRequestModalId);
   });
 
   async function handleSave() {
@@ -76,13 +62,21 @@
   }
 
   function handleCancel() {
+    show = false;
+    creatingNew = false;
+    requestName = "New Request"
+    if (collectionStoreState.selectedCollectionName) {
+      selectedCollectionName = collectionStoreState.selectedCollectionName;
+    } else {
+      selectedCollectionName = ""
+    }
     onCancel?.();
   }
 </script>
 
 {#if show}
   <Modal title="Save Request" bind:open={show} size="lg" onclose={handleCancel}>
-    {#if $topModalId === saveRequestModalId}
+    {#if $topModalId === modalId}
       <ToastContainer />
     {/if}
 
