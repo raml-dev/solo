@@ -1,6 +1,5 @@
 import http.server
 import ssl
-import subprocess
 import os
 
 class Handler(http.server.BaseHTTPRequestHandler):
