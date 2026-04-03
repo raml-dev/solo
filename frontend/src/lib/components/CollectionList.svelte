@@ -99,6 +99,12 @@
   let requestContextMenuOpenKey = $state(0);
   let isRequestContextMenuOpen = $state(false);
 
+  let collectionContextMenuCollectionId: string | null = $state(null);
+  let collectionContextMenuX = $state(0);
+  let collectionContextMenuY = $state(0);
+  let collectionContextMenuOpenKey = $state(0);
+  let isCollectionContextMenuOpen = $state(false);
+
   // cURL import state
   let curlInput = $state("");
   let curlTargetCollection = $state("");
@@ -409,16 +415,45 @@
     requestContextMenuCollectionName = null;
   }
 
+  function closeCollectionContextMenu() {
+    isCollectionContextMenuOpen = false;
+    collectionContextMenuCollectionId = null;
+  }
+
+  function getCollectionMenuTriggerId(collectionId: string): string {
+    return `collection-menu-${collectionId}`;
+  }
+
   function getRequestMenuTriggerId(requestId: string): string {
     return `request-menu-${requestId}`;
+  }
+
+  function getCollectionContextMenuTriggerId(): string {
+    return `collection-context-menu-trigger-${collectionContextMenuOpenKey}`;
   }
 
   function getRequestContextMenuTriggerId(): string {
     return `request-context-menu-trigger-${requestContextMenuOpenKey}`;
   }
 
+  function getCollectionContextMenuPositionStyle(): string {
+    return `left: ${collectionContextMenuX + 2}px; top: ${collectionContextMenuY + 2}px;`;
+  }
+
   function getRequestContextMenuPositionStyle(): string {
     return `left: ${requestContextMenuX + 2}px; top: ${requestContextMenuY + 2}px;`;
+  }
+
+  function getContextMenuCollection(): collection.Collection | null {
+    if (!collectionContextMenuCollectionId) {
+      return null;
+    }
+
+    return (
+      collections.find(
+        (currentCollection) => currentCollection.id === collectionContextMenuCollectionId
+      ) || null
+    );
   }
 
   function getContextMenuRequest(): collection.Request | null {
@@ -440,6 +475,29 @@
     );
   }
 
+  async function handleCollectionContextMenu(
+    event: MouseEvent,
+    currentCollection: collection.Collection
+  ) {
+    if (dragSourceRequestId || isNoDragTarget(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    closeRequestContextMenu();
+
+    isCollectionContextMenuOpen = false;
+    collectionContextMenuCollectionId = currentCollection.id;
+    collectionContextMenuX = event.clientX;
+    collectionContextMenuY = event.clientY;
+    collectionContextMenuOpenKey += 1;
+
+    await tick();
+    isCollectionContextMenuOpen = true;
+  }
+
   async function handleRequestContextMenu(
     event: MouseEvent,
     request: collection.Request,
@@ -455,6 +513,8 @@
 
     event.preventDefault();
     event.stopPropagation();
+    closeCollectionContextMenu();
+
     isRequestContextMenuOpen = false;
     requestContextMenuRequestId = request.id;
     requestContextMenuCollectionName = collectionName;
@@ -464,6 +524,23 @@
 
     await tick();
     isRequestContextMenuOpen = true;
+  }
+
+  function closeAllContextMenus() {
+    closeRequestContextMenu();
+    closeCollectionContextMenu();
+  }
+
+  function handleCollectionHeaderActivate(event: Event, collectionName: string) {
+    event.stopPropagation();
+
+    if (isCollectionContextMenuOpen || isRequestContextMenuOpen) {
+      closeAllContextMenus();
+      return;
+    }
+
+    selectCollection(collectionName);
+    toggleCollection(collectionName);
   }
 
   function openRenameCollection(collectionName: string) {
@@ -804,6 +881,7 @@
     modalStack.destroyModal(importCollectionModal.id);
     modalStack.destroyModal(soloCollectionOverwriteModal.id);
     closeRequestContextMenu();
+    closeCollectionContextMenu();
   });
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
@@ -816,8 +894,70 @@
   let filteredCollections = $derived(
     collections.filter((collection) => shouldShowCollection(collection, normalizedQuery))
   );
+  let contextMenuCollection = $derived(getContextMenuCollection());
   let contextMenuRequest = $derived(getContextMenuRequest());
 </script>
+
+{#snippet collectionActionsDropdown(
+  currentCollection: collection.Collection,
+  triggeredBy: string,
+  isOpen: boolean | undefined,
+  onClose: () => void
+)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
+    {#if currentCollection.gitRemote}
+      <DropdownItem
+        class="text-gray-900 dark:text-white"
+        onclick={() => {
+          gitStatusCollectionId = currentCollection.id;
+          gitStatusCollectionName = currentCollection.name;
+          onClose();
+        }}
+      >
+        Git status
+      </DropdownItem>
+      <DropdownItem
+        class="text-gray-900 dark:text-white"
+        disabled={syncingCollections.has(currentCollection.id)}
+        onclick={() => {
+          void handleSync(currentCollection.id);
+          onClose();
+        }}
+      >
+        {syncingCollections.has(currentCollection.id) ? "Syncing…" : "Sync with Git"}
+      </DropdownItem>
+      <DropdownDivider />
+    {/if}
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        void handleExportCollection(currentCollection.name);
+        onClose();
+      }}
+    >
+      Export
+    </DropdownItem>
+    <DropdownDivider />
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        openRenameCollection(currentCollection.name);
+        onClose();
+      }}
+    >
+      Rename
+    </DropdownItem>
+    <DropdownItem
+      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+      onclick={() => {
+        handleDeleteCollection(currentCollection.name);
+        onClose();
+      }}
+    >
+      Delete
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
 
 {#snippet requestActionsDropdown(
   request: collection.Request,
@@ -915,17 +1055,13 @@
           >
             <div
               class="relative flex items-center gap-2 px-2 py-2"
-              onclick={(e) => {
-                e.stopPropagation();
-                selectCollection(collection.name);
-                toggleCollection(collection.name);
-              }}
+              onclick={(e) => handleCollectionHeaderActivate(e, collection.name)}
               onkeypress={(e) => {
                 if (e.key === "Enter") {
-                  selectCollection(collection.name);
-                  toggleCollection(collection.name);
+                  handleCollectionHeaderActivate(e, collection.name);
                 }
               }}
+              oncontextmenu={(e) => void handleCollectionContextMenu(e, collection)}
               role="button"
               tabindex="0"
             >
@@ -973,6 +1109,7 @@
 
               <div class="flex items-center gap-1">
                 <button
+                  data-no-drag="true"
                   class="hover:cursor-pointer"
                   onclick={(e: MouseEvent) => {
                     e.stopPropagation();
@@ -984,64 +1121,28 @@
                   <PlusOutline />
                 </button>
                 <button
-                  id="collection-menu-{collection.id}"
+                  data-no-drag="true"
+                  id={getCollectionMenuTriggerId(collection.id)}
                   class="ml-1 hover:cursor-pointer"
                   title="More actions"
                   aria-label="More actions"
-                  onclick={(e: MouseEvent) => e.stopPropagation()}
+                  onclick={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    closeCollectionContextMenu();
+                  }}
+                  oncontextmenu={(e: MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                 >
                   <DotsHorizontalOutline />
                 </button>
-                <Dropdown
-                  triggeredBy="#collection-menu-{collection.id}"
-                  class="z-50 w-40"
-                  triggerDelay={0}
-                >
-                  {#if collection.gitRemote}
-                    <DropdownItem
-                      class="text-gray-900 dark:text-white"
-                      onclick={() => {
-                        gitStatusCollectionId = collection.id;
-                        gitStatusCollectionName = collection.name;
-                      }}
-                    >
-                      Git status
-                    </DropdownItem>
-                    <DropdownItem
-                      class="text-gray-900 dark:text-white"
-                      disabled={syncingCollections.has(collection.id)}
-                      onclick={() => {
-                        handleSync(collection.id);
-                      }}
-                    >
-                      {syncingCollections.has(collection.id) ? "Syncing…" : "Sync with Git"}
-                    </DropdownItem>
-                    <DropdownDivider />
-                  {/if}
-                  <DropdownItem
-                    class="text-gray-900 dark:text-white"
-                    onclick={() => handleExportCollection(collection.name)}
-                  >
-                    Export
-                  </DropdownItem>
-                  <DropdownDivider />
-                  <DropdownItem
-                    class="text-gray-900 dark:text-white"
-                    onclick={() => {
-                      openRenameCollection(collection.name);
-                    }}
-                  >
-                    Rename
-                  </DropdownItem>
-                  <DropdownItem
-                    class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
-                    onclick={() => {
-                      handleDeleteCollection(collection.name);
-                    }}
-                  >
-                    Delete
-                  </DropdownItem>
-                </Dropdown>
+                {@render collectionActionsDropdown(
+                  collection,
+                  `#${getCollectionMenuTriggerId(collection.id)}`,
+                  undefined,
+                  closeCollectionContextMenu
+                )}
               </div>
             </div>
 
@@ -1137,6 +1238,10 @@
                             e.stopPropagation();
                             closeRequestContextMenu();
                           }}
+                          oncontextmenu={(e: MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
                           onmousedown={(e: MouseEvent) => {
                             e.stopPropagation();
                           }}
@@ -1183,6 +1288,23 @@
     </div>
   {/if}
 </div>
+
+{#if contextMenuCollection}
+  <button
+    id={getCollectionContextMenuTriggerId()}
+    type="button"
+    class="pointer-events-none fixed z-[90] h-0 w-0 opacity-0"
+    style={getCollectionContextMenuPositionStyle()}
+    tabindex="-1"
+    aria-hidden="true"
+  ></button>
+  {@render collectionActionsDropdown(
+    contextMenuCollection,
+    `#${getCollectionContextMenuTriggerId()}`,
+    isCollectionContextMenuOpen,
+    closeCollectionContextMenu
+  )}
+{/if}
 
 {#if contextMenuRequest && requestContextMenuCollectionName}
   <button
