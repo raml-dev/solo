@@ -12,6 +12,7 @@
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { onDestroy } from "svelte";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
 
   let tabs = $derived(tabStoreState.tabs);
   let activeTabId = $derived(getActiveTab().id);
@@ -74,14 +75,16 @@
     }
   }
 
-  function handleClose(e: MouseEvent, tabId: string) {
+  function handleClose(e: MouseEvent | KeyboardEvent, tabId: string) {
     e.stopPropagation();
-    const tab = tabs.find((t) => t.id === tabId);
-    if (tab?.isDirty) {
-      tabToCloseId = tabId;
-      confirmCloseModal.open = true;
-    } else {
-      tabStore.closeTab(tabId);
+    if (e instanceof MouseEvent || e.key === "Space") {
+      const tab = tabs.find((t) => t.id === tabId);
+      if (tab?.isDirty) {
+        tabToCloseId = tabId;
+        confirmCloseModal.open = true;
+      } else {
+        tabStore.closeTab(tabId);
+      }
     }
   }
 
@@ -120,6 +123,11 @@
         tabindex="0"
         onclick={() => tabStore.setActiveTab(tab.id)}
         ondblclick={() => (tab.isPreview = false)}
+        onmouseup={(e: MouseEvent) => {
+          e.preventDefault();
+          // button 1 is middle click
+          if (e.button === 1) handleClose(e, tab.id);
+        }}
         onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
         class={`group inline-flex max-w-xs items-center rounded-md border inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:outline-hidden ${
           tab.id === activeTabId
@@ -144,26 +152,31 @@
         </Button>
 
         <CloseButton
+          tabindex={0}
           color="none"
           size="xs"
-          class="p-1! opacity-70 transition-opacity group-hover:opacity-100 hover:opacity-100"
+          class="p-1! opacity-70 inset-ring-primary-500 transition-opacity group-hover:opacity-100 focus-within:inset-ring-1 focus-within:outline-hidden hover:opacity-100 focus:outline-hidden"
           ariaLabel="Close tab"
           onclick={(e: MouseEvent) => handleClose(e, tab.id)}
+          onkeydown={(e: KeyboardEvent) => {
+            handleClose(e, tab.id);
+          }}
         />
       </div>
     {/each}
+    <Button
+      color="light"
+      size="xs"
+      class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+      onclick={() => tabStore.makeEmptyTab()}
+      title="New request"
+      aria-label="New request"
+    >
+      <PlusOutline
+        class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+      />
+    </Button>
   </div>
-
-  <Button
-    color="light"
-    size="xs"
-    class="shrink-0"
-    onclick={() => tabStore.makeEmptyTab()}
-    title="New request"
-    aria-label="New request"
-  >
-    +
-  </Button>
 </div>
 
 {#if confirmCloseModal.open}
