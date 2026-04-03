@@ -56,6 +56,8 @@
     onRequestSelect?: (requestId: string) => void;
   }
 
+  const OUTLINE_BUTTON_CLASSES = "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+
   let { onRequestSelect = () => {} }: Props = $props();
 
   let editingRequestNameInputEl: HTMLInputElement | undefined = $state();
@@ -1012,11 +1014,11 @@
         >
           {#if isCollapsed}
             <OpenSidebarSolid
-              class="h-6 w-6 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+              class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`}
             />
           {:else}
             <CloseSidebarSolid
-              class="h-6 w-6 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+              class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`}
             />
           {/if}
         </button>
@@ -1084,11 +1086,11 @@
               >
                 {#if isExpanded(collection.name)}
                   <AngleDownOutline
-                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
                   />
                 {:else}
                   <AngleRightOutline
-                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
                   />
                 {/if}
               </button>
@@ -1132,7 +1134,7 @@
                   aria-label="Add request"
                 >
                   <PlusOutline
-                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
                   />
                 </button>
                 <button
@@ -1151,7 +1153,7 @@
                   }}
                 >
                   <DotsHorizontalOutline
-                    class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
                   />
                 </button>
                 {@render collectionActionsDropdown(
@@ -1269,7 +1271,7 @@
                           title="Request actions"
                           aria-label="Request actions"
                         >
-                          <DotsHorizontalOutline />
+                          <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}/>
                         </button>
                         {@render requestActionsDropdown(
                           request,
