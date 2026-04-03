@@ -121,7 +121,7 @@
         onclick={() => tabStore.setActiveTab(tab.id)}
         ondblclick={() => (tab.isPreview = false)}
         onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
-        class={`group inline-flex max-w-xs items-center rounded-md border focus-within:inset-ring-1 inset-ring-primary-500 focus-within:outline-hidden focus:outline-hidden ${
+        class={`group inline-flex max-w-xs items-center rounded-md border inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:outline-hidden ${
           tab.id === activeTabId
             ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
             : "border-transparent bg-neutral-100/70 hover:bg-neutral-200/70 dark:bg-neutral-800/60 dark:hover:bg-neutral-700/70"
@@ -131,7 +131,7 @@
           color="light"
           size="xs"
           tabindex={-1}
-          class="focus:ring-0 focus:outline-none inline-flex min-w-0 items-center gap-2 border-0 bg-transparent px-2 py-1.5 text-sm shadow-none hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent"
+          class="inline-flex min-w-0 items-center gap-2 border-0 bg-transparent px-2 py-1.5 text-sm shadow-none hover:bg-transparent focus:ring-0 focus:outline-none dark:bg-transparent dark:hover:bg-transparent"
           aria-selected={tab.id === activeTabId}
           data-tab-id={tab.id}
           title={tab.label}
