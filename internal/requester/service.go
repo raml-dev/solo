@@ -206,6 +206,12 @@ func (s *Service) Execute(opts ExecutionOptions) (*http.Response, *http.Request,
 		}
 	}
 
+	// 5. Inject safe default Content-Type if missing and body is present
+	if opts.Body != "" && request.Header.Get("Content-Type") == "" {
+		request.Header.Set("Content-Type", "text/plain")
+		slog.Debug("Injected default Content-Type", "value", "text/plain")
+	}
+
 	// Host Specific Cookies
 	parsedUrl, err := url.Parse(opts.URL)
 	if err == nil {
