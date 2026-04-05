@@ -23,6 +23,7 @@
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
+  import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
   import { onMount } from "svelte";
 
   let consoleOpen = $state(false);
@@ -37,6 +38,33 @@
 ▀▄▄  █   █ █ █   █
 ▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀`;
   const globalUnsavedModal = modalStack.createModal("app-unsaved");
+
+  const flowbiteTheme = {
+    input: {
+      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    textarea: {
+      base: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    search: {
+      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    fileupload: {
+      base: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    phoneInput: {
+      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    floatingLabelInput: {
+      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    tags: {
+      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
+    },
+    multiSelect: {
+      placeholder: "text-neutral-400 dark:text-neutral-400"
+    }
+  };
 
   async function initializeApp() {
     await Promise.all([
@@ -199,87 +227,89 @@
   });
 </script>
 
-{#if !$hasOpenModals}
-  <ToastContainer />
-{/if}
+<ThemeProvider theme={flowbiteTheme}>
+  {#if !$hasOpenModals}
+    <ToastContainer />
+  {/if}
 
-<MainLayout title={appNameAscii}>
-  <!-- Main area: sidebar + builder -->
-  <div class="flex min-h-0 flex-1 overflow-hidden">
-    <CollectionList />
-    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <RequestTabBar />
-      <HTTPRequestBuilder />
-    </div>
-  </div>
-
-  <!-- Console panel + status bar -->
-  {#snippet bottom_bar()}
-    {#if consoleOpen}
-      <div
-        class="flex flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
-        style="height: {consoleHeight}px"
-      >
-        <button
-          type="button"
-          class="h-1 shrink-0 cursor-row-resize bg-neutral-200 p-0 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
-          class:bg-primary-500={isResizing}
-          onmousedown={startResize}
-          aria-label="Resize console"
-        ></button>
-        <div class="min-h-0 flex-1 overflow-hidden">
-          <Console />
-        </div>
+  <MainLayout title={appNameAscii}>
+    <!-- Main area: sidebar + builder -->
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+      <CollectionList />
+      <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <RequestTabBar />
+        <HTTPRequestBuilder />
       </div>
-    {/if}
-
-    <!-- Status bar -->
-    <div
-      class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
-    >
-      <Button
-        color="light"
-        size="xs"
-        onclick={toggleConsole}
-        class="border-0 shadow-none {consoleOpen
-          ? 'text-primary-600 dark:text-primary-400'
-          : 'text-neutral-600 dark:text-neutral-400'}"
-      >
-        <TerminalOutline size="xs" />
-        Console
-        {#if $historyStore.length > 0}
-          <Badge
-            color="primary"
-            class="ml-1 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]"
-          >
-            {$historyStore.length}
-          </Badge>
-        {/if}
-      </Button>
-    </div>
-  {/snippet}
-</MainLayout>
-
-{#if globalUnsavedModal.open}
-  <Modal title="Unsaved Changes" bind:open={globalUnsavedModal.open}>
-    {#if $topModalId === globalUnsavedModal.id}
-      <ToastContainer />
-    {/if}
-    <div class="flex flex-col gap-2">
-      <p>You have unsaved changes in some requests. Do you want to save them before quitting?</p>
-      <p class="text-neutral-500 dark:text-neutral-400">
-        If you don't save, your changes will be permanently lost.
-      </p>
     </div>
 
-    {#snippet footer()}
-      <div class="flex w-full items-center gap-2">
-        <Button color="red" onclick={() => ForceQuit()}>Discard and Quit</Button>
-        <div class="ml-auto flex items-center gap-2">
-          <Button color="light" onclick={() => (globalUnsavedModal.open = false)}>Cancel</Button>
-          <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
+    <!-- Console panel + status bar -->
+    {#snippet bottom_bar()}
+      {#if consoleOpen}
+        <div
+          class="flex flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
+          style="height: {consoleHeight}px"
+        >
+          <button
+            type="button"
+            class="h-1 shrink-0 cursor-row-resize bg-neutral-200 p-0 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
+            class:bg-primary-500={isResizing}
+            onmousedown={startResize}
+            aria-label="Resize console"
+          ></button>
+          <div class="min-h-0 flex-1 overflow-hidden">
+            <Console />
+          </div>
         </div>
+      {/if}
+
+      <!-- Status bar -->
+      <div
+        class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
+      >
+        <Button
+          color="light"
+          size="xs"
+          onclick={toggleConsole}
+          class="border-0 shadow-none {consoleOpen
+            ? 'text-primary-600 dark:text-primary-400'
+            : 'text-neutral-600 dark:text-neutral-400'}"
+        >
+          <TerminalOutline size="xs" />
+          Console
+          {#if $historyStore.length > 0}
+            <Badge
+              color="primary"
+              class="ml-1 flex h-4 w-4 items-center justify-center rounded-full p-0 text-[10px]"
+            >
+              {$historyStore.length}
+            </Badge>
+          {/if}
+        </Button>
       </div>
     {/snippet}
-  </Modal>
-{/if}
+  </MainLayout>
+
+  {#if globalUnsavedModal.open}
+    <Modal title="Unsaved Changes" bind:open={globalUnsavedModal.open}>
+      {#if $topModalId === globalUnsavedModal.id}
+        <ToastContainer />
+      {/if}
+      <div class="flex flex-col gap-2">
+        <p>You have unsaved changes in some requests. Do you want to save them before quitting?</p>
+        <p class="text-neutral-500 dark:text-neutral-400">
+          If you don't save, your changes will be permanently lost.
+        </p>
+      </div>
+
+      {#snippet footer()}
+        <div class="flex w-full items-center gap-2">
+          <Button color="red" onclick={() => ForceQuit()}>Discard and Quit</Button>
+          <div class="ml-auto flex items-center gap-2">
+            <Button color="light" onclick={() => (globalUnsavedModal.open = false)}>Cancel</Button>
+            <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
+          </div>
+        </div>
+      {/snippet}
+    </Modal>
+  {/if}
+</ThemeProvider>
