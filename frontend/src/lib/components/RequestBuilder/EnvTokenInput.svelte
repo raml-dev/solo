@@ -4,8 +4,7 @@
 -->
 
 <script lang="ts">
-  import Button from "flowbite-svelte/Button.svelte";
-  import Card from "flowbite-svelte/Card.svelte";
+  import EnvAutocompletePopover from "$src/lib/components/RequestBuilder/EnvAutocompletePopover.svelte";
   import {
     forceHideTokenTooltip,
     hideTokenTooltipDelay,
@@ -35,7 +34,7 @@
     onEnter?: () => void;
   }
 
-  type EnvEntry = { key: string; value: string; type: string };
+  type EnvEntry = { key: string; value: string; type?: string };
 
   let {
     value = $bindable(""),
@@ -319,37 +318,15 @@
     {/if}
   </div>
 
-  {#if autocompleteOpen}
-    <div class="env-token-autocomplete absolute top-full right-0 left-0 z-90 mt-1">
-      <Card class="w-full p-1 shadow-lg">
-        {#if autocompleteEntries.length > 0}
-          <div role="listbox" class="max-h-56 space-y-1 overflow-auto">
-            {#each autocompleteEntries as entry, index (entry.key)}
-              <Button
-                role="option"
-                aria-selected={index === autocompleteActiveIndex}
-                color={index === autocompleteActiveIndex ? "primary" : "light"}
-                size="xs"
-                class="flex w-full items-center justify-between gap-2"
-                onmouseenter={() => (autocompleteActiveIndex = index)}
-                onmousedown={(event: MouseEvent) => {
-                  event.preventDefault();
-                  applyAutocompleteEntry(entry);
-                }}
-              >
-                <span class="truncate font-mono">{entry.key}</span>
-                <span class="max-w-36 truncate text-xs opacity-80">{entry.value}</span>
-              </Button>
-            {/each}
-          </div>
-        {:else}
-          <div class="px-2 py-1 text-xs text-neutral-500 dark:text-neutral-400">
-            No environment variables
-          </div>
-        {/if}
-      </Card>
-    </div>
-  {/if}
+  <EnvAutocompletePopover
+    open={autocompleteOpen}
+    entries={autocompleteEntries}
+    activeIndex={autocompleteActiveIndex}
+    class="env-token-autocomplete absolute top-full right-0 left-0 z-90 mt-1"
+    onHoverIndex={(index) => (autocompleteActiveIndex = index)}
+    onSelect={(entry) => applyAutocompleteEntry(entry)}
+    onRequestClose={() => (autocompleteOpen = false)}
+  />
 </div>
 
 <style>
