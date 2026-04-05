@@ -12,7 +12,7 @@
   import RequestRunner from "$src/lib/components/RequestBuilder/RequestRunner.svelte";
   import RequestScripts from "$src/lib/components/RequestBuilder/RequestScripts.svelte";
   import RequestSettings from "$src/lib/components/RequestBuilder/RequestSettings.svelte";
-  import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
+  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
   import TokenTooltip from "$src/lib/components/RequestBuilder/TokenTooltip.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
   import SaveRequestModal from "$src/lib/components/SaveRequestModal.svelte";
@@ -34,6 +34,7 @@
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
@@ -455,36 +456,35 @@
     </div>
 
     <!-- Request Line -->
-    <div class="shrink-0 border-b border-neutral-200 dark:border-neutral-700">
-      <div class="flex items-stretch">
-        <div class="shrink-0">
-          <Select
-            bind:value={tab.verb}
-            items={methodOptions}
-            placeholder=""
-            size="sm"
-            onchange={() => handleMethodChange(tab.verb)}
-            class="h-full rounded-none border-0 bg-transparent px-3 py-0 font-semibold"
-          />
-        </div>
-        <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
-        <TokenInput
+    <div class="shrink-0 border-b border-neutral-200 p-3 dark:border-neutral-700">
+      <ButtonGroup class="w-full">
+        <Select
+          bind:value={tab.verb}
+          items={methodOptions}
+          placeholder=""
+          size="sm"
+          onchange={() => handleMethodChange(tab.verb)}
+          class="w-24 font-semibold"
+        />
+        <EnvTokenInput
           bind:value={tab.url}
           placeholder="Enter request URL"
-          {environmentEntries}
-          wrapperClass="min-w-0 flex-1"
+          class="-ms-px min-w-0 flex-1 rounded-none"
+          size="sm"
           onChange={onFieldChange}
           onEnter={sendRequest}
         />
-        <div class="w-px shrink-0 self-stretch bg-neutral-200 dark:bg-neutral-700"></div>
         <Button
           color="primary"
+          class="px-6"
+          size="sm"
           {loading}
           onclick={sendRequest}
           disabled={loading}
-          class="self-stretch rounded-l-none px-6">Send</Button
         >
-      </div>
+          Send
+        </Button>
+      </ButtonGroup>
     </div>
 
     <!-- Request tabs + body format selector -->

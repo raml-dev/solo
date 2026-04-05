@@ -7,8 +7,7 @@
   import Button from "flowbite-svelte/Button.svelte";
   import Checkbox from "flowbite-svelte/Checkbox.svelte";
   import Input from "flowbite-svelte/Input.svelte";
-  import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
-  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
 
   interface Props {
     headers: Header[];
@@ -16,12 +15,6 @@
   }
 
   let { headers = $bindable(), onChange }: Props = $props();
-
-  let selectedEnvironment = $derived(
-    environmentStoreState.environments.find(
-      (e) => e.name === environmentStoreState.selectedEnvironmentName
-    ) || null
-  );
 
   type Header = {
     id: string;
@@ -50,13 +43,6 @@
     headers = [...headers, newHeader];
     onChange?.();
   }
-
-  let environmentEntries = $derived(
-    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-      key,
-      value: String(val?.value ?? "")
-    }))
-  );
 </script>
 
 <div class="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
@@ -80,12 +66,11 @@
         />
       </div>
       <div class="min-w-0 flex-1">
-        <TokenInput
+        <EnvTokenInput
           bind:value={header.value}
           placeholder="Value"
           disabled={!header.enabled}
-          {environmentEntries}
-          wrapperClass="w-full"
+          class="w-full"
           size="sm"
           onChange={() => onChange?.()}
         />

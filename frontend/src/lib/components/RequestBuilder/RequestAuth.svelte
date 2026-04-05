@@ -9,8 +9,7 @@
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import TokenInput from "$src/lib/components/RequestBuilder/TokenInput.svelte";
-  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
 
   interface Props {
     auth: collection.AuthConfiguration;
@@ -18,12 +17,6 @@
   }
 
   let { auth = $bindable(), onChange }: Props = $props();
-
-  let selectedEnvironment = $derived(
-    environmentStoreState.environments.find(
-      (e) => e.name === environmentStoreState.selectedEnvironmentName
-    ) || null
-  );
 
   function handleChange() {
     onChange?.();
@@ -85,13 +78,6 @@
     syncTemplateToAuth();
     handleChange();
   }
-
-  let environmentEntries = $derived(
-    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-      key,
-      value: String(val?.value ?? "")
-    }))
-  );
 </script>
 
 <div class="flex-1 space-y-6 overflow-y-auto p-4">
@@ -112,10 +98,9 @@
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="space-y-2">
           <Label>Token URL</Label>
-          <TokenInput
+          <EnvTokenInput
             bind:value={auth.tokenUrl}
             placeholder="https://auth.example.com/oauth2/token"
-            {environmentEntries}
             onChange={() => handleTokenUrlChange(auth.tokenUrl)}
             size="sm"
           />
@@ -168,10 +153,9 @@
                   oninput={() => updateTemplateRowKey(row.id, row.key)}
                   class="bg-white dark:bg-neutral-800"
                 />
-                <TokenInput
+                <EnvTokenInput
                   bind:value={row.value}
                   placeholder="client_credentials"
-                  {environmentEntries}
                   onChange={() => updateTemplateRowValue(row.id, row.value)}
                   size="sm"
                 />
