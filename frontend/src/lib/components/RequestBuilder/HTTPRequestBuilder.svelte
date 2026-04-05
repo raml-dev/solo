@@ -6,17 +6,17 @@
 <script lang="ts">
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
+  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
   import RequestAuth from "$src/lib/components/RequestBuilder/RequestAuth.svelte";
   import RequestBody from "$src/lib/components/RequestBuilder/RequestBody.svelte";
   import RequestHeaders from "$src/lib/components/RequestBuilder/RequestHeaders.svelte";
   import RequestRunner from "$src/lib/components/RequestBuilder/RequestRunner.svelte";
   import RequestScripts from "$src/lib/components/RequestBuilder/RequestScripts.svelte";
   import RequestSettings from "$src/lib/components/RequestBuilder/RequestSettings.svelte";
-  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
   import TokenTooltip from "$src/lib/components/RequestBuilder/TokenTooltip.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
   import SaveRequestModal from "$src/lib/components/SaveRequestModal.svelte";
-  import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
+  import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStoreState } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack } from "$src/lib/stores/modalStackStore.svelte";
@@ -31,6 +31,8 @@
   import { getStatusBadgeColor } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
+  import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
+  import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
@@ -438,21 +440,30 @@
           >{tab.collectionName ? `${tab.collectionName} / ` : ""}{requestName ||
             "New Request"}</span
         >
+      </div>
+      <div>
         {#if !tab.requestId || tab.isDirty}
           <Button
             color="light"
             size="xs"
+            class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
             onclick={handleSave}
             title="Save Request (Ctrl+S)"
             aria-label="Save Request"
           >
-            Save
+            <FloppyDiskSolid class="h-4 w-4 shrink-0 m-1" /><span>Save</span>
           </Button>
         {/if}
+        <Button
+          color="light"
+          class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+          size="xs"
+          title="Export as cURL"
+          onclick={handleExportCurl}
+        >
+          <FileExportSolid class="h-4 w-4 shrink-0 m-1" /><span>Export</span>
+        </Button>
       </div>
-      <Button color="light" size="xs" title="Export as cURL" onclick={handleExportCurl}>
-        Export
-      </Button>
     </div>
 
     <!-- Request Line -->
