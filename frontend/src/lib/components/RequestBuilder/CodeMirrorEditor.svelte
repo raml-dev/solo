@@ -15,6 +15,7 @@
     getTokenizedEditorSizeClass
   } from "$src/lib/utils/tokens";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
+  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { json } from "@codemirror/lang-json";
   import { xml } from "@codemirror/lang-xml";
@@ -74,6 +75,7 @@
   let view: EditorView | undefined = $state();
 
   let languageCompartment = new Compartment();
+  let tokenDecoratorCompartment = new Compartment();
 
   let autocompleteOpen = $state(false);
   let autocompleteActiveIndex = $state(0);
@@ -87,6 +89,11 @@
   );
 
   let sizeClass = $derived(getTokenizedEditorSizeClass(size));
+  let knownEnvironmentKeys = $derived(new Set(environmentEntries.map((entry) => entry.key)));
+  let sessionKeys = $derived(new Set(Object.keys($sessionVarsStore ?? {})));
+  let knownKeysSignature = $derived(
+    `${environmentEntries.map((entry) => entry.key).join("\u0000")}|${Object.keys($sessionVarsStore ?? {}).join("\u0000")}`
+  );
 
   function estimatePopoverHeight(entryCount: number): number {
     if (entryCount <= 0) return 40;
@@ -232,13 +239,13 @@
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       createTokenizedEditorTheme(),
       appTheme,
+      tokenDecoratorCompartment.of(readOnly ? [] : createTokenHighlightPlugin()),
       // --- edit-only extensions ---
       ...(!readOnly
         ? [
             history(),
             autocompleteNavigationKeymap,
             keymap.of([...historyKeymap]),
-            tokenHighlightPlugin,
             EditorView.updateListener.of((update) => {
               if (
                 update.docChanged &&
@@ -286,12 +293,22 @@
     { tag: tags.propertyName, color: "var(--color-primary-600)" }
   ]);
 
-  // Token highlighter — only used in edit mode
-  const tokenHighlightPlugin = createEnvTokenDecorationPlugin({
-    tokenClassName: "cm-env-token",
-    onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
-    onTokenMouseOut: () => hideTokenTooltipDelay()
-  });
+  // Token highlighter — active in edit mode via tokenDecoratorCompartment
+  function createTokenHighlightPlugin(_knownKeysSignature?: string) {
+    void _knownKeysSignature;
+
+    return createEnvTokenDecorationPlugin({
+      tokenClassName: "cm-env-token",
+      resolveTokenStatus: (tokenKey) =>
+        sessionKeys.has(tokenKey)
+          ? "session"
+          : knownEnvironmentKeys.has(tokenKey)
+            ? "known"
+            : "unknown",
+      onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
+      onTokenMouseOut: () => hideTokenTooltipDelay()
+    });
+  }
 
   const appTheme = EditorView.theme({
     "&": {
@@ -323,6 +340,16 @@
   $effect(() => {
     if (!view) return;
     refreshAutocomplete(view.state);
+  });
+
+  $effect(() => {
+    if (!view) return;
+
+    view.dispatch({
+      effects: tokenDecoratorCompartment.reconfigure(
+        readOnly ? [] : createTokenHighlightPlugin(knownKeysSignature)
+      )
+    });
   });
 </script>
 

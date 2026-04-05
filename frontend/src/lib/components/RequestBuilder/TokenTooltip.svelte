@@ -84,7 +84,7 @@
 {#if visible}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="fixed z-50 w-max rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+    class="fixed z-50 max-w-100 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
     style="left: {tooltipState.x}px; top: {tooltipState.y}px;"
     onmouseenter={cancelHideTokenTooltip}
     onmouseleave={handleTooltipMouseLeave}

@@ -10,6 +10,7 @@
     hideTokenTooltipDelay,
     showTokenTooltip
   } from "$src/lib/stores/tokenTooltipStore";
+  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import {
     clampActiveIndex,
@@ -53,6 +54,7 @@
 
   const externalUpdate = Annotation.define<boolean>();
   const editableCompartment = new Compartment();
+  const tokenDecoratorCompartment = new Compartment();
 
   let autocompleteOpen = $state(false);
   let autocompleteQuery = $state("");
@@ -70,6 +72,11 @@
   );
 
   let environmentEntries = $derived(normalizeEnvironmentTokenEntries(selectedEnvironment?.values));
+  let knownEnvironmentKeys = $derived(new Set(environmentEntries.map((entry) => entry.key)));
+  let sessionKeys = $derived(new Set(Object.keys($sessionVarsStore ?? {})));
+  let knownKeysSignature = $derived(
+    `${environmentEntries.map((entry) => entry.key).join("\u0000")}|${Object.keys($sessionVarsStore ?? {}).join("\u0000")}`
+  );
 
   let sizeClass = $derived(
     `${getTokenizedEditorSizeClass(size)} ${size === "sm" ? "px-2 py-1" : size === "lg" ? "px-3 py-3" : "px-2.5 py-2.5"}`
@@ -79,11 +86,21 @@
     `relative flex w-full items-center rounded-lg border border-gray-300 bg-gray-50 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white ${disabled ? "cursor-not-allowed opacity-50" : "focus-within:z-10 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"} ${sizeClass}`
   );
 
-  const tokenDecorator = createEnvTokenDecorationPlugin({
-    tokenClassName: "cm-env-token",
-    onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
-    onTokenMouseOut: () => hideTokenTooltipDelay()
-  });
+  function createTokenDecorator(_knownKeysSignature?: string) {
+    void _knownKeysSignature;
+
+    return createEnvTokenDecorationPlugin({
+      tokenClassName: "cm-env-token",
+      resolveTokenStatus: (tokenKey) =>
+        sessionKeys.has(tokenKey)
+          ? "session"
+          : knownEnvironmentKeys.has(tokenKey)
+            ? "known"
+            : "unknown",
+      onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
+      onTokenMouseOut: () => hideTokenTooltipDelay()
+    });
+  }
 
   function refreshAutocomplete(state: EditorState) {
     if (state.facet(EditorState.readOnly)) {
@@ -207,7 +224,7 @@
       navigationKeymap,
       keymap.of([...historyKeymap, ...defaultKeymap]),
       history(),
-      tokenDecorator,
+      tokenDecoratorCompartment.of(createTokenDecorator()),
       createTokenizedEditorTheme({ singleLine: true }),
       EditorView.updateListener.of((update) => {
         if (
@@ -279,6 +296,14 @@
     });
 
     refreshAutocomplete(view.state);
+  });
+
+  $effect(() => {
+    if (!view) return;
+
+    view.dispatch({
+      effects: tokenDecoratorCompartment.reconfigure(createTokenDecorator(knownKeysSignature))
+    });
   });
 </script>
 

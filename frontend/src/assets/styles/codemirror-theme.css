@@ -64,8 +64,23 @@
 .cm-env-token {
   cursor: pointer;
   border-radius: 0.25rem;
+}
+
+.cm-env-token--known {
   background: var(--color-primary-100);
   color: var(--color-primary-700);
+  font-weight: 700;
+}
+
+.cm-env-token--unknown {
+  background: var(--color-neutral-400);
+  color: var(--color-neutral-100);
+  font-style: italic;
+}
+
+.cm-env-token--session {
+  background: var(--color-neutral-500);
+  color: var(--color-neutral-100);
   font-weight: 700;
 }
 
@@ -99,8 +114,20 @@
   background: color-mix(in oklab, var(--color-primary-700) 35%, transparent) !important;
 }
 
-.dark .cm-env-token {
+.dark .cm-env-token--known {
   background: var(--color-primary-900);
   color: var(--color-primary-300);
+  font-weight: 700;
+}
+
+.dark .cm-env-token--unknown {
+  background: var(--color-neutral-500);
+  color: var(--color-neutral-100);
+  font-style: italic;
+}
+
+.dark .cm-env-token--session {
+  background: var(--color-neutral-500);
+  color: var(--color-neutral-100);
   font-weight: 700;
 }
