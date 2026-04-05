@@ -56,7 +56,8 @@
     onRequestSelect?: (requestId: string) => void;
   }
 
-  const OUTLINE_BUTTON_CLASSES = "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+  const OUTLINE_BUTTON_CLASSES =
+    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   let { onRequestSelect = () => {} }: Props = $props();
 
@@ -1013,13 +1014,9 @@
           aria-label="Toggle collection list sidebar"
         >
           {#if isCollapsed}
-            <OpenSidebarSolid
-              class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`}
-            />
+            <OpenSidebarSolid class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`} />
           {:else}
-            <CloseSidebarSolid
-              class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`}
-            />
+            <CloseSidebarSolid class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`} />
           {/if}
         </button>
         {#if !isCollapsed}
@@ -1085,13 +1082,9 @@
                 aria-label="Toggle collection"
               >
                 {#if isExpanded(collection.name)}
-                  <AngleDownOutline
-                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
-                  />
+                  <AngleDownOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
                 {:else}
-                  <AngleRightOutline
-                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
-                  />
+                  <AngleRightOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
                 {/if}
               </button>
 
@@ -1133,9 +1126,7 @@
                   title="Add request"
                   aria-label="Add request"
                 >
-                  <PlusOutline
-                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
-                  />
+                  <PlusOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
                 </button>
                 <button
                   data-no-drag="true"
@@ -1152,9 +1143,7 @@
                     e.stopPropagation();
                   }}
                 >
-                  <DotsHorizontalOutline
-                    class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}
-                  />
+                  <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
                 </button>
                 {@render collectionActionsDropdown(
                   collection,
@@ -1271,7 +1260,7 @@
                           title="Request actions"
                           aria-label="Request actions"
                         >
-                          <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`}/>
+                          <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
                         </button>
                         {@render requestActionsDropdown(
                           request,
