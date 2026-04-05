@@ -16,6 +16,21 @@
   font-family: inherit;
 }
 
+.cm-scroller {
+  line-height: inherit;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.cm-content,
+.cm-line {
+  padding: 0;
+}
+
+.cm-content {
+  caret-color: var(--color-neutral-900);
+}
+
 .cm-gutters {
   background: var(--color-neutral-100);
   color: var(--color-neutral-500);
@@ -25,6 +40,10 @@
 .cm-activeLine,
 .cm-activeLineGutter {
   background: color-mix(in oklab, var(--color-neutral-200) 30%, transparent);
+}
+
+.cm-editor.cm-focused {
+  outline: none;
 }
 
 .cm-focused .cm-cursor {
@@ -42,14 +61,21 @@
   border-left: 1px solid color-mix(in oklab, var(--color-neutral-400) 35%, transparent);
 }
 
-.cm-solo-token {
+.cm-env-token {
+  cursor: pointer;
+  border-radius: 0.25rem;
+  background: var(--color-primary-100);
   color: var(--color-primary-700);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .dark .cm-editor {
   background: var(--color-neutral-900);
   color: var(--color-neutral-100);
+}
+
+.dark .cm-content {
+  caret-color: var(--color-neutral-100);
 }
 
 .dark .cm-gutters {
@@ -73,6 +99,8 @@
   background: color-mix(in oklab, var(--color-primary-700) 35%, transparent) !important;
 }
 
-.dark .cm-solo-token {
+.dark .cm-env-token {
+  background: var(--color-primary-900);
   color: var(--color-primary-300);
+  font-weight: 700;
 }

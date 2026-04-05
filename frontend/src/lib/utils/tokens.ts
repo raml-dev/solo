@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-import { Decoration, ViewPlugin, type DecorationSet, type EditorView } from "@codemirror/view";
+import { Decoration, EditorView, ViewPlugin, type DecorationSet } from "@codemirror/view";
 
 export interface TextSegment {
   text: string;
@@ -25,6 +25,8 @@ export interface EnvTokenTriggerContext {
   normalizedQuery: string;
 }
 
+export type TokenizedEditorSize = "sm" | "md" | "lg";
+
 export interface EnvTokenEntry {
   key: string;
   value?: string;
@@ -34,6 +36,14 @@ export interface EnvTokenEntry {
 export interface EnvironmentTokenValueLike {
   value?: unknown;
   type?: unknown;
+}
+
+export function getTokenizedEditorSizeClass(size: TokenizedEditorSize = "md"): string {
+  return size === "sm"
+    ? "text-xs leading-4"
+    : size === "lg"
+      ? "sm:text-base leading-6"
+      : "text-sm leading-5";
 }
 
 export function normalizeEnvironmentTokenEntries(
@@ -52,6 +62,10 @@ interface EnvTokenDecorationPluginOptions {
   tokenClassName: string;
   onTokenMouseOver?: (tokenKey: string, rect: DOMRect) => void;
   onTokenMouseOut?: () => void;
+}
+
+interface TokenizedEditorThemeOptions {
+  singleLine?: boolean;
 }
 
 const ENV_TOKEN_REGEX = /\{\{([^{}\r\n]+?)\}\}/g;
@@ -122,6 +136,18 @@ export function filterEnvTokenEntries<T extends EnvTokenEntry>(
 export function clampActiveIndex(index: number, listLength: number): number {
   if (listLength <= 0) return 0;
   return Math.min(Math.max(0, index), listLength - 1);
+}
+
+export function createTokenizedEditorTheme(options: TokenizedEditorThemeOptions = {}) {
+  const { singleLine = false } = options;
+
+  // Keep only mode-dependent behavior here; shared visual styling lives in
+  // src/assets/styles/codemirror-theme.css.
+  return EditorView.theme({
+    ".cm-scroller": {
+      overflowY: singleLine ? "hidden" : "auto"
+    }
+  });
 }
 
 export function createEnvTokenDecorationPlugin(options: EnvTokenDecorationPluginOptions) {
