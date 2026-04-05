@@ -12,9 +12,17 @@
     showTokenTooltip
   } from "$src/lib/stores/tokenTooltipStore";
   import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import {
+    clampActiveIndex,
+    createEnvTokenDecorationPlugin,
+    createEnvTokenSnippet,
+    filterEnvTokenEntries,
+    findEnvTokenTriggerContext,
+    normalizeEnvironmentTokenEntries
+  } from "$src/lib/utils/tokens";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { Annotation, Compartment, EditorSelection, EditorState } from "@codemirror/state";
-  import { Decoration, EditorView, keymap, ViewPlugin, type DecorationSet } from "@codemirror/view";
+  import { EditorView, keymap } from "@codemirror/view";
   import { onDestroy, onMount } from "svelte";
 
   interface Props {
@@ -60,15 +68,7 @@
     ) || null
   );
 
-  let environmentEntries = $derived(
-    Object.entries(selectedEnvironment?.values ?? {})
-      .map(([key, valueType]) => ({
-        key,
-        value: String(valueType?.value ?? ""),
-        type: String(valueType?.type ?? "")
-      }))
-      .sort((a, b) => a.key.localeCompare(b.key))
-  );
+  let environmentEntries = $derived(normalizeEnvironmentTokenEntries(selectedEnvironment?.values));
 
   let sizeClass = $derived(
     size === "sm"
@@ -82,68 +82,11 @@
     `relative flex w-full items-center rounded-lg border border-gray-300 bg-gray-50 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white ${disabled ? "cursor-not-allowed opacity-50" : "focus-within:z-10 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"} ${sizeClass}`
   );
 
-  const tokenDecorator = ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
-      constructor(v: EditorView) {
-        this.decorations = this.build(v);
-      }
-      update(u: { view: EditorView; docChanged: boolean }) {
-        if (u.docChanged) this.decorations = this.build(u.view);
-      }
-      build(v: EditorView) {
-        const builder: import("@codemirror/state").Range<Decoration>[] = [];
-        const re = /\{\{([^{}\r\n]+?)\}\}/g;
-        const text = v.state.doc.toString();
-
-        for (const match of text.matchAll(re)) {
-          const start = match.index ?? 0;
-          const end = start + match[0].length;
-          builder.push(
-            Decoration.mark({
-              class: "cm-env-token",
-              attributes: { "data-token-key": match[1].trim() }
-            }).range(start, end)
-          );
-        }
-
-        return Decoration.set(builder);
-      }
-    },
-    {
-      decorations: (v) => v.decorations,
-      eventHandlers: {
-        mouseover: (event: MouseEvent) => {
-          const target = event.target as HTMLElement;
-          const tokenEl = target.closest(".cm-env-token") as HTMLElement | null;
-          if (!tokenEl) return;
-          const tokenKey = tokenEl.dataset.tokenKey;
-          if (!tokenKey) return;
-          const rect = tokenEl.getBoundingClientRect();
-          showTokenTooltip(tokenKey, rect.left, rect.bottom);
-        },
-        mouseout: (event: MouseEvent) => {
-          const target = event.target as HTMLElement;
-          const tokenEl = target.closest(".cm-env-token") as HTMLElement | null;
-          if (!tokenEl) return;
-          hideTokenTooltipDelay();
-        },
-        mouseleave: () => hideTokenTooltipDelay()
-      }
-    }
-  );
-
-  function getTriggerContext(state: EditorState): { from: number; query: string } | null {
-    const cursor = state.selection.main.head;
-    const beforeCursor = state.doc.sliceString(0, cursor);
-    const openIndex = beforeCursor.lastIndexOf("{{");
-    if (openIndex === -1) return null;
-
-    const querySlice = beforeCursor.slice(openIndex + 2);
-    if (querySlice.includes("}}") || /[{}\r\n]/.test(querySlice)) return null;
-
-    return { from: openIndex, query: querySlice.trim().toLowerCase() };
-  }
+  const tokenDecorator = createEnvTokenDecorationPlugin({
+    tokenClassName: "cm-env-token",
+    onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
+    onTokenMouseOut: () => hideTokenTooltipDelay()
+  });
 
   function refreshAutocomplete(state: EditorState) {
     if (state.facet(EditorState.readOnly)) {
@@ -151,7 +94,10 @@
       return;
     }
 
-    const triggerContext = getTriggerContext(state);
+    const triggerContext = findEnvTokenTriggerContext(
+      state.doc.toString(),
+      state.selection.main.head
+    );
     if (!triggerContext) {
       autocompleteOpen = false;
       autocompleteEntries = [];
@@ -160,28 +106,25 @@
       return;
     }
 
-    autocompleteQuery = triggerContext.query;
-    autocompleteEntries = environmentEntries.filter(
-      (entry) => !autocompleteQuery || entry.key.toLowerCase().includes(autocompleteQuery)
-    );
-    autocompleteActiveIndex = Math.min(
-      autocompleteActiveIndex,
-      Math.max(0, autocompleteEntries.length - 1)
-    );
+    autocompleteQuery = triggerContext.normalizedQuery;
+    autocompleteEntries = filterEnvTokenEntries(environmentEntries, autocompleteQuery);
+    autocompleteActiveIndex = clampActiveIndex(autocompleteActiveIndex, autocompleteEntries.length);
     autocompleteOpen = true;
     forceHideTokenTooltip();
   }
 
   function applyAutocompleteEntry(entry: EnvEntry) {
     if (!view) return;
-    const triggerContext = getTriggerContext(view.state);
+    const triggerContext = findEnvTokenTriggerContext(
+      view.state.doc.toString(),
+      view.state.selection.main.head
+    );
     if (!triggerContext) return;
 
-    const to = view.state.selection.main.head;
-    const inserted = `{{${entry.key}}}`;
+    const inserted = createEnvTokenSnippet(entry.key);
 
     view.dispatch({
-      changes: { from: triggerContext.from, to, insert: inserted },
+      changes: { from: triggerContext.from, to: triggerContext.to, insert: inserted },
       selection: EditorSelection.cursor(triggerContext.from + inserted.length)
     });
 
