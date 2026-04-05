@@ -9,8 +9,10 @@
     clampActiveIndex,
     createEnvTokenDecorationPlugin,
     createEnvTokenSnippet,
+    createTokenizedEditorTheme,
     filterEnvTokenEntries,
-    findEnvTokenTriggerContext
+    findEnvTokenTriggerContext,
+    getTokenizedEditorSizeClass
   } from "$src/lib/utils/tokens";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -46,6 +48,7 @@
     language?: "json" | "xml" | "lua" | "text" | "none" | "";
     environmentEntries?: { key: string; value: string }[];
     readOnly?: boolean;
+    size?: "sm" | "md" | "lg";
     onChange?: (value: string) => void;
     showCopyPaste?: boolean;
   }
@@ -56,6 +59,7 @@
     language = "",
     environmentEntries = [],
     readOnly = false,
+    size = "md",
     onChange,
     showCopyPaste = false
   }: Props = $props();
@@ -81,6 +85,8 @@
   let autocompletePopoverStyle = $derived(
     `left: ${autocompleteLeft}px; top: ${autocompleteTop}px; min-width: 220px; max-width: ${autocompleteMaxWidth}px;`
   );
+
+  let sizeClass = $derived(getTokenizedEditorSizeClass(size));
 
   function estimatePopoverHeight(entryCount: number): number {
     if (entryCount <= 0) return 40;
@@ -162,53 +168,55 @@
     autocompleteActiveIndex = 0;
   }
 
-  const autocompleteNavigationKeymap = Prec.highest(keymap.of([
-    {
-      key: "ArrowDown",
-      run: () => {
-        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
-        autocompleteActiveIndex = (autocompleteActiveIndex + 1) % autocompleteEntries.length;
-        return true;
+  const autocompleteNavigationKeymap = Prec.highest(
+    keymap.of([
+      {
+        key: "ArrowDown",
+        run: () => {
+          if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+          autocompleteActiveIndex = (autocompleteActiveIndex + 1) % autocompleteEntries.length;
+          return true;
+        }
+      },
+      {
+        key: "ArrowUp",
+        run: () => {
+          if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+          autocompleteActiveIndex =
+            (autocompleteActiveIndex - 1 + autocompleteEntries.length) % autocompleteEntries.length;
+          return true;
+        }
+      },
+      {
+        key: "Enter",
+        run: () => {
+          if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+          const entry = autocompleteEntries[autocompleteActiveIndex];
+          if (!entry) return false;
+          applyAutocompleteEntry(entry);
+          return true;
+        }
+      },
+      {
+        key: "Tab",
+        run: () => {
+          if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+          const entry = autocompleteEntries[autocompleteActiveIndex];
+          if (!entry) return false;
+          applyAutocompleteEntry(entry);
+          return true;
+        }
+      },
+      {
+        key: "Escape",
+        run: () => {
+          if (!autocompleteOpen) return false;
+          autocompleteOpen = false;
+          return true;
+        }
       }
-    },
-    {
-      key: "ArrowUp",
-      run: () => {
-        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
-        autocompleteActiveIndex =
-          (autocompleteActiveIndex - 1 + autocompleteEntries.length) % autocompleteEntries.length;
-        return true;
-      }
-    },
-    {
-      key: "Enter",
-      run: () => {
-        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
-        const entry = autocompleteEntries[autocompleteActiveIndex];
-        if (!entry) return false;
-        applyAutocompleteEntry(entry);
-        return true;
-      }
-    },
-    {
-      key: "Tab",
-      run: () => {
-        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
-        const entry = autocompleteEntries[autocompleteActiveIndex];
-        if (!entry) return false;
-        applyAutocompleteEntry(entry);
-        return true;
-      }
-    },
-    {
-      key: "Escape",
-      run: () => {
-        if (!autocompleteOpen) return false;
-        autocompleteOpen = false;
-        return true;
-      }
-    }
-  ]));
+    ])
+  );
 
   // --- Lifecycle ---
   onMount(() => {
@@ -222,6 +230,7 @@
       languageCompartment.of(getLangExtension()),
       syntaxHighlighting(customHighlightStyle),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      createTokenizedEditorTheme(),
       appTheme,
       // --- edit-only extensions ---
       ...(!readOnly
@@ -279,20 +288,16 @@
 
   // Token highlighter — only used in edit mode
   const tokenHighlightPlugin = createEnvTokenDecorationPlugin({
-    tokenClassName: "cm-solo-token",
+    tokenClassName: "cm-env-token",
     onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
     onTokenMouseOut: () => hideTokenTooltipDelay()
   });
 
   const appTheme = EditorView.theme({
     "&": {
-      height: "100%",
-      fontSize: "0.875rem"
+      height: "100%"
     },
     ".cm-foldGutter .cm-gutterElement": {
-      cursor: "pointer"
-    },
-    ".cm-solo-token": {
       cursor: "pointer"
     }
   });
@@ -321,7 +326,7 @@
   });
 </script>
 
-<div class="relative h-full">
+<div class="relative h-full {sizeClass}">
   <div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>
 
   <EnvAutocompletePopover

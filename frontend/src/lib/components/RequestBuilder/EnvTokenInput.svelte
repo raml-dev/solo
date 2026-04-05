@@ -15,8 +15,10 @@
     clampActiveIndex,
     createEnvTokenDecorationPlugin,
     createEnvTokenSnippet,
+    createTokenizedEditorTheme,
     filterEnvTokenEntries,
     findEnvTokenTriggerContext,
+    getTokenizedEditorSizeClass,
     normalizeEnvironmentTokenEntries
   } from "$src/lib/utils/tokens";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -70,11 +72,7 @@
   let environmentEntries = $derived(normalizeEnvironmentTokenEntries(selectedEnvironment?.values));
 
   let sizeClass = $derived(
-    size === "sm"
-      ? "text-xs leading-4 px-2 py-1"
-      : size === "lg"
-        ? "sm:text-base leading-6 px-3 py-3"
-        : "text-sm leading-5 px-2.5 py-2.5"
+    `${getTokenizedEditorSizeClass(size)} ${size === "sm" ? "px-2 py-1" : size === "lg" ? "px-3 py-3" : "px-2.5 py-2.5"}`
   );
 
   let shellClass = $derived(
@@ -210,28 +208,7 @@
       keymap.of([...historyKeymap, ...defaultKeymap]),
       history(),
       tokenDecorator,
-      EditorView.theme({
-        "&": {
-          background: "transparent",
-          font: "inherit"
-        },
-        ".cm-scroller": {
-          font: "inherit",
-          lineHeight: "inherit",
-          overflowX: "auto",
-          overflowY: "hidden"
-        },
-        ".cm-content": {
-          padding: "0",
-          fontFamily: "inherit"
-        },
-        ".cm-line": {
-          padding: "0"
-        },
-        "&.cm-focused": {
-          outline: "none"
-        }
-      }),
+      createTokenizedEditorTheme({ singleLine: true }),
       EditorView.updateListener.of((update) => {
         if (
           update.docChanged &&
@@ -347,7 +324,6 @@
   }
 
   :global(.env-token-input-editor .cm-content) {
-    caret-color: var(--color-neutral-900);
     font-family: inherit;
     line-height: inherit;
     width: 100%;
@@ -365,21 +341,5 @@
     margin: 0;
     width: 100%;
     background: transparent !important;
-  }
-
-  :global(.dark .env-token-input-editor .cm-content) {
-    caret-color: var(--color-neutral-100);
-  }
-
-  :global(.env-token-input-editor .cm-env-token) {
-    cursor: pointer;
-    border-radius: 0.25rem;
-    background: var(--color-primary-100);
-    color: var(--color-primary-700);
-  }
-
-  :global(.dark .env-token-input-editor .cm-env-token) {
-    background: var(--color-primary-900);
-    color: var(--color-primary-300);
   }
 </style>
