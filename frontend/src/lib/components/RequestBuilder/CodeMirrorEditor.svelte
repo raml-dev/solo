@@ -4,6 +4,12 @@
 -->
 
 <script lang="ts">
+  import {
+    createEnvTokenDecorationPlugin,
+    createEnvTokenSnippet,
+    filterEnvTokenEntries,
+    findEnvTokenTriggerContext
+  } from "$src/lib/utils/tokens";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import {
     autocompletion,
@@ -25,14 +31,11 @@
   import { lua } from "@codemirror/legacy-modes/mode/lua";
   import { Annotation, Compartment, EditorState } from "@codemirror/state";
   import {
-    Decoration,
     EditorView,
     highlightActiveLine,
     highlightActiveLineGutter,
     keymap,
-    lineNumbers,
-    ViewPlugin,
-    type DecorationSet
+    lineNumbers
   } from "@codemirror/view";
   import { tags } from "@lezer/highlight";
   import { indentationMarkers } from "@replit/codemirror-indentation-markers";
@@ -135,68 +138,38 @@
   ]);
 
   // Token highlighter — only used in edit mode
-  const tokenHighlightPlugin = ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
-      constructor(v: EditorView) {
-        this.decorations = this.build(v);
-      }
-      update(u: { view: EditorView; docChanged: boolean }) {
-        if (u.docChanged) this.decorations = this.build(u.view);
-      }
-      build(v: EditorView) {
-        const builder: import("@codemirror/state").Range<Decoration>[] = [];
-        const re = /\{\{([^{}\r\n]+?)\}\}/g;
-        for (const { from, to } of v.visibleRanges) {
-          const text = v.state.doc.sliceString(from, to);
-          for (const match of text.matchAll(re)) {
-            const start = from + match.index!;
-            const end = start + match[0].length;
-            builder.push(
-              Decoration.mark({
-                class: "cm-solo-token",
-                attributes: { "data-token-key": match[1].trim() }
-              }).range(start, end)
-            );
-          }
-        }
-        return Decoration.set(builder);
-      }
-    },
-    {
-      decorations: (v) => v.decorations,
-      eventHandlers: {
-        mouseover: (e) => {
-          const target = e.target as HTMLElement;
-          if (target.classList.contains("cm-solo-token")) {
-            const tokenKey = target.dataset.tokenKey;
-            if (tokenKey) {
-              const rect = target.getBoundingClientRect();
-              showTokenTooltip(tokenKey, rect.left, rect.bottom);
-            }
-          }
-        },
-        mouseout: (e) => {
-          const target = e.target as HTMLElement;
-          if (target.classList.contains("cm-solo-token")) hideTokenTooltipDelay();
-        },
-        mouseleave: () => hideTokenTooltipDelay()
-      }
-    }
-  );
+  const tokenHighlightPlugin = createEnvTokenDecorationPlugin({
+    tokenClassName: "cm-solo-token",
+    onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
+    onTokenMouseOut: () => hideTokenTooltipDelay()
+  });
 
   // Autocomplete for {{...}} — only used in edit mode
   function envCompletionSource(context: CompletionContext): CompletionResult | null {
-    const node = context.matchBefore(/\{\{([\w-]*)/);
-    if (!node) return null;
+    const triggerContext = findEnvTokenTriggerContext(context.state.doc.toString(), context.pos);
+    if (!triggerContext) return null;
+
+    const filteredEntries = filterEnvTokenEntries(
+      environmentEntries,
+      triggerContext.normalizedQuery
+    );
+
     return {
-      from: node.from + 2,
-      options: environmentEntries.map((e) => ({
-        label: e.key,
+      // Use query span (after "{{") as completion range so CodeMirror's
+      // internal filtering doesn't see the opening braces as prefix text.
+      from: triggerContext.from + 2,
+      to: triggerContext.to,
+      options: filteredEntries.map((entry) => ({
+        label: entry.key,
         type: "variable",
-        apply: (v, completion) => {
-          v.dispatch({
-            changes: { from: node!.from, to: context.pos, insert: `{{${completion.label}}}` }
+        apply: (view) => {
+          const inserted = createEnvTokenSnippet(entry.key);
+          view.dispatch({
+            changes: {
+              from: triggerContext.from,
+              to: triggerContext.to,
+              insert: inserted
+            }
           });
         }
       }))
@@ -243,7 +216,7 @@
       bind:success
       {value}
       size="sm"
-      class="absolute end-2 top-2 h-8 px-2.5 font-medium focus:ring-0"
+      class="absolute inset-e-2 top-2 h-8 px-2.5 font-medium focus:ring-0"
     >
       {#if success}
         <CheckOutline class="h-3 w-3" /> Copied
