@@ -4,19 +4,15 @@
 -->
 
 <script lang="ts">
+  import EnvAutocompletePopover from "$src/lib/components/RequestBuilder/EnvAutocompletePopover.svelte";
   import {
+    clampActiveIndex,
     createEnvTokenDecorationPlugin,
     createEnvTokenSnippet,
     filterEnvTokenEntries,
     findEnvTokenTriggerContext
   } from "$src/lib/utils/tokens";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
-  import {
-    autocompletion,
-    completionKeymap,
-    type CompletionContext,
-    type CompletionResult
-  } from "@codemirror/autocomplete";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { json } from "@codemirror/lang-json";
   import { xml } from "@codemirror/lang-xml";
@@ -29,7 +25,7 @@
     syntaxHighlighting
   } from "@codemirror/language";
   import { lua } from "@codemirror/legacy-modes/mode/lua";
-  import { Annotation, Compartment, EditorState } from "@codemirror/state";
+  import { Annotation, Compartment, EditorSelection, EditorState, Prec } from "@codemirror/state";
   import {
     EditorView,
     highlightActiveLine,
@@ -75,6 +71,145 @@
 
   let languageCompartment = new Compartment();
 
+  let autocompleteOpen = $state(false);
+  let autocompleteActiveIndex = $state(0);
+  let autocompleteEntries: { key: string; value: string }[] = $state([]);
+  let autocompleteLeft = $state(8);
+  let autocompleteTop = $state(8);
+  let autocompleteMaxWidth = $state(320);
+
+  let autocompletePopoverStyle = $derived(
+    `left: ${autocompleteLeft}px; top: ${autocompleteTop}px; min-width: 220px; max-width: ${autocompleteMaxWidth}px;`
+  );
+
+  function estimatePopoverHeight(entryCount: number): number {
+    if (entryCount <= 0) return 40;
+
+    // Mirror visual constraints from EnvAutocompletePopover:
+    // - max-h-56 list (~224px)
+    // - per-row button height roughly ~30px including spacing
+    const visibleRows = Math.min(entryCount, 7);
+    const estimatedRowsHeight = visibleRows * 30;
+    return Math.min(224, estimatedRowsHeight) + 16;
+  }
+
+  function updateAutocompletePosition(cursorPos: number, entryCount: number) {
+    if (!view || !editorEl) return;
+
+    const caretRect = view.coordsAtPos(cursorPos);
+    if (!caretRect) return;
+
+    const containerRect = editorEl.getBoundingClientRect();
+    const left = caretRect.left - containerRect.left;
+    const belowTop = caretRect.bottom - containerRect.top + 6;
+    const estimatedPopoverHeight = estimatePopoverHeight(entryCount);
+
+    const belowSpace = containerRect.height - belowTop - 8;
+    const aboveSpace = caretRect.top - containerRect.top - 8;
+
+    // Prefer below when there is enough room, or when below has more room than above.
+    const placeBelow = belowSpace >= estimatedPopoverHeight || belowSpace >= aboveSpace;
+
+    const aboveTop = caretRect.top - containerRect.top - estimatedPopoverHeight - 6;
+    const top = placeBelow ? belowTop : aboveTop;
+
+    autocompleteLeft = Math.max(8, Math.min(left, Math.max(8, containerRect.width - 240)));
+    autocompleteTop = Math.max(8, top);
+    autocompleteMaxWidth = Math.max(220, containerRect.width - 16);
+  }
+
+  function refreshAutocomplete(state: EditorState) {
+    if (readOnly) {
+      autocompleteOpen = false;
+      return;
+    }
+
+    const triggerContext = findEnvTokenTriggerContext(
+      state.doc.toString(),
+      state.selection.main.head
+    );
+    if (!triggerContext) {
+      autocompleteOpen = false;
+      autocompleteEntries = [];
+      autocompleteActiveIndex = 0;
+      return;
+    }
+
+    const normalizedQuery = triggerContext.normalizedQuery;
+    autocompleteEntries = filterEnvTokenEntries(environmentEntries, normalizedQuery);
+    autocompleteActiveIndex = clampActiveIndex(autocompleteActiveIndex, autocompleteEntries.length);
+    autocompleteOpen = true;
+    updateAutocompletePosition(triggerContext.to, autocompleteEntries.length);
+  }
+
+  function applyAutocompleteEntry(entry: { key: string; value: string }) {
+    if (!view) return;
+
+    const triggerContext = findEnvTokenTriggerContext(
+      view.state.doc.toString(),
+      view.state.selection.main.head
+    );
+    if (!triggerContext) return;
+
+    const inserted = createEnvTokenSnippet(entry.key);
+    view.dispatch({
+      changes: { from: triggerContext.from, to: triggerContext.to, insert: inserted },
+      selection: EditorSelection.cursor(triggerContext.from + inserted.length)
+    });
+
+    autocompleteOpen = false;
+    autocompleteEntries = [];
+    autocompleteActiveIndex = 0;
+  }
+
+  const autocompleteNavigationKeymap = Prec.highest(keymap.of([
+    {
+      key: "ArrowDown",
+      run: () => {
+        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+        autocompleteActiveIndex = (autocompleteActiveIndex + 1) % autocompleteEntries.length;
+        return true;
+      }
+    },
+    {
+      key: "ArrowUp",
+      run: () => {
+        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+        autocompleteActiveIndex =
+          (autocompleteActiveIndex - 1 + autocompleteEntries.length) % autocompleteEntries.length;
+        return true;
+      }
+    },
+    {
+      key: "Enter",
+      run: () => {
+        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+        const entry = autocompleteEntries[autocompleteActiveIndex];
+        if (!entry) return false;
+        applyAutocompleteEntry(entry);
+        return true;
+      }
+    },
+    {
+      key: "Tab",
+      run: () => {
+        if (!autocompleteOpen || autocompleteEntries.length === 0) return false;
+        const entry = autocompleteEntries[autocompleteActiveIndex];
+        if (!entry) return false;
+        applyAutocompleteEntry(entry);
+        return true;
+      }
+    },
+    {
+      key: "Escape",
+      run: () => {
+        if (!autocompleteOpen) return false;
+        autocompleteOpen = false;
+        return true;
+      }
+    }
+  ]));
+
   // --- Lifecycle ---
   onMount(() => {
     const extensions = [
@@ -92,8 +227,8 @@
       ...(!readOnly
         ? [
             history(),
-            keymap.of([...historyKeymap, ...completionKeymap]),
-            autocompletion({ override: [envCompletionSource] }),
+            autocompleteNavigationKeymap,
+            keymap.of([...historyKeymap]),
             tokenHighlightPlugin,
             EditorView.updateListener.of((update) => {
               if (
@@ -101,6 +236,10 @@
                 !update.transactions.some((tr) => tr.annotation(externalUpdate))
               ) {
                 onChange?.(update.state.doc.toString());
+              }
+
+              if (update.docChanged || update.selectionSet) {
+                refreshAutocomplete(update.state);
               }
             })
           ]
@@ -113,6 +252,7 @@
     });
 
     view = new EditorView({ state, parent: editorEl });
+    refreshAutocomplete(state);
 
     return () => view?.destroy();
   });
@@ -144,38 +284,6 @@
     onTokenMouseOut: () => hideTokenTooltipDelay()
   });
 
-  // Autocomplete for {{...}} — only used in edit mode
-  function envCompletionSource(context: CompletionContext): CompletionResult | null {
-    const triggerContext = findEnvTokenTriggerContext(context.state.doc.toString(), context.pos);
-    if (!triggerContext) return null;
-
-    const filteredEntries = filterEnvTokenEntries(
-      environmentEntries,
-      triggerContext.normalizedQuery
-    );
-
-    return {
-      // Use query span (after "{{") as completion range so CodeMirror's
-      // internal filtering doesn't see the opening braces as prefix text.
-      from: triggerContext.from + 2,
-      to: triggerContext.to,
-      options: filteredEntries.map((entry) => ({
-        label: entry.key,
-        type: "variable",
-        apply: (view) => {
-          const inserted = createEnvTokenSnippet(entry.key);
-          view.dispatch({
-            changes: {
-              from: triggerContext.from,
-              to: triggerContext.to,
-              insert: inserted
-            }
-          });
-        }
-      }))
-    };
-  }
-
   const appTheme = EditorView.theme({
     "&": {
       height: "100%",
@@ -206,10 +314,27 @@
       });
     }
   });
+
+  $effect(() => {
+    if (!view) return;
+    refreshAutocomplete(view.state);
+  });
 </script>
 
 <div class="relative h-full">
   <div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>
+
+  <EnvAutocompletePopover
+    open={autocompleteOpen}
+    entries={autocompleteEntries}
+    activeIndex={autocompleteActiveIndex}
+    class="absolute z-20"
+    style={autocompletePopoverStyle}
+    onHoverIndex={(index) => (autocompleteActiveIndex = index)}
+    onSelect={(entry) => applyAutocompleteEntry(entry)}
+    onRequestClose={() => (autocompleteOpen = false)}
+  />
+
   {#if showCopyPaste}
     <Clipboard
       color={success ? "alternative" : "light"}
