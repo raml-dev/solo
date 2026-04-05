@@ -38,6 +38,8 @@ export interface EnvironmentTokenValueLike {
   type?: unknown;
 }
 
+export type EnvTokenStatus = "known" | "unknown" | "session";
+
 export function getTokenizedEditorSizeClass(size: TokenizedEditorSize = "md"): string {
   return size === "sm"
     ? "text-xs leading-4"
@@ -60,6 +62,7 @@ export function normalizeEnvironmentTokenEntries(
 
 interface EnvTokenDecorationPluginOptions {
   tokenClassName: string;
+  resolveTokenStatus?: (tokenKey: string) => EnvTokenStatus;
   onTokenMouseOver?: (tokenKey: string, rect: DOMRect) => void;
   onTokenMouseOut?: () => void;
 }
@@ -151,7 +154,7 @@ export function createTokenizedEditorTheme(options: TokenizedEditorThemeOptions 
 }
 
 export function createEnvTokenDecorationPlugin(options: EnvTokenDecorationPluginOptions) {
-  const { tokenClassName, onTokenMouseOver, onTokenMouseOut } = options;
+  const { tokenClassName, resolveTokenStatus, onTokenMouseOver, onTokenMouseOut } = options;
   const tokenSelector = `.${tokenClassName}`;
 
   return ViewPlugin.fromClass(
@@ -171,9 +174,12 @@ export function createEnvTokenDecorationPlugin(options: EnvTokenDecorationPlugin
         const text = v.state.doc.toString();
 
         for (const match of extractEnvTokenMatches(text)) {
+          const status = resolveTokenStatus?.(match.key) ?? "known";
+          const tokenStatusClass = `${tokenClassName}--${status}`;
+
           builder.push(
             Decoration.mark({
-              class: tokenClassName,
+              class: `${tokenClassName} ${tokenStatusClass}`,
               attributes: { "data-token-key": match.key }
             }).range(match.from, match.to)
           );
