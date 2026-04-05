@@ -8,6 +8,7 @@
   import Button from "flowbite-svelte/Button.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
+  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
 
   interface Props {
     preRequestScript?: string;
@@ -77,10 +78,11 @@
           <Button
             color="light"
             size="xs"
+            class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
             onclick={() => sessionVarsStore.clear()}
             title="Clear all session variables"
           >
-            Clear
+            <TrashBinOutline class="shrink-0 h-4 w-4" />
           </Button>
         {/if}
       </div>
