@@ -4,15 +4,15 @@
 -->
 
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
+  import { getMethodBadgeClass } from "$src/lib/utils/http";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
-  import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { onDestroy } from "svelte";
-  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
 
   let tabs = $derived(tabStoreState.tabs);
   let activeTabId = $derived(getActiveTab().id);
@@ -167,7 +167,7 @@
     <Button
       color="light"
       size="xs"
-      class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+      class="h-8 shrink-0 border-none hover:bg-neutral-200 bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
       onclick={() => tabStore.makeEmptyTab()}
       title="New request"
       aria-label="New request"

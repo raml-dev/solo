@@ -10,7 +10,7 @@
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
-  import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
+  import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
@@ -35,9 +35,10 @@
   import { collection } from "$wails/go/models";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
-  import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
   import CloseSidebarSolid from "flowbite-svelte-icons/CloseSidebarSolid.svelte";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
+  import FileImportSolid from "flowbite-svelte-icons/FileImportSolid.svelte";
+  import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
@@ -1025,11 +1026,21 @@
           </h3>
         {/if}
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1">
         {#if !isCollapsed}
-          <Button color="light" size="xs" onclick={openImportModal}>Import</Button>
-          <Button color="primary" size="xs" onclick={() => (newCollectionModal.open = true)}>
-            New
+          <Button
+            color="light"
+            class="shrink-0 text-neutral-800 hover:text-neutral-800 dark:text-neutral-100 dark:hover:text-neutral-100 border-none bg-transparent p-1 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+            size="xs"
+            onclick={openImportModal}><FileImportSolid class="h-4 w-4 shrink-0" />Import</Button
+          >
+          <Button
+            color="primary"
+            class="shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none"
+            size="xs"
+            onclick={() => (newCollectionModal.open = true)}
+          >
+            <PlusOutline class="h-4 w-4 shrink-0" />New
           </Button>
         {/if}
       </div>
