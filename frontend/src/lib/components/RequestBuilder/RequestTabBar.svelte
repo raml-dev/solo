@@ -167,7 +167,7 @@
     <Button
       color="light"
       size="xs"
-      class="h-8 shrink-0 border-none hover:bg-neutral-200 bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+      class="h-8 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
       onclick={() => tabStore.makeEmptyTab()}
       title="New request"
       aria-label="New request"
