@@ -37,10 +37,10 @@
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
   import CloseSidebarSolid from "flowbite-svelte-icons/CloseSidebarSolid.svelte";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
-  import FileImportSolid from "flowbite-svelte-icons/FileImportSolid.svelte";
   import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
   import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
@@ -104,6 +104,7 @@
   let requestContextMenuY = $state(0);
   let requestContextMenuOpenKey = $state(0);
   let isRequestContextMenuOpen = $state(false);
+  let isImportMenuOpen = $state(false);
 
   let collectionContextMenuCollectionId: string | null = $state(null);
   let collectionContextMenuX = $state(0);
@@ -413,6 +414,10 @@
 
   function handleRequestDragEnd() {
     resetRequestDragState();
+  }
+
+  function closeImportMenu() {
+    isImportMenuOpen = false;
   }
 
   function closeRequestContextMenu() {
@@ -994,6 +999,20 @@
   </Dropdown>
 {/snippet}
 
+{#snippet importDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-50" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        openImportModal();
+        onClose();
+      }}
+    >
+      Import collection...
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
+
 <div
   class="relative flex h-full {!isCollapsed &&
     'min-w-sidebar'} shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
@@ -1029,20 +1048,24 @@
       </div>
       <div class="flex items-center gap-1">
         {#if !isCollapsed}
-          <Button
-            color="light"
-            class="shrink-0 text-neutral-800 hover:text-neutral-800 dark:text-neutral-100 dark:hover:text-neutral-100 border-none bg-transparent p-1 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
-            size="xs"
-            onclick={openImportModal}><FileImportSolid class="h-4 w-4 shrink-0" />Import</Button
-          >
-          <Button
-            color="primary"
-            class="shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none"
-            size="xs"
-            onclick={() => (newCollectionModal.open = true)}
-          >
-            <PlusOutline class="h-4 w-4 shrink-0" />New
-          </Button>
+          <ButtonGroup>
+            <Button
+              color="primary"
+              class="shrink-0 cursor-pointer border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none"
+              size="xs"
+              onclick={() => (newCollectionModal.open = true)}
+              >New
+            </Button>
+            <Button
+              color="primary"
+              class="w-0.5 shrink-0 cursor-pointer border-l px-2.5 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-l-primary-900"
+              size="xs"
+              id="import-dropdown-button"
+              onclick={() => (isImportMenuOpen = true)}
+              ><AngleDownOutline class="w-4 shrink-0" /></Button
+            >
+          </ButtonGroup>
+          {@render importDropdown("#import-dropdown-button", isImportMenuOpen, closeImportMenu)}
         {/if}
       </div>
     </div>
@@ -1102,6 +1125,12 @@
 
               <div class="min-w-0 flex-1">
                 <div class="flex cursor-pointer items-center gap-2">
+                  <span
+                    class="w-6 rounded bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+                  >
+                    {collection.requests?.length || 0}
+                  </span>
+
                   {#if collection.gitRemote}
                     <svg
                       width="12"
@@ -1118,11 +1147,6 @@
                   {/if}
                   <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
                     {collection.name}
-                  </span>
-                  <span
-                    class="rounded bg-neutral-200 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
-                  >
-                    {collection.requests?.length || 0}
                   </span>
                 </div>
               </div>
