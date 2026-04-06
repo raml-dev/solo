@@ -260,7 +260,7 @@
 
 <svelte:window onclick={closeActiveMenu} />
 
-<div class="flex h-full overflow-hidden">
+<div class="flex h-full">
   <div class="flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-700">
     <div
       class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 p-3 dark:border-neutral-700"
