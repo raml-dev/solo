@@ -37,6 +37,7 @@
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
+  import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
@@ -529,26 +530,33 @@
 
       {#if requestPaneTab === "Body"}
         <div class="ml-auto flex items-center gap-1 px-2">
-          {#if tab.bodyFormat !== "none"}
-            <Button
-              color="light"
-              size="xs"
-              title="Prettify / Format body"
-              onclick={formatBody}
-              disabled={tab.bodyFormat === "text"}
-            >
-              Beautify
-            </Button>
-            <span class="text-neutral-300 dark:text-neutral-600">|</span>
-          {/if}
-          <Select
-            bind:value={tab.bodyFormat}
-            items={bodyFormatOptions}
-            placeholder=""
-            size="sm"
-            underline
-            onchange={() => handleBodyFormatChange(tab.bodyFormat)}
-          />
+          <Label class="mr-1">Body type:</Label>
+          <ButtonGroup>
+            <Select
+              bind:value={tab.bodyFormat}
+              items={bodyFormatOptions}
+              placeholder=""
+              size="sm"
+              class="w-20 shrink-0 border-none bg-transparent text-neutral-800 focus-within:outline-hidden  hover:bg-neutral-200 hover:text-neutral-800 dark:bg-transparent  dark:text-neutral-300 dark:hover:bg-gray-700 dark:hover:text-neutral-100"
+              classes={{
+                select:
+                  "bg-transparent dark:bg-transparent border-none focus:outline-none dark:text-neutral-100 dark:hover:text-neutral-100"
+              }}
+              onchange={() => handleBodyFormatChange(tab.bodyFormat)}
+            />
+            {#if tab.bodyFormat !== "none"}
+              <Button
+                color="light"
+                class="shrink-0 border-none bg-transparent text-neutral-800 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 hover:text-neutral-800 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent dark:text-neutral-100 dark:hover:text-neutral-100"
+                size="xs"
+                title="Prettify / Format body"
+                onclick={formatBody}
+                disabled={tab.bodyFormat === "text"}
+              >
+                Beautify
+              </Button>
+            {/if}
+          </ButtonGroup>
         </div>
       {/if}
     </div>
