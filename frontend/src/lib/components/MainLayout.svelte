@@ -68,7 +68,12 @@
 </div>
 
 {#if environmentManagerModal.open}
-  <Modal bind:open={environmentManagerModal.open} fullscreen size="none">
+  <Modal
+    bind:open={environmentManagerModal.open}
+    classes={{ body: "h-full overflow-y-auto" }}
+    fullscreen
+    size="none"
+  >
     {#if $topModalId === environmentManagerModal.id}
       <ToastContainer />
     {/if}
