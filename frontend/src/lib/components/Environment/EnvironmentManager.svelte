@@ -30,7 +30,11 @@
     SyncGitEnvironment
   } from "$wails/go/main/App";
   import { environment } from "$wails/go/models";
+  import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
@@ -50,6 +54,7 @@
   let syncingEnvironments: Set<string> = $state(new Set());
   let gitStatusEnvId: string | null = $state(null);
   let gitStatusEnvName: string | null = $state(null);
+  let isImportMenuOpen = $state(false);
 
   const importEnvironmentModal = modalStack.createModal("environment-manager-import");
   const overwriteEnvironmentModal = modalStack.createModal("environment-manager-overwrite");
@@ -180,6 +185,10 @@
     importEnvironmentModal.open = true;
   }
 
+  function closeImportMenu() {
+    isImportMenuOpen = false;
+  }
+
   function parseExistingNameFromError(message: string): string | null {
     const match = message.match(/environment\s+([^\s]+)\s+already exists/i);
     return match ? match[1] : null;
@@ -258,48 +267,77 @@
   }
 </script>
 
+{#snippet importDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-50" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        openImportModal();
+        onClose();
+      }}
+    >
+      Import environment...
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
+
 <svelte:window onclick={closeActiveMenu} />
 
 <div class="flex h-full">
   <div class="flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-700">
     <div
-      class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 p-3 dark:border-neutral-700"
+      class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 pr-4 pb-3 md:pr-5 dark:border-neutral-700"
     >
-      <Button color="light" size="sm" onclick={openImportModal}>Import</Button>
-      <Button color="primary" size="sm" onclick={() => (showNewEnvironmentDialog = true)}>
-        New
-      </Button>
+      <ButtonGroup>
+        <Button
+          color="primary"
+          class="shrink-0 cursor-pointer border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none"
+          size="xs"
+          onclick={() => (showNewEnvironmentDialog = true)}
+          >New
+        </Button>
+        <Button
+          color="primary"
+          class="w-0.5 shrink-0 cursor-pointer border-l px-2.5 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-l-primary-900"
+          size="xs"
+          id="import-env-dropdown-button"
+          onclick={() => (isImportMenuOpen = true)}
+          ><AngleDownOutline class="w-4 shrink-0" /></Button
+        >
+      </ButtonGroup>
+      {@render importDropdown("#import-env-dropdown-button", isImportMenuOpen, closeImportMenu)}
     </div>
 
     {#if environmentStoreState.loading}
       <div class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-400">
         Loading environments...
       </div>
-    {/if}
-
-    <div class="flex-1 overflow-y-auto">
-      {#each environments as environment (environment.id)}
-        <EnvironmentItem
-          env={environment}
-          menuOpen={activeMenu === environment.name}
-          isActive={environment.name === environmentStoreState.selectedEnvironmentName}
-          isFocused={environment.name === focusedEnvironmentName}
-          isSyncing={syncingEnvironments.has(environment.id)}
-          onOpen={openEnvironment}
-          onActivate={activateEnvironment}
-          onDelete={handleDeleteEnvironment}
-          onExport={handleExportEnvironment}
-          onToggleMenu={toggleMenu}
-          onSync={handleSync}
-          onGitStatus={handleGitStatus}
+    {:else if environments.length > 0}
+      <div class="flex-1 overflow-y-auto pt-3 pr-4 md:pr-5">
+        {#each environments as environment (environment.id)}
+          <EnvironmentItem
+            env={environment}
+            menuOpen={activeMenu === environment.name}
+            isActive={environment.name === environmentStoreState.selectedEnvironmentName}
+            isFocused={environment.name === focusedEnvironmentName}
+            isSyncing={syncingEnvironments.has(environment.id)}
+            onOpen={openEnvironment}
+            onActivate={activateEnvironment}
+            onDelete={handleDeleteEnvironment}
+            onExport={handleExportEnvironment}
+            onToggleMenu={toggleMenu}
+            onSync={handleSync}
+            onGitStatus={handleGitStatus}
+          />
+        {/each}
+      </div>
+    {:else}
+      <div class="pt-3 pr-4 md:pr-5">
+        <FeedbackEmptyState
+          title="No environments yet"
+          detail="Create your first environment to get started"
         />
-      {/each}
-    </div>
-    {#if environments.length === 0 && !environmentStoreState.loading}
-      <FeedbackEmptyState
-        title="No environments yet"
-        detail="Create your first environment to get started"
-      />
+      </div>
     {/if}
   </div>
   <div class="min-w-0 flex-1 overflow-y-auto p-4">
