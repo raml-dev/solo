@@ -446,22 +446,22 @@
           <Button
             color="light"
             size="xs"
-            class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+            class="h-8 hover:bg-neutral-200 text-neutral-800 hover:text-neutral-800 dark:text-neutral-100 dark:hover:text-neutral-100 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
             onclick={handleSave}
             title="Save Request (Ctrl+S)"
             aria-label="Save Request"
           >
-            <FloppyDiskSolid class="h-4 w-4 shrink-0 m-1" /><span>Save</span>
+            <FloppyDiskSolid class="m-1 h-4 w-4 shrink-0" /><span>Save</span>
           </Button>
         {/if}
         <Button
           color="light"
-          class="g-transparent h-8 shrink-0 border-none inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+          class="h-8 hover:bg-neutral-200 text-neutral-800 hover:text-neutral-800 dark:text-neutral-100 dark:hover:text-neutral-100 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
           size="xs"
           title="Export as cURL"
           onclick={handleExportCurl}
         >
-          <FileExportSolid class="h-4 w-4 shrink-0 m-1" /><span>Export</span>
+          <FileExportSolid class="m-1 h-4 w-4 shrink-0" /><span>Export</span>
         </Button>
       </div>
     </div>
