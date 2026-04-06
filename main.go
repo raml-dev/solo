@@ -39,6 +39,9 @@ func getLogPath() string {
 
 func main() {
 
+	// Create an instance of the app structure
+	app := NewApp()
+
 	logWriter := &lumberjack.Logger{
 		Filename:   getLogPath(),
 		MaxSize:    10, // megabytes
@@ -52,10 +55,14 @@ func main() {
 			Level: programLevel,
 		}))
 
-	slog.SetDefault(logger)
+	mainVersion := "dev"
+	if app.GetAppInfo().ProductVersion != "" {
+		mainVersion = app.GetAppInfo().ProductVersion
+	}
 
-	// Create an instance of the app structure
-	app := NewApp()
+	logger = logger.With("version", mainVersion)
+
+	slog.SetDefault(logger)
 
 	// Create application with options
 	err := wails.Run(&options.App{
