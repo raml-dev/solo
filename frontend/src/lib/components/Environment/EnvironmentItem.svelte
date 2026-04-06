@@ -4,8 +4,9 @@
 -->
 
 <script lang="ts">
-  import Button from "flowbite-svelte/Button.svelte";
   import type { environment } from "$wails/go/models";
+  import { Radio } from "flowbite-svelte";
+  import Button from "flowbite-svelte/Button.svelte";
 
   interface Props {
     env: environment.Environment;
@@ -94,7 +95,7 @@
     checked={isActive}
     onchange={activateEnvironment}
     aria-label={`Set ${env.name} as active environment`}
-    class="shrink-0 accent-primary-600"
+    class="relative mr-2 flex h-4 w-4 shrink-0 items-center border-gray-300 bg-gray-100 text-primary-600 dark:border-gray-600 dark:bg-gray-700 "
   />
   {#if env.gitRemote}
     <svg
