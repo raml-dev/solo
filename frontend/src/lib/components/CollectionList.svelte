@@ -995,7 +995,8 @@
 {/snippet}
 
 <div
-  class="relative flex h-full shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
+  class="relative flex h-full {!isCollapsed &&
+    'min-w-sidebar'} shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
   class:collapsed={isCollapsed}
   style={`width: ${isCollapsed ? "auto" : sidebarWidth + "px"};`}
 >
