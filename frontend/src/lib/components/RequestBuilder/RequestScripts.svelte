@@ -78,7 +78,7 @@
           <Button
             color="light"
             size="xs"
-            class="h-8 text-neutral-800 hover:text-neutral-800 dark:text-neutral-100 dark:hover:text-neutral-100 shrink-0 border-none bg-transparent hover:bg-neutral-200 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+            class="h-8 shrink-0 border-none bg-transparent text-neutral-800 inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 hover:text-neutral-800 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent dark:text-neutral-100 dark:hover:text-neutral-100"
             onclick={() => sessionVarsStore.clear()}
             title="Clear all session variables"
           >
