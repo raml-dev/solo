@@ -39,6 +39,7 @@
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
   import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
+  import SearchOutline from "flowbite-svelte-icons/SearchOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
@@ -1074,13 +1075,17 @@
       <div class="mt-2 flex items-center gap-2">
         <Input
           size="sm"
-          class="flex-1"
+          class="flex-1 ps-8"
           type="text"
           clearable
           classes={{ svg: "h-3 w-3" }}
           placeholder="Search collections or requests"
           bind:value={searchQuery}
-        />
+        >
+          {#snippet left()}
+            <SearchOutline class="h-4 w-4" />
+          {/snippet}
+        </Input>
       </div>
     {/if}
   </div>
