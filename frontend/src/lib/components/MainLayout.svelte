@@ -4,12 +4,13 @@
 -->
 
 <script lang="ts">
-  import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "flowbite-svelte/Modal.svelte";
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
   import { onDestroy } from "svelte";
 
   interface Props {
@@ -51,8 +52,10 @@
     </div>
     <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
-      <Button size="xs" color="light" onclick={toggleEnvironmentManager}>Environments</Button>
-      <Button size="xs" color="light" onclick={toggleMainConfiguration}>Settings</Button>
+      <ButtonGroup class="h-8">
+        <Button size="xs" color="light" onclick={toggleEnvironmentManager}>Environments</Button>
+        <Button size="xs" color="light" onclick={toggleMainConfiguration}>Settings</Button>
+      </ButtonGroup>
     </div>
   </nav>
 
