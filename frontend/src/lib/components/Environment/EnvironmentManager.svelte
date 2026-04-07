@@ -4,7 +4,6 @@
 -->
 
 <script lang="ts">
-  import DropZone from "$src/lib/components/base/DropZone.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import EnvironmentEditor from "$src/lib/components/Environment/EnvironmentEditor.svelte";
@@ -12,6 +11,7 @@
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
+  import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -38,14 +38,46 @@
   import Modal from "flowbite-svelte/Modal.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
+  import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import { onDestroy } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
+
+  type EnvironmentLocalImportFormat = "postman" | "bruno" | "solo";
+
+  const ENVIRONMENT_LOCAL_IMPORT_FORMATS: LocalImportFormatOption<EnvironmentLocalImportFormat>[] =
+    [
+      {
+        key: "postman",
+        label: "Postman",
+        dropTitle: "Drop your Postman environment here",
+        dropSubtitle: "Supports Postman Environment JSON",
+        pickerButtonLabel: "Select file…",
+        icon: "upload"
+      },
+      {
+        key: "bruno",
+        label: "Bruno",
+        dropTitle: "Drop your Bruno environment here",
+        dropSubtitle: "Supports Bruno environment .bru files",
+        pickerButtonLabel: "Select file…",
+        icon: "folder"
+      },
+      {
+        key: "solo",
+        label: "solo",
+        dropTitle: "Drop your solo environment here",
+        dropSubtitle: "Supports solo environment JSON",
+        pickerButtonLabel: "Select file…",
+        icon: "upload"
+      }
+    ];
 
   let showNewEnvironmentDialog = $state(false);
   let showDeleteConfirmDialog = $state(false);
   let deleteTarget: string | null = $state(null);
   let activeMenu: string | null = $state(null);
-  let importActiveTab = $state("postman");
+  let importActiveTab = $state("local");
+  let localImportFormat = $state<EnvironmentLocalImportFormat>("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
   let pendingImport: { format: "postman" | "bruno" | "solo"; path: string } | null = null;
@@ -180,7 +212,8 @@
   }
 
   function openImportModal() {
-    importActiveTab = "postman";
+    importActiveTab = "local";
+    localImportFormat = "postman";
     gitImportActionState = null;
     importEnvironmentModal.open = true;
   }
@@ -241,12 +274,29 @@
     await executeImport("solo", filePath, false);
   }
 
-  async function handleSelectImportFormat(format: "postman" | "bruno" | "solo") {
+  async function handleLocalEnvironmentImport(format: EnvironmentLocalImportFormat, path?: string) {
     importEnvironmentModal.open = false;
+
     if (format === "postman") {
-      await handleImportPostman();
-    } else if (format === "bruno") {
-      await handleImportBruno();
+      if (path) {
+        await executeImport("postman", path, false);
+      } else {
+        await handleImportPostman();
+      }
+      return;
+    }
+
+    if (format === "bruno") {
+      if (path) {
+        await executeImport("bruno", path, false);
+      } else {
+        await handleImportBruno();
+      }
+      return;
+    }
+
+    if (path) {
+      await executeImport("solo", path, false);
     } else {
       await handleImportSolo();
     }
@@ -265,6 +315,10 @@
     overwriteTargetName = null;
     overwriteEnvironmentModal.open = false;
   }
+
+  let selectedLocalImportOption = $derived(
+    ENVIRONMENT_LOCAL_IMPORT_FORMATS.find((format) => format.key === localImportFormat)
+  );
 </script>
 
 {#snippet importDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
@@ -362,102 +416,12 @@
     {/if}
     <div class="flex flex-col gap-4">
       <Tabs bind:selected={importActiveTab}>
-        <TabItem key="postman" title="Postman">
-          <DropZone
-            title="Drop your Postman environment here"
-            subtitle="Supports Postman Environment JSON"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importEnvironmentModal.open = false;
-              if (paths.length > 0) {
-                await handleImportPostman(paths[0]);
-              } else {
-                await handleImportPostman();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            {/snippet}
-          </DropZone>
-        </TabItem>
-
-        <TabItem key="bruno" title="Bruno">
-          <DropZone
-            title="Drop your Bruno environment here"
-            subtitle="Supports Bruno environment .bru files"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importEnvironmentModal.open = false;
-              if (paths.length > 0) {
-                await handleImportBruno(paths[0]);
-              } else {
-                await handleImportBruno();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            {/snippet}
-          </DropZone>
-        </TabItem>
-
-        <TabItem key="solo" title="solo">
-          <DropZone
-            title="Drop your solo environment here"
-            subtitle="Supports solo environment JSON"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importEnvironmentModal.open = false;
-              if (paths.length > 0) {
-                await executeImport("solo", paths[0], false);
-              } else {
-                await handleImportSolo();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            {/snippet}
-          </DropZone>
+        <TabItem key="local" title="Local">
+          <LocalImportPane
+            formats={ENVIRONMENT_LOCAL_IMPORT_FORMATS}
+            bind:selectedFormat={localImportFormat}
+            onImport={handleLocalEnvironmentImport}
+          />
         </TabItem>
 
         <TabItem key="git" title="Git">
@@ -473,17 +437,9 @@
 
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">
-        {#if importActiveTab === "postman"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("postman")}
-            >Select file…</Button
-          >
-        {:else if importActiveTab === "bruno"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}
-            >Select file…</Button
-          >
-        {:else if importActiveTab === "solo"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("solo")}
-            >Select file…</Button
+        {#if importActiveTab === "local"}
+          <Button color="primary" onclick={() => handleLocalEnvironmentImport(localImportFormat)}
+            >{selectedLocalImportOption?.pickerButtonLabel || "Select file…"}</Button
           >
         {:else if importActiveTab === "git"}
           <Button
