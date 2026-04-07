@@ -63,7 +63,8 @@
     },
     multiSelect: {
       placeholder: "text-neutral-400 dark:text-neutral-400"
-    }
+    },
+    dropdown: "overflow-hidden!"
   };
 
   async function initializeApp() {
