@@ -60,6 +60,8 @@
   let autocompleteQuery = $state("");
   let autocompleteActiveIndex = $state(0);
   let autocompleteEntries: EnvEntry[] = $state([]);
+  let shouldUseMacOsLayoutNudge = $state(false);
+  let editorReady = $state(true);
 
   function sanitizeSingleLine(input: string): string {
     return (input ?? "").replace(/[\r\n]+/g, " ");
@@ -212,7 +214,49 @@
     }
   ]);
 
+  function isMacOs(): boolean {
+    const userAgentDataPlatform =
+      typeof navigator !== "undefined" && "userAgentData" in navigator
+        ? (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
+            ?.platform
+        : "";
+
+    const platform = navigator.platform || "";
+    const userAgent = navigator.userAgent || "";
+    const source = `${userAgentDataPlatform} ${platform} ${userAgent}`.toLowerCase();
+    return source.includes("mac");
+  }
+
+  function forceHorizontalNudgeRelayout() {
+    if (!view || !editorElement) {
+      editorReady = true;
+      return;
+    }
+
+    const previousWidth = editorElement.style.width;
+
+    // In WKWebView, this bug is often fixed only after a horizontal resize.
+    // Nudge width by a tiny amount and restore it on the next frame.
+    editorElement.style.width = "calc(100% - 0.01px)";
+    void editorElement.getBoundingClientRect();
+
+    requestAnimationFrame(() => {
+      if (!view || !editorElement) {
+        editorReady = true;
+        return;
+      }
+      editorElement.style.width = previousWidth || "";
+      void editorElement.getBoundingClientRect();
+      view.requestMeasure();
+      refreshAutocomplete(view.state);
+      editorReady = true;
+    });
+  }
+
   onMount(() => {
+    shouldUseMacOsLayoutNudge = isMacOs();
+    editorReady = !shouldUseMacOsLayoutNudge;
+
     const initialValue = sanitizeSingleLine(value);
     if (value !== initialValue) {
       value = initialValue;
@@ -261,7 +305,20 @@
 
     refreshAutocomplete(state);
 
+    let frame1 = 0;
+    let frame2 = 0;
+
+    if (shouldUseMacOsLayoutNudge) {
+      frame1 = requestAnimationFrame(() => {
+        frame2 = requestAnimationFrame(() => {
+          forceHorizontalNudgeRelayout();
+        });
+      });
+    }
+
     return () => {
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
       view?.destroy();
     };
   });
@@ -308,8 +365,18 @@
 </script>
 
 <div class="{shellClass} {className}" data-size={size}>
-  <div class="relative h-full w-full">
-    <div bind:this={editorElement} class="env-token-input-editor h-full w-full"></div>
+  <div class="relative w-full">
+    {#if shouldUseMacOsLayoutNudge && !editorReady}
+      <span class="invisible block select-none">M</span>
+    {/if}
+
+    <div
+      bind:this={editorElement}
+      class="env-token-input-editor w-full {shouldUseMacOsLayoutNudge && !editorReady
+        ? 'pointer-events-none absolute inset-0'
+        : ''}"
+      style={`visibility: ${shouldUseMacOsLayoutNudge && !editorReady ? "hidden" : "visible"}`}
+    ></div>
 
     {#if !value && placeholder}
       <div
