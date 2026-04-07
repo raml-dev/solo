@@ -7,9 +7,14 @@
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
+  import EditOutline from "flowbite-svelte-icons/EditOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import { onDestroy } from "svelte";
 
@@ -23,6 +28,13 @@
   let { title = "solo", navbar_actions, children, bottom_bar }: Props = $props();
   const environmentManagerModal = modalStack.createModal("layout-environments");
   const settingsModal = modalStack.createModal("layout-settings");
+  let isEnvDropdownOpen = $state(false);
+  let environments = $derived(environmentStoreState.environments);
+  let selectedEnvironmentName = $derived(environmentStoreState.selectedEnvironmentName);
+
+  function closeEnvDropdown() {
+    isEnvDropdownOpen = false;
+  }
 
   function toggleEnvironmentManager() {
     environmentManagerModal.open = !environmentManagerModal.open;
@@ -37,6 +49,57 @@
     modalStack.destroyModal(settingsModal.id);
   });
 </script>
+
+{#snippet envDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
+  <Dropdown
+    {triggeredBy}
+    {isOpen}
+    class="z-50 w-max max-w-72 min-w-40"
+    triggerDelay={0}
+    onclose={onClose}
+  >
+    {#each environments as environment (environment.id)}
+      <DropdownItem
+        class="text-gray-900 dark:text-white"
+        onclick={() => {
+          void environmentStore.selectEnvironment(environment.name);
+          onClose();
+        }}
+      >
+        <div class="flex items-center gap-2">
+          <div class="flex flex-1 items-center gap-2">
+            <input
+              type="radio"
+              name="active-environment"
+              checked={selectedEnvironmentName === environment.name}
+              onchange={() => {
+                void environmentStore.selectEnvironment(environment.name);
+                onClose();
+              }}
+              aria-label={`Set ${environment.name} as active environment`}
+              class="relative mr-2 flex h-4 w-4 shrink-0 items-center border-gray-300 bg-gray-100 text-primary-600 dark:border-gray-600 dark:bg-gray-700"
+            />
+            <span>{environment.name}</span>
+          </div>
+          <div class="flex">
+            <EditOutline
+              class="h-4 w-4 shrink-0 cursor-pointer"
+              onclick={toggleEnvironmentManager}
+            />
+          </div>
+        </div>
+      </DropdownItem>
+    {/each}
+    <!-- <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        onClose();
+      }}
+    >
+      <div class="flex items-center gap-2">add env</div>
+    </DropdownItem> -->
+  </Dropdown>
+{/snippet}
 
 <div class="flex h-screen flex-col overflow-hidden">
   <!-- Top Navbar -->
@@ -54,8 +117,18 @@
       {@render navbar_actions?.()}
       <ButtonGroup class="h-8">
         <Button size="xs" color="light" onclick={toggleEnvironmentManager}>Environments</Button>
-        <Button size="xs" color="light" onclick={toggleMainConfiguration}>Settings</Button>
+        <Button
+          size="xs"
+          color="light"
+          id="env-dropdown-button"
+          class="w-1"
+          onclick={() => (isEnvDropdownOpen = true)}
+          ><AngleDownOutline class="w-3 shrink-0" /></Button
+        >
       </ButtonGroup>
+      <Button size="xs" color="light" onclick={toggleMainConfiguration}>Settings</Button>
+
+      {@render envDropdown("#env-dropdown-button", isEnvDropdownOpen, closeEnvDropdown)}
     </div>
   </nav>
 
