@@ -4,10 +4,10 @@
 -->
 
 <script lang="ts">
-  import DropZone from "$src/lib/components/base/DropZone.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
+  import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
@@ -51,12 +51,50 @@
   import Select from "flowbite-svelte/Select.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
+  import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import { onDestroy, onMount, tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   interface Props {
     onRequestSelect?: (requestId: string) => void;
   }
+
+  type CollectionLocalImportFormat = "postman" | "bruno" | "openapi" | "solo";
+
+  const COLLECTION_LOCAL_IMPORT_FORMATS: LocalImportFormatOption<CollectionLocalImportFormat>[] = [
+    {
+      key: "postman",
+      label: "Postman",
+      dropTitle: "Drop your Postman collection here",
+      dropSubtitle: "Supports Postman Collection v2 / v2.1 (JSON)",
+      pickerButtonLabel: "Select file…",
+      icon: "upload"
+    },
+    {
+      key: "bruno",
+      label: "Bruno",
+      dropTitle: "Drop your Bruno collection folder here",
+      dropSubtitle: "Supports Bruno collection folders (.bru files)",
+      pickerButtonLabel: "Select folder…",
+      icon: "folder"
+    },
+    {
+      key: "openapi",
+      label: "OpenAPI / Swagger",
+      dropTitle: "Drop your OpenAPI or Swagger document here",
+      dropSubtitle: "Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)",
+      pickerButtonLabel: "Select file…",
+      icon: "document"
+    },
+    {
+      key: "solo",
+      label: "Solo",
+      dropTitle: "Drop your Solo collection here",
+      dropSubtitle: "Supports Solo collection JSON",
+      pickerButtonLabel: "Select file…",
+      icon: "upload"
+    }
+  ];
 
   const OUTLINE_BUTTON_CLASSES =
     "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
@@ -75,7 +113,8 @@
   let soloCollectionOverwriteName: string | null = $state(null);
   let pendingSoloCollectionPath: string | null = null;
 
-  let importActiveTab = $state("postman");
+  let importActiveTab = $state("local");
+  let localImportFormat = $state<CollectionLocalImportFormat>("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
 
@@ -823,14 +862,47 @@
     }
   }
 
-  async function handleSelectImportFormat(format: "postman" | "bruno" | "openapi") {
+  async function handleLocalCollectionImport(format: CollectionLocalImportFormat, path?: string) {
     importCollectionModal.open = false;
+
     if (format === "postman") {
-      await handleImportPostman();
-    } else if (format === "bruno") {
-      await handleImportBruno();
-    } else if (format === "openapi") {
-      await handleImportOpenAPI();
+      if (path) {
+        await ImportPostmanCollection(path);
+        await collectionStore.loadCollections();
+      } else {
+        await handleImportPostman();
+      }
+      return;
+    }
+
+    if (format === "bruno") {
+      if (path) {
+        await ImportBrunoCollection(path);
+        await collectionStore.loadCollections();
+      } else {
+        await handleImportBruno();
+      }
+      return;
+    }
+
+    if (format === "openapi") {
+      if (path) {
+        const warnings = await ImportOpenAPICollection(path);
+        await collectionStore.loadCollections();
+        for (const warning of warnings) {
+          notifications.warning(warning);
+        }
+        notifications.success("OpenAPI collection imported");
+      } else {
+        await handleImportOpenAPI();
+      }
+      return;
+    }
+
+    if (path) {
+      await executeSoloCollectionImport(path, false);
+    } else {
+      await handleImportSoloCollection();
     }
   }
 
@@ -868,7 +940,8 @@
   }
 
   function openImportModal() {
-    importActiveTab = "postman";
+    importActiveTab = "local";
+    localImportFormat = "postman";
     gitImportActionState = null;
     importCollectionModal.open = true;
   }
@@ -908,6 +981,9 @@
   );
   let contextMenuCollection = $derived(getContextMenuCollection());
   let contextMenuRequest = $derived(getContextMenuRequest());
+  let selectedLocalImportOption = $derived(
+    COLLECTION_LOCAL_IMPORT_FORMATS.find((format) => format.key === localImportFormat)
+  );
 </script>
 
 {#snippet collectionActionsDropdown(
@@ -1486,111 +1562,12 @@
     {/if}
     <div class="flex flex-col gap-4">
       <Tabs bind:selected={importActiveTab}>
-        <TabItem key="postman" title="Postman">
-          <DropZone
-            title="Drop your Postman collection here"
-            subtitle="Supports Postman Collection v2 / v2.1 (JSON)"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importCollectionModal.open = false;
-              if (paths.length > 0) {
-                await ImportPostmanCollection(paths[0]);
-                await collectionStore.loadCollections();
-              } else {
-                await handleImportPostman();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            {/snippet}
-          </DropZone>
-        </TabItem>
-
-        <TabItem key="bruno" title="Bruno">
-          <DropZone
-            title="Drop your Bruno collection folder here"
-            subtitle="Supports Bruno collection folders (.bru files)"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importCollectionModal.open = false;
-              if (paths.length > 0) {
-                await ImportBrunoCollection(paths[0]);
-                await collectionStore.loadCollections();
-              } else {
-                await handleImportBruno();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            {/snippet}
-          </DropZone>
-        </TabItem>
-
-        <TabItem key="openapi" title="OpenAPI / Swagger">
-          <DropZone
-            title="Drop your OpenAPI or Swagger document here"
-            subtitle="Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importCollectionModal.open = false;
-              if (paths.length > 0) {
-                const warnings = await ImportOpenAPICollection(paths[0]);
-                await collectionStore.loadCollections();
-                for (const w of warnings) {
-                  notifications.warning(w);
-                }
-                notifications.success("OpenAPI collection imported");
-              } else {
-                await handleImportOpenAPI();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-            {/snippet}
-          </DropZone>
+        <TabItem key="local" title="Local">
+          <LocalImportPane
+            formats={COLLECTION_LOCAL_IMPORT_FORMATS}
+            bind:selectedFormat={localImportFormat}
+            onImport={handleLocalCollectionImport}
+          />
         </TabItem>
 
         <TabItem key="curl" title="cURL">
@@ -1644,39 +1621,6 @@
           </div>
         </TabItem>
 
-        <TabItem key="solo" title="Solo">
-          <DropZone
-            title="Drop your Solo collection here"
-            subtitle="Supports Solo collection JSON"
-            onDrop={async (e) => {
-              const paths = e.paths;
-              importCollectionModal.open = false;
-              if (paths.length > 0) {
-                await executeSoloCollectionImport(paths[0], false);
-              } else {
-                await handleImportSoloCollection();
-              }
-            }}
-          >
-            {#snippet icon()}
-              <svg
-                width="44"
-                height="44"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            {/snippet}
-          </DropZone>
-        </TabItem>
-
         <TabItem key="git" title="Git">
           <GitImportView
             onImported={() => (importCollectionModal.open = false)}
@@ -1690,17 +1634,9 @@
 
     {#snippet footer()}
       <div class="flex w-full gap-2">
-        {#if importActiveTab === "postman"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("postman")}>
-            Select file…
-          </Button>
-        {:else if importActiveTab === "bruno"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("bruno")}>
-            Select folder…
-          </Button>
-        {:else if importActiveTab === "openapi"}
-          <Button color="primary" onclick={() => handleSelectImportFormat("openapi")}>
-            Select file…
+        {#if importActiveTab === "local"}
+          <Button color="primary" onclick={() => handleLocalCollectionImport(localImportFormat)}>
+            {selectedLocalImportOption?.pickerButtonLabel || "Select file…"}
           </Button>
         {:else if importActiveTab === "curl"}
           <Button
@@ -1709,10 +1645,6 @@
             onclick={handleImportCurl}
           >
             Import Request
-          </Button>
-        {:else if importActiveTab === "solo"}
-          <Button color="primary" onclick={() => handleImportSoloCollection()}>
-            Select file...
           </Button>
         {:else if importActiveTab === "git"}
           <Button
