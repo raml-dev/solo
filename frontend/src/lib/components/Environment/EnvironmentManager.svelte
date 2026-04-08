@@ -11,6 +11,7 @@
   import EnvironmentModals from "$src/lib/components/Environment/EnvironmentModals.svelte";
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
+  import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
   import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
@@ -36,8 +37,6 @@
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import TabItem from "flowbite-svelte/TabItem.svelte";
-  import Tabs from "flowbite-svelte/Tabs.svelte";
   import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import { onDestroy } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -76,7 +75,6 @@
   let showDeleteConfirmDialog = $state(false);
   let deleteTarget: string | null = $state(null);
   let activeMenu: string | null = $state(null);
-  let importActiveTab = $state("local");
   let localImportFormat = $state<EnvironmentLocalImportFormat>("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
@@ -212,7 +210,6 @@
   }
 
   function openImportModal() {
-    importActiveTab = "local";
     localImportFormat = "postman";
     gitImportActionState = null;
     importEnvironmentModal.open = true;
@@ -410,50 +407,36 @@
 />
 
 {#if importEnvironmentModal.open}
-  <Modal title="Import Environment" bind:open={importEnvironmentModal.open} size="xl">
-    {#if $topModalId === importEnvironmentModal.id}
-      <ToastContainer />
-    {/if}
-    <div class="flex flex-col gap-4">
-      <Tabs bind:selected={importActiveTab}>
-        <TabItem key="local" title="Local">
-          <LocalImportPane
-            formats={ENVIRONMENT_LOCAL_IMPORT_FORMATS}
-            bind:selectedFormat={localImportFormat}
-            onImport={handleLocalEnvironmentImport}
-          />
-        </TabItem>
-
-        <TabItem key="git" title="Git">
-          <GitEnvImportView
-            onImported={() => (importEnvironmentModal.open = false)}
-            onActionStateChange={(state) => {
-              gitImportActionState = state;
-            }}
-          />
-        </TabItem>
-      </Tabs>
-    </div>
-
-    {#snippet footer()}
-      <div class="flex w-full justify-end gap-2">
-        {#if importActiveTab === "local"}
-          <Button color="primary" onclick={() => handleLocalEnvironmentImport(localImportFormat)}
-            >{selectedLocalImportOption?.pickerButtonLabel || "Select file…"}</Button
-          >
-        {:else if importActiveTab === "git"}
-          <Button
-            color="primary"
-            loading={gitImportActionState?.loading ?? false}
-            disabled={gitImportActionState?.disabled ?? true}
-            onclick={() => gitImportActionState?.submit()}
-          >
-            Import from Git
-          </Button>
-        {/if}
-      </div>
+  <ImportModal
+    title="Import Environment"
+    bind:open={importEnvironmentModal.open}
+    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file…"}
+    onLocalAction={() => handleLocalEnvironmentImport(localImportFormat)}
+    gitActionState={gitImportActionState}
+  >
+    {#snippet localContent()}
+      {#if $topModalId === importEnvironmentModal.id}
+        <ToastContainer />
+      {/if}
+      <LocalImportPane
+        formats={ENVIRONMENT_LOCAL_IMPORT_FORMATS}
+        bind:selectedFormat={localImportFormat}
+        onImport={handleLocalEnvironmentImport}
+      />
     {/snippet}
-  </Modal>
+
+    {#snippet gitContent()}
+      {#if $topModalId === importEnvironmentModal.id}
+        <ToastContainer />
+      {/if}
+      <GitEnvImportView
+        onImported={() => (importEnvironmentModal.open = false)}
+        onActionStateChange={(state) => {
+          gitImportActionState = state;
+        }}
+      />
+    {/snippet}
+  </ImportModal>
 {/if}
 
 {#if overwriteEnvironmentModal.open}

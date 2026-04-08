@@ -7,6 +7,7 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
+  import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
   import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
@@ -49,8 +50,6 @@
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
-  import TabItem from "flowbite-svelte/TabItem.svelte";
-  import Tabs from "flowbite-svelte/Tabs.svelte";
   import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import { onDestroy, onMount, tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -113,7 +112,6 @@
   let soloCollectionOverwriteName: string | null = $state(null);
   let pendingSoloCollectionPath: string | null = null;
 
-  let importActiveTab = $state("local");
   let localImportFormat = $state<CollectionLocalImportFormat>("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
@@ -940,7 +938,6 @@
   }
 
   function openImportModal() {
-    importActiveTab = "local";
     localImportFormat = "postman";
     gitImportActionState = null;
     importCollectionModal.open = true;
@@ -1551,114 +1548,91 @@
 {/if}
 
 {#if importCollectionModal.open}
-  <Modal
+  <ImportModal
     title="Import Collection or Request"
     bind:open={importCollectionModal.open}
-    onclose={closeImportModal}
-    size="xl"
+    onClose={closeImportModal}
+    showCurlSection
+    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file…"}
+    onLocalAction={() => handleLocalCollectionImport(localImportFormat)}
+    curlActionLabel="Import Request"
+    curlActionDisabled={!curlInput.trim() || (!curlTargetCollection && !curlCreatingNew)}
+    onCurlAction={handleImportCurl}
+    gitActionState={gitImportActionState}
   >
-    {#if $topModalId === importCollectionModal.id}
-      <ToastContainer />
-    {/if}
-    <div class="flex flex-col gap-4">
-      <Tabs bind:selected={importActiveTab}>
-        <TabItem key="local" title="Local">
-          <LocalImportPane
-            formats={COLLECTION_LOCAL_IMPORT_FORMATS}
-            bind:selectedFormat={localImportFormat}
-            onImport={handleLocalCollectionImport}
-          />
-        </TabItem>
+    {#snippet localContent()}
+      {#if $topModalId === importCollectionModal.id}
+        <ToastContainer />
+      {/if}
+      <LocalImportPane
+        formats={COLLECTION_LOCAL_IMPORT_FORMATS}
+        bind:selectedFormat={localImportFormat}
+        onImport={handleLocalCollectionImport}
+      />
+    {/snippet}
 
-        <TabItem key="curl" title="cURL">
-          <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-1">
-              <Label>Paste cURL command</Label>
-              <div
-                class="h-48 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700"
-              >
-                <CodeMirrorEditor
-                  value={curlInput}
-                  language="text"
-                  onChange={(v) => (curlInput = v)}
-                />
-              </div>
-            </div>
-
-            <div class="flex flex-col gap-1">
-              <Label>Destination collection</Label>
-              {#if curlCreatingNew}
-                <div class="flex gap-2">
-                  <Input
-                    bind:value={curlNewCollectionName}
-                    placeholder="New collection name"
-                    class="flex-1"
-                  />
-                  <Button
-                    color="alternative"
-                    size="sm"
-                    onclick={() => {
-                      curlCreatingNew = false;
-                      curlNewCollectionName = "";
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              {:else}
-                <div class="flex gap-2">
-                  <Select bind:value={curlTargetCollection} class="flex-1">
-                    {#each collectionStoreState.collections as coll (coll.id)}
-                      <option value={coll.name}>{coll.name}</option>
-                    {/each}
-                  </Select>
-                  <Button color="alternative" size="sm" onclick={() => (curlCreatingNew = true)}>
-                    New…
-                  </Button>
-                </div>
-              {/if}
-            </div>
+    {#snippet curlContent()}
+      {#if $topModalId === importCollectionModal.id}
+        <ToastContainer />
+      {/if}
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <Label>Paste cURL command</Label>
+          <div
+            class="h-48 overflow-hidden rounded border border-neutral-200 dark:border-neutral-700"
+          >
+            <CodeMirrorEditor value={curlInput} language="text" onChange={(v) => (curlInput = v)} />
           </div>
-        </TabItem>
+        </div>
 
-        <TabItem key="git" title="Git">
-          <GitImportView
-            onImported={() => (importCollectionModal.open = false)}
-            onActionStateChange={(state) => {
-              gitImportActionState = state;
-            }}
-          />
-        </TabItem>
-      </Tabs>
-    </div>
-
-    {#snippet footer()}
-      <div class="flex w-full gap-2">
-        {#if importActiveTab === "local"}
-          <Button color="primary" onclick={() => handleLocalCollectionImport(localImportFormat)}>
-            {selectedLocalImportOption?.pickerButtonLabel || "Select file…"}
-          </Button>
-        {:else if importActiveTab === "curl"}
-          <Button
-            color="primary"
-            disabled={!curlInput.trim() || (!curlTargetCollection && !curlCreatingNew)}
-            onclick={handleImportCurl}
-          >
-            Import Request
-          </Button>
-        {:else if importActiveTab === "git"}
-          <Button
-            color="primary"
-            loading={gitImportActionState?.loading ?? false}
-            disabled={gitImportActionState?.disabled ?? true}
-            onclick={() => gitImportActionState?.submit()}
-          >
-            Import from Git
-          </Button>
-        {/if}
+        <div class="flex flex-col gap-1">
+          <Label>Destination collection</Label>
+          {#if curlCreatingNew}
+            <div class="flex gap-2">
+              <Input
+                bind:value={curlNewCollectionName}
+                placeholder="New collection name"
+                class="flex-1"
+              />
+              <Button
+                color="alternative"
+                size="sm"
+                onclick={() => {
+                  curlCreatingNew = false;
+                  curlNewCollectionName = "";
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          {:else}
+            <div class="flex gap-2">
+              <Select bind:value={curlTargetCollection} class="flex-1">
+                {#each collectionStoreState.collections as coll (coll.id)}
+                  <option value={coll.name}>{coll.name}</option>
+                {/each}
+              </Select>
+              <Button color="alternative" size="sm" onclick={() => (curlCreatingNew = true)}>
+                New…
+              </Button>
+            </div>
+          {/if}
+        </div>
       </div>
     {/snippet}
-  </Modal>
+
+    {#snippet gitContent()}
+      {#if $topModalId === importCollectionModal.id}
+        <ToastContainer />
+      {/if}
+      <GitImportView
+        onImported={() => (importCollectionModal.open = false)}
+        onActionStateChange={(state) => {
+          gitImportActionState = state;
+        }}
+      />
+    {/snippet}
+  </ImportModal>
 {/if}
 
 {#if soloCollectionOverwriteModal.open}
