@@ -5,9 +5,9 @@
 
 <script lang="ts">
   import type { HistoryEntry } from "$src/lib/stores/historyStore";
+  import { getMethodBadgeClass, getStatusBadgeColor } from "$src/lib/utils/http";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import { getStatusBadgeColor, getMethodBadgeClass } from "$src/lib/utils/http";
 
   interface Props {
     entry: HistoryEntry;
@@ -24,7 +24,7 @@
   }
 
   function truncateUrl(url: string, max = 60): string {
-    return url.length > max ? url.slice(0, max) + "…" : url;
+    return url.length > max ? url.slice(0, max) + "..." : url;
   }
 
   function formatHeaders(headers: Record<string, string>): string {

@@ -5,11 +5,11 @@
 
 <script lang="ts">
   import { appInfoState } from "$src/lib/stores/appInfo.svelte";
+  import { BrowserOpenURL } from "$wails/runtime/runtime";
+  import BookSolid from "flowbite-svelte-icons/BookSolid.svelte";
+  import GithubSolid from "flowbite-svelte-icons/GithubSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import GithubSolid from "flowbite-svelte-icons/GithubSolid.svelte";
-  import BookSolid from "flowbite-svelte-icons/BookSolid.svelte";
-  import { BrowserOpenURL } from "$wails/runtime/runtime";
 
   const info = $derived(appInfoState.info);
   const docsLink = $derived((info?.docsLink || "").trim());
@@ -32,7 +32,7 @@
   </div>
 
   {#if appInfoState.loading}
-    <p class="text-sm text-neutral-500 dark:text-neutral-400">Loading application info…</p>
+    <p class="text-sm text-neutral-500 dark:text-neutral-400">Loading application info...</p>
   {:else if appInfoState.error}
     <Alert color="red">
       Failed to load app info: {appInfoState.error}

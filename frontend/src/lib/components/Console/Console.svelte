@@ -74,7 +74,7 @@
         size="sm"
         class="w-full min-w-40"
         type="text"
-        placeholder="Filter URL…"
+        placeholder="Filter URL..."
         bind:value={filterUrl}
       />
     </div>

@@ -12,6 +12,7 @@
   import GitEnvImportView from "$src/lib/components/GitEnvImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
+  import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
@@ -37,7 +38,6 @@
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import { onDestroy } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -50,7 +50,7 @@
         label: "Postman",
         dropTitle: "Drop your Postman environment here",
         dropSubtitle: "Supports Postman Environment JSON",
-        pickerButtonLabel: "Select file…",
+        pickerButtonLabel: "Select file...",
         icon: "upload"
       },
       {
@@ -58,7 +58,7 @@
         label: "Bruno",
         dropTitle: "Drop your Bruno environment here",
         dropSubtitle: "Supports Bruno environment .bru files",
-        pickerButtonLabel: "Select file…",
+        pickerButtonLabel: "Select file...",
         icon: "folder"
       },
       {
@@ -66,7 +66,7 @@
         label: "solo",
         dropTitle: "Drop your solo environment here",
         dropSubtitle: "Supports solo environment JSON",
-        pickerButtonLabel: "Select file…",
+        pickerButtonLabel: "Select file...",
         icon: "upload"
       }
     ];
@@ -266,7 +266,7 @@
   }
 
   async function handleImportSolo(path?: string) {
-    const filePath = path ?? (await SelectFile("Select solo Environment", "*.json", "JSON Files"));
+    const filePath = path ?? (await SelectFile("Select Solo Environment", "*.json", "JSON Files"));
     if (!filePath) return;
     await executeImport("solo", filePath, false);
   }
@@ -410,7 +410,7 @@
   <ImportModal
     title="Import Environment"
     bind:open={importEnvironmentModal.open}
-    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file…"}
+    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file..."}
     onLocalAction={() => handleLocalEnvironmentImport(localImportFormat)}
     gitActionState={gitImportActionState}
   >
