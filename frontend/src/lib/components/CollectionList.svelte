@@ -7,9 +7,10 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
-  import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
-  import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
+  import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
+  import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
+  import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
@@ -50,7 +51,6 @@
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
-  import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import { onDestroy, onMount, tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -66,7 +66,7 @@
       label: "Postman",
       dropTitle: "Drop your Postman collection here",
       dropSubtitle: "Supports Postman Collection v2 / v2.1 (JSON)",
-      pickerButtonLabel: "Select file…",
+      pickerButtonLabel: "Select file...",
       icon: "upload"
     },
     {
@@ -74,7 +74,7 @@
       label: "Bruno",
       dropTitle: "Drop your Bruno collection folder here",
       dropSubtitle: "Supports Bruno collection folders (.bru files)",
-      pickerButtonLabel: "Select folder…",
+      pickerButtonLabel: "Select folder...",
       icon: "folder"
     },
     {
@@ -82,15 +82,15 @@
       label: "OpenAPI / Swagger",
       dropTitle: "Drop your OpenAPI or Swagger document here",
       dropSubtitle: "Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)",
-      pickerButtonLabel: "Select file…",
+      pickerButtonLabel: "Select file...",
       icon: "document"
     },
     {
       key: "solo",
-      label: "Solo",
-      dropTitle: "Drop your Solo collection here",
-      dropSubtitle: "Supports Solo collection JSON",
-      pickerButtonLabel: "Select file…",
+      label: "solo",
+      dropTitle: "Drop your solo collection here",
+      dropSubtitle: "Supports solo collection JSON",
+      pickerButtonLabel: "Select file...",
       icon: "upload"
     }
   ];
@@ -1009,7 +1009,7 @@
           onClose();
         }}
       >
-        {syncingCollections.has(currentCollection.id) ? "Syncing…" : "Sync with Git"}
+        {syncingCollections.has(currentCollection.id) ? "Syncing..." : "Sync with Git"}
       </DropdownItem>
       <DropdownDivider />
     {/if}
@@ -1553,7 +1553,7 @@
     bind:open={importCollectionModal.open}
     onClose={closeImportModal}
     showCurlSection
-    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file…"}
+    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file..."}
     onLocalAction={() => handleLocalCollectionImport(localImportFormat)}
     curlActionLabel="Import Request"
     curlActionDisabled={!curlInput.trim() || (!curlTargetCollection && !curlCreatingNew)}
@@ -1613,7 +1613,7 @@
                 {/each}
               </Select>
               <Button color="alternative" size="sm" onclick={() => (curlCreatingNew = true)}>
-                New…
+                New...
               </Button>
             </div>
           {/if}

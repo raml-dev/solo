@@ -4,16 +4,16 @@
 -->
 
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
+  import { topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import Button from "flowbite-svelte/Button.svelte";
   import Helper from "flowbite-svelte/Helper.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
-  import Select from "flowbite-svelte/Select.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { notifications } from "$src/lib/stores/notificationStore";
-  import { collectionStoreState, collectionStore } from "$src/lib/stores/collectionStore.svelte";
-  import { topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
   import { onMount } from "svelte";
 
   interface Props {
@@ -130,7 +130,9 @@
               size="sm"
               class="flex-1"
             />
-            <Button color="alternative" size="sm" onclick={() => (creatingNew = true)}>New…</Button>
+            <Button color="alternative" size="sm" onclick={() => (creatingNew = true)}
+              >New...</Button
+            >
           </div>
         {/if}
         <Helper>Select the target collection for this request.</Helper>

@@ -42,7 +42,7 @@
     title,
     open = $bindable(),
     showCurlSection = false,
-    localActionLabel = "Select file…",
+    localActionLabel = "Select file...",
     localActionDisabled = false,
     onLocalAction,
     curlActionLabel = "Import Request",

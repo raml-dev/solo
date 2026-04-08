@@ -4,14 +4,14 @@
 -->
 
 <script lang="ts">
+  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import { notifications } from "$src/lib/stores/notificationStore";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Spinner from "flowbite-svelte/Spinner.svelte";
-  import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
-  import { notifications } from "$src/lib/stores/notificationStore";
   import { onDestroy, onMount } from "svelte";
 
   interface Props {
@@ -247,7 +247,7 @@
     {#if loading}
       <div class="flex items-center gap-2 py-6 text-sm text-neutral-500 dark:text-neutral-400">
         <Spinner size="4" />
-        <span>Loading git status…</span>
+        <span>Loading git status...</span>
       </div>
     {:else if errorMessage}
       <Alert color="red">
@@ -410,7 +410,7 @@
             disabled={actionInProgress || loading || !status}
             onclick={handleSync}
           >
-            {actionInProgress ? "Syncing…" : "↺ Sync"}
+            {actionInProgress ? "Syncing..." : "↺ Sync"}
           </Button>
           {#if status?.isDirty}
             <Button

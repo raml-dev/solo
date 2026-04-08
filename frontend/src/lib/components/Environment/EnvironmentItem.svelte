@@ -149,7 +149,7 @@
           onclick={handleSync}
           disabled={isSyncing}
         >
-          {isSyncing ? "Syncing…" : "Sync with Git"}
+          {isSyncing ? "Syncing..." : "Sync with Git"}
         </Button>
         <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
       {/if}

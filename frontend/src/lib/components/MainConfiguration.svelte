@@ -454,7 +454,7 @@
         </div>
 
         {#if configSaveStatus === "saving"}
-          <Helper color="gray">Saving…</Helper>
+          <Helper color="gray">Saving...</Helper>
         {:else if configSaveStatus === "saved"}
           <Helper color="green">Saved</Helper>
         {/if}
@@ -491,7 +491,7 @@
           </p>
           <div>
             <Button color="light" onclick={handleLogsExport} disabled={isExportingLogs}>
-              {isExportingLogs ? "Preparing archive…" : "Download logs (.zip)"}
+              {isExportingLogs ? "Preparing archive..." : "Download logs (.zip)"}
             </Button>
           </div>
         </div>
