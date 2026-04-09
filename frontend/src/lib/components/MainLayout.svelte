@@ -6,6 +6,7 @@
 <script lang="ts">
   import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
+  import UpdateBanner from "$src/lib/components/UpdateBanner.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
@@ -131,6 +132,8 @@
       {@render envDropdown("#env-dropdown-button", isEnvDropdownOpen, closeEnvDropdown)}
     </div>
   </nav>
+
+  <UpdateBanner />
 
   <!-- Main Content Area -->
   <div class="flex min-h-0 flex-1 overflow-hidden">

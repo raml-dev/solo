@@ -371,7 +371,6 @@
 
         <Toggle
           bind:checked={configurationStoreState.config.general.checkForUpdates}
-          disabled
           onchange={handleToggleSettingChange}
         >
           Check for updates on startup

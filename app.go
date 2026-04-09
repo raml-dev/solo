@@ -94,9 +94,14 @@ func (a *App) DownloadAssets(info *appinfo.GitHubResponse, currentVersion string
 		return "", errors.New("update info not provided")
 	}
 
+	defaultFilename := fmt.Sprintf("%s-update", tools.APP_NAME)
+	if suggestedName := appinfo.SuggestedAssetName(info); suggestedName != "" {
+		defaultFilename = suggestedName
+	}
+
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		Title:           "Save update package",
-		DefaultFilename: fmt.Sprintf("%s-update", tools.APP_NAME),
+		DefaultFilename: defaultFilename,
 		Filters: []runtime.FileFilter{
 			{DisplayName: "All files", Pattern: "*"},
 		},
