@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,7 +73,6 @@ func InitDiscoveryCient() *DiscoveryClient {
 
 	httpClient := &http.Client{
 		Transport: client.NewTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			fmt.Println(curlForRequest(req))
 			return http.DefaultTransport.RoundTrip(req)
 		}), client.Config{
 			Kid:    cfg.Kid,
@@ -163,25 +163,6 @@ func (dc *DiscoveryClient) newGetAssetsRequest(endpoint string) (*http.Request, 
 	return req, nil
 }
 
-func curlForRequest(req *http.Request) string {
-	var parts []string
-	parts = append(parts, "curl")
-	parts = append(parts, "-X", shellQuote(req.Method))
-
-	for key, values := range req.Header {
-		for _, value := range values {
-			parts = append(parts, "-H", shellQuote(key+": "+value))
-		}
-	}
-
-	parts = append(parts, shellQuote(req.URL.String()))
-	return strings.Join(parts, " ")
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
-}
-
 func (dc *DiscoveryClient) GetUpdatesFromRepo() (*GitHubResponse, error) {
 	owner, repo, perPage, err := parseRepoEndpoint(dc.endpoint)
 	if err != nil {
@@ -237,14 +218,17 @@ func (dc *DiscoveryClient) DownloadAssetsToPath(info *GitHubResponse, currentVer
 }
 
 func (dc *DiscoveryClient) downloadAssets(info *GitHubResponse, currentVersion, destinationPath string) (string, error) {
-	_ = currentVersion // Version comparison will be implemented in a dedicated step.
 	if info == nil || len(info.Releases) == 0 {
 		return "", errors.New("no releases available")
 	}
 
-	target := selectTargetRelease(info.Releases)
+	target := selectLatestPrerelease(info.Releases)
 	if target == nil {
-		return "", errors.New("no stable release with downloadable assets")
+		return "", errors.New("no prerelease with downloadable assets")
+	}
+
+	if !isCurrentVersionOlder(currentVersion, target.TagName) {
+		return "", nil
 	}
 
 	asset := selectAsset(target.Assets)
@@ -333,9 +317,6 @@ func (dc *DiscoveryClient) doRequest(req *http.Request) string {
 		panic(err)
 	}
 
-	fmt.Println("status:", resp.Status)
-	fmt.Println("response:", string(body))
-
 	return string(body)
 }
 
@@ -372,22 +353,161 @@ func buildProxyAssetURL(endpoint string, owner string, repo string, assetID int6
 	return parsed.String(), nil
 }
 
-func selectTargetRelease(releases []GitHubRelease) *GitHubRelease {
+func selectLatestPrerelease(releases []GitHubRelease) *GitHubRelease {
+	candidates := make([]GitHubRelease, 0, len(releases))
 	for i := range releases {
 		release := &releases[i]
-		if release.PreRelease || len(release.Assets) == 0 {
+		if !release.PreRelease || len(release.Assets) == 0 {
 			continue
 		}
-		return release
+		candidates = append(candidates, *release)
 	}
-	for i := range releases {
-		release := &releases[i]
-		if len(release.Assets) == 0 {
-			continue
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	sort.SliceStable(candidates, func(i, j int) bool {
+		left := candidates[i]
+		right := candidates[j]
+
+		versionCmp := compareVersionStrings(left.TagName, right.TagName)
+		if versionCmp != 0 {
+			return versionCmp > 0
 		}
-		return release
+
+		leftUpdated := normalizedReleaseTime(left)
+		rightUpdated := normalizedReleaseTime(right)
+		if !leftUpdated.Equal(rightUpdated) {
+			return leftUpdated.After(rightUpdated)
+		}
+
+		return left.TagName > right.TagName
+	})
+
+	chosen := candidates[0]
+	return &chosen
+}
+
+func normalizedReleaseTime(release GitHubRelease) time.Time {
+	if !release.UpdatedAt.IsZero() {
+		return release.UpdatedAt
 	}
-	return nil
+	return release.CreatedAt
+}
+
+func isCurrentVersionOlder(currentVersion, latestVersion string) bool {
+	current := strings.TrimSpace(currentVersion)
+	latest := strings.TrimSpace(latestVersion)
+
+	if strings.EqualFold(current, "dev") {
+		return latest != ""
+	}
+
+	// If the caller doesn't provide a current version, consider any latest release as newer.
+	if current == "" {
+		return latest != ""
+	}
+
+	return compareVersionStrings(current, latest) < 0
+}
+
+func compareVersionStrings(left, right string) int {
+	leftVersion, okLeft := parseVersion(left)
+	rightVersion, okRight := parseVersion(right)
+
+	switch {
+	case okLeft && okRight:
+		return compareParsedVersion(leftVersion, rightVersion)
+	case okLeft:
+		return 1
+	case okRight:
+		return -1
+	default:
+		return strings.Compare(strings.TrimSpace(left), strings.TrimSpace(right))
+	}
+}
+
+type parsedVersion struct {
+	major      int
+	minor      int
+	patch      int
+	prerelease string
+}
+
+func parseVersion(raw string) (parsedVersion, bool) {
+	value := strings.TrimSpace(strings.TrimPrefix(raw, "v"))
+	if value == "" {
+		return parsedVersion{}, false
+	}
+
+	base := value
+	prerelease := ""
+	if idx := strings.Index(base, "+"); idx >= 0 {
+		base = base[:idx]
+	}
+	if idx := strings.Index(base, "-"); idx >= 0 {
+		prerelease = base[idx+1:]
+		base = base[:idx]
+	}
+
+	parts := strings.Split(base, ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return parsedVersion{}, false
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return parsedVersion{}, false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return parsedVersion{}, false
+	}
+
+	patch := 0
+	if len(parts) == 3 {
+		patch, err = strconv.Atoi(parts[2])
+		if err != nil {
+			return parsedVersion{}, false
+		}
+	}
+
+	return parsedVersion{
+		major:      major,
+		minor:      minor,
+		patch:      patch,
+		prerelease: prerelease,
+	}, true
+}
+
+func compareParsedVersion(left, right parsedVersion) int {
+	if left.major != right.major {
+		if left.major > right.major {
+			return 1
+		}
+		return -1
+	}
+	if left.minor != right.minor {
+		if left.minor > right.minor {
+			return 1
+		}
+		return -1
+	}
+	if left.patch != right.patch {
+		if left.patch > right.patch {
+			return 1
+		}
+		return -1
+	}
+
+	// Stable release outranks prerelease when core versions match.
+	if left.prerelease == "" && right.prerelease != "" {
+		return 1
+	}
+	if left.prerelease != "" && right.prerelease == "" {
+		return -1
+	}
+	return strings.Compare(left.prerelease, right.prerelease)
 }
 
 func selectAsset(assets []Asset) *Asset {
