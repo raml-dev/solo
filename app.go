@@ -54,6 +54,20 @@ type App struct {
 	isClosing          bool
 }
 
+func (a *App) emitEvent(eventName string, data ...interface{}) {
+	if a.ctx == nil {
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Debug("Skipping event emit: invalid Wails context", "event", eventName, "recover", r)
+		}
+	}()
+
+	runtime.EventsEmit(a.ctx, eventName, data...)
+}
+
 type RequestOptions struct {
 	Method             string                                 `json:"method"`
 	URL                string                                 `json:"url"`
@@ -75,15 +89,11 @@ func (a *App) GetUpdatesFromRepo() (*appinfo.GitHubResponse, error) {
 
 	info, err := dc.GetUpdatesFromRepo()
 	if err != nil {
-		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "updates:error", err.Error())
-		}
+		a.emitEvent("updates:error", err.Error())
 		return nil, err
 	}
 
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "updates:available", info)
-	}
+	a.emitEvent("updates:available", info)
 
 	return info, nil
 }
@@ -116,15 +126,11 @@ func (a *App) DownloadAssets(info *appinfo.GitHubResponse, currentVersion string
 	dc := appinfo.InitDiscoveryCient()
 	changelog, downloadErr := dc.DownloadAssetsToPath(info, currentVersion, path)
 	if downloadErr != nil {
-		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "updates:download-error", downloadErr.Error())
-		}
+		a.emitEvent("updates:download-error", downloadErr.Error())
 		return "", downloadErr
 	}
 
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "updates:downloaded", map[string]string{"path": path})
-	}
+	a.emitEvent("updates:downloaded", map[string]string{"path": path})
 
 	return changelog, nil
 }
@@ -155,9 +161,7 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 	}
 
 	onResult := func(res runner.RunnerResult) {
-		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "runner:result", res)
-		}
+		a.emitEvent("runner:result", res)
 	}
 
 	return a.runner.Run(a.ctx, opts, onResult), nil
