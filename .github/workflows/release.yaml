@@ -70,11 +70,18 @@ jobs:
         shell: bash
         run: mise run ci:be:gen-update-config
       - name: Inject version into wails.json
-        uses: sergeysova/jq-action@v2
+        uses: actions/github-script@v8
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
         with:
-          cmd: |
-            jq --arg v "$GITHUB_REF_NAME" '.info.productVersion = "\($v)"' \
-              wails.json > wails.tmp.json && mv wails.tmp.json wails.json
+          script: |
+            const fs = require('node:fs');
+            const path = 'wails.json';
+            const raw = fs.readFileSync(path, 'utf8');
+            const data = JSON.parse(raw);
+            data.info = data.info || {};
+            data.info.productVersion = process.env.RELEASE_VERSION;
+            fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n', 'utf8');
 
       - uses: The-Egg-Corp/wails-build-action@v2.1
         with:
