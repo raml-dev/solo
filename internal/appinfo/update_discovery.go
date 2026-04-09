@@ -35,7 +35,7 @@ type GitHubResponse struct {
 
 type GitHubRelease struct {
 	Assets     []Asset   `json:"assets"`
-	Body       string    `json:"string"`
+	Body       string    `json:"body"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 	Name       string    `json:"name"`
@@ -48,6 +48,27 @@ type Asset struct {
 	Name  string `json:"name"`
 	State string `json:"state"`
 	Url   string `json:"browser_download_url"`
+}
+
+// SuggestedAssetName returns the platform-compatible asset filename selected by
+// the same logic used during download. It returns an empty string when a
+// suitable asset cannot be determined.
+func SuggestedAssetName(info *GitHubResponse) string {
+	if info == nil || len(info.Releases) == 0 {
+		return ""
+	}
+
+	target := selectLatestPrerelease(info.Releases)
+	if target == nil {
+		return ""
+	}
+
+	asset := selectAsset(target.Assets)
+	if asset == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(asset.Name)
 }
 
 type discoveryConfig struct {
