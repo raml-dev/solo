@@ -70,7 +70,7 @@ dir = "{{ config_root }}"
 run = "actionlint -color"
 
 [tasks.gen-tls]
-dir="{{ config_root }}/test/self-signed-tls"
+dir = "{{ config_root }}/test/self-signed-tls"
 run = '''
 OUTDIR="${PWD}/localhost.localdomain"
 mkdir -p "${OUTDIR}"
