@@ -4,23 +4,31 @@
 -->
 
 <script lang="ts">
+  import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
+  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
+  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
+  import ExclamationCircleSolid from "flowbite-svelte-icons/ExclamationCircleSolid.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Checkbox from "flowbite-svelte/Checkbox.svelte";
   import Input from "flowbite-svelte/Input.svelte";
-  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
 
   interface Props {
     headers: Header[];
+    body: string;
+    bodyFormat: InputFormat;
     onChange?: () => void;
   }
 
-  let { headers = $bindable(), onChange }: Props = $props();
+  let { headers = $bindable(), body, bodyFormat, onChange }: Props = $props();
 
   type Header = {
     id: string;
     key: string;
     value: string;
     enabled: boolean;
+    autoInjectedContentType?: boolean;
+    injectedContentTypeValue?: string;
   };
 
   function toggleHeader(id: string) {
@@ -42,6 +50,60 @@
     };
     headers = [...headers, newHeader];
     onChange?.();
+  }
+
+  function isContentTypeHeader(header: Header): boolean {
+    return header.key.trim().toLowerCase() === "content-type";
+  }
+
+  let selectedEnvironment = $derived(
+    environmentStoreState.environments.find(
+      (environment) => environment.name === environmentStoreState.selectedEnvironmentName
+    ) || null
+  );
+
+  function resolveTemplateTokens(value: string): string {
+    if (!value) return value;
+
+    const envValues = selectedEnvironment?.values ?? {};
+    const envMap = new Map(
+      Object.entries(envValues).map(([key, entry]) => [key, String(entry?.value ?? "")])
+    );
+    const sessionMap = new Map(Object.entries($sessionVarsStore ?? {}));
+
+    return value.replace(/\{\{([^{}\r\n]+?)\}\}/g, (full, key: string) => {
+      const normalizedKey = key.trim();
+      if (sessionMap.has(normalizedKey)) return String(sessionMap.get(normalizedKey) ?? "");
+      if (envMap.has(normalizedKey)) return String(envMap.get(normalizedKey) ?? "");
+      return full;
+    });
+  }
+
+  function getExpectedContentTypeValue(): string | null {
+    if (bodyFormat === "none") return null;
+    if (!body.trim()) return null;
+    if (bodyFormat === "json") return "application/json";
+    if (bodyFormat === "xml") return "application/xml";
+    return null;
+  }
+
+  function shouldShowContentTypeWarning(header: Header): boolean {
+    if (!header.enabled) return false;
+
+    const resolvedValue = resolveTemplateTokens(header.value).trim().toLowerCase();
+    const expectedValue = getExpectedContentTypeValue();
+
+    if (!expectedValue) {
+      return resolvedValue.length > 0;
+    }
+
+    return resolvedValue !== expectedValue;
+  }
+
+  function getContentTypeWarningMessage(): string {
+    const hasBody = bodyFormat !== "none" && body.trim().length > 0;
+    if (!hasBody) return "There is no Body in this request";
+    return "The Content-Type value is different from the selected Body type";
   }
 </script>
 
@@ -66,12 +128,26 @@
         />
       </div>
       <div class="min-w-0 flex-1">
+        {#snippet contentTypeWarning()}
+          <span
+            class="inline-flex"
+            title={getContentTypeWarningMessage()}
+            aria-label={getContentTypeWarningMessage()}
+          >
+            <ExclamationCircleSolid
+              class="h-3.5 w-4 cursor-pointer text-warning-500 dark:text-warning-400"
+            />
+          </span>
+        {/snippet}
+
         <EnvTokenInput
           bind:value={header.value}
           placeholder="Value"
           disabled={!header.enabled}
           class="w-full"
           size="sm"
+          right={contentTypeWarning}
+          rightVisible={isContentTypeHeader(header) && shouldShowContentTypeWarning(header)}
           onChange={() => onChange?.()}
         />
       </div>

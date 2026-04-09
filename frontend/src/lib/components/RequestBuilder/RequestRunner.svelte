@@ -17,6 +17,7 @@
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
   import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import { buildResolvedRequestPayload } from "$src/lib/utils/http";
   import { GetSessionVars, RunParallel } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
   import { main, runner } from "$wails/go/models";
@@ -100,16 +101,11 @@
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
     const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
-    const resolvedBody = resolveEnvironmentTokens(body, sessionVars);
-    const resolvedHeaders = headers
-      .filter((h) => h.enabled)
-      .reduce(
-        (acc, { key, value }) => ({
-          ...acc,
-          [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
-        }),
-        {} as Record<string, string>
-      );
+    const { body: resolvedBody, headers: resolvedHeaders } = buildResolvedRequestPayload({
+      body,
+      headers,
+      resolveTokens: (value) => resolveEnvironmentTokens(value, sessionVars)
+    });
 
     const requestOptions = new main.RequestOptions({
       body: resolvedBody,

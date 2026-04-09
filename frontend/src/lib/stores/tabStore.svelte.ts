@@ -16,6 +16,8 @@ export interface TabHeader {
   key: string;
   value: string;
   enabled: boolean;
+  autoInjectedContentType?: boolean;
+  injectedContentTypeValue?: string;
 }
 
 export interface TabResponse {

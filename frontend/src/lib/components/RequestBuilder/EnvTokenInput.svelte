@@ -25,7 +25,7 @@
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { Annotation, Compartment, EditorSelection, EditorState } from "@codemirror/state";
   import { EditorView, keymap } from "@codemirror/view";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, type Snippet } from "svelte";
 
   interface Props {
     value?: string;
@@ -33,6 +33,8 @@
     disabled?: boolean;
     size?: "sm" | "md" | "lg";
     class?: string;
+    right?: Snippet;
+    rightVisible?: boolean;
     onChange?: () => void;
     onEnter?: () => void;
   }
@@ -45,6 +47,8 @@
     disabled = false,
     size = "md",
     class: className = "",
+    right,
+    rightVisible = true,
     onChange,
     onEnter
   }: Props = $props();
@@ -365,7 +369,7 @@
 </script>
 
 <div class="{shellClass} {className}" data-size={size}>
-  <div class="relative w-full">
+  <div class="relative min-w-0 flex-1">
     {#if shouldUseMacOsLayoutNudge && !editorReady}
       <span class="invisible block select-none">M</span>
     {/if}
@@ -386,6 +390,10 @@
       </div>
     {/if}
   </div>
+
+  {#if right && rightVisible}
+    <div class="ml-1.5 shrink-0">{@render right()}</div>
+  {/if}
 
   <EnvAutocompletePopover
     open={autocompleteOpen}
