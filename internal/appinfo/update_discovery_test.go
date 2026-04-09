@@ -1,11 +1,16 @@
 package appinfo
 
 import (
+	"os"
 	"testing"
 	"time"
 )
 
 func TestDiscoveryClient_GetUpdatesFromRepo_LiveServer(t *testing.T) {
+	if os.Getenv("SOLO_RUN_LIVE_UPDATE_TESTS") != "1" {
+		t.Skip("skipping live update discovery test; set SOLO_RUN_LIVE_UPDATE_TESTS=1 to enable")
+	}
+
 	dc := InitDiscoveryCient()
 
 	response, err := dc.GetUpdatesFromRepo()
