@@ -286,36 +286,21 @@
       return;
     }
 
-    // Keep token resolution aligned with backend env.get precedence:
-    // session vars first, then selected environment.
-    const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
+    const requestHeaders = tab.headers
+      .filter((h) => h.enabled)
+      .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
 
-    const resolvedUrl = resolveEnvironmentTokens(tab.url, sessionVars);
-    const { body: resolvedBody, headers: resolvedHeaders } = buildResolvedRequestPayload({
-      body: tab.body,
-      headers: tab.headers,
-      resolveTokens: (value) => resolveEnvironmentTokens(value, sessionVars)
-    });
-
-    // Resolve Auth tokens
-    const resolvedAuth = collection.AuthConfiguration.createFrom({
+    const authConfig = collection.AuthConfiguration.createFrom({
       ...tab.auth,
-      tokenUrl: resolveEnvironmentTokens(tab.auth.tokenUrl, sessionVars),
-      template: Object.entries(tab.auth.template || {}).reduce(
-        (acc, [k, v]) => ({
-          ...acc,
-          [k]: resolveEnvironmentTokens(v, sessionVars)
-        }),
-        {} as Record<string, string>
-      )
+      template: { ...(tab.auth.template || {}) }
     });
 
     const requestOptions = new main.RequestOptions({
-      body: resolvedBody,
-      headers: resolvedHeaders,
+      body: tab.body,
+      headers: requestHeaders,
       method: tab.verb,
-      url: resolvedUrl,
-      auth: resolvedAuth,
+      url: tab.url,
+      auth: authConfig,
       settings: tab.settings,
       preRequestScript: tab.preRequestScript || "",
       postResponseScript: tab.postResponseScript || ""
