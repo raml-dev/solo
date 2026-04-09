@@ -65,7 +65,7 @@ func saveEnvironment(t *testing.T, envManager *environment.EnvironmentManager, n
 	}
 }
 
-func TestService_Execute_ContentTypeInjection(goTest *testing.T) {
+func TestService_Execute_ContentTypeHandling(goTest *testing.T) {
 	s, _, _, _ := newTestService(goTest)
 
 	tests := []struct {
@@ -74,14 +74,14 @@ func TestService_Execute_ContentTypeInjection(goTest *testing.T) {
 		wantHeader string
 	}{
 		{
-			name: "inject text/plain when body is present and header is missing",
+			name: "do not inject Content-Type when body is present and header is missing",
 			opts: ExecutionOptions{
 				Method:  "POST",
 				URL:     "http://example.com",
 				Body:    `{"foo":"bar"}`,
 				Headers: map[string]any{},
 			},
-			wantHeader: "text/plain",
+			wantHeader: "",
 		},
 		{
 			name: "do not override existing Content-Type",
@@ -96,7 +96,7 @@ func TestService_Execute_ContentTypeInjection(goTest *testing.T) {
 			wantHeader: "application/json",
 		},
 		{
-			name: "do not inject when body is empty",
+			name: "keep Content-Type empty when body is empty",
 			opts: ExecutionOptions{
 				Method:  "POST",
 				URL:     "http://example.com",
@@ -106,7 +106,7 @@ func TestService_Execute_ContentTypeInjection(goTest *testing.T) {
 			wantHeader: "",
 		},
 		{
-			name: "allow pre-request script to override injected Content-Type",
+			name: "allow pre-request script to set Content-Type",
 			opts: ExecutionOptions{
 				Method:           "POST",
 				URL:              "http://example.com",
