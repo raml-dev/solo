@@ -65,8 +65,63 @@ type RequestOptions struct {
 	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
 }
 
-func (a *App) GetAppInfo() (appinfo.AppInfo) {
-  return appinfo.GetAppInfo(wailsJSON)
+func (a *App) GetAppInfo() appinfo.AppInfo {
+	return appinfo.GetAppInfo(wailsJSON)
+}
+
+// GetUpdatesFromRepo fetches release updates and emits an event for the frontend.
+func (a *App) GetUpdatesFromRepo() (*appinfo.GitHubResponse, error) {
+	dc := appinfo.InitDiscoveryCient()
+
+	info, err := dc.GetUpdatesFromRepo()
+	if err != nil {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "updates:error", err.Error())
+		}
+		return nil, err
+	}
+
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "updates:available", info)
+	}
+
+	return info, nil
+}
+
+// DownloadAssets asks the user where to save the update package and downloads it.
+func (a *App) DownloadAssets(info *appinfo.GitHubResponse, currentVersion string) (string, error) {
+	if info == nil {
+		return "", errors.New("update info not provided")
+	}
+
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Save update package",
+		DefaultFilename: fmt.Sprintf("%s-update", tools.APP_NAME),
+		Filters: []runtime.FileFilter{
+			{DisplayName: "All files", Pattern: "*"},
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return "", nil // user cancelled
+	}
+
+	dc := appinfo.InitDiscoveryCient()
+	changelog, downloadErr := dc.DownloadAssetsToPath(info, currentVersion, path)
+	if downloadErr != nil {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "updates:download-error", downloadErr.Error())
+		}
+		return "", downloadErr
+	}
+
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "updates:downloaded", map[string]string{"path": path})
+	}
+
+	return changelog, nil
 }
 
 // RunParallel performs parallel HTTP requests for load testing.
@@ -156,14 +211,27 @@ func (a *App) startup(ctx context.Context) {
 		a.service.SetContext(ctx)
 	}
 
+	checkForUpdates := true
+	debugMode := false
+
 	if a.configManager != nil {
 		cfg := a.configManager.Get()
+		checkForUpdates = cfg.General.CheckForUpdates
+		debugMode = cfg.General.DebugMode
 		a.SetDebugMode(cfg.General.DebugMode)
-		slog.Info("Application started", "debug_mode", cfg.General.DebugMode)
-		return
 	}
 
-	slog.Info("Application started", "debug_mode", false)
+	if checkForUpdates {
+		go a.checkUpdatesOnStartup()
+	}
+
+	slog.Info("Application started", "debug_mode", debugMode, "check_for_updates", checkForUpdates)
+}
+
+func (a *App) checkUpdatesOnStartup() {
+	if _, err := a.GetUpdatesFromRepo(); err != nil {
+		slog.Warn("Startup update check failed", "error", err)
+	}
 }
 
 // beforeClose is called when the user tries to close the application.
