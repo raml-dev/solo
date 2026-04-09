@@ -29,7 +29,18 @@ func TestApp_ConfigurationIntegration(t *testing.T) {
 	// 2. Initialize App
 	app := NewApp()
 
-	// Mock startup context if needed, but here we just test logic
+	// Disable update checks in this integration test to avoid background
+	// network/event side-effects unrelated to request timeout behavior.
+	initialCfg, err := app.GetConfiguration()
+	if err != nil {
+		t.Fatalf("Failed to get initial config: %v", err)
+	}
+	initialCfg.General.CheckForUpdates = false
+	if err := app.UpdateConfiguration(initialCfg); err != nil {
+		t.Fatalf("Failed to disable update checks for test: %v", err)
+	}
+
+	// Mock startup context if needed, but here we just test logic.
 	app.startup(context.TODO())
 
 	// 3. Create a slow mock server
