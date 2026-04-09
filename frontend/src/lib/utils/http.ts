@@ -81,3 +81,40 @@ export function getMethodBadgeColor(verb: string): MethodBadgeColor {
       return "dark";
   }
 }
+
+export interface RequestHeaderRow {
+  key: string;
+  value: string;
+  enabled: boolean;
+}
+
+interface BuildResolvedRequestPayloadOptions {
+  body: string;
+  headers: RequestHeaderRow[];
+  resolveTokens: (value: string) => string;
+}
+
+export function buildResolvedRequestPayload({
+  body,
+  headers,
+  resolveTokens
+}: BuildResolvedRequestPayloadOptions): {
+  body: string;
+  headers: Record<string, string>;
+} {
+  const resolvedBody = resolveTokens(body);
+  const resolvedHeaders = headers
+    .filter((header) => header.enabled)
+    .reduce(
+      (acc, { key, value }) => ({
+        ...acc,
+        [resolveTokens(key)]: resolveTokens(value)
+      }),
+      {} as Record<string, string>
+    );
+
+  return {
+    body: resolvedBody,
+    headers: resolvedHeaders
+  };
+}

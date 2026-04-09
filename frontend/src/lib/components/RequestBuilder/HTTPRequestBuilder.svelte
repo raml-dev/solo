@@ -28,7 +28,7 @@
     tabStoreState,
     type TabResponse
   } from "$src/lib/stores/tabStore.svelte";
-  import { getStatusBadgeColor } from "$src/lib/utils/http";
+  import { buildResolvedRequestPayload, getStatusBadgeColor } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
   import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
@@ -93,6 +93,14 @@
     modalStack.destroyModal("save-request");
   });
 
+  $effect(() => {
+    const tab = getActiveTab();
+    if (!tab) return;
+
+    const expectedContentType = getExpectedContentType(tab.body, tab.bodyFormat);
+    syncInjectedContentTypeHeader(tab, expectedContentType);
+  });
+
   // Field change handler - mutation already happened via bind:, just update metadata
   function onFieldChange() {
     const tab = getActiveTab();
@@ -122,20 +130,49 @@
     const tab = getActiveTab();
     if (!tab) return;
     tab.bodyFormat = value as InputFormat;
-    // Also update Content-Type header
-    const ct = tab.headers.find((h) => h.key.toLowerCase() === "content-type");
-    if (ct) {
-      ct.value =
-        value === "json"
-          ? "application/json"
-          : value === "xml"
-            ? "application/xml"
-            : value === "text"
-              ? "text/plain"
-              : "";
+    onFieldChange();
+  }
+
+  function getExpectedContentType(body: string, bodyFormat: InputFormat): string | null {
+    if (bodyFormat === "none") return null;
+    if (!body.trim()) return null;
+    if (bodyFormat === "json") return "application/json";
+    if (bodyFormat === "xml") return "application/xml";
+    return null;
+  }
+
+  function syncInjectedContentTypeHeader(
+    tab: ReturnType<typeof getActiveTab>,
+    expectedContentType: string | null
+  ) {
+    const contentTypeHeader = tab.headers.find(
+      (header) => header.key.trim().toLowerCase() === "content-type"
+    );
+
+    if (!contentTypeHeader) {
+      if (!expectedContentType) return;
+      tab.headers = [
+        ...tab.headers,
+        {
+          id: crypto.randomUUID(),
+          key: "Content-Type",
+          value: expectedContentType,
+          enabled: true,
+          autoInjectedContentType: true,
+          injectedContentTypeValue: expectedContentType
+        }
+      ];
+      return;
+    }
+
+    if (!contentTypeHeader.autoInjectedContentType || !expectedContentType) return;
+
+    const injectedValue = contentTypeHeader.injectedContentTypeValue ?? "";
+    if (contentTypeHeader.value === injectedValue && injectedValue !== expectedContentType) {
+      contentTypeHeader.value = expectedContentType;
+      contentTypeHeader.injectedContentTypeValue = expectedContentType;
       tab.headers = [...tab.headers];
     }
-    onFieldChange();
   }
 
   // --- Resize ---
@@ -254,16 +291,11 @@
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
     const resolvedUrl = resolveEnvironmentTokens(tab.url, sessionVars);
-    const resolvedBody = resolveEnvironmentTokens(tab.body, sessionVars);
-    const resolvedHeaders = tab.headers
-      .filter((h) => h.enabled)
-      .reduce(
-        (acc, { key, value }) => ({
-          ...acc,
-          [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
-        }),
-        {} as Record<string, string>
-      );
+    const { body: resolvedBody, headers: resolvedHeaders } = buildResolvedRequestPayload({
+      body: tab.body,
+      headers: tab.headers,
+      resolveTokens: (value) => resolveEnvironmentTokens(value, sessionVars)
+    });
 
     // Resolve Auth tokens
     const resolvedAuth = collection.AuthConfiguration.createFrom({
@@ -320,17 +352,11 @@
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
     const resolvedUrl = resolveEnvironmentTokens(tab.url, sessionVars);
-    const resolvedBody = tab.body ? resolveEnvironmentTokens(tab.body, sessionVars) : "";
-
-    const resolvedHeaders = tab.headers
-      .filter((h) => h.enabled && h.key)
-      .reduce(
-        (acc, { key, value }) => ({
-          ...acc,
-          [resolveEnvironmentTokens(key, sessionVars)]: resolveEnvironmentTokens(value, sessionVars)
-        }),
-        {} as Record<string, string>
-      );
+    const { body: resolvedBody, headers: resolvedHeaders } = buildResolvedRequestPayload({
+      body: tab.body,
+      headers: tab.headers,
+      resolveTokens: (value) => resolveEnvironmentTokens(value, sessionVars)
+    });
 
     // Add cookies from the saved request as Cookie header if present
     if (tab.collectionName && tab.requestId) {
@@ -564,7 +590,12 @@
     <!-- Request tab content -->
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       {#if requestPaneTab === "Headers"}
-        <RequestHeaders bind:headers={tab.headers} onChange={onFieldChange} />
+        <RequestHeaders
+          bind:headers={tab.headers}
+          body={tab.body}
+          bodyFormat={tab.bodyFormat}
+          onChange={onFieldChange}
+        />
       {:else if requestPaneTab === "Body"}
         {#if tab.bodyFormat === "none"}
           <FeedbackEmptyState variant="info" title="This request does not have a body" compact />
