@@ -183,15 +183,16 @@ func NewApp() *App {
 	am := auth.NewAuthManager(configDir)
 
 	hm := host.NewHostManager()
+	em := environment.NewEnvironmentManager()
 
 	// ScriptManager is created without context here; context is set in startup()
 	sm := script.NewScriptManager(context.TODO())
-	service := requester.NewService(cm, sm, hm, am)
+	service := requester.NewService(cm, em, sm, hm, am)
 
 	return &App{
 		service:            service,
 		collectionManager:  collection.NewCollectionManager(),
-		environmentManager: environment.NewEnvironmentManager(),
+		environmentManager: em,
 		configManager:      cm,
 		hostManager:        hm,
 		scriptManager:      sm,

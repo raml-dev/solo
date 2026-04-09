@@ -100,9 +100,53 @@ func (sm *ScriptManager) GetState() *lua.LState {
 	return sm.state
 }
 
+// cloneStringMap returns a shallow copy of a string map.
+func cloneStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return make(map[string]string)
+	}
+
+	cloned := make(map[string]string, len(values))
+	for k, v := range values {
+		cloned[k] = v
+	}
+
+	return cloned
+}
+
+// executeWithEnvironment temporarily swaps the Lua environment for a single execution.
+// When env is nil, it keeps the current environment unchanged.
+func (sm *ScriptManager) executeWithEnvironment(env map[string]string, fn func() error) error {
+	if env == nil {
+		return fn()
+	}
+
+	previousEnv := sm.currentEnv
+	sm.currentEnv = cloneStringMap(env)
+	defer func() {
+		sm.currentEnv = previousEnv
+	}()
+
+	return fn()
+}
+
+// copySessionVarsLocked returns a safe copy of session variables.
+// The caller must hold sm.mutex.
+func (sm *ScriptManager) copySessionVarsLocked() map[string]string {
+	return cloneStringMap(sm.sessionVars)
+}
+
 // ExecutePreRequest runs a Lua script before a request is sent.
 // It exposes a global 'request' object which can be modified.
 func (sm *ScriptManager) ExecutePreRequest(script string, req *http.Request) (err error) {
+	_, err = sm.ExecutePreRequestWithEnvironment(script, req, nil)
+	return err
+}
+
+// ExecutePreRequestWithEnvironment runs a Lua script before a request is sent
+// with a per-execution environment snapshot. It returns the session variables
+// immediately after script execution for downstream placeholder resolution.
+func (sm *ScriptManager) ExecutePreRequestWithEnvironment(script string, req *http.Request, env map[string]string) (_ map[string]string, err error) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -114,35 +158,48 @@ func (sm *ScriptManager) ExecutePreRequest(script string, req *http.Request) (er
 	}()
 
 	if script == "" {
+		return sm.copySessionVarsLocked(), nil
+	}
+
+	err = sm.executeWithEnvironment(env, func() error {
+		// 500ms timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		sm.state.SetContext(ctx)
+		defer sm.state.SetContext(context.TODO())
+
+		reqTable := RequestToLua(sm, req)
+		sm.state.SetGlobal("request", reqTable)
+		defer sm.state.SetGlobal("request", lua.LNil) // Cleanup
+
+		if err := sm.state.DoString(script); err != nil {
+			return err
+		}
+
+		// Update request with potential changes from Lua
+		newReqVal := sm.state.GetGlobal("request")
+		if newReqTable, ok := newReqVal.(*lua.LTable); ok {
+			LuaToRequest(sm, newReqTable, req)
+		}
+
 		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// 500ms timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	sm.state.SetContext(ctx)
-	defer sm.state.SetContext(context.TODO())
-
-	reqTable := RequestToLua(sm, req)
-	sm.state.SetGlobal("request", reqTable)
-	defer sm.state.SetGlobal("request", lua.LNil) // Cleanup
-
-	if err := sm.state.DoString(script); err != nil {
-		return err
-	}
-
-	// Update request with potential changes from Lua
-	newReqVal := sm.state.GetGlobal("request")
-	if newReqTable, ok := newReqVal.(*lua.LTable); ok {
-		LuaToRequest(sm, newReqTable, req)
-	}
-
-	return nil
+	return sm.copySessionVarsLocked(), nil
 }
 
 // ExecutePostResponse runs a Lua script after a response is received.
 // It exposes global 'request' and 'response' objects (read-only context mostly).
 func (sm *ScriptManager) ExecutePostResponse(script string, req *http.Request, resp *http.Response, body string, responseTime int64) (err error) {
+	return sm.ExecutePostResponseWithEnvironment(script, req, resp, body, responseTime, nil)
+}
+
+// ExecutePostResponseWithEnvironment runs a Lua script after a response is received
+// with a per-execution environment snapshot.
+func (sm *ScriptManager) ExecutePostResponseWithEnvironment(script string, req *http.Request, resp *http.Response, body string, responseTime int64, env map[string]string) (err error) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -160,23 +217,25 @@ func (sm *ScriptManager) ExecutePostResponse(script string, req *http.Request, r
 		return nil
 	}
 
-	// 500ms timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond) //TODO: does make sense to have this param as configurable?
-	defer cancel()
-	sm.state.SetContext(ctx)
-	defer sm.state.SetContext(context.TODO())
+	return sm.executeWithEnvironment(env, func() error {
+		// 500ms timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond) //TODO: does make sense to have this param as configurable?
+		defer cancel()
+		sm.state.SetContext(ctx)
+		defer sm.state.SetContext(context.TODO())
 
-	// Expose request (read-only context)
-	reqTable := RequestToLua(sm, req)
-	sm.state.SetGlobal("request", reqTable)
-	defer sm.state.SetGlobal("request", lua.LNil)
+		// Expose request (read-only context)
+		reqTable := RequestToLua(sm, req)
+		sm.state.SetGlobal("request", reqTable)
+		defer sm.state.SetGlobal("request", lua.LNil)
 
-	// Expose response
-	respTable := ResponseToLua(sm, resp, body, responseTime)
-	sm.state.SetGlobal("response", respTable)
-	defer sm.state.SetGlobal("response", lua.LNil)
+		// Expose response
+		respTable := ResponseToLua(sm, resp, body, responseTime)
+		sm.state.SetGlobal("response", respTable)
+		defer sm.state.SetGlobal("response", lua.LNil)
 
-	return sm.state.DoString(script)
+		return sm.state.DoString(script)
+	})
 }
 
 // SetEnvironment updates the current environment variables (read-only for Lua).
@@ -199,11 +258,7 @@ func (sm *ScriptManager) GetSessionVars() map[string]string {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	copyVars := make(map[string]string, len(sm.sessionVars))
-	for k, v := range sm.sessionVars {
-		copyVars[k] = v
-	}
-	return copyVars
+	return sm.copySessionVarsLocked()
 }
 
 // RemoveSessionVar removes a single session variable by key.

@@ -44,3 +44,4 @@ mise.local.toml
 internal/appinfo/update_config.json
 .codex
 .claudeignore
+.cache/*

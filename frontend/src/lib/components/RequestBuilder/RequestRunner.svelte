@@ -16,9 +16,7 @@
   import TableHead from "flowbite-svelte/TableHead.svelte";
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
-  import { buildResolvedRequestPayload } from "$src/lib/utils/http";
-  import { GetSessionVars, RunParallel } from "$wails/go/main/App";
+  import { RunParallel } from "$wails/go/main/App";
   import type { configuration as conf } from "$wails/go/models";
   import { main, runner } from "$wails/go/models";
   import { EventsOff, EventsOn } from "$wails/runtime";
@@ -52,12 +50,6 @@
     postResponseScript
   }: Props = $props();
 
-  let selectedEnvironment = $derived(
-    environmentStoreState.environments.find(
-      (e) => e.name === environmentStoreState.selectedEnvironmentName
-    ) || null
-  );
-
   let concurrency = $state(5);
   let iterations = $state(20);
   let stopOnError = $state(false);
@@ -68,28 +60,6 @@
   let lastResults: runner.RunnerResult[] = $state([]);
   const MAX_VISIBLE_RESULTS = 50;
 
-  let environmentEntries = $derived(
-    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-      key,
-      value: String(val?.value ?? "")
-    }))
-  );
-
-  function resolveEnvironmentTokens(
-    value: string,
-    sessionVars: Record<string, string> = {}
-  ): string {
-    if (!value) return value;
-    const envMap = new Map(environmentEntries.map((e) => [e.key, e.value]));
-    const sessionMap = new Map(Object.entries(sessionVars || {}));
-    return value.replace(/\{\{([^{}\r\n]+?)\}\}/g, (_full, key: string) => {
-      const k = key.trim();
-      if (sessionMap.has(k)) return String(sessionMap.get(k) ?? "");
-      if (envMap.has(k)) return String(envMap.get(k) ?? "");
-      return _full;
-    });
-  }
-
   async function startRun() {
     if (running) return;
 
@@ -98,20 +68,15 @@
     stats = null;
     lastResults = [];
 
-    const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
-
-    const resolvedUrl = resolveEnvironmentTokens(url, sessionVars);
-    const { body: resolvedBody, headers: resolvedHeaders } = buildResolvedRequestPayload({
-      body,
-      headers,
-      resolveTokens: (value) => resolveEnvironmentTokens(value, sessionVars)
-    });
+    const requestHeaders = headers
+      .filter((h) => h.enabled)
+      .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
 
     const requestOptions = new main.RequestOptions({
-      body: resolvedBody,
-      headers: resolvedHeaders,
+      body,
+      headers: requestHeaders,
       method,
-      url: resolvedUrl,
+      url,
       settings: settings,
       preRequestScript: preRequestScript || "",
       postResponseScript: postResponseScript || ""
