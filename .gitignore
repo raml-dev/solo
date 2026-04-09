@@ -41,3 +41,6 @@ solo
 localhost.localdomain/
 
 mise.local.toml
+internal/appinfo/update_config.json
+.codex
+.claudeignore
