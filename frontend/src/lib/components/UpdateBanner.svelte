@@ -36,24 +36,6 @@
       .replaceAll("'", "&#39;");
   }
 
-  function pickRelease(info: appinfo.GitHubResponse): appinfo.GitHubRelease | null {
-    const releases = info.Releases ?? [];
-    if (releases.length === 0) {
-      return null;
-    }
-
-    return (
-      releases.find((release) => release.prerelease && (release.assets?.length ?? 0) > 0) ??
-      releases.find((release) => (release.assets?.length ?? 0) > 0) ??
-      releases[0] ??
-      null
-    );
-  }
-
-  function getVersion(release: appinfo.GitHubRelease): string {
-    return (release.tag_name || release.name || "").trim();
-  }
-
   function getReleaseNotes(release: appinfo.GitHubRelease): string {
     const body = (release as appinfo.GitHubRelease & { body?: string; string?: string }).body;
     const legacy = (release as appinfo.GitHubRelease & { body?: string; string?: string }).string;
@@ -76,28 +58,20 @@
     return normalizedArrows.replaceAll("\r\n", "\n");
   }
 
-  function parseUpdateInfo(payload: unknown): appinfo.GitHubResponse | null {
-    const parsed = appinfo.GitHubResponse.createFrom(payload);
-    if (!parsed || !Array.isArray(parsed.Releases) || parsed.Releases.length === 0) {
-      return null;
-    }
-
-    return parsed;
+  function getVersion(release: appinfo.GitHubRelease): string {
+    return (release.tag_name || release.name || "").trim();
   }
 
   function handleUpdateAvailable(payload: unknown) {
-    const parsed = parseUpdateInfo(payload);
-    if (!parsed) return;
+    const release = appinfo.GitHubResponse.createFrom(payload);
+    if (!release || !release.Release) return;
 
-    const release = pickRelease(parsed);
-    if (!release) return;
-
-    const version = getVersion(release);
+    const version = getVersion(release.Release);
     if (!version) return;
     if (ignoredVersion === version) return;
 
-    updateInfo = parsed;
-    selectedRelease = release;
+    updateInfo = release;
+    selectedRelease = release.Release;
     visible = true;
   }
 

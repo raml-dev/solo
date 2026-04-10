@@ -1,15 +1,23 @@
+// Copyright 2026-present raml-dev
+// SPDX-License-Identifier: GPL-3.0-only
 package appinfo
+
+/*
+  NOTE:
+    this module is a tempi implementation just for the beta version of this app (Solo).
+    It will be totally (more or less) replaced by new implementation when the beta version
+    will be over.
+
+*/
 
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"runtime"
 	"sort"
@@ -23,6 +31,18 @@ import (
 	"github.com/matstech/aegis-go/client"
 )
 
+// This var is used for storing custom configuration endpoints and secret
+// for aegis server interaction
+//
+//go:embed update_config.json
+var embeddedUpdateConfig []byte
+
+var (
+	discoveryConfigOnce sync.Once
+	discoveryConfigData discoveryConfig
+	discoveryConfigErr  error
+)
+
 type DiscoveryClient struct {
 	client   *http.Client
 	endpoint string
@@ -30,7 +50,7 @@ type DiscoveryClient struct {
 }
 
 type GitHubResponse struct {
-	Releases []GitHubRelease
+	Release *GitHubRelease
 }
 
 type GitHubRelease struct {
@@ -50,41 +70,42 @@ type Asset struct {
 	Url   string `json:"browser_download_url"`
 }
 
-// SuggestedAssetName returns the platform-compatible asset filename selected by
-// the same logic used during download. It returns an empty string when a
-// suitable asset cannot be determined.
-func SuggestedAssetName(info *GitHubResponse) string {
-	if info == nil || len(info.Releases) == 0 {
-		return ""
-	}
-
-	target := selectLatestPrerelease(info.Releases)
-	if target == nil {
-		return ""
-	}
-
-	asset := selectAsset(target.Assets)
-	if asset == nil {
-		return ""
-	}
-
-	return strings.TrimSpace(asset.Name)
-}
-
 type discoveryConfig struct {
 	Endpoint string `json:"endpoint"`
 	Kid      string `json:"kid"`
 	Secret   string `json:"secret"`
 }
 
-//go:embed update_config.json
-var embeddedUpdateConfig []byte
+type parsedVersion struct {
+	major      int
+	minor      int
+	patch      int
+	prerelease string
+}
 
-var (
-	discoveryConfigOnce sync.Once
-	discoveryConfigData discoveryConfig
-	discoveryConfigErr  error
-)
+// Aegis-go client round tripper
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+// Basic round-trip function
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+// SuggestedAssetName returns the platform-compatible asset filename selected by
+// the same logic used during download. It returns an empty string when a
+// suitable asset cannot be determined.
+func SuggestedAssetName(info *GitHubResponse) string {
+	if info == nil {
+		return ""
+	}
+
+	asset := selectAsset(info.Release.Assets)
+	if asset == nil {
+		return ""
+	}
+
+	return strings.TrimSpace(asset.Name)
+}
 
 func InitDiscoveryCient() *DiscoveryClient {
 	cfg, err := loadDiscoveryConfig()
@@ -107,54 +128,92 @@ func InitDiscoveryCient() *DiscoveryClient {
 	return newDiscoveryClient(cfg.Endpoint, httpClient)
 }
 
-func loadDiscoveryConfig() (discoveryConfig, error) {
-	discoveryConfigOnce.Do(func() {
-		if len(embeddedUpdateConfig) == 0 {
-			discoveryConfigErr = errors.New("embedded update configuration is empty")
-			return
+/*
+	  This function determines the effective update availability of a new release over the currentVersion.
+		-- Definition of "update availability" --
+		   `currentVersion` must appear in the list of versions (versions must be immutable) and its timestamp (the `created_at` field will suffice)
+		   must be earlier than that of the others. The latest version will be returned to the frontend
+*/
+func (dc *DiscoveryClient) GetUpdatesFromRepo(currentVersion string) (*GitHubResponse, error) {
+	owner, repo, perPage, err := parseRepoEndpoint(dc.endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	options := &github.ListOptions{PerPage: perPage}
+	releases, _, err := dc.ghClient.Repositories.ListReleases(context.Background(), owner, repo, options)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the currentVersion appears in the release list
+	var cv *github.RepositoryRelease
+	for _, release := range releases {
+		if *release.Name == currentVersion {
+			cv = release
+			break
+		}
+	}
+
+	if cv == nil {
+		return nil, fmt.Errorf("current version %s of Solo does not appear in the releases and the update cannot be determined", currentVersion)
+	}
+
+	result := make([]GitHubRelease, 0, len(releases))
+	for _, release := range releases {
+		if release == nil {
+			continue
 		}
 
-		var cfg discoveryConfig
-		if err := json.Unmarshal(embeddedUpdateConfig, &cfg); err != nil {
-			discoveryConfigErr = fmt.Errorf("invalid embedded update configuration: %w", err)
-			return
-		}
-		if strings.TrimSpace(cfg.Endpoint) == "" {
-			discoveryConfigErr = errors.New("update endpoint is required")
-			return
-		}
-		if strings.TrimSpace(cfg.Kid) == "" {
-			discoveryConfigErr = errors.New("update kid is required")
-			return
-		}
-		if strings.TrimSpace(cfg.Secret) == "" {
-			discoveryConfigErr = errors.New("update secret is required")
-			return
-		}
+		if *release.Prerelease && release.CreatedAt.Time.After(cv.CreatedAt.Time) {
 
-		discoveryConfigData = cfg
+			assets := make([]Asset, 0, len(release.Assets))
+			for _, asset := range release.Assets {
+				assets = append(assets, Asset{
+					ID:    asset.GetID(),
+					Name:  asset.GetName(),
+					State: asset.GetState(),
+					Url:   asset.GetBrowserDownloadURL(),
+				})
+			}
+
+			result = append(result, GitHubRelease{
+				Assets:     assets,
+				Body:       release.GetBody(),
+				CreatedAt:  release.GetCreatedAt().Time,
+				UpdatedAt:  release.GetPublishedAt().Time,
+				Name:       release.GetName(),
+				TagName:    release.GetTagName(),
+				PreRelease: release.GetPrerelease(),
+			})
+		}
+	}
+
+	if len(result) <= 0 {
+		return nil, nil
+	}
+
+	// maybe useless but not so expensive in this case, just a "pac"
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.After(result[j].CreatedAt)
 	})
 
-	return discoveryConfigData, discoveryConfigErr
+	return &GitHubResponse{Release: &result[0]}, nil
 }
 
-func newDiscoveryClient(endpoint string, httpClient *http.Client) *DiscoveryClient {
-	ghClient := github.NewClient(httpClient)
-	parsedEndpoint, err := url.Parse(endpoint)
-	if err == nil {
-		ghClient.BaseURL = &url.URL{
-			Scheme: parsedEndpoint.Scheme,
-			Host:   parsedEndpoint.Host,
-			Path:   "/",
-		}
+func (dc *DiscoveryClient) DownloadAssets(info *GitHubResponse, currentVersion string) (string, error) {
+	return dc.downloadAssets(info, currentVersion, "")
+}
+
+func (dc *DiscoveryClient) DownloadAssetsToPath(info *GitHubResponse, currentVersion, destinationPath string) (string, error) {
+	if strings.TrimSpace(destinationPath) == "" {
+		return "", errors.New("destination path is required")
 	}
 
-	return &DiscoveryClient{
-		client:   httpClient,
-		endpoint: endpoint,
-		ghClient: ghClient,
-	}
+	return dc.downloadAssets(info, currentVersion, destinationPath)
 }
+
+//------ Utilities and tools
 
 func (dc *DiscoveryClient) newGetUpdatesRequest() (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodGet, dc.endpoint, nil)
@@ -174,85 +233,21 @@ func (dc *DiscoveryClient) newGetAssetsRequest(endpoint string) (*http.Request, 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Auth-CorrelationId", uuid.NewString())
-
-	if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-		req.Header.Set("Accept", "application/x-apple-diskimage")
-	} else {
-		req.Header.Set("Accept", "application/octet-stream")
-	}
+	req.Header.Set("Accept", "application/octet-stream")
 
 	return req, nil
 }
 
-func (dc *DiscoveryClient) GetUpdatesFromRepo() (*GitHubResponse, error) {
-	owner, repo, perPage, err := parseRepoEndpoint(dc.endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	options := &github.ListOptions{PerPage: perPage}
-	releases, _, err := dc.ghClient.Repositories.ListReleases(context.Background(), owner, repo, options)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]GitHubRelease, 0, len(releases))
-	for _, release := range releases {
-		if release == nil {
-			continue
-		}
-
-		assets := make([]Asset, 0, len(release.Assets))
-		for _, asset := range release.Assets {
-			assets = append(assets, Asset{
-				ID:    asset.GetID(),
-				Name:  asset.GetName(),
-				State: asset.GetState(),
-				Url:   asset.GetBrowserDownloadURL(),
-			})
-		}
-
-		result = append(result, GitHubRelease{
-			Assets:     assets,
-			Body:       release.GetBody(),
-			CreatedAt:  release.GetCreatedAt().Time,
-			UpdatedAt:  release.GetPublishedAt().Time,
-			Name:       release.GetName(),
-			TagName:    release.GetTagName(),
-			PreRelease: release.GetPrerelease(),
-		})
-	}
-
-	return &GitHubResponse{Releases: result}, nil
-}
-
-func (dc *DiscoveryClient) DownloadAssets(info *GitHubResponse, currentVersion string) (string, error) {
-	return dc.downloadAssets(info, currentVersion, "")
-}
-
-func (dc *DiscoveryClient) DownloadAssetsToPath(info *GitHubResponse, currentVersion, destinationPath string) (string, error) {
-	if strings.TrimSpace(destinationPath) == "" {
-		return "", errors.New("destination path is required")
-	}
-
-	return dc.downloadAssets(info, currentVersion, destinationPath)
-}
-
 func (dc *DiscoveryClient) downloadAssets(info *GitHubResponse, currentVersion, destinationPath string) (string, error) {
-	if info == nil || len(info.Releases) == 0 {
+	if info == nil || info.Release == nil {
 		return "", errors.New("no releases available")
 	}
 
-	target := selectLatestPrerelease(info.Releases)
-	if target == nil {
-		return "", errors.New("no prerelease with downloadable assets")
-	}
-
-	if !isCurrentVersionOlder(currentVersion, target.TagName) {
+	if !isCurrentVersionOlder(currentVersion, info.Release.TagName) {
 		return "", nil
 	}
 
-	asset := selectAsset(target.Assets)
+	asset := selectAsset(info.Release.Assets)
 	if asset == nil {
 		return "", fmt.Errorf("no compatible asset found for runtime %s/%s (%d-bit)", runtime.GOOS, runtime.GOARCH, strconv.IntSize)
 	}
@@ -311,7 +306,7 @@ func (dc *DiscoveryClient) downloadAssets(info *GitHubResponse, currentVersion, 
 		if copyErr != nil {
 			return "", copyErr
 		}
-		return target.Body, nil
+		return info.Release.Body, nil
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
@@ -323,7 +318,7 @@ func (dc *DiscoveryClient) downloadAssets(info *GitHubResponse, currentVersion, 
 		return "", copyErr
 	}
 
-	return target.Body, nil
+	return info.Release.Body, nil
 }
 
 func (dc *DiscoveryClient) doRequest(req *http.Request) string {
@@ -339,253 +334,4 @@ func (dc *DiscoveryClient) doRequest(req *http.Request) string {
 	}
 
 	return string(body)
-}
-
-func parseRepoEndpoint(endpoint string) (owner string, repo string, perPage int, err error) {
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return "", "", 0, err
-	}
-
-	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	if len(parts) < 4 || parts[0] != "repos" {
-		return "", "", 0, fmt.Errorf("invalid release endpoint path: %s", parsed.Path)
-	}
-
-	perPage = 10
-	if value := parsed.Query().Get("per_page"); value != "" {
-		parsedPerPage, convErr := strconv.Atoi(value)
-		if convErr != nil || parsedPerPage <= 0 {
-			return "", "", 0, fmt.Errorf("invalid per_page value: %s", value)
-		}
-		perPage = parsedPerPage
-	}
-
-	return parts[1], parts[2], perPage, nil
-}
-
-func buildProxyAssetURL(endpoint string, owner string, repo string, assetID int64) (string, error) {
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return "", err
-	}
-	parsed.Path = fmt.Sprintf("/repos/%s/%s/releases/assets/%d", owner, repo, assetID)
-	parsed.RawQuery = ""
-	return parsed.String(), nil
-}
-
-func selectLatestPrerelease(releases []GitHubRelease) *GitHubRelease {
-	candidates := make([]GitHubRelease, 0, len(releases))
-	for i := range releases {
-		release := &releases[i]
-		if !release.PreRelease || len(release.Assets) == 0 {
-			continue
-		}
-		candidates = append(candidates, *release)
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-
-	sort.SliceStable(candidates, func(i, j int) bool {
-		left := candidates[i]
-		right := candidates[j]
-
-		versionCmp := compareVersionStrings(left.TagName, right.TagName)
-		if versionCmp != 0 {
-			return versionCmp > 0
-		}
-
-		leftUpdated := normalizedReleaseTime(left)
-		rightUpdated := normalizedReleaseTime(right)
-		if !leftUpdated.Equal(rightUpdated) {
-			return leftUpdated.After(rightUpdated)
-		}
-
-		return left.TagName > right.TagName
-	})
-
-	chosen := candidates[0]
-	return &chosen
-}
-
-func normalizedReleaseTime(release GitHubRelease) time.Time {
-	if !release.UpdatedAt.IsZero() {
-		return release.UpdatedAt
-	}
-	return release.CreatedAt
-}
-
-func isCurrentVersionOlder(currentVersion, latestVersion string) bool {
-	current := strings.TrimSpace(currentVersion)
-	latest := strings.TrimSpace(latestVersion)
-
-	if strings.EqualFold(current, "dev") {
-		return latest != ""
-	}
-
-	// If the caller doesn't provide a current version, consider any latest release as newer.
-	if current == "" {
-		return latest != ""
-	}
-
-	return compareVersionStrings(current, latest) < 0
-}
-
-func compareVersionStrings(left, right string) int {
-	leftVersion, okLeft := parseVersion(left)
-	rightVersion, okRight := parseVersion(right)
-
-	switch {
-	case okLeft && okRight:
-		return compareParsedVersion(leftVersion, rightVersion)
-	case okLeft:
-		return 1
-	case okRight:
-		return -1
-	default:
-		return strings.Compare(strings.TrimSpace(left), strings.TrimSpace(right))
-	}
-}
-
-type parsedVersion struct {
-	major      int
-	minor      int
-	patch      int
-	prerelease string
-}
-
-func parseVersion(raw string) (parsedVersion, bool) {
-	value := strings.TrimSpace(strings.TrimPrefix(raw, "v"))
-	if value == "" {
-		return parsedVersion{}, false
-	}
-
-	base := value
-	prerelease := ""
-	if idx := strings.Index(base, "+"); idx >= 0 {
-		base = base[:idx]
-	}
-	if idx := strings.Index(base, "-"); idx >= 0 {
-		prerelease = base[idx+1:]
-		base = base[:idx]
-	}
-
-	parts := strings.Split(base, ".")
-	if len(parts) < 2 || len(parts) > 3 {
-		return parsedVersion{}, false
-	}
-
-	major, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return parsedVersion{}, false
-	}
-	minor, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return parsedVersion{}, false
-	}
-
-	patch := 0
-	if len(parts) == 3 {
-		patch, err = strconv.Atoi(parts[2])
-		if err != nil {
-			return parsedVersion{}, false
-		}
-	}
-
-	return parsedVersion{
-		major:      major,
-		minor:      minor,
-		patch:      patch,
-		prerelease: prerelease,
-	}, true
-}
-
-func compareParsedVersion(left, right parsedVersion) int {
-	if left.major != right.major {
-		if left.major > right.major {
-			return 1
-		}
-		return -1
-	}
-	if left.minor != right.minor {
-		if left.minor > right.minor {
-			return 1
-		}
-		return -1
-	}
-	if left.patch != right.patch {
-		if left.patch > right.patch {
-			return 1
-		}
-		return -1
-	}
-
-	// Stable release outranks prerelease when core versions match.
-	if left.prerelease == "" && right.prerelease != "" {
-		return 1
-	}
-	if left.prerelease != "" && right.prerelease == "" {
-		return -1
-	}
-	return strings.Compare(left.prerelease, right.prerelease)
-}
-
-func selectAsset(assets []Asset) *Asset {
-	osName := strings.ToLower(runtime.GOOS)
-	arch := strings.ToLower(runtime.GOARCH)
-
-	bestScore := -1
-	var best *Asset
-	for _, asset := range assets {
-		if asset.ID == 0 {
-			continue
-		}
-
-		name := strings.ToLower(asset.Name)
-		if name == "" {
-			name = strings.ToLower(asset.Url)
-		}
-
-		score := 0
-		if strings.Contains(name, osName) {
-			score += 4
-		}
-		if strings.Contains(name, arch) {
-			score += 5
-		}
-		if is32BitRuntime() && strings.Contains(name, "32") {
-			score += 2
-		}
-		if !is32BitRuntime() && strings.Contains(name, "64") {
-			score += 2
-		}
-		if runtime.GOOS == "darwin" && strings.Contains(name, ".dmg") {
-			score += 2
-		}
-		if runtime.GOOS == "windows" && strings.Contains(name, ".exe") {
-			score += 2
-		}
-		if runtime.GOOS == "linux" && strings.Contains(name, ".appimage") {
-			score += 2
-		}
-
-		if score > bestScore {
-			bestScore = score
-			chosen := asset
-			best = &chosen
-		}
-	}
-
-	return best
-}
-
-func is32BitRuntime() bool {
-	return strconv.IntSize == 32
-}
-
-type roundTripperFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
 }

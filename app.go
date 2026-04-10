@@ -87,13 +87,14 @@ func (a *App) GetAppInfo() appinfo.AppInfo {
 func (a *App) GetUpdatesFromRepo() (*appinfo.GitHubResponse, error) {
 	dc := appinfo.InitDiscoveryCient()
 
-	info, err := dc.GetUpdatesFromRepo()
+	info, err := dc.GetUpdatesFromRepo(a.GetAppInfo().ProductVersion)
 	if err != nil {
 		a.emitEvent("updates:error", err.Error())
 		return nil, err
 	}
-
-	a.emitEvent("updates:available", info)
+	if info != nil && info.Release != nil {
+		a.emitEvent("updates:available", info)
+	}
 
 	return info, nil
 }
