@@ -148,7 +148,7 @@
 
 {#if visible && selectedRelease}
   <div
-    class="sticky top-0 z-40 border-b border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-700 dark:bg-blue-900/40"
+    class="sticky top-0 z-40 border-b border-blue-200 bg-primary-500/40 px-3 py-2 dark:border-primary-700 dark:bg-primary-900/40"
   >
     <div class="flex flex-wrap items-center gap-3">
       <div class="min-w-0 flex-1">
@@ -166,7 +166,7 @@
       </div>
       <div class="flex items-center gap-2">
         <Button size="xs" color="light" onclick={handleIgnore} disabled={loading}>Ignore</Button>
-        <Button size="xs" color="blue" onclick={handleUpdate} disabled={loading} {loading}>
+        <Button size="xs" color="primary" onclick={handleUpdate} disabled={loading} {loading}>
           Update
         </Button>
       </div>
