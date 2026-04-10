@@ -1,9 +1,10 @@
+// Copyright 2026-present raml-dev
+// SPDX-License-Identifier: GPL-3.0-only
 package appinfo
 
 import (
 	"os"
 	"testing"
-	"time"
 )
 
 func TestDiscoveryClient_GetUpdatesFromRepo_LiveServer(t *testing.T) {
@@ -13,14 +14,19 @@ func TestDiscoveryClient_GetUpdatesFromRepo_LiveServer(t *testing.T) {
 
 	dc := InitDiscoveryCient()
 
-	response, err := dc.GetUpdatesFromRepo()
+	/*
+	   if you want to check the behavior in case you have installed the latest version of the
+	   application, just change the param name of GetUpdatesFromRepo with the name of the latest release.
+	   Then it should go in the "response == nil" condition.
+	*/
+	response, err := dc.GetUpdatesFromRepo("0.1.0-rc1")
 	if err != nil {
 		t.Fatalf("GetUpdatesFromRepo failed: %v", err)
 	}
 	if response == nil {
 		t.Fatal("GetUpdatesFromRepo returned nil response")
 	}
-	if len(response.Releases) == 0 {
+	if response.Release == nil {
 		t.Fatal("GetUpdatesFromRepo returned no releases")
 	}
 
@@ -30,23 +36,6 @@ func TestDiscoveryClient_GetUpdatesFromRepo_LiveServer(t *testing.T) {
 	}
 	if s == "" {
 		t.Fatal("DownloadAssets returned empty release body")
-	}
-}
-
-func TestSelectLatestPrerelease(t *testing.T) {
-	releases := []GitHubRelease{
-		{TagName: "v1.3.0", PreRelease: false, Assets: []Asset{{ID: 1}}},
-		{TagName: "v1.4.0-rc.1", PreRelease: true, Assets: []Asset{{ID: 2}}},
-		{TagName: "v1.4.0-rc.3", PreRelease: true, Assets: []Asset{{ID: 3}}},
-		{TagName: "v1.4.0-rc.2", PreRelease: true, Assets: []Asset{{ID: 4}}},
-	}
-
-	got := selectLatestPrerelease(releases)
-	if got == nil {
-		t.Fatal("expected a prerelease, got nil")
-	}
-	if got.TagName != "v1.4.0-rc.3" {
-		t.Fatalf("expected latest prerelease v1.4.0-rc.3, got %s", got.TagName)
 	}
 }
 
@@ -102,31 +91,5 @@ func TestIsCurrentVersionOlder(t *testing.T) {
 				t.Fatalf("isCurrentVersionOlder(%q, %q) = %v, want %v", tc.currentVersion, tc.latestVersion, got, tc.want)
 			}
 		})
-	}
-}
-
-func TestSelectLatestPrereleaseFallbackByTime(t *testing.T) {
-	now := time.Now()
-	releases := []GitHubRelease{
-		{
-			TagName:    "invalid-tag-a",
-			PreRelease: true,
-			Assets:     []Asset{{ID: 1}},
-			UpdatedAt:  now.Add(-2 * time.Hour),
-		},
-		{
-			TagName:    "invalid-tag-b",
-			PreRelease: true,
-			Assets:     []Asset{{ID: 2}},
-			UpdatedAt:  now.Add(-1 * time.Hour),
-		},
-	}
-
-	got := selectLatestPrerelease(releases)
-	if got == nil {
-		t.Fatal("expected latest prerelease, got nil")
-	}
-	if got.TagName != "invalid-tag-b" {
-		t.Fatalf("expected latest by UpdatedAt invalid-tag-b, got %s", got.TagName)
 	}
 }
