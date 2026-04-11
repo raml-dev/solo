@@ -31,6 +31,7 @@
   import { buildResolvedRequestPayload, getStatusBadgeColor } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
+  import Spinner from "flowbite-svelte/Spinner.svelte";
   import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
@@ -698,7 +699,11 @@
       </div>
 
       {#if !responseCollapsed}
-        {#if requestError}
+        {#if loading}
+          <div class="flex h-full w-full items-center justify-center">
+            <Spinner type="bars" color="primary" />
+          </div>
+        {:else if requestError}
           <Alert color="red" class="m-3">
             <div class="flex flex-col gap-1">
               <span class="font-medium">Request failed</span>
