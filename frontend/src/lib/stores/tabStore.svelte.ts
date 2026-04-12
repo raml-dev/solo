@@ -346,7 +346,7 @@ export function renameTabsByRequestId(requestId: string, label: string) {
 /** Remove all tabs referencing a deleted request */
 export function removeTabsForRequest(requestId: string) {
   const wasActiveTab = tabStoreState.tabs[tabStoreState.activeTabIndex]?.requestId === requestId;
-  filterInPlace(tabStoreState.tabs, (t) => t.requestId !== requestId);
+  filterInPlace(tabStoreState.tabs, (t: TabState) => t.requestId !== requestId);
   if (wasActiveTab) {
     tabStoreState.activeTabIndex =
       tabStoreState.tabs.length > 0 ? tabStoreState.tabs.length - 1 : -1;

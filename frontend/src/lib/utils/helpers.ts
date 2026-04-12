@@ -1,5 +1,5 @@
 /**
- * Removes elements matching the given predicate in the array _in place_.
+ * Filters the array _in place_ to only retain elements matching the given predicate.
  *
  * Similar in effect to the native `Array.filter` function, but in place.
  *
@@ -8,7 +8,7 @@
  */
 export function filterInPlace<T>(array: Array<T>, predicate: (element: T) => boolean) {
   for (let i = array.length - 1; i >= 0; i--) {
-    if (predicate(array[i])) array.splice(i, 1);
+    if (!predicate(array[i])) array.splice(i, 1);
   }
 }
 

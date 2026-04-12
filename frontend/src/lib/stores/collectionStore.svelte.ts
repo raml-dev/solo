@@ -179,6 +179,11 @@ export const collectionStore = {
         body: request.body || "",
         headers: request.headers || {},
         cookies: request.cookies || {},
+        bodyType: request.bodyType || undefined,
+        auth: request.auth || undefined,
+        settings: request.settings || undefined,
+        preRequestScript: request.preRequestScript || undefined,
+        postResponseScript: request.postResponseScript || undefined,
         creationTimestamp: new SvelteDate().toISOString(),
         lastUpdateTimestamp: new SvelteDate().toISOString()
       });
@@ -189,7 +194,7 @@ export const collectionStore = {
         if (c.name === collectionName) {
           return collection.Collection.createFrom({
             ...c,
-            requests: [newRequest, ...c.requests],
+            requests: [...c.requests, newRequest],
             lastUpdateTimestamp: new SvelteDate().toISOString()
           });
         }
