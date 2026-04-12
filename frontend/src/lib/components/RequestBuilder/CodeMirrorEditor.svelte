@@ -52,7 +52,8 @@
   } from "@codemirror/view";
   import { tags } from "@lezer/highlight";
   import { indentationMarkers } from "@replit/codemirror-indentation-markers";
-  import { Button, CloseButton } from "flowbite-svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import ArrowDownOutline from "flowbite-svelte-icons/ArrowDownOutline.svelte";
   import ArrowUpOutline from "flowbite-svelte-icons/ArrowUpOutline.svelte";
   import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
