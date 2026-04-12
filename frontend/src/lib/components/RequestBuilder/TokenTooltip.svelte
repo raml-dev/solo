@@ -47,8 +47,9 @@
   }
 
   function handleTooltipMouseLeave() {
-    isEditing = false;
-    tooltipMouseLeave();
+    if (!isEditing) {
+      tooltipMouseLeave();
+    }
   }
 
   async function save() {
