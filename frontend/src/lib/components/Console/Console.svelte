@@ -72,10 +72,10 @@
       <span class="text-xs font-bold whitespace-nowrap text-neutral-500 uppercase">URL</span>
       <Input
         size="sm"
-        class="w-full h-7 min-w-40"
+        class="h-7 w-full min-w-40"
         type="text"
         placeholder="Filter URL..."
-        classes={{input: "h-7"}}
+        classes={{ input: "h-7" }}
         bind:value={filterUrl}
       />
     </div>
@@ -86,8 +86,8 @@
         size="sm"
         bind:value={filterMethod}
         items={METHOD_OPTIONS}
-        class="w-24 h-7"
-        classes={{select: "h-7 py-0"}}
+        class="h-7 w-24"
+        classes={{ select: "h-7 py-0" }}
         placeholder=""
       />
     </div>
@@ -98,13 +98,13 @@
         size="sm"
         bind:value={filterStatus}
         items={STATUS_OPTIONS}
-        class="w-32 h-7"
-        classes={{select: "h-7 py-0"}}
+        class="h-7 w-32"
+        classes={{ select: "h-7 py-0" }}
         placeholder=""
       />
     </div>
 
-    <div class="ml-auto h-6 flex items-center gap-3">
+    <div class="ml-auto flex h-6 items-center gap-3">
       <span
         class="text-xs font-bold whitespace-nowrap text-neutral-400 uppercase dark:text-neutral-500"
       >

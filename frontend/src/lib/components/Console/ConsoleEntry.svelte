@@ -37,39 +37,51 @@
     onclick={() => (expanded = !expanded)}
   >
     <span class="shrink-0 text-neutral-400">{expanded ? "▾" : "▸"}</span>
-    <div class="w-90 text-left">
-      <span class="shrink-0 font-mono text-neutral-500 dark:text-neutral-400"
+    <div class="text-left">
+      <span class="shrink-0 align-middle font-mono text-neutral-500 dark:text-neutral-400"
         >{formatTime(entry.timestamp)}</span
       >
       <span class={getMethodBadgeClass(entry.request.method)}>
         {entry.request.method}
       </span>
+    </div>
 
+    {#if entry.response}
+      <div class="w-90 text-left">
+        <span
+          class="min-w-0 truncate text-left text-neutral-700 dark:text-neutral-300"
+          title={entry.request.url}>{truncateString(entry.request.url)}</span
+        >
+      </div>
+    {/if}
+
+    <div class="">
       {#if entry.error}
         <Badge color="red">ERR</Badge>
       {:else if entry.response}
-        <Badge color={getStatusBadgeColor(entry.response.status)}>
-          {getHttpStatusString(entry.response.status)}
-        </Badge>
+        <div class="flex">
+          <span class="w-15 shrink-0 text-left text-neutral-500 dark:text-neutral-400"
+            >{entry.response.time}ms</span
+          >
+          <Badge color={getStatusBadgeColor(entry.response.status)}>
+            {getHttpStatusString(entry.response.status)}
+          </Badge>
+        </div>
       {/if}
     </div>
-
-    <div class="w-20">
-      {#if entry.response}
-        <span class="shrink-0 text-neutral-500 dark:text-neutral-400">{entry.response.time}ms</span>
-      {/if}
-    </div>
-
-    <span
-      class="min-w-0 flex-1 truncate text-left text-neutral-700 dark:text-neutral-300"
-      title={entry.request.url}>{truncateString(entry.request.url)}</span
-    >
 
     {#if entry.collectionName}
-      <span
+      <!-- trick to make truncation happen on the _beginning_ of the string :
+      make the container right-to-left, and the actual text again left-to-right
+    -->
+      <div
+        dir="rtl"
         class="min-w-0 flex-1 shrink-0 truncate text-right text-neutral-400 dark:text-neutral-500"
-        >{entry.collectionName}{entry.requestName ? ` / ${entry.requestName}` : ""}</span
       >
+        <span dir="ltr"
+          >{entry.collectionName}{entry.requestName ? ` / ${entry.requestName}` : ""}</span
+        >
+      </div>
     {/if}
   </Button>
 
