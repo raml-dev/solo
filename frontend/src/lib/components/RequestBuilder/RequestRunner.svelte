@@ -21,7 +21,7 @@
   import { main, runner } from "$wails/go/models";
   import { EventsOff, EventsOn } from "$wails/runtime";
   import { onMount } from "svelte";
-  import { getStatusBadgeColor } from "$src/lib/utils/http";
+  import { getHttpStatusString, getStatusBadgeColor } from "$src/lib/utils/http";
 
   interface Header {
     id: string;
@@ -212,7 +212,7 @@
                     <Badge color="red">ERROR</Badge>
                   {:else if res.response}
                     <Badge color={getStatusBadgeColor(res.response.statusCode)}>
-                      {res.response.statusCode}
+                      {getHttpStatusString(res.response.statusCode)}
                     </Badge>
                   {/if}
                 </TableBodyCell>

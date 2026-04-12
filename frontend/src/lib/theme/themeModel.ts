@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+import type { HttpMethod } from "$src/lib/utils/http";
+
 export type ThemeMode = "light" | "dark" | "system";
 
 export type ThemeSeeds = {
@@ -106,8 +108,6 @@ export const THEME_PRESETS: ThemePresetDefinition[] = [
     }
   }
 ];
-
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 export type MethodSemanticFamily = "primary" | "success" | "warning" | "danger" | "neutral";
 
