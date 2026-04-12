@@ -27,7 +27,8 @@ type HostManager struct {
 func NewHostManager() *HostManager {
 	configDir, err := fs.GetMainConfig(fs.CONFIG_HOST_DIR)
 	if err != nil {
-		return nil
+		slog.Error("Failed to get or create main config dir")
+		panic(err)
 	}
 
 	hm := &HostManager{
@@ -79,11 +80,13 @@ func (hm *HostManager) GetAllHosts() []Host {
 func (hm *HostManager) loadHosts() {
 	data, err := fs.ReadConfigFile(hm.config, fs.CONFIG_HOST_FILENAME)
 	if err != nil {
+		slog.Error("Failed to read host file")
 		return
 	}
 
 	var hosts []Host
 	if err := json.Unmarshal(data, &hosts); err != nil {
+		slog.Error("Failed to parse host file")
 		return
 	}
 
@@ -100,6 +103,7 @@ func (hm *HostManager) saveHosts() error {
 
 	data, err := json.Marshal(hosts)
 	if err != nil {
+		slog.Error("Failed to read hosts")
 		return err
 	}
 

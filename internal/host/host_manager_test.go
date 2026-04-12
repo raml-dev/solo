@@ -518,3 +518,33 @@ func cleanupTestDir(path string) {
 func buildHostFileName(configPath string) string {
 	return filepath.Join(configPath, fs.CONFIG_HOST_FILENAME)
 }
+
+func TestNewHostManager_Panic(t *testing.T) {
+	// To cause a panic, we need GetMainConfig to fail.
+	// GetOrCreateConfigDir calls os.UserConfigDir() and then os.MkdirAll.
+	// We can try setting an environment variable that would make os.UserConfigDir fail or point to an invalid path.
+
+	originalHome := os.Getenv("HOME")
+	originalXDG := os.Getenv("XDG_CONFIG_HOME")
+	originalLocalAppData := os.Getenv("LOCALAPPDATA")
+
+	// Set HOME to a path where it will likely fail to create a directory
+	// (e.g. inside a file or a path with no permissions)
+	os.Setenv("HOME", "/dev/null/notadir")
+	os.Setenv("XDG_CONFIG_HOME", "/dev/null/notadir")
+	os.Setenv("LOCALAPPDATA", "/dev/null/notadir")
+
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("XDG_CONFIG_HOME", originalXDG)
+		os.Setenv("LOCALAPPDATA", originalLocalAppData)
+	}()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected NewHostManager to panic when config directory cannot be created")
+		}
+	}()
+
+	NewHostManager()
+}

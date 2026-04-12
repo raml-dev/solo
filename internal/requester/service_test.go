@@ -43,7 +43,7 @@ func newTestService(t *testing.T) (*Service, *configuration.ConfigurationManager
 		t.Fatalf("failed to create configuration manager: %v", err)
 	}
 
-	envManager := environment.NewEnvironmentManager()
+	envManager := environment.NewEnvironmentManager(configManager)
 	scriptManager := script.NewScriptManager(nil)
 	hostManager := host.NewHostManager()
 	authManager := auth.NewAuthManager(tempHome)

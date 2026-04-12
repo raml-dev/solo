@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"solo/internal/configuration"
+	"strings"
 	"testing"
 )
 
@@ -42,8 +44,8 @@ func TestCreateEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupExisting {
 				if err := em.CreateEnvironment(tt.environmentName); err != nil {
@@ -112,8 +114,8 @@ func TestLoadEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName); err != nil {
@@ -170,8 +172,8 @@ func TestLoadEnvironments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em); err != nil {
@@ -224,8 +226,8 @@ func TestUpdateEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			env := tt.setup(em)
 			err := em.UpdateEnvironment(env)
@@ -281,8 +283,8 @@ func TestDeleteEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupExisting {
 				if err := em.CreateEnvironment(tt.environmentName); err != nil {
@@ -351,8 +353,8 @@ func TestGetValuesFromManager(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName); err != nil {
@@ -411,8 +413,8 @@ func TestEnvironmentManagerAddValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.environmentName != "" {
 				em.CreateEnvironment(tt.environmentName)
@@ -484,8 +486,8 @@ func TestEnvironmentManagerRemoveValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName, tt.valueName); err != nil {
@@ -568,8 +570,8 @@ func TestEnvironmentManagerUpdateValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em := setupTestManager(t)
-			defer cleanupTestDir(em.path)
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName, tt.valueName); err != nil {
@@ -601,14 +603,186 @@ func TestEnvironmentManagerUpdateValue(t *testing.T) {
 }
 
 // Helper functions
-func setupTestManager(t *testing.T) *EnvironmentManager {
-	tmpDir := filepath.Join(os.TempDir(), "solo-test-"+t.Name())
-	if err := os.MkdirAll(tmpDir, 0700); err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
+func setupTestManager(t *testing.T) (*EnvironmentManager, func()) {
+	// t.Name() can contain slashes for subtests, which are not allowed in MkdirTemp pattern
+	safeName := strings.ReplaceAll(t.Name(), "/", "_")
+	tempHome, err := os.MkdirTemp("", "solo_test_env_"+safeName)
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	return &EnvironmentManager{path: tmpDir}
+
+	originalHome := os.Getenv("HOME")
+	originalXDG := os.Getenv("XDG_CONFIG_HOME")
+	originalLocalAppData := os.Getenv("LOCALAPPDATA")
+
+	os.Setenv("HOME", tempHome)
+	os.Setenv("XDG_CONFIG_HOME", tempHome)
+	os.Setenv("LOCALAPPDATA", tempHome)
+
+	cm, err := configuration.NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("Failed to create configuration manager: %v", err)
+	}
+
+	// EnvironmentManager needs a real directory in the temp home
+	envDir := filepath.Join(tempHome, "environments")
+	if err := os.MkdirAll(envDir, 0700); err != nil {
+		t.Fatalf("Failed to create environments directory: %v", err)
+	}
+
+	em := &EnvironmentManager{path: envDir, cm: cm}
+
+	cleanup := func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("XDG_CONFIG_HOME", originalXDG)
+		os.Setenv("LOCALAPPDATA", originalLocalAppData)
+		os.RemoveAll(tempHome)
+	}
+
+	return em, cleanup
 }
 
-func cleanupTestDir(path string) {
-	os.RemoveAll(path)
+func setupTestEnvironmentConfig(t *testing.T) (string, func()) {
+	tempHome, err := os.MkdirTemp("", "solo_test_env_init")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	originalHome := os.Getenv("HOME")
+	originalXDG := os.Getenv("XDG_CONFIG_HOME")
+	originalLocalAppData := os.Getenv("LOCALAPPDATA")
+
+	os.Setenv("HOME", tempHome)
+	os.Setenv("XDG_CONFIG_HOME", tempHome)
+	os.Setenv("LOCALAPPDATA", tempHome)
+
+	return tempHome, func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("XDG_CONFIG_HOME", originalXDG)
+		os.Setenv("LOCALAPPDATA", originalLocalAppData)
+		os.RemoveAll(tempHome)
+	}
+}
+
+func TestNewEnvironmentManager(t *testing.T) {
+	_, cleanup := setupTestEnvironmentConfig(t)
+	defer cleanup()
+
+	cm, err := configuration.NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("Failed to create configuration manager: %v", err)
+	}
+
+	// Test case 1: "default" environment is created if it doesn't exist
+	em := NewEnvironmentManager(cm)
+	if em == nil {
+		t.Fatal("Expected NewEnvironmentManager to return a manager, got nil")
+	}
+
+	// Verify "default" environment file exists
+	defaultEnvPath := filepath.Join(em.path, DEFAULT_ENVIRONMENT_NAME+".json")
+	if _, err := os.Stat(defaultEnvPath); os.IsNotExist(err) {
+		t.Errorf("Expected default environment file to be created at %s", defaultEnvPath)
+	}
+
+	// Verify "default" environment is selected if none was selected
+	if cm.GetSelectedEnvironment() != DEFAULT_ENVIRONMENT_NAME {
+		t.Errorf("Expected selected environment to be %s, got %s", DEFAULT_ENVIRONMENT_NAME, cm.GetSelectedEnvironment())
+	}
+
+	// Test case 2: "default" environment is not overwritten if it already exists
+	// First, add a value to the default environment
+	err = em.AddValue(DEFAULT_ENVIRONMENT_NAME, "test-key", ValueType{Value: "test-value", Type: "string"})
+	if err != nil {
+		t.Fatalf("Failed to add value to default environment: %v", err)
+	}
+
+	// Re-initialize the manager
+	em2 := NewEnvironmentManager(cm)
+
+	// Verify the value still exists
+	env, err := em2.LoadEnvironment(DEFAULT_ENVIRONMENT_NAME)
+	if err != nil {
+		t.Fatalf("Failed to load default environment: %v", err)
+	}
+	if _, ok := env.Values["test-key"]; !ok {
+		t.Error("Expected test-key to persist in default environment after re-initialization")
+	}
+
+	// Test case 3: Selected environment is NOT changed if it's already set and exists
+	otherEnv := "other-env"
+	err = em2.CreateEnvironment(otherEnv)
+	if err != nil {
+		t.Fatalf("Failed to create other environment: %v", err)
+	}
+	cm.SetSelectedEnvironment(otherEnv)
+
+	_ = NewEnvironmentManager(cm)
+	if cm.GetSelectedEnvironment() != otherEnv {
+		t.Errorf("Expected selected environment to remain %s, got %s", otherEnv, cm.GetSelectedEnvironment())
+	}
+
+	// Test case 4: Selected environment is reset to "default" if it's set but does not exist
+	cm.SetSelectedEnvironment("non-existent-env")
+	_ = NewEnvironmentManager(cm)
+	if cm.GetSelectedEnvironment() != DEFAULT_ENVIRONMENT_NAME {
+		t.Errorf("Expected selected environment to be reset to %s when missing, got %s", DEFAULT_ENVIRONMENT_NAME, cm.GetSelectedEnvironment())
+	}
+}
+
+func TestDeleteEnvironment_DefaultProtectionAndFallback(t *testing.T) {
+	_, cleanup := setupTestEnvironmentConfig(t)
+	defer cleanup()
+
+	cm, err := configuration.NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("Failed to create configuration manager: %v", err)
+	}
+
+	em := NewEnvironmentManager(cm)
+
+	// Test case 1: Cannot delete "default" environment
+	err = em.DeleteEnvironment(DEFAULT_ENVIRONMENT_NAME)
+	if err == nil {
+		t.Error("Expected error when deleting default environment, got nil")
+	} else if err.Error() != "default environment cannot be deleted" {
+		t.Errorf("Expected error 'default environment cannot be deleted', got '%v'", err)
+	}
+
+	// Test case 2: Deleting selected environment falls back to "default"
+	otherEnv := "to-delete"
+	err = em.CreateEnvironment(otherEnv)
+	if err != nil {
+		t.Fatalf("Failed to create environment: %v", err)
+	}
+
+	cm.SetSelectedEnvironment(otherEnv)
+	if cm.GetSelectedEnvironment() != otherEnv {
+		t.Fatalf("Failed to set selected environment")
+	}
+
+	err = em.DeleteEnvironment(otherEnv)
+	if err != nil {
+		t.Fatalf("Failed to delete environment: %v", err)
+	}
+
+	if cm.GetSelectedEnvironment() != DEFAULT_ENVIRONMENT_NAME {
+		t.Errorf("Expected selected environment to fall back to %s after deletion, got %s", DEFAULT_ENVIRONMENT_NAME, cm.GetSelectedEnvironment())
+	}
+
+	// Test case 3: Deleting non-selected environment does NOT change selection
+	env1 := "env1"
+	env2 := "env2"
+	em.CreateEnvironment(env1)
+	em.CreateEnvironment(env2)
+	cm.SetSelectedEnvironment(env1)
+
+	err = em.DeleteEnvironment(env2)
+	if err != nil {
+		t.Fatalf("Failed to delete environment: %v", err)
+	}
+
+	if cm.GetSelectedEnvironment() != env1 {
+		t.Errorf("Selection changed unexpectedly. Expected %s, got %s", env1, cm.GetSelectedEnvironment())
+	}
 }
