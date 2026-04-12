@@ -31,6 +31,8 @@ const initialState: EnvironmentState = {
   loading: false
 };
 
+const DEFAULT_ENV_NAME = "default";
+
 export const environmentStoreState = $state<EnvironmentState>({ ...initialState });
 
 export const environmentStore = {
@@ -89,7 +91,7 @@ export const environmentStore = {
         (e) => e.name !== name
       );
       if (environmentStoreState.selectedEnvironmentName === name) {
-        environmentStoreState.selectedEnvironmentName = null;
+        this.selectEnvironment(DEFAULT_ENV_NAME);
       }
       environmentStoreState.loading = false;
     } catch (err) {
