@@ -62,10 +62,11 @@ interface TabStoreState {
 
 const EMPTY_TAB_LABEL = "New Request";
 const MAX_OPEN_TABS = 15;
+const STORAGE_KEY = "tabs";
 
 export const tabStoreState: TabStoreState = $state({
-  tabs: [],
-  activeTabIndex: -1
+  tabs: (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").tabs || []) as TabState[],
+  activeTabIndex: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").activeTabIndex as number || -1
 });
 
 /** Get mutable reference to active tab */
@@ -124,6 +125,7 @@ export function makeEmptyTab(): TabState {
   };
   tabStoreState.tabs.push(newTab);
   tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
+  storeTabsInLocalStorage();
   return newTab;
 }
 
@@ -147,6 +149,7 @@ export function openTab(
   const existingIndex = tabStoreState.tabs.findIndex((t) => t.requestId === requestId);
   if (existingIndex !== -1) {
     tabStoreState.activeTabIndex = existingIndex;
+    storeTabsInLocalStorage();
     return;
   }
 
@@ -181,6 +184,7 @@ export function openTab(
     tab.response = null;
     tab.requestError = null;
     tabStoreState.activeTabIndex = tabIndexToReplace;
+    storeTabsInLocalStorage();
     return;
   }
 
@@ -211,6 +215,7 @@ export function openTab(
   };
   tabStoreState.tabs.push(newTab);
   tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
+  storeTabsInLocalStorage();
 }
 
 export function closeTab(tabId: string) {
@@ -226,6 +231,7 @@ export function closeTab(tabId: string) {
   } else if (tabStoreState.activeTabIndex > idx) {
     tabStoreState.activeTabIndex--;
   }
+  storeTabsInLocalStorage();
 }
 
 export function setActiveTab(tabId: string) {
@@ -259,6 +265,7 @@ export function updateTabFormState(
       isPreview: false
     });
   }
+  storeTabsInLocalStorage();
 }
 
 /** Called after a successful save: bind a previously-unsaved tab to a real requestId */
@@ -276,6 +283,7 @@ export function bindTabToRequest(
     tab.isDirty = false;
     tab.isPreview = false;
   }
+  storeTabsInLocalStorage();
 }
 
 export async function saveTab(tabId: string) {
@@ -321,6 +329,7 @@ export async function saveTab(tabId: string) {
     notifications.error("Failed to save request");
     throw error;
   }
+  storeTabsInLocalStorage();
 }
 
 export function updateTabResponse(
@@ -334,6 +343,7 @@ export function updateTabResponse(
     tab.requestError = requestError;
     tab.isPreview = false;
   }
+  storeTabsInLocalStorage();
 }
 
 export function renameTabsByRequestId(requestId: string, label: string) {
@@ -341,6 +351,7 @@ export function renameTabsByRequestId(requestId: string, label: string) {
   if (tab) {
     tab.label = label;
   }
+  storeTabsInLocalStorage();
 }
 
 /** Remove all tabs referencing a deleted request */
@@ -351,6 +362,11 @@ export function removeTabsForRequest(requestId: string) {
     tabStoreState.activeTabIndex =
       tabStoreState.tabs.length > 0 ? tabStoreState.tabs.length - 1 : -1;
   }
+  storeTabsInLocalStorage();
+}
+
+export function storeTabsInLocalStorage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tabStoreState));
 }
 
 export const tabStore = {
@@ -363,5 +379,6 @@ export const tabStore = {
   saveTab,
   updateTabResponse,
   renameTabsByRequestId,
-  removeTabsForRequest
+  removeTabsForRequest,
+  storeTabsInLocalStorage
 };

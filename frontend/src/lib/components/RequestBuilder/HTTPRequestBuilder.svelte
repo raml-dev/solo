@@ -112,6 +112,7 @@
     if (!tab) return;
     tab.isDirty = true;
     tab.isPreview = false;
+    tabStore.storeTabsInLocalStorage();
   }
 
   async function handleSave() {

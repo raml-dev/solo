@@ -14,15 +14,14 @@
   import { configurationStore } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStore } from "$src/lib/stores/environmentStore.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
-  import { hasOpenModals, modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
+  import { hasOpenModals } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
+  import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
   import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
-  import Modal from "flowbite-svelte/Modal.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
   import { onMount } from "svelte";
 
@@ -37,7 +36,7 @@
  ▄▄▄  ▄▄▄  █  ▄▄▄
 ▀▄▄  █   █ █ █   █
 ▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀`;
-  const globalUnsavedModal = modalStack.createModal("app-unsaved");
+  // const globalUnsavedModal = modalStack.createModal("app-unsaved");
 
   const flowbiteTheme = {
     input: {
@@ -119,20 +118,6 @@
     }
   }
 
-  async function handleSaveAllAndQuit() {
-    const dirtyTabs = tabStoreState.tabs.filter((t) => t.isDirty && t.requestId);
-
-    for (const tab of dirtyTabs) {
-      try {
-        await tabStore.saveTab(tab.id);
-      } catch (err) {
-        console.error("Failed to save tab", tab.label, err);
-      }
-    }
-
-    await ForceQuit();
-  }
-
   onMount(() => {
     (async () => {
       await initializeApp();
@@ -147,13 +132,7 @@
     window.addEventListener("keydown", handleKeyDown);
 
     EventsOn("app:request-close", () => {
-      const dirtyTabs = tabStoreState.tabs.filter((t) => t.isDirty);
-
-      if (dirtyTabs.length > 0) {
-        globalUnsavedModal.open = true;
-      } else {
-        ForceQuit();
-      }
+      ForceQuit();
     });
 
     // TODO any
@@ -222,7 +201,6 @@
     });
 
     return () => {
-      modalStack.destroyModal(globalUnsavedModal.id);
       window.removeEventListener("keydown", handleKeyDown);
     };
   });
@@ -289,28 +267,4 @@
       </div>
     {/snippet}
   </MainLayout>
-
-  {#if globalUnsavedModal.open}
-    <Modal title="Unsaved Changes" bind:open={globalUnsavedModal.open}>
-      {#if $topModalId === globalUnsavedModal.id}
-        <ToastContainer />
-      {/if}
-      <div class="flex flex-col gap-2">
-        <p>You have unsaved changes in some requests. Do you want to save them before quitting?</p>
-        <p class="text-neutral-500 dark:text-neutral-400">
-          If you don't save, your changes will be permanently lost.
-        </p>
-      </div>
-
-      {#snippet footer()}
-        <div class="flex w-full items-center gap-2">
-          <Button color="red" onclick={() => ForceQuit()}>Discard and Quit</Button>
-          <div class="ml-auto flex items-center gap-2">
-            <Button color="light" onclick={() => (globalUnsavedModal.open = false)}>Cancel</Button>
-            <Button color="primary" onclick={handleSaveAllAndQuit}>Save All and Quit</Button>
-          </div>
-        </div>
-      {/snippet}
-    </Modal>
-  {/if}
 </ThemeProvider>
