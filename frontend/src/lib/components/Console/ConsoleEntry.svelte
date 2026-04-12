@@ -5,7 +5,12 @@
 
 <script lang="ts">
   import type { HistoryEntry } from "$src/lib/stores/historyStore";
-  import { getHttpStatusString, getMethodBadgeClass, getStatusBadgeColor } from "$src/lib/utils/http";
+  import { formatTime, truncateString } from "$src/lib/utils/helpers";
+  import {
+    getHttpStatusString,
+    getMethodBadgeClass,
+    getStatusBadgeColor
+  } from "$src/lib/utils/http";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
 
@@ -17,15 +22,6 @@
 
   let expanded = $state(false);
   let detailTab: "request" | "response" = $state("response");
-
-  function formatTime(ts: string): string {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  }
-
-  function truncateUrl(url: string, max = 60): string {
-    return url.length > max ? url.slice(0, max) + "..." : url;
-  }
 
   function formatHeaders(headers: Record<string, string>): string {
     return Object.entries(headers)
@@ -41,34 +37,51 @@
     onclick={() => (expanded = !expanded)}
   >
     <span class="shrink-0 text-neutral-400">{expanded ? "▾" : "▸"}</span>
-    <span class="shrink-0 font-mono text-neutral-500 dark:text-neutral-400"
-      >{formatTime(entry.timestamp)}</span
-    >
-    <span class={getMethodBadgeClass(entry.request.method)}>
-      {entry.request.method}
-    </span>
-
-    {#if entry.error}
-      <Badge color="red">ERR</Badge>
-    {:else if entry.response}
-      <Badge color={getStatusBadgeColor(entry.response.status)}>
-        {getHttpStatusString(entry.response.status)}
-      </Badge>
-    {/if}
-
-    <span
-      class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300"
-      title={entry.request.url}>{truncateUrl(entry.request.url)}</span
-    >
+    <div class="text-left">
+      <span class="shrink-0 align-middle font-mono text-neutral-500 dark:text-neutral-400"
+        >{formatTime(entry.timestamp)}</span
+      >
+      <span class={getMethodBadgeClass(entry.request.method)}>
+        {entry.request.method}
+      </span>
+    </div>
 
     {#if entry.response}
-      <span class="shrink-0 text-neutral-500 dark:text-neutral-400">{entry.response.time}ms</span>
+      <div class="w-90 text-left">
+        <span
+          class="min-w-0 truncate text-left text-neutral-700 dark:text-neutral-300"
+          title={entry.request.url}>{truncateString(entry.request.url)}</span
+        >
+      </div>
     {/if}
 
+    <div class="">
+      {#if entry.error}
+        <Badge color="red">ERR</Badge>
+      {:else if entry.response}
+        <div class="flex">
+          <span class="w-15 shrink-0 text-left text-neutral-500 dark:text-neutral-400"
+            >{entry.response.time}ms</span
+          >
+          <Badge color={getStatusBadgeColor(entry.response.status)}>
+            {getHttpStatusString(entry.response.status)}
+          </Badge>
+        </div>
+      {/if}
+    </div>
+
     {#if entry.collectionName}
-      <span class="shrink-0 text-neutral-400 dark:text-neutral-500"
-        >{entry.collectionName}{entry.requestName ? ` / ${entry.requestName}` : ""}</span
+      <!-- trick to make truncation happen on the _beginning_ of the string :
+      make the container right-to-left, and the actual text again left-to-right
+    -->
+      <div
+        dir="rtl"
+        class="min-w-0 flex-1 shrink-0 truncate text-right text-neutral-400 dark:text-neutral-500"
       >
+        <span dir="ltr"
+          >{entry.collectionName}{entry.requestName ? ` / ${entry.requestName}` : ""}</span
+        >
+      </div>
     {/if}
   </Button>
 

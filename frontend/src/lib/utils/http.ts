@@ -139,7 +139,7 @@ export const HTTP_STATUS_STRINGS: Record<HTTP_STATUS, string> = {
   508: "Loop Detected",
   510: "Not Extended",
   511: "Network Authentication Required"
-}
+};
 
 export function getHttpStatusString(code: number): string {
   if (code in HTTP_STATUS_STRINGS) {
