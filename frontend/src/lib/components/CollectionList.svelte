@@ -254,7 +254,7 @@
       : [];
 
     tabStore.openTab(req.id, collectionName, {
-      label: req.name || "Request",
+      label: req.name || "New Request",
       verb: req.verb || "GET",
       url: req.url || "",
       body: req.body || "",
@@ -679,29 +679,24 @@
     }
   }
 
-  async function handleAddRequest(e: Event, collectionName: string) {
+  async function handleAddRequest(
+    e: Event,
+    collectionName: string,
+    newRequest: Partial<collection.Request> = {
+      name: "New Request",
+      url: "",
+      verb: "GET"
+    }
+  ) {
     e.stopPropagation();
 
     try {
-      const newReq = await collectionStore.addRequest(collectionName, {
-        name: "New Request",
-        url: "",
-        verb: "GET"
-      });
+      const newReq = await collectionStore.addRequest(collectionName, newRequest);
 
       expandedCollections.add(collectionName);
 
       if (newReq?.id) {
-        tabStore.openTab(newReq.id, collectionName, {
-          label: "New Request",
-          verb: "GET",
-          url: "",
-          body: "",
-          bodyFormat: "json",
-          headers: [],
-          auth: newReq.auth,
-          settings: {}
-        });
+        selectRequest(newReq, collectionName);
       }
     } catch {
       // error already shown by store
@@ -719,6 +714,7 @@
 
     try {
       await collectionStore.removeRequest(deleteRequestCollectionName, deleteRequestTarget);
+      tabStore.removeTabsForRequest(deleteRequestTarget);
       closeDeleteRequestConfirmDialog();
     } catch {
       // error already shown by store
@@ -1060,6 +1056,20 @@
       }}
     >
       Rename
+    </DropdownItem>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={(e) => {
+        const newRequest: Partial<collection.Request> = {
+          ...request,
+          name: request.name + " (copy)"
+        };
+        delete newRequest.id;
+        handleAddRequest(e, collectionName, newRequest);
+        onClose();
+      }}
+    >
+      Duplicate
     </DropdownItem>
     <DropdownItem
       class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
