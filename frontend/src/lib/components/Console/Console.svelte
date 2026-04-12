@@ -66,54 +66,64 @@
   <div
     class="flex flex-wrap items-center gap-4 border-b border-neutral-200 pb-3 dark:border-neutral-700"
   >
-    <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
+    <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
 
     <div class="flex flex-1 items-center gap-2">
-      <span class="text-[10px] font-bold whitespace-nowrap text-neutral-500 uppercase">URL</span>
+      <span class="text-xs font-bold whitespace-nowrap text-neutral-500 uppercase">URL</span>
       <Input
         size="sm"
-        class="w-full min-w-40"
+        class="w-full h-7 min-w-40"
         type="text"
         placeholder="Filter URL..."
+        classes={{input: "h-7"}}
         bind:value={filterUrl}
       />
     </div>
 
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-bold whitespace-nowrap text-neutral-500 uppercase">Method</span>
+      <span class="text-xs font-bold whitespace-nowrap text-neutral-500 uppercase">Method</span>
       <Select
         size="sm"
         bind:value={filterMethod}
         items={METHOD_OPTIONS}
-        class="w-24"
+        class="w-24 h-7"
+        classes={{select: "h-7 py-0"}}
         placeholder=""
       />
     </div>
 
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-bold whitespace-nowrap text-neutral-500 uppercase">Status</span>
+      <span class="text-xs font-bold whitespace-nowrap text-neutral-500 uppercase">Status</span>
       <Select
         size="sm"
         bind:value={filterStatus}
         items={STATUS_OPTIONS}
-        class="w-32"
+        class="w-32 h-7"
+        classes={{select: "h-7 py-0"}}
         placeholder=""
       />
     </div>
 
-    <div class="ml-auto flex items-center gap-3">
+    <div class="ml-auto h-6 flex items-center gap-3">
       <span
-        class="text-[10px] font-bold whitespace-nowrap text-neutral-400 uppercase dark:text-neutral-500"
+        class="text-xs font-bold whitespace-nowrap text-neutral-400 uppercase dark:text-neutral-500"
       >
         {filtered.length} / {$historyStore.length}
       </span>
 
-      <Button color="light" size="sm" onclick={handleExport} disabled={$historyStore.length === 0}>
+      <Button
+        color="light"
+        class="h-7"
+        size="sm"
+        onclick={handleExport}
+        disabled={$historyStore.length === 0}
+      >
         Export HAR
       </Button>
       <Button
         color="alternative"
         size="sm"
+        class="h-7"
         onclick={() => historyStore.clear()}
         disabled={$historyStore.length === 0}
       >
