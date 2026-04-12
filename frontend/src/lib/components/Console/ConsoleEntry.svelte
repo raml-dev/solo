@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import type { HistoryEntry } from "$src/lib/stores/historyStore";
-  import { getMethodBadgeClass, getStatusBadgeColor } from "$src/lib/utils/http";
+  import { getHttpStatusString, getMethodBadgeClass, getStatusBadgeColor } from "$src/lib/utils/http";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
 
@@ -52,7 +52,7 @@
       <Badge color="red">ERR</Badge>
     {:else if entry.response}
       <Badge color={getStatusBadgeColor(entry.response.status)}>
-        {entry.response.status}
+        {getHttpStatusString(entry.response.status)}
       </Badge>
     {/if}
 

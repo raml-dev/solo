@@ -28,10 +28,13 @@
     tabStoreState,
     type TabResponse
   } from "$src/lib/stores/tabStore.svelte";
-  import { buildResolvedRequestPayload, getStatusBadgeColor } from "$src/lib/utils/http";
+  import {
+    buildResolvedRequestPayload,
+    getHttpStatusString,
+    getStatusBadgeColor
+  } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
-  import Spinner from "flowbite-svelte/Spinner.svelte";
   import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
@@ -41,6 +44,7 @@
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
+  import Spinner from "flowbite-svelte/Spinner.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount } from "svelte";
@@ -315,7 +319,7 @@
       const fmt = detectResponseFormat(responseData.headers ?? {});
       response = {
         status: responseData.statusCode,
-        statusText: "TBD",
+        statusText: getHttpStatusString(responseData.statusCode),
         time: responseData.duration,
         headers: responseData.headers,
         requestHeaders: responseData.requestHeaders,
@@ -669,7 +673,7 @@
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div onclick={(e) => e.stopPropagation()} class="flex items-center gap-2">
-              <Badge color={getStatusBadgeColor(response.status)}>{response.status}</Badge>
+              <Badge color={getStatusBadgeColor(response.status)}>{response.statusText}</Badge>
               <Badge color="gray">{response.time}ms</Badge>
             </div>
           {/if}
