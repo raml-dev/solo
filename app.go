@@ -182,9 +182,8 @@ func NewApp() *App {
 
 	configDir, _ := tools.GetOrCreateConfigDir()
 	am := auth.NewAuthManager(configDir)
-
 	hm := host.NewHostManager()
-	em := environment.NewEnvironmentManager()
+	em := environment.NewEnvironmentManager(cm)
 
 	// ScriptManager is created without context here; context is set in startup()
 	sm := script.NewScriptManager(context.TODO())

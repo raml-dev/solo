@@ -10,21 +10,51 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"solo/internal/configuration"
 	fs "solo/internal/tools"
 	"strings"
 )
 
+const DEFAULT_ENVIRONMENT_NAME = "default"
+
 type EnvironmentManager struct {
 	path string
+	cm   *configuration.ConfigurationManager
 }
 
-func NewEnvironmentManager() *EnvironmentManager {
+func NewEnvironmentManager(cm *configuration.ConfigurationManager) *EnvironmentManager {
 	appConfigDir, err := fs.GetOrCreateConfigDir()
 	if err != nil {
-		return nil
+		slog.Error("Failed to get or create main config dir")
+		panic(err)
 	}
 
-	return &EnvironmentManager{filepath.Join(appConfigDir, fs.CONFIG_ENV_DIR)}
+	em := &EnvironmentManager{filepath.Join(appConfigDir, fs.CONFIG_ENV_DIR), cm}
+
+	/*
+			   -- Default environment handling flow --
+			   If there is an environment called "default", we do not create it.
+			   Otherwise we must create it.
+		     	   Next, we must check whether a selectedEnvironment exists and, if no env has been selected,
+			   the default one will be selected automatically
+	*/
+
+	err = em.CreateEnvironment(DEFAULT_ENVIRONMENT_NAME)
+
+	if err != nil && err.Error() != fmt.Sprintf("environment %s already exists", DEFAULT_ENVIRONMENT_NAME) {
+		if _, ok := err.(*os.PathError); !ok {
+			slog.Error("Failed to check default environment configuration")
+			os.Exit(1)
+		}
+	}
+
+	currentSelected := cm.GetSelectedEnvironment()
+	csE, _ := em.environmentExists(currentSelected)
+	if currentSelected == "" || !csE {
+		cm.SetSelectedEnvironment(DEFAULT_ENVIRONMENT_NAME)
+	}
+
+	return em
 }
 
 func (em *EnvironmentManager) CreateEnvironment(name string) error {
@@ -175,6 +205,10 @@ func (em *EnvironmentManager) DeleteEnvironment(name string) error {
 		return errors.New("no environment name specified")
 	}
 
+	if name == DEFAULT_ENVIRONMENT_NAME {
+		return errors.New("default environment cannot be deleted")
+	}
+
 	fileName := name
 	if !strings.HasSuffix(fileName, ".json") {
 		fileName += ".json"
@@ -187,6 +221,15 @@ func (em *EnvironmentManager) DeleteEnvironment(name string) error {
 	}
 
 	slog.Info("Environment deleted", "name", name)
+
+	/*
+	   Check if the deleted env is the selected one, in this case
+	   we must set the default env as selected
+	*/
+
+	if em.cm.GetSelectedEnvironment() == name {
+		em.cm.SetSelectedEnvironment(DEFAULT_ENVIRONMENT_NAME)
+	}
 	return nil
 }
 
