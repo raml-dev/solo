@@ -31,7 +31,6 @@
   import { buildResolvedRequestPayload, getStatusBadgeColor } from "$src/lib/utils/http";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
-  import Spinner from "flowbite-svelte/Spinner.svelte";
   import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
@@ -41,6 +40,7 @@
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
+  import Spinner from "flowbite-svelte/Spinner.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
   import { onDestroy, onMount } from "svelte";
@@ -500,13 +500,12 @@
         />
         <Button
           color="primary"
-          class="px-6"
+          class="w-24 px-6"
           size="sm"
-          {loading}
           onclick={sendRequest}
           disabled={loading}
         >
-          Send
+          {loading ? "Sending..." : "Send"}
         </Button>
       </ButtonGroup>
     </div>
