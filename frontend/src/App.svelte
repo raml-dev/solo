@@ -17,6 +17,7 @@
   import { hasOpenModals } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
+  import { initZoom } from "$src/lib/stores/zoomStore.svelte";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
   import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
@@ -200,8 +201,11 @@
       });
     });
 
+    const zoomCleanup = initZoom();
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      zoomCleanup();
     };
   });
 </script>

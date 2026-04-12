@@ -40,6 +40,16 @@ function createNotificationStore() {
     update(() => []);
   }
 
+  function updateNotificationById(id: string, message: string, detail?: string) {
+    update((list) => {
+      const notification = list.find((n) => n.id === id);
+      if (!notification) return list;
+      notification.message = message;
+      notification.detail = detail;
+      return list;
+    });
+  }
+
   return {
     subscribe,
     notify,
@@ -49,7 +59,8 @@ function createNotificationStore() {
     error: (message: string, detail?: string, persistent = false) =>
       notify("error", message, detail, persistent),
     warning: (message: string, detail?: string) => notify("warning", message, detail),
-    info: (message: string, detail?: string) => notify("info", message, detail)
+    info: (message: string, detail?: string) => notify("info", message, detail),
+    updateNotificationById
   };
 }
 
