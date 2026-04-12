@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+  import { DEFAULT_ENV_NAME } from "$src/lib/stores/environmentStore.svelte";
   import type { environment } from "$wails/go/models";
   import Button from "flowbite-svelte/Button.svelte";
 
@@ -161,15 +162,17 @@
       >
         Export
       </Button>
-      <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
-      <Button
-        color="light"
-        size="sm"
-        class="w-full justify-start border-0 text-danger-600 shadow-none hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
-        onclick={handleDeleteEnvironment}
-      >
-        Delete
-      </Button>
+      {#if env.name !== DEFAULT_ENV_NAME}
+        <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
+        <Button
+          color="light"
+          size="sm"
+          class="w-full justify-start border-0 text-danger-600 shadow-none hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+          onclick={handleDeleteEnvironment}
+        >
+          Delete
+        </Button>
+      {/if}
     </div>
   {/if}
 </div>

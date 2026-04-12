@@ -31,7 +31,7 @@ const initialState: EnvironmentState = {
   loading: false
 };
 
-const DEFAULT_ENV_NAME = "default";
+export const DEFAULT_ENV_NAME = "default";
 
 export const environmentStoreState = $state<EnvironmentState>({ ...initialState });
 
