@@ -66,7 +66,8 @@ const STORAGE_KEY = "tabs";
 
 export const tabStoreState: TabStoreState = $state({
   tabs: (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").tabs || []) as TabState[],
-  activeTabIndex: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").activeTabIndex as number || -1
+  activeTabIndex:
+    (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").activeTabIndex as number) || -1
 });
 
 /** Get mutable reference to active tab */
