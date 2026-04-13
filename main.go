@@ -69,6 +69,7 @@ func main() {
 		Title:  tools.APP_NAME,
 		Width:  1024,
 		Height: 768,
+    StartHidden: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

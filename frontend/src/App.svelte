@@ -25,6 +25,7 @@
   import Button from "flowbite-svelte/Button.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
   import { onMount } from "svelte";
+  import { initWindowDimensions, saveWindowState } from "./lib/stores/windowDimensionsStore.svelte";
 
   let consoleOpen = $state(false);
   let consoleHeight = $state(260);
@@ -132,8 +133,11 @@
     });
     window.addEventListener("keydown", handleKeyDown);
 
-    EventsOn("app:request-close", () => {
-      ForceQuit();
+    EventsOn("app:request-close", async () => {
+      await saveWindowState();
+      setTimeout(() => {
+        ForceQuit();
+      }, 150);
     });
 
     // TODO any
@@ -202,10 +206,12 @@
     });
 
     const zoomCleanup = initZoom();
+    const windowDimensionsCleanup = initWindowDimensions();
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       zoomCleanup();
+      windowDimensionsCleanup();
     };
   });
 </script>
