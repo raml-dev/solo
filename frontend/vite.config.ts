@@ -24,6 +24,13 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    hmr: {
+      host: "localhost",
+      protocol: "ws",
+      port: 5173
+    }
+  },
   resolve: {
     alias: {
       $wails: resolve(__dirname, "wailsjs"),
