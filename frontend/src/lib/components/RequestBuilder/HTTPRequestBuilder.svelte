@@ -51,8 +51,8 @@
 
   // UI-only local state (not tab data)
   let requestPaneTab = $state("Body");
-  let response: TabResponse | null = $state(null);
-  let requestError: string | null = $state(null);
+  let response = $derived(getActiveTab()?.response ?? null);
+  let requestError = $derived(getActiveTab()?.requestError ?? null);
   let loading = $state(false);
   let responseTab = $state("body");
   let responseHeaderView = $state("received");
@@ -314,11 +314,10 @@
 
     try {
       const responseData = await Execute(requestOptions);
-      requestError = null;
       sessionVarsStore.refresh();
       const rawBody = responseData.body ?? "";
       const fmt = detectResponseFormat(responseData.headers ?? {});
-      response = {
+      const newResponse: TabResponse = {
         status: responseData.statusCode,
         statusText: getHttpStatusString(responseData.statusCode),
         time: responseData.duration,
@@ -326,11 +325,10 @@
         requestHeaders: responseData.requestHeaders,
         body: prettyPrint(rawBody, fmt)
       };
-      tabStore.updateTabResponse(tab.id, response, null);
+      tabStore.updateTabResponse(tab.id, newResponse, null);
     } catch (error) {
-      response = null;
-      requestError = String(error);
-      tabStore.updateTabResponse(tab.id, null, requestError);
+      const errorMsg = String(error);
+      tabStore.updateTabResponse(tab.id, null, errorMsg);
     } finally {
       loading = false;
     }
