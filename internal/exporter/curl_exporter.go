@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package exporter
 
@@ -18,7 +18,7 @@ type CurlExportRequest struct {
 
 // GenerateCurl converts a resolved HTTP request into a multi-line cURL command string.
 // Header keys are sorted alphabetically for deterministic output.
-// Single quotes inside URL, header values, and body are escaped with the '\'' technique.
+// Single quotes inside URL, header values, and body are escaped with the '\” technique.
 func GenerateCurl(req CurlExportRequest) string {
 	var lines []string
 
@@ -62,7 +62,7 @@ func GenerateCurl(req CurlExportRequest) string {
 	return strings.Join(result, "\n")
 }
 
-// escapeSingleQuote replaces ' with '\'' for use inside single-quoted shell strings.
+// escapeSingleQuote replaces ' with '\” for use inside single-quoted shell strings.
 func escapeSingleQuote(s string) string {
 	return strings.ReplaceAll(s, "'", `'\''`)
 }

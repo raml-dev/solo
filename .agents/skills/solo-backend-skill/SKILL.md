@@ -1,4 +1,7 @@
 ---
+# Copyright 2026-present raml-dev
+# SPDX-License-Identifier: AGPL-3.0-only
+
 name: solo-backend-skill
 description: Guidelines for Solo Backend Developer
 ---

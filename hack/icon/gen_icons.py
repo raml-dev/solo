@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
+
 """
+Copyright 2026-present raml-dev
+SPDX-License-Identifier: AGPL-3.0-only
+
 gen_icons.py — Generate Wails icon files from an SVG source.
 
 Produces:

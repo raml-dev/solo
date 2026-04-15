@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026-present raml-dev
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 import { notifications } from "$src/lib/stores/notificationStore";
 
 const STEP = 0.1;

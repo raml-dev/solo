@@ -1,4 +1,9 @@
 /**
+ * Copyright 2026-present raml-dev
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+/**
  * Filters the array _in place_ to only retain elements matching the given predicate.
  *
  * Similar in effect to the native `Array.filter` function, but in place.

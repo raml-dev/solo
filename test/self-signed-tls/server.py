@@ -1,3 +1,9 @@
+"""
+Copyright 2026-present raml-dev
+SPDX-License-Identifier: AGPL-3.0-only
+
+Starts a simple https server, reading cert and key from `localhost.localdomain/tls.{crt,key}`
+"""
 import http.server
 import ssl
 

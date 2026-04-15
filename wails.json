@@ -11,7 +11,7 @@
     "productName": "solo",
     "productVersion": "dev",
     "copyright": "Copyright by raml-dev 2026-present, see license terms",
-    "license": "GNU General Public License v3.0",
+    "license": "GNU AGPL-3.0-only license",
     "docsLink": "",
     "ghLink": "",
     "orgLink": "https://github.com/raml-dev"
