@@ -237,6 +237,31 @@ func (cm *CollectionManager) AddRequest(collectionName string, request Request) 
 	return newRequest, nil
 }
 
+func (cm *CollectionManager) AddRequestToFolder(collectionName, folderId string, request Request) (*Request, error) {
+	if collectionName == "" {
+		return nil, errors.New("no collection name specified")
+	}
+	if folderId == "" {
+		return nil, errors.New("no folder id specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return nil, err
+	}
+
+	newRequest, err := coll.AddRequestToFolder(folderId, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return nil, err
+	}
+
+	slog.Debug("Request added to folder", "collection", collectionName, "folder_id", folderId, "request_id", newRequest.Id)
+	return newRequest, nil
+}
+
 func (cm *CollectionManager) RemoveRequest(collectionName string, requestId string) error {
 	if collectionName == "" {
 		return errors.New("no collection name specified")

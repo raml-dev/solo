@@ -765,6 +765,11 @@ func (a *App) AddRequest(collectionName string, request collection.Request) (*co
 	return a.collectionManager.AddRequest(collectionName, request)
 }
 
+// AddRequestToFolder adds a new request inside a specific folder.
+func (a *App) AddRequestToFolder(collectionName string, folderId string, request collection.Request) (*collection.Request, error) {
+	return a.collectionManager.AddRequestToFolder(collectionName, folderId, request)
+}
+
 // RemoveRequest removes a request from a collection using its ID.
 func (a *App) RemoveRequest(collectionName string, requestId string) error {
 	return a.collectionManager.RemoveRequest(collectionName, requestId)
