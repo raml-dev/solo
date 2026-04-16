@@ -26,6 +26,7 @@ type Collection struct {
 	GitRemote           string            `json:"gitRemote,omitempty"`
 	GitPath             string            `json:"gitPath,omitempty"`
 	GitProvider         string            `json:"gitProvider,omitempty"`
+	Folders             []Folder          `json:"folders"`
 }
 
 func NewCollection(name string) Collection {
@@ -36,11 +37,16 @@ func NewCollection(name string) Collection {
 		LastUpdateTimestamp: tsp,
 		Name:                name,
 		Requests:            make([]Request, 0),
+		Folders:             make([]Folder, 0),
 	}
 }
 
 func (c *Collection) GetRequests() *[]Request {
 	return &c.Requests
+}
+
+func (c *Collection) GetFolders() *[]Folder {
+	return &c.Folders
 }
 
 func (c *Collection) GetRequestById(id string) (*Request, error) {
@@ -143,4 +149,159 @@ func (c *Collection) UpdateRequest(updated Request) error {
 	c.Requests[idx] = *r
 
 	return nil
+}
+
+func (c *Collection) GetFolderById(id string) (*Folder, error) {
+	f := findFolderById(c.Folders, id)
+	if f == nil {
+		return nil, fmt.Errorf("folder with id %s does not exist", id)
+	}
+
+	return f, nil
+}
+
+func (c *Collection) AddFolder(folder Folder) (*Folder, error) {
+	if folder.Id == "" {
+		folder.Id = uuid.NewString()
+	}
+
+	if existing, _ := c.GetFolderById(folder.Id); existing != nil {
+		return nil, fmt.Errorf("folder with id %s already exists", folder.Id)
+	}
+
+	now := time.Now()
+	folder.CreationTimestamp = now
+	folder.LastUpdateTimestamp = now
+
+	c.Folders = append(c.Folders, folder)
+	c.LastUpdateTimestamp = now
+
+	return &c.Folders[len(c.Folders)-1], nil
+}
+
+func (c *Collection) AddSubFolder(parentFolderId string, folder Folder) (*Folder, error) {
+	if folder.Id == "" {
+		folder.Id = uuid.NewString()
+	}
+
+	if existing, _ := c.GetFolderById(folder.Id); existing != nil {
+		return nil, fmt.Errorf("folder with id %s already exists", folder.Id)
+	}
+
+	now := time.Now()
+	folder.CreationTimestamp = now
+	folder.LastUpdateTimestamp = now
+
+	added := addSubFolderByParent(&c.Folders, parentFolderId, folder, now)
+	if !added {
+		return nil, fmt.Errorf("folder with id %s does not exist", parentFolderId)
+	}
+
+	c.LastUpdateTimestamp = now
+
+	subFolder, _ := c.GetFolderById(folder.Id)
+	return subFolder, nil
+}
+
+func (c *Collection) RemoveFolder(folderId string) error {
+	now := time.Now()
+	removed := removeFolderById(&c.Folders, folderId, now)
+	if !removed {
+		return fmt.Errorf("folder with id %s does not exist", folderId)
+	}
+
+	c.LastUpdateTimestamp = now
+	return nil
+}
+
+func (c *Collection) UpdateFolder(updated Folder) error {
+	if updated.Id == "" {
+		return errors.New("missing identifier for folder")
+	}
+
+	folder, err := c.GetFolderById(updated.Id)
+	if err != nil {
+		return err
+	}
+
+	vUpdated := reflect.ValueOf(updated)
+	vExisting := reflect.ValueOf(folder).Elem()
+
+	for i := 0; i < vUpdated.NumField(); i++ {
+		fieldName := vUpdated.Type().Field(i).Name
+
+		if fieldName == "Id" ||
+			fieldName == "CreationTimestamp" ||
+			fieldName == "LastUpdateTimestamp" {
+			continue
+		}
+
+		if !vExisting.Field(i).CanSet() {
+			continue
+		}
+
+		updatedField := vUpdated.Field(i)
+		existingField := vExisting.Field(i)
+
+		if !reflect.DeepEqual(updatedField.Interface(), existingField.Interface()) {
+			existingField.Set(updatedField)
+		}
+	}
+
+	now := time.Now()
+	folder.LastUpdateTimestamp = now
+	c.LastUpdateTimestamp = now
+
+	return nil
+}
+
+func findFolderById(folders []Folder, id string) *Folder {
+	for i := range folders {
+		if folders[i].Id == id {
+			return &folders[i]
+		}
+
+		f := findFolderById(folders[i].SubFolders, id)
+		if f != nil {
+			return f
+		}
+	}
+
+	return nil
+}
+
+func addSubFolderByParent(folders *[]Folder, parentFolderId string, folder Folder, now time.Time) bool {
+	for i := range *folders {
+		if (*folders)[i].Id == parentFolderId {
+			(*folders)[i].SubFolders = append((*folders)[i].SubFolders, folder)
+			(*folders)[i].LastUpdateTimestamp = now
+			return true
+		}
+
+		added := addSubFolderByParent(&(*folders)[i].SubFolders, parentFolderId, folder, now)
+		if added {
+			(*folders)[i].LastUpdateTimestamp = now
+			return true
+		}
+	}
+
+	return false
+}
+
+func removeFolderById(folders *[]Folder, folderId string, now time.Time) bool {
+	updatedFolders := slices.DeleteFunc(*folders, func(f Folder) bool { return f.Id == folderId })
+	if len(updatedFolders) != len(*folders) {
+		*folders = updatedFolders
+		return true
+	}
+
+	for i := range *folders {
+		removed := removeFolderById(&(*folders)[i].SubFolders, folderId, now)
+		if removed {
+			(*folders)[i].LastUpdateTimestamp = now
+			return true
+		}
+	}
+
+	return false
 }

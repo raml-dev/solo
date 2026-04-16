@@ -775,6 +775,36 @@ func (a *App) UpdateRequest(collectionName string, updated collection.Request) e
 	return a.collectionManager.UpdateRequest(collectionName, updated)
 }
 
+// GetFolders returns all folders within a specific collection.
+func (a *App) GetFolders(collectionName string) (*[]collection.Folder, error) {
+	return a.collectionManager.GetFolders(collectionName)
+}
+
+// GetFolder returns a folder in a collection using its ID.
+func (a *App) GetFolder(collectionName string, folderId string) (*collection.Folder, error) {
+	return a.collectionManager.GetFolder(collectionName, folderId)
+}
+
+// AddFolder adds a new root-level folder to a specific collection.
+func (a *App) AddFolder(collectionName string, folder collection.Folder) (*collection.Folder, error) {
+	return a.collectionManager.AddFolder(collectionName, folder)
+}
+
+// AddSubFolder adds a new subfolder to a specific parent folder.
+func (a *App) AddSubFolder(collectionName string, parentFolderId string, folder collection.Folder) (*collection.Folder, error) {
+	return a.collectionManager.AddSubFolder(collectionName, parentFolderId, folder)
+}
+
+// RemoveFolder removes a folder from a collection using its ID.
+func (a *App) RemoveFolder(collectionName string, folderId string) error {
+	return a.collectionManager.RemoveFolder(collectionName, folderId)
+}
+
+// UpdateFolder updates an existing folder within a collection.
+func (a *App) UpdateFolder(collectionName string, updated collection.Folder) error {
+	return a.collectionManager.UpdateFolder(collectionName, updated)
+}
+
 // Environment Management Methods
 
 // CreateEnvironment creates a new, empty environment.

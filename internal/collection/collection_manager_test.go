@@ -304,6 +304,60 @@ func TestCollectionManagerAddRequest(t *testing.T) {
 	}
 }
 
+func TestCollectionManagerFolderCRUD(t *testing.T) {
+	cm := setupTestManager(t)
+	defer cleanupTestDir(cm.config)
+
+	const collectionName = "folders-test"
+	if err := cm.CreateCollection(collectionName); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	root, err := cm.AddFolder(collectionName, Folder{Id: "f-root", Name: "root"})
+	if err != nil {
+		t.Fatalf("add folder failed: %v", err)
+	}
+	if root == nil || root.Id != "f-root" {
+		t.Fatalf("expected folder f-root, got %+v", root)
+	}
+
+	sub, err := cm.AddSubFolder(collectionName, "f-root", Folder{Id: "f-sub", Name: "sub"})
+	if err != nil {
+		t.Fatalf("add subfolder failed: %v", err)
+	}
+	if sub == nil || sub.Id != "f-sub" {
+		t.Fatalf("expected folder f-sub, got %+v", sub)
+	}
+
+	found, err := cm.GetFolder(collectionName, "f-sub")
+	if err != nil {
+		t.Fatalf("get folder failed: %v", err)
+	}
+	if found.Name != "sub" {
+		t.Fatalf("expected name sub, got %s", found.Name)
+	}
+
+	if err := cm.UpdateFolder(collectionName, Folder{Id: "f-sub", Name: "sub-updated"}); err != nil {
+		t.Fatalf("update folder failed: %v", err)
+	}
+
+	updated, err := cm.GetFolder(collectionName, "f-sub")
+	if err != nil {
+		t.Fatalf("get updated folder failed: %v", err)
+	}
+	if updated.Name != "sub-updated" {
+		t.Fatalf("expected name sub-updated, got %s", updated.Name)
+	}
+
+	if err := cm.RemoveFolder(collectionName, "f-sub"); err != nil {
+		t.Fatalf("remove folder failed: %v", err)
+	}
+
+	if _, err := cm.GetFolder(collectionName, "f-sub"); err == nil {
+		t.Fatal("expected error for removed folder, got nil")
+	}
+}
+
 // Helper functions
 func setupTestManager(t *testing.T) *CollectionManager {
 	tmpDir := filepath.Join(os.TempDir(), "solo-test-"+t.Name())

@@ -281,3 +281,122 @@ func (cm *CollectionManager) UpdateRequest(collectionName string, updated Reques
 	slog.Debug("Request updated", "collection", collectionName, "request_id", updated.Id)
 	return nil
 }
+
+// folders
+
+func (cm *CollectionManager) GetFolders(collectionName string) (*[]Folder, error) {
+	if collectionName == "" {
+		return nil, errors.New("no collection name specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return nil, err
+	}
+	return coll.GetFolders(), nil
+}
+
+func (cm *CollectionManager) GetFolder(collectionName, folderId string) (*Folder, error) {
+	if collectionName == "" {
+		return nil, errors.New("no collection name specified")
+	}
+	if folderId == "" {
+		return nil, errors.New("no folder id specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return nil, err
+	}
+	return coll.GetFolderById(folderId)
+}
+
+func (cm *CollectionManager) AddFolder(collectionName string, folder Folder) (*Folder, error) {
+	if collectionName == "" {
+		return nil, errors.New("no collection name specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return nil, err
+	}
+
+	newFolder, err := coll.AddFolder(folder)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return nil, err
+	}
+
+	slog.Debug("Folder added", "collection", collectionName, "folder_id", newFolder.Id, "folder_name", newFolder.Name)
+	return newFolder, nil
+}
+
+func (cm *CollectionManager) AddSubFolder(collectionName, parentFolderId string, folder Folder) (*Folder, error) {
+	if collectionName == "" {
+		return nil, errors.New("no collection name specified")
+	}
+	if parentFolderId == "" {
+		return nil, errors.New("no parent folder id specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return nil, err
+	}
+
+	newFolder, err := coll.AddSubFolder(parentFolderId, folder)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return nil, err
+	}
+
+	slog.Debug("Subfolder added", "collection", collectionName, "parent_folder_id", parentFolderId, "folder_id", newFolder.Id)
+	return newFolder, nil
+}
+
+func (cm *CollectionManager) RemoveFolder(collectionName, folderId string) error {
+	if collectionName == "" {
+		return errors.New("no collection name specified")
+	}
+	if folderId == "" {
+		return errors.New("no folder id specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return err
+	}
+
+	if err := coll.RemoveFolder(folderId); err != nil {
+		return err
+	}
+
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return err
+	}
+
+	slog.Debug("Folder removed", "collection", collectionName, "folder_id", folderId)
+	return nil
+}
+
+func (cm *CollectionManager) UpdateFolder(collectionName string, updated Folder) error {
+	if collectionName == "" {
+		return errors.New("no collection name specified")
+	}
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		return err
+	}
+
+	if err := coll.UpdateFolder(updated); err != nil {
+		return err
+	}
+
+	if err := cm.UpdateCollection(*coll); err != nil {
+		return err
+	}
+
+	slog.Debug("Folder updated", "collection", collectionName, "folder_id", updated.Id)
+	return nil
+}
