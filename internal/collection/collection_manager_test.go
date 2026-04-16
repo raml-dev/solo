@@ -358,6 +358,38 @@ func TestCollectionManagerFolderCRUD(t *testing.T) {
 	}
 }
 
+func TestCollectionManagerAddRequestToFolder(t *testing.T) {
+	cm := setupTestManager(t)
+	defer cleanupTestDir(cm.config)
+
+	const collectionName = "folder-request-test"
+	if err := cm.CreateCollection(collectionName); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	if _, err := cm.AddFolder(collectionName, Folder{Id: "f-root", Name: "root"}); err != nil {
+		t.Fatalf("add folder failed: %v", err)
+	}
+
+	added, err := cm.AddRequestToFolder(collectionName, "f-root", Request{Name: "inside-folder"})
+	if err != nil {
+		t.Fatalf("add request to folder failed: %v", err)
+	}
+
+	if added == nil {
+		t.Fatal("expected request, got nil")
+	}
+
+	coll, err := cm.LoadCollection(collectionName)
+	if err != nil {
+		t.Fatalf("load collection failed: %v", err)
+	}
+
+	if len(coll.Folders) != 1 || len(coll.Folders[0].Requests) != 1 {
+		t.Fatalf("expected 1 folder request, got %+v", coll.Folders)
+	}
+}
+
 // Helper functions
 func setupTestManager(t *testing.T) *CollectionManager {
 	tmpDir := filepath.Join(os.TempDir(), "solo-test-"+t.Name())

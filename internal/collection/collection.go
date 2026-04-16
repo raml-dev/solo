@@ -51,10 +51,18 @@ func (c *Collection) GetFolders() *[]Folder {
 
 func (c *Collection) GetRequestById(id string) (*Request, error) {
 	_, r := c.get(id)
-	if r == nil {
-		return nil, fmt.Errorf("request with id %s does not exist", id)
+	if r != nil {
+		return r, nil
 	}
-	return r, nil
+
+	for i := range c.Folders {
+		req, err := c.Folders[i].GetRequestById(id)
+		if err == nil {
+			return req, nil
+		}
+	}
+
+	return nil, fmt.Errorf("request with id %s does not exist", id)
 
 }
 
@@ -83,22 +91,53 @@ func (c *Collection) AddRequest(request Request) (*Request, error) {
 func (c *Collection) RemoveRequest(id string) error {
 	exists := c.exists(id)
 
-	if !exists {
+	if exists {
+		// remove request from c.Requests
+		requests := slices.DeleteFunc(c.Requests,
+			func(r Request) bool { return r.Id == id })
+
+		if len(requests) != len(c.Requests)-1 {
+			return fmt.Errorf("error removing request %s", id)
+		}
+
+		c.Requests = requests
+		c.LastUpdateTimestamp = time.Now()
+
+		return nil
+	}
+
+	folderId, found := findFolderIDByRequestID(c.Folders, id)
+	if !found {
 		return fmt.Errorf("Request with id %s does not exists", id)
 	}
 
-	// remove request from c.Requests
-	requests := slices.DeleteFunc(c.Requests,
-		func(r Request) bool { return r.Id == id })
-
-	if len(requests) != len(c.Requests)-1 {
-		return fmt.Errorf("error removing request %s", id)
+	for i := range c.Folders {
+		if err := c.Folders[i].RemoveRequestFromFolder(folderId, id); err == nil {
+			c.LastUpdateTimestamp = time.Now()
+			return nil
+		}
 	}
 
-	c.Requests = requests
-	c.LastUpdateTimestamp = time.Now()
+	return fmt.Errorf("error removing request %s", id)
+}
 
-	return nil
+func (c *Collection) AddRequestToFolder(folderId string, request Request) (*Request, error) {
+	if folderId == "" {
+		return nil, errors.New("missing folder identifier")
+	}
+
+	if request.Id == "" {
+		request.Id = uuid.NewString()
+	}
+
+	for i := range c.Folders {
+		if err := c.Folders[i].AddRequestToFolder(folderId, request); err == nil {
+			c.LastUpdateTimestamp = time.Now()
+			return c.GetRequestById(request.Id)
+		}
+	}
+
+	return nil, fmt.Errorf("folder with id %s does not exist", folderId)
 }
 
 func (c *Collection) UpdateRequest(updated Request) error {
@@ -108,47 +147,59 @@ func (c *Collection) UpdateRequest(updated Request) error {
 
 	idx, r := c.get(updated.Id)
 
-	if idx == -1 || r == nil {
+	if idx != -1 && r != nil {
+		vUpdated := reflect.ValueOf(updated)
+		vExisting := reflect.ValueOf(r).Elem()
+
+		for i := 0; i < vUpdated.NumField(); i++ {
+			fieldName := vUpdated.Type().Field(i).Name
+
+			if fieldName == "Id" ||
+				fieldName == "CreationTimestamp" ||
+				fieldName == "LastUpdateTimestamp" {
+				continue
+			}
+
+			if !vExisting.Field(i).CanSet() {
+				continue
+			}
+
+			updatedField := vUpdated.Field(i)
+			existingField := vExisting.Field(i)
+
+			// Special handling for Auth pointer to ensure it's always copied if different
+			if fieldName == "Auth" {
+				existingField.Set(updatedField)
+				continue
+			}
+
+			if !reflect.DeepEqual(updatedField.Interface(), existingField.Interface()) {
+				existingField.Set(updatedField)
+			}
+		}
+
+		now := time.Now()
+		r.LastUpdateTimestamp = now
+		c.LastUpdateTimestamp = now
+
+		c.Requests[idx] = *r
+
+		return nil
+	}
+
+	folderId, found := findFolderIDByRequestID(c.Folders, updated.Id)
+	if !found {
 		return fmt.Errorf("Request with id %s does not exists", updated.Id)
 	}
 
-	vUpdated := reflect.ValueOf(updated)
-	vExisting := reflect.ValueOf(r).Elem()
-
-	for i := 0; i < vUpdated.NumField(); i++ {
-		fieldName := vUpdated.Type().Field(i).Name
-
-		if fieldName == "Id" ||
-			fieldName == "CreationTimestamp" ||
-			fieldName == "LastUpdateTimestamp" {
-			continue
-		}
-
-		if !vExisting.Field(i).CanSet() {
-			continue
-		}
-
-		updatedField := vUpdated.Field(i)
-		existingField := vExisting.Field(i)
-
-		// Special handling for Auth pointer to ensure it's always copied if different
-		if fieldName == "Auth" {
-			existingField.Set(updatedField)
-			continue
-		}
-
-		if !reflect.DeepEqual(updatedField.Interface(), existingField.Interface()) {
-			existingField.Set(updatedField)
+	for i := range c.Folders {
+		if err := c.Folders[i].UpdateRequestInFolder(folderId, updated); err == nil {
+			c.LastUpdateTimestamp = time.Now()
+			return nil
 		}
 	}
 
-	now := time.Now()
-	r.LastUpdateTimestamp = now
-	c.LastUpdateTimestamp = now
-
-	c.Requests[idx] = *r
-
-	return nil
+	return fmt.Errorf("Request with id %s does not exists", updated.Id)
 }
 
 func (c *Collection) GetFolderById(id string) (*Folder, error) {
@@ -304,4 +355,21 @@ func removeFolderById(folders *[]Folder, folderId string, now time.Time) bool {
 	}
 
 	return false
+}
+
+func findFolderIDByRequestID(folders []Folder, requestId string) (string, bool) {
+	for i := range folders {
+		for j := range folders[i].Requests {
+			if folders[i].Requests[j].Id == requestId {
+				return folders[i].Id, true
+			}
+		}
+
+		folderId, found := findFolderIDByRequestID(folders[i].SubFolders, requestId)
+		if found {
+			return folderId, true
+		}
+	}
+
+	return "", false
 }

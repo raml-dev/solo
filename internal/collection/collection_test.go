@@ -156,6 +156,26 @@ func TestAddRequest(t *testing.T) {
 	}
 }
 
+func TestAddRequestToFolder(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{Id: "folder-1"},
+	}
+
+	added, err := collection.AddRequestToFolder("folder-1", Request{Name: "in-folder"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if added == nil {
+		t.Fatal("expected request, got nil")
+	}
+
+	if len(collection.Folders[0].Requests) != 1 {
+		t.Fatalf("expected 1 request in folder, got %d", len(collection.Folders[0].Requests))
+	}
+}
+
 func TestRemoveRequest(t *testing.T) {
 
 	tests := []struct {
@@ -273,6 +293,58 @@ func TestUpdateRequest(t *testing.T) {
 				t.Error("Update operation should not affect other requests")
 			}
 		})
+	}
+}
+
+func TestUpdateRequestInFolder(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{
+			Id: "folder-1",
+			Requests: []Request{
+				{
+					Id:   "req-folder-1",
+					Name: "old-name",
+					Verb: "GET",
+					Url:  "https://example.com",
+				},
+			},
+		},
+	}
+
+	err := collection.UpdateRequest(Request{
+		Id:   "req-folder-1",
+		Name: "new-name",
+		Verb: "POST",
+		Url:  "https://example.com/new",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if collection.Folders[0].Requests[0].Name != "new-name" {
+		t.Fatalf("expected updated name new-name, got %s", collection.Folders[0].Requests[0].Name)
+	}
+}
+
+func TestRemoveRequestFromFolder(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{
+			Id: "folder-1",
+			Requests: []Request{
+				{Id: "req-folder-1", Name: "to-remove"},
+			},
+		},
+	}
+
+	err := collection.RemoveRequest("req-folder-1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(collection.Folders[0].Requests) != 0 {
+		t.Fatalf("expected 0 requests in folder, got %d", len(collection.Folders[0].Requests))
 	}
 }
 
