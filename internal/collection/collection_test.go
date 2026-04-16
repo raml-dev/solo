@@ -276,6 +276,115 @@ func TestUpdateRequest(t *testing.T) {
 	}
 }
 
+func TestAddFolder(t *testing.T) {
+	collection := NewCollection("collection")
+
+	added, err := collection.AddFolder(Folder{Id: "f-1", Name: "folder-1"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if added == nil {
+		t.Fatal("expected folder, got nil")
+	}
+
+	if len(*collection.GetFolders()) != 1 {
+		t.Fatalf("expected 1 folder, got %d", len(*collection.GetFolders()))
+	}
+}
+
+func TestGetFolderById(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{
+			Id: "f-1",
+			SubFolders: []Folder{
+				{Id: "f-2"},
+			},
+		},
+	}
+
+	folder, err := collection.GetFolderById("f-2")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if folder == nil || folder.Id != "f-2" {
+		t.Fatalf("expected folder f-2, got %+v", folder)
+	}
+}
+
+func TestAddSubFolder(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{Id: "f-1"},
+	}
+
+	added, err := collection.AddSubFolder("f-1", Folder{Id: "f-2", Name: "sub"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if added == nil || added.Id != "f-2" {
+		t.Fatalf("expected subfolder f-2, got %+v", added)
+	}
+
+	if len(collection.Folders[0].SubFolders) != 1 {
+		t.Fatalf("expected 1 subfolder, got %d", len(collection.Folders[0].SubFolders))
+	}
+}
+
+func TestRemoveFolder(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{
+			Id: "f-1",
+			SubFolders: []Folder{
+				{Id: "f-2"},
+			},
+		},
+	}
+
+	err := collection.RemoveFolder("f-2")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(collection.Folders[0].SubFolders) != 0 {
+		t.Fatalf("expected 0 subfolders, got %d", len(collection.Folders[0].SubFolders))
+	}
+}
+
+func TestUpdateFolder(t *testing.T) {
+	collection := NewCollection("collection")
+	collection.Folders = []Folder{
+		{
+			Id:   "f-1",
+			Name: "old-name",
+			SubFolders: []Folder{
+				{
+					Id:   "f-2",
+					Name: "old-sub",
+				},
+			},
+		},
+	}
+
+	err := collection.UpdateFolder(Folder{Id: "f-2", Name: "new-sub"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	updated, err := collection.GetFolderById("f-2")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if updated.Name != "new-sub" {
+		t.Fatalf("expected name new-sub, got %s", updated.Name)
+	}
+}
+
 func initCollection() Collection {
 	collection := NewCollection("collection_")
 
