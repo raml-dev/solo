@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package main
 
@@ -66,10 +66,10 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  tools.APP_NAME,
-		Width:  1024,
-		Height: 768,
-    StartHidden: true,
+		Title:       tools.APP_NAME,
+		Width:       1024,
+		Height:      768,
+		StartHidden: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

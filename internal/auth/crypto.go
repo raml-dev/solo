@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package auth
 
@@ -51,7 +51,7 @@ func Encrypt(plaintext []byte) ([]byte, error) {
 	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-// Decrypt decrypts the given ciphertext (which should include the nonce) 
+// Decrypt decrypts the given ciphertext (which should include the nonce)
 // using AES-256-GCM and the MachineID-derived key.
 func Decrypt(data []byte) ([]byte, error) {
 	key, err := getEncryptionKey()

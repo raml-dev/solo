@@ -1,3 +1,7 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: AGPL-3.0-only
+-->
 # AGENTS.md
 
 This file defines directives for AI coding agents working in the Solo repository.

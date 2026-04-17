@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package exporter
 
@@ -48,9 +48,9 @@ func TestGenerateCurl(t *testing.T) {
 				Method: "GET",
 				URL:    "https://api.example.com/x",
 				Headers: map[string]string{
-					"Z-Last":        "z",
-					"A-First":       "a",
-					"M-Middle":      "m",
+					"Z-Last":   "z",
+					"A-First":  "a",
+					"M-Middle": "m",
 				},
 			},
 			wantFragments: []string{

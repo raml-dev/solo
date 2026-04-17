@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package collection
 
@@ -35,7 +35,7 @@ func NewCollection(name string) Collection {
 		CreationTimestamp:   tsp,
 		LastUpdateTimestamp: tsp,
 		Name:                name,
-    Requests:            make([]Request, 0),
+		Requests:            make([]Request, 0),
 	}
 }
 

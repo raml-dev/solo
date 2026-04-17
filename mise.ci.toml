@@ -1,5 +1,5 @@
 # Copyright 2026 raml-dev
-# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-only
 
 [tasks."ci:fe:install"]
 dir = "{{ config_root }}/frontend"

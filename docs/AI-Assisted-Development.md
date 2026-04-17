@@ -1,3 +1,8 @@
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # AI-Assisted Development Workflow
 
 We suggest using [`pi`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) as its AI coding agent. The project is already set up to wire in two MCP documentation servers:

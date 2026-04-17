@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package script
 
@@ -39,7 +39,7 @@ func (api *EnvAPI) Register(L *lua.LState) {
 // Get implements env.get(key)
 func (api *EnvAPI) Get(L *lua.LState) int {
 	key := L.CheckString(1)
-	
+
 	// 1. Check sessionVars
 	if val, ok := api.sm.sessionVars[key]; ok {
 		L.Push(lua.LString(val))
@@ -63,7 +63,7 @@ func (api *EnvAPI) Set(L *lua.LState) int {
 	val := L.CheckString(2) // value must be string as per spec
 
 	api.sm.sessionVars[key] = val
-	
+
 	// Create copy for event
 	varsCopy := make(map[string]string, len(api.sm.sessionVars))
 	for k, v := range api.sm.sessionVars {
@@ -107,7 +107,7 @@ func (api *EnvAPI) NewIndex(L *lua.LState) int {
 	val := L.CheckAny(3)
 
 	api.sm.sessionVars[key] = val.String()
-	
+
 	// Create copy for event
 	varsCopy := make(map[string]string, len(api.sm.sessionVars))
 	for k, v := range api.sm.sessionVars {
@@ -117,6 +117,6 @@ func (api *EnvAPI) NewIndex(L *lua.LState) int {
 	if api.sm.wailsCtx != nil {
 		runtime.EventsEmit(api.sm.wailsCtx, "session_vars_updated", varsCopy)
 	}
-	
+
 	return 0
 }

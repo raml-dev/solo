@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package importer
 
@@ -464,4 +464,3 @@ func TestOpenAPIImporter_RequestMetadata(t *testing.T) {
 func writeTemp(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0600)
 }
-

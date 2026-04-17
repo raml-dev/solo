@@ -1,5 +1,5 @@
 # Copyright 2026-present raml-dev
-# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-only
 
 [tools]
 pnpm = "10.32.1"
@@ -60,7 +60,7 @@ description = "Add license headers to all files"
 dir = "{{ config_root }}"
 run = '''
 echo "📄 Adding license headers..."
-addlicense -c "raml-dev" -y "2026-present" -v -s -l GPL-3.0-only ./frontend ./internal go.mod go.sum *.go -ignore frontend/node_modules/*
+addlicense -c "raml-dev" -y "2026-present" -v -s -l AGPL-3.0-only -ignore frontend/node_modules/* frontend internal go.mod go.sum *.go
 echo "✅ License headers added!"
 '''
 

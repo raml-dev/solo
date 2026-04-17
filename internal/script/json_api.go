@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package script
 
@@ -95,7 +95,7 @@ func LuaToValue(lval lua.LValue) interface{} {
 		// If it only has contiguous integer keys starting from 1, it's an array.
 		isArr := true
 		maxn := v.Len()
-		
+
 		// If it's empty, we default to map (common in Lua->JSON)
 		if maxn == 0 {
 			// Check if it's REALLY empty or if it has string keys

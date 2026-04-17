@@ -1,5 +1,5 @@
 // Copyright 2026-present raml-dev
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package script
 
@@ -47,7 +47,7 @@ func RequestToLua(sm *ScriptManager, req *http.Request) *lua.LTable {
 // LuaToRequest updates an http.Request based on a Lua table using the provided ScriptManager's state
 func LuaToRequest(sm *ScriptManager, t *lua.LTable, req *http.Request) {
 	L := sm.GetState()
-	
+
 	// Method
 	if val := L.GetField(t, "method"); val.Type() == lua.LTString {
 		req.Method = val.String()
