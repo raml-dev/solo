@@ -135,9 +135,8 @@
 
     EventsOn("app:request-close", async () => {
       await saveWindowState();
-      setTimeout(() => {
-        ForceQuit();
-      }, 150);
+
+      ForceQuit();
     });
 
     // TODO any

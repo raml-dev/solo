@@ -964,7 +964,7 @@
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
   let selectedRequestId = $derived(
-    tabStoreState.tabs.find((t) => t.id === getActiveTab().id)?.id ?? null
+    tabStoreState.tabs.find((t) => t.id === getActiveTab()?.id)?.id ?? null
   );
 
   let normalizedQuery = $derived(searchQuery.trim().toLowerCase());

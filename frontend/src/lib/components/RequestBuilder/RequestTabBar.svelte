@@ -15,7 +15,7 @@
   import { onDestroy } from "svelte";
 
   let tabs = $derived(tabStoreState.tabs);
-  let activeTabId = $derived(getActiveTab().id);
+  let activeTabId = $derived(getActiveTab()?.id ?? null);
 
   let tabToCloseId: string | null = $state(null);
 

@@ -64,14 +64,22 @@ const EMPTY_TAB_LABEL = "New Request";
 const MAX_OPEN_TABS = 15;
 const STORAGE_KEY = "tabs";
 
-export const tabStoreState: TabStoreState = $state({
-  tabs: (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").tabs || []) as TabState[],
-  activeTabIndex:
-    (JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}").activeTabIndex as number) || -1
-});
+export const tabStoreState: TabStoreState = $state(initState());
+
+function initState() {
+  const localStorageData = localStorage.getItem(STORAGE_KEY);
+  if (localStorageData) {
+    return JSON.parse(localStorageData) as TabStoreState;
+  }
+  return {
+    tabs: [],
+    activeTabIndex: -1
+  } as TabStoreState;
+}
 
 /** Get mutable reference to active tab */
-export function getActiveTab(): TabState {
+export function getActiveTab(): TabState | null {
+  if (tabStoreState.activeTabIndex === -1) return null;
   return tabStoreState.tabs[tabStoreState.activeTabIndex];
 }
 
