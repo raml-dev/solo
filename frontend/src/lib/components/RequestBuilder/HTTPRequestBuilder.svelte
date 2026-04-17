@@ -151,6 +151,7 @@
     tab: ReturnType<typeof getActiveTab>,
     expectedContentType: string | null
   ) {
+    if (!tab) return;
     const contentTypeHeader = tab.headers.find(
       (header) => header.key.trim().toLowerCase() === "content-type"
     );

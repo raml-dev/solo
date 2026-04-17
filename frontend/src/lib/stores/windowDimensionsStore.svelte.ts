@@ -48,10 +48,9 @@ async function trackWindowState(): Promise<void> {
       windowState.width = w;
       windowState.height = h;
     }
+    saveWindowState();
   } catch (e) {
     console.log(e);
-  } finally {
-    console.log($state.snapshot(windowState));
   }
 }
 
@@ -70,8 +69,7 @@ function loadWindowState(): WindowState {
   };
 }
 
-export async function saveWindowState(): Promise<void> {
-  await trackWindowState();
+export function saveWindowState() {
   localStorage.setItem(WINDOW_STATE_KEY, JSON.stringify(windowState));
 }
 
@@ -79,22 +77,12 @@ export function initWindowDimensions() {
   const clampedWidth = Math.min(windowState.width, screen.width);
   const clampedHeight = Math.min(windowState.height, screen.height);
 
-  console.log(
-    JSON.stringify({
-      screenw: screen.width,
-      screenh: screen.height
-    })
-  );
   WindowSetSize(clampedWidth, clampedHeight);
 
-  // only restore position in normal state — let the OS place the
-  // window when maximised or fullscreen
   if (windowState.fullscreen) WindowFullscreen();
   else if (windowState.maximised) WindowMaximise();
 
-  setTimeout(() => {
-    WindowShow();
-  }, 150);
+  WindowShow();
 
   registerWindowStateTracking();
   return () => {
