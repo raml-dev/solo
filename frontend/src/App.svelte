@@ -18,6 +18,7 @@
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
   import { initZoom } from "$src/lib/stores/zoomStore.svelte";
+  import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
   import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
@@ -34,35 +35,6 @@
   let isResizing = $state(false);
   let resizeStartY = 0;
   let resizeStartH = 0;
-  // const globalUnsavedModal = modalStack.createModal("app-unsaved");
-
-  const flowbiteTheme = {
-    input: {
-      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    textarea: {
-      base: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    search: {
-      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    fileupload: {
-      base: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    phoneInput: {
-      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    floatingLabelInput: {
-      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    tags: {
-      input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
-    },
-    multiSelect: {
-      placeholder: "text-neutral-400 dark:text-neutral-400"
-    },
-    dropdown: "overflow-hidden!"
-  };
 
   async function initializeApp() {
     await Promise.all([
