@@ -348,10 +348,10 @@ func TestRemoveRequestFromFolder(t *testing.T) {
 	}
 }
 
-func TestAddFolder(t *testing.T) {
+func TestAddFolderToRoot(t *testing.T) {
 	collection := NewCollection("collection")
 
-	added, err := collection.AddFolder(Folder{Id: "f-1", Name: "folder-1"})
+	added, err := collection.AddFolder("", Folder{Id: "f-1", Name: "folder-1"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -370,7 +370,7 @@ func TestGetFolderById(t *testing.T) {
 	collection.Folders = []Folder{
 		{
 			Id: "f-1",
-			SubFolders: []Folder{
+			Folders: []Folder{
 				{Id: "f-2"},
 			},
 		},
@@ -392,7 +392,7 @@ func TestAddSubFolder(t *testing.T) {
 		{Id: "f-1"},
 	}
 
-	added, err := collection.AddSubFolder("f-1", Folder{Id: "f-2", Name: "sub"})
+	added, err := collection.AddFolder("f-1", Folder{Id: "f-2", Name: "sub"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -401,8 +401,8 @@ func TestAddSubFolder(t *testing.T) {
 		t.Fatalf("expected subfolder f-2, got %+v", added)
 	}
 
-	if len(collection.Folders[0].SubFolders) != 1 {
-		t.Fatalf("expected 1 subfolder, got %d", len(collection.Folders[0].SubFolders))
+	if len(collection.Folders[0].Folders) != 1 {
+		t.Fatalf("expected 1 subfolder, got %d", len(collection.Folders[0].Folders))
 	}
 }
 
@@ -411,7 +411,7 @@ func TestRemoveFolder(t *testing.T) {
 	collection.Folders = []Folder{
 		{
 			Id: "f-1",
-			SubFolders: []Folder{
+			Folders: []Folder{
 				{Id: "f-2"},
 			},
 		},
@@ -422,8 +422,8 @@ func TestRemoveFolder(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if len(collection.Folders[0].SubFolders) != 0 {
-		t.Fatalf("expected 0 subfolders, got %d", len(collection.Folders[0].SubFolders))
+	if len(collection.Folders[0].Folders) != 0 {
+		t.Fatalf("expected 0 folders, got %d", len(collection.Folders[0].Folders))
 	}
 }
 
@@ -433,7 +433,7 @@ func TestUpdateFolder(t *testing.T) {
 		{
 			Id:   "f-1",
 			Name: "old-name",
-			SubFolders: []Folder{
+			Folders: []Folder{
 				{
 					Id:   "f-2",
 					Name: "old-sub",

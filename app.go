@@ -790,14 +790,9 @@ func (a *App) GetFolder(collectionName string, folderId string) (*collection.Fol
 	return a.collectionManager.GetFolder(collectionName, folderId)
 }
 
-// AddFolder adds a new root-level folder to a specific collection.
-func (a *App) AddFolder(collectionName string, folder collection.Folder) (*collection.Folder, error) {
-	return a.collectionManager.AddFolder(collectionName, folder)
-}
-
-// AddSubFolder adds a new subfolder to a specific parent folder.
-func (a *App) AddSubFolder(collectionName string, parentFolderId string, folder collection.Folder) (*collection.Folder, error) {
-	return a.collectionManager.AddSubFolder(collectionName, parentFolderId, folder)
+// AddFolder adds a new folder to a specific parent folder (or root if parent is nil/empty string).
+func (a *App) AddFolder(collectionName string, parentFolderId string, folder collection.Folder) (*collection.Folder, error) {
+	return a.collectionManager.AddFolder(collectionName, parentFolderId, folder)
 }
 
 // RemoveFolder removes a folder from a collection using its ID.

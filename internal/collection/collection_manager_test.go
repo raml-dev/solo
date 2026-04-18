@@ -313,7 +313,7 @@ func TestCollectionManagerFolderCRUD(t *testing.T) {
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	root, err := cm.AddFolder(collectionName, Folder{Id: "f-root", Name: "root"})
+	root, err := cm.AddFolder(collectionName, "", Folder{Id: "f-root", Name: "root"})
 	if err != nil {
 		t.Fatalf("add folder failed: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestCollectionManagerFolderCRUD(t *testing.T) {
 		t.Fatalf("expected folder f-root, got %+v", root)
 	}
 
-	sub, err := cm.AddSubFolder(collectionName, "f-root", Folder{Id: "f-sub", Name: "sub"})
+	sub, err := cm.AddFolder(collectionName, "f-root", Folder{Id: "f-sub", Name: "sub"})
 	if err != nil {
 		t.Fatalf("add subfolder failed: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestCollectionManagerAddRequestToFolder(t *testing.T) {
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	if _, err := cm.AddFolder(collectionName, Folder{Id: "f-root", Name: "root"}); err != nil {
+	if _, err := cm.AddFolder(collectionName, "", Folder{Id: "f-root", Name: "root"}); err != nil {
 		t.Fatalf("add folder failed: %v", err)
 	}
 
