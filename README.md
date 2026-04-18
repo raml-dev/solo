@@ -7,16 +7,12 @@
 
 
 <html>
-    <h2 align="center">
-      <img src="hack/icon/icon-lighning-spike.svg" width="128"/>
+    <h2 align="center" style="display: flex; flex-direction: column; align-items: center; padding: 2rem">
+      <img src="hack/icon/icon-lighning-spike-round-inverted.svg" width="128"/>
+      <img width="256" src="hack/icon/icon-ascii.svg" />
     </h2>
 </html>
-  <pre>
-     █
- ▄▄▄  ▄▄▄ █  ▄▄▄
-▀▄▄  █   █ █ █   █
-▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀
-        </pre>
+
 
 **The lightweight, fast, open-source API client for modern development.**
 
