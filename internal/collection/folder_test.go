@@ -25,7 +25,7 @@ func TestFolderGetRequestByIdBasic(t *testing.T) {
 func TestFolderGetRequestByIdFromSecondSubfolder(t *testing.T) {
 	root := Folder{
 		Id: "root",
-		SubFolders: []Folder{
+		Folders: []Folder{
 			{
 				Id:       "sub-1",
 				Requests: []Request{{Id: "req-1", Name: "first"}},
@@ -54,7 +54,7 @@ func TestFolderGetRequestByIdFromSecondSubfolder(t *testing.T) {
 func TestAddRequestToFolderSubfolder(t *testing.T) {
 	root := Folder{
 		Id: "root",
-		SubFolders: []Folder{
+		Folders: []Folder{
 			{Id: "sub-1"},
 		},
 	}
@@ -64,25 +64,25 @@ func TestAddRequestToFolderSubfolder(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if len(root.SubFolders[0].Requests) != 1 {
-		t.Fatalf("expected 1 request in subfolder, got %d", len(root.SubFolders[0].Requests))
+	if len(root.Folders[0].Requests) != 1 {
+		t.Fatalf("expected 1 request in subfolder, got %d", len(root.Folders[0].Requests))
 	}
 
-	if root.SubFolders[0].Requests[0].Id != "req-sub" {
-		t.Fatalf("expected req-sub, got %s", root.SubFolders[0].Requests[0].Id)
+	if root.Folders[0].Requests[0].Id != "req-sub" {
+		t.Fatalf("expected req-sub, got %s", root.Folders[0].Requests[0].Id)
 	}
 }
 
 func TestFolderGetRequestByIdThreeLevelNesting(t *testing.T) {
 	root := Folder{
 		Id: "root",
-		SubFolders: []Folder{
+		Folders: []Folder{
 			{
 				Id: "level-1",
-				SubFolders: []Folder{
+				Folders: []Folder{
 					{
 						Id: "level-2",
-						SubFolders: []Folder{
+						Folders: []Folder{
 							{
 								Id:       "level-3",
 								Requests: []Request{{Id: "req-l3", Name: "third-level"}},
@@ -111,7 +111,7 @@ func TestFolderGetRequestByIdThreeLevelNesting(t *testing.T) {
 func TestRemoveRequestFromFolderSubfolder(t *testing.T) {
 	root := Folder{
 		Id: "root",
-		SubFolders: []Folder{
+		Folders: []Folder{
 			{
 				Id:       "sub-1",
 				Requests: []Request{{Id: "req-a", Name: "to-remove"}, {Id: "req-b", Name: "to-keep"}},
@@ -124,19 +124,19 @@ func TestRemoveRequestFromFolderSubfolder(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if len(root.SubFolders[0].Requests) != 1 {
-		t.Fatalf("expected 1 request in subfolder, got %d", len(root.SubFolders[0].Requests))
+	if len(root.Folders[0].Requests) != 1 {
+		t.Fatalf("expected 1 request in subfolder, got %d", len(root.Folders[0].Requests))
 	}
 
-	if root.SubFolders[0].Requests[0].Id != "req-b" {
-		t.Fatalf("expected remaining request req-b, got %s", root.SubFolders[0].Requests[0].Id)
+	if root.Folders[0].Requests[0].Id != "req-b" {
+		t.Fatalf("expected remaining request req-b, got %s", root.Folders[0].Requests[0].Id)
 	}
 }
 
 func TestUpdateRequestInFolderSubfolder(t *testing.T) {
 	root := Folder{
 		Id: "root",
-		SubFolders: []Folder{
+		Folders: []Folder{
 			{
 				Id: "sub-1",
 				Requests: []Request{
@@ -165,7 +165,7 @@ func TestUpdateRequestInFolderSubfolder(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	updated := root.SubFolders[0].Requests[0]
+	updated := root.Folders[0].Requests[0]
 	if updated.Name != "new-name" {
 		t.Fatalf("expected name new-name, got %s", updated.Name)
 	}

@@ -16,7 +16,7 @@ type Folder struct {
 	Requests            []Request `json:"requests"`
 	Name                string    `json:"name"`
 	Id                  string    `json:"id"`
-	SubFolders          []Folder  `json:"subFolders"`
+	Folders          []Folder  `json:"folders"`
 }
 
 func NewFolder(name string) Folder {
@@ -28,7 +28,7 @@ func NewFolder(name string) Folder {
 		LastUpdateTimestamp: tsp,
 		Name:                name,
 		Requests:            make([]Request, 0),
-		SubFolders:          make([]Folder, 0),
+		Folders:             make([]Folder, 0),
 	}
 }
 
@@ -36,8 +36,8 @@ func (f *Folder) GetRequests() *[]Request {
 	return &f.Requests
 }
 
-func (f *Folder) GetSubFolders() *[]Folder {
-	return &f.SubFolders
+func (f *Folder) GetFolders() *[]Folder {
+	return &f.Folders
 }
 
 // this function search a request by its id also in all subfolders
@@ -50,8 +50,8 @@ func (f *Folder) GetRequestById(id string) (*Request, error) {
 	}
 
 	// recursive check
-	for i := range f.SubFolders {
-		req, err := f.SubFolders[i].GetRequestById(id)
+	for i := range f.Folders {
+		req, err := f.Folders[i].GetRequestById(id)
 		if err == nil {
 			return req, nil
 		}
@@ -81,8 +81,8 @@ func (f *Folder) AddRequestToFolder(folderId string, request Request) error {
 	}
 
 	// search recursively for folderId in subfolders
-	for i := range f.SubFolders {
-		err := f.SubFolders[i].AddRequestToFolder(folderId, request)
+	for i := range f.Folders {
+		err := f.Folders[i].AddRequestToFolder(folderId, request)
 		if err == nil {
 			f.LastUpdateTimestamp = now
 			return nil
@@ -106,8 +106,8 @@ func (f *Folder) RemoveRequestFromFolder(folderId string, requestId string) erro
 		return fmt.Errorf("request with id %s does not exist in folder %s", requestId, folderId)
 	}
 
-	for i := range f.SubFolders {
-		err := f.SubFolders[i].RemoveRequestFromFolder(folderId, requestId)
+	for i := range f.Folders {
+		err := f.Folders[i].RemoveRequestFromFolder(folderId, requestId)
 		if err == nil {
 			f.LastUpdateTimestamp = now
 			return nil
@@ -168,8 +168,8 @@ func (f *Folder) UpdateRequestInFolder(folderId string, updated Request) error {
 		return fmt.Errorf("request with id %s does not exist in folder %s", updated.Id, folderId)
 	}
 
-	for i := range f.SubFolders {
-		err := f.SubFolders[i].UpdateRequestInFolder(folderId, updated)
+	for i := range f.Folders {
+		err := f.Folders[i].UpdateRequestInFolder(folderId, updated)
 		if err == nil {
 			f.LastUpdateTimestamp = now
 			return nil

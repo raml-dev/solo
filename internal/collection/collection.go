@@ -211,7 +211,7 @@ func (c *Collection) GetFolderById(id string) (*Folder, error) {
 	return f, nil
 }
 
-func (c *Collection) AddFolder(folder Folder) (*Folder, error) {
+func (c *Collection) AddFolder(parentFolderId string, folder Folder) (*Folder, error) {
 	if folder.Id == "" {
 		folder.Id = uuid.NewString()
 	}
@@ -224,28 +224,13 @@ func (c *Collection) AddFolder(folder Folder) (*Folder, error) {
 	folder.CreationTimestamp = now
 	folder.LastUpdateTimestamp = now
 
-	c.Folders = append(c.Folders, folder)
-	c.LastUpdateTimestamp = now
-
-	return &c.Folders[len(c.Folders)-1], nil
-}
-
-func (c *Collection) AddSubFolder(parentFolderId string, folder Folder) (*Folder, error) {
-	if folder.Id == "" {
-		folder.Id = uuid.NewString()
-	}
-
-	if existing, _ := c.GetFolderById(folder.Id); existing != nil {
-		return nil, fmt.Errorf("folder with id %s already exists", folder.Id)
-	}
-
-	now := time.Now()
-	folder.CreationTimestamp = now
-	folder.LastUpdateTimestamp = now
-
-	added := addSubFolderByParent(&c.Folders, parentFolderId, folder, now)
-	if !added {
-		return nil, fmt.Errorf("folder with id %s does not exist", parentFolderId)
+	if parentFolderId == "" {
+		c.Folders = append(c.Folders, folder)
+	} else {
+		added := addSubFolderByParent(&c.Folders, parentFolderId, folder, now)
+		if !added {
+			return nil, fmt.Errorf("folder with id %s does not exist", parentFolderId)
+		}
 	}
 
 	c.LastUpdateTimestamp = now
@@ -312,7 +297,7 @@ func findFolderById(folders []Folder, id string) *Folder {
 			return &folders[i]
 		}
 
-		f := findFolderById(folders[i].SubFolders, id)
+		f := findFolderById(folders[i].Folders, id)
 		if f != nil {
 			return f
 		}
@@ -324,12 +309,12 @@ func findFolderById(folders []Folder, id string) *Folder {
 func addSubFolderByParent(folders *[]Folder, parentFolderId string, folder Folder, now time.Time) bool {
 	for i := range *folders {
 		if (*folders)[i].Id == parentFolderId {
-			(*folders)[i].SubFolders = append((*folders)[i].SubFolders, folder)
+			(*folders)[i].Folders = append((*folders)[i].Folders, folder)
 			(*folders)[i].LastUpdateTimestamp = now
 			return true
 		}
 
-		added := addSubFolderByParent(&(*folders)[i].SubFolders, parentFolderId, folder, now)
+		added := addSubFolderByParent(&(*folders)[i].Folders, parentFolderId, folder, now)
 		if added {
 			(*folders)[i].LastUpdateTimestamp = now
 			return true
@@ -347,7 +332,7 @@ func removeFolderById(folders *[]Folder, folderId string, now time.Time) bool {
 	}
 
 	for i := range *folders {
-		removed := removeFolderById(&(*folders)[i].SubFolders, folderId, now)
+		removed := removeFolderById(&(*folders)[i].Folders, folderId, now)
 		if removed {
 			(*folders)[i].LastUpdateTimestamp = now
 			return true
@@ -365,7 +350,7 @@ func findFolderIDByRequestID(folders []Folder, requestId string) (string, bool) 
 			}
 		}
 
-		folderId, found := findFolderIDByRequestID(folders[i].SubFolders, requestId)
+		folderId, found := findFolderIDByRequestID(folders[i].Folders, requestId)
 		if found {
 			return folderId, true
 		}
