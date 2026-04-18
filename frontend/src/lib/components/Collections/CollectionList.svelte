@@ -43,6 +43,13 @@
   import { onDestroy, onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
+  import {
+    collectionTreeUI,
+    collectionTreeUIState
+  } from "$src/lib/features/collections/collectionTreeUI.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
 
   interface Props {
     onRequestSelect?: (requestId: string) => void;
@@ -90,6 +97,7 @@
   const newCollectionModal = modalStack.createModal("collections-new");
   const renameCollectionModal = modalStack.createModal("collections-rename");
   const deleteCollectionModal = modalStack.createModal("collections-delete-collection");
+  const deleteFolderModal = modalStack.createModal("collections-delete-folder");
   const deleteRequestModal = modalStack.createModal("collections-delete-request");
   const importCollectionModal = modalStack.createModal("collections-import");
   const soloCollectionOverwriteModal = modalStack.createModal("collections-solo-overwrite");
@@ -105,21 +113,18 @@
   let renameCollectionName = $state("");
   let renameTarget: string | null = null;
   let deleteTarget: string | null = $state(null);
+  let deleteFolderCollectionName: string | null = $state(null);
+  let deleteFolderName: string | null = $state(null);
+  let deleteFolderTarget: string | null = $state(null);
   let deleteRequestTarget: string | null = null;
   let deleteRequestCollectionName: string | null = null;
   let expandedCollections = new SvelteSet<string>();
+  let expandedFolders = new SvelteSet<string>();
   let searchQuery = $state("");
   let isCollapsed = $state(false);
   let gitStatusCollectionId: string | null = $state(null);
   let gitStatusCollectionName: string | null = $state(null);
   let syncingCollections: Set<string> = $state(new Set());
-  let requestDragState = $state({
-    sourceRequestId: null as string | null,
-    sourceCollectionName: null as string | null,
-    targetRequestId: null as string | null,
-    targetCollectionName: null as string | null,
-    position: null as "before" | "after" | null
-  });
 
   // cURL import state
   let curlInput = $state("");
@@ -136,6 +141,7 @@
 
   let sidebarWidth = $state(280); // Default width
   let isResizing = false;
+  let suppressNextPrimaryClick = false;
 
   function startResize(e: MouseEvent) {
     e.preventDefault();
@@ -177,6 +183,11 @@
     return normalize(collection.name).includes(query);
   }
 
+  function folderMatches(folder: collection.Folder, query: string): boolean {
+    if (!query) return true;
+    return normalize(folder.name).includes(query);
+  }
+
   function getVisibleRequests(
     collection: collection.Collection,
     query: string
@@ -189,7 +200,20 @@
   function shouldShowCollection(collection: collection.Collection, query: string): boolean {
     if (!query) return true;
     if (collectionMatches(collection, query)) return true;
-    return getVisibleRequests(collection, query).length > 0;
+    if (getVisibleRequests(collection, query).length > 0) return true;
+    return (collection.folders || []).some((folder) => shouldShowFolder(folder, query));
+  }
+
+  function shouldShowFolder(folder: collection.Folder, query: string): boolean {
+    if (!query) return true;
+    if (folderMatches(folder, query)) return true;
+    if ((folder.requests || []).some((request) => requestMatches(request, query))) return true;
+    return (folder.folders || []).some((subfolder) => shouldShowFolder(subfolder, query));
+  }
+
+  function getVisibleFolders(folders: collection.Folder[], query: string): collection.Folder[] {
+    if (!query) return folders || [];
+    return (folders || []).filter((folder) => shouldShowFolder(folder, query));
   }
 
   function isExpanded(collectionName: string): boolean {
@@ -264,10 +288,32 @@
     gitStatusCollectionName = currentCollection.name;
   }
 
+  async function handleAddFolder(collectionName: string, parentFolderId: string | null = null) {
+    try {
+      const newFolder = await collectionStore.addFolder(
+        collectionName,
+        parentFolderId,
+        "New Folder"
+      );
+
+      if (parentFolderId) {
+        expandedFolders.add(parentFolderId);
+      }
+      expandedFolders.add(newFolder.id);
+      expandedCollections.add(collectionName);
+    } catch {
+      // error already shown by store
+    }
+  }
+
   function openRenameCollection(collectionName: string) {
     renameTarget = collectionName;
     renameCollectionName = collectionName;
     renameCollectionModal.open = true;
+  }
+
+  function openRenameFolder(collectionName: string, folder: collection.Folder) {
+    collectionTreeUI.startFolderRename(folder.id, collectionName);
   }
 
   function closeNewCollectionDialog() {
@@ -338,6 +384,13 @@
     deleteCollectionModal.open = true;
   }
 
+  function handleDeleteFolder(collectionName: string, folder: collection.Folder) {
+    deleteFolderCollectionName = collectionName;
+    deleteFolderTarget = folder.id;
+    deleteFolderName = folder.name;
+    deleteFolderModal.open = true;
+  }
+
   function closeDeleteConfirmDialog() {
     deleteCollectionModal.open = false;
     deleteTarget = null;
@@ -352,6 +405,25 @@
       closeDeleteConfirmDialog();
     } catch (err) {
       console.error("Error deleting collection:", err);
+    }
+  }
+
+  function closeDeleteFolderConfirmDialog() {
+    deleteFolderModal.open = false;
+    deleteFolderCollectionName = null;
+    deleteFolderName = null;
+    deleteFolderTarget = null;
+  }
+
+  async function confirmDeleteFolder() {
+    if (!deleteFolderCollectionName || !deleteFolderTarget) return;
+
+    try {
+      await collectionStore.removeFolder(deleteFolderCollectionName, deleteFolderTarget);
+      expandedFolders.delete(deleteFolderTarget);
+      closeDeleteFolderConfirmDialog();
+    } catch {
+      // error already shown by store
     }
   }
 
@@ -370,6 +442,25 @@
       const newReq = await collectionStore.addRequest(collectionName, newRequest);
 
       expandedCollections.add(collectionName);
+
+      if (newReq?.id) {
+        openRequestTab(newReq, collectionName);
+      }
+    } catch {
+      // error already shown by store
+    }
+  }
+
+  async function handleAddRequestToFolder(collectionName: string, folderId: string) {
+    try {
+      const newReq = await collectionStore.addRequestToFolder(collectionName, folderId, {
+        name: "New Request",
+        url: "",
+        verb: "GET"
+      });
+
+      expandedCollections.add(collectionName);
+      expandedFolders.add(folderId);
 
       if (newReq?.id) {
         openRequestTab(newReq, collectionName);
@@ -615,6 +706,37 @@
     importCollectionModal.open = true;
   }
 
+  function isContextMenuOpen(): boolean {
+    return (
+      collectionTreeUIState.collectionContextMenu.open ||
+      collectionTreeUIState.requestContextMenu.open ||
+      collectionTreeUIState.folderContextMenu.open
+    );
+  }
+
+  function isClickInsideContextMenu(target: EventTarget | null): boolean {
+    return target instanceof Element && target.closest('[popover="manual"]') !== null;
+  }
+
+  function handleGlobalMouseDown(event: MouseEvent) {
+    if (event.button !== 0 || !isContextMenuOpen() || isClickInsideContextMenu(event.target)) {
+      return;
+    }
+
+    suppressNextPrimaryClick = true;
+    collectionTreeUI.closeAllContextMenus();
+  }
+
+  function handleGlobalClick(event: MouseEvent) {
+    if (!suppressNextPrimaryClick || event.button !== 0) {
+      return;
+    }
+
+    suppressNextPrimaryClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   onMount(() => {
     const storedWidth = localStorage.getItem("sidebar_width");
     if (storedWidth) {
@@ -625,15 +747,27 @@
     if (stored !== null) {
       isCollapsed = stored === "true";
     }
+
+    document.addEventListener("mousedown", handleGlobalMouseDown, true);
+    document.addEventListener("click", handleGlobalClick, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleGlobalMouseDown, true);
+      document.removeEventListener("click", handleGlobalClick, true);
+    };
   });
 
   onDestroy(async () => {
     modalStack.destroyModal(newCollectionModal.id);
     modalStack.destroyModal(renameCollectionModal.id);
     modalStack.destroyModal(deleteCollectionModal.id);
+    modalStack.destroyModal(deleteFolderModal.id);
     modalStack.destroyModal(deleteRequestModal.id);
     modalStack.destroyModal(importCollectionModal.id);
     modalStack.destroyModal(soloCollectionOverwriteModal.id);
+    collectionTreeUI.closeCollectionContextMenu();
+    collectionTreeUI.closeRequestContextMenu();
+    collectionTreeUI.closeFolderContextMenu();
   });
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
@@ -649,7 +783,259 @@
   let selectedLocalImportOption = $derived(
     COLLECTION_LOCAL_IMPORT_FORMATS.find((format) => format.key === localImportFormat)
   );
+  let collectionContextMenuState = $derived(collectionTreeUIState.collectionContextMenu);
+  let requestContextMenuState = $derived(collectionTreeUIState.requestContextMenu);
+  let folderContextMenuState = $derived(collectionTreeUIState.folderContextMenu);
+  let collectionContextTarget = $derived(collectionContextMenuState.collection);
+  let requestContextTarget = $derived(requestContextMenuState.request);
+  let folderContextTarget = $derived(folderContextMenuState.folder);
+
+  function getCollectionContextMenuTriggerId(): string {
+    return `collection-context-menu-trigger-${collectionContextMenuState.openKey}`;
+  }
+
+  function getRequestContextMenuTriggerId(): string {
+    return `request-context-menu-trigger-${requestContextMenuState.openKey}`;
+  }
+
+  function getFolderContextMenuTriggerId(): string {
+    return `folder-context-menu-trigger-${folderContextMenuState.openKey}`;
+  }
+
+  function getCollectionContextMenuPositionStyle(): string {
+    return `left: ${collectionContextMenuState.x + 2}px; top: ${collectionContextMenuState.y + 2}px;`;
+  }
+
+  function getRequestContextMenuPositionStyle(): string {
+    return `left: ${requestContextMenuState.x + 2}px; top: ${requestContextMenuState.y + 2}px;`;
+  }
+
+  function getFolderContextMenuPositionStyle(): string {
+    return `left: ${folderContextMenuState.x + 2}px; top: ${folderContextMenuState.y + 2}px;`;
+  }
+
+  async function handleDuplicateRequestFromContextMenu() {
+    if (!requestContextTarget || !requestContextMenuState.collectionName) {
+      return;
+    }
+
+    const newRequest: Partial<collection.Request> = {
+      ...requestContextTarget,
+      name: `${requestContextTarget.name} (copy)`
+    };
+    delete newRequest.id;
+
+    try {
+      const duplicatedRequest = requestContextMenuState.parentFolderId
+        ? await collectionStore.addRequestToFolder(
+            requestContextMenuState.collectionName,
+            requestContextMenuState.parentFolderId,
+            newRequest
+          )
+        : await collectionStore.addRequest(requestContextMenuState.collectionName, newRequest);
+
+      if (duplicatedRequest?.id) {
+        openRequestTab(duplicatedRequest, requestContextMenuState.collectionName);
+      }
+    } catch {
+      // error already shown by store
+    }
+  }
 </script>
+
+{#snippet requestContextActionsDropdown(triggeredBy: string, isOpen: boolean, onClose: () => void)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (requestContextMenuState.requestId && requestContextMenuState.collectionName) {
+          collectionTreeUI.startRequestRename(
+            requestContextMenuState.requestId,
+            requestContextMenuState.collectionName,
+            requestContextMenuState.parentFolderId
+          );
+        }
+        onClose();
+      }}
+    >
+      Rename
+    </DropdownItem>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        void handleDuplicateRequestFromContextMenu();
+        onClose();
+      }}
+    >
+      Duplicate
+    </DropdownItem>
+    <DropdownItem
+      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+      onclick={() => {
+        if (requestContextMenuState.collectionName && requestContextMenuState.requestId) {
+          void handleDeleteRequest(
+            requestContextMenuState.collectionName,
+            requestContextMenuState.requestId
+          );
+        }
+        onClose();
+      }}
+    >
+      Delete
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
+
+{#snippet collectionContextActionsDropdown(
+  triggeredBy: string,
+  isOpen: boolean,
+  onClose: () => void
+)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (collectionContextTarget) {
+          handleAddRequestToCollection(collectionContextTarget.name);
+        }
+        onClose();
+      }}
+    >
+      New request
+    </DropdownItem>
+    <DropdownDivider />
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (collectionContextTarget) {
+          void handleAddFolder(collectionContextTarget.name, null);
+        }
+        onClose();
+      }}
+    >
+      New folder
+    </DropdownItem>
+    <DropdownDivider />
+    {#if collectionContextTarget?.gitRemote}
+      <DropdownItem
+        class="text-gray-900 dark:text-white"
+        onclick={() => {
+          if (collectionContextTarget) {
+            openGitStatusForCollection(collectionContextTarget);
+          }
+          onClose();
+        }}
+      >
+        Git status
+      </DropdownItem>
+      <DropdownItem
+        class="text-gray-900 dark:text-white"
+        disabled={!!collectionContextTarget && syncingCollections.has(collectionContextTarget.id)}
+        onclick={() => {
+          if (collectionContextTarget) {
+            void handleSync(collectionContextTarget.id);
+          }
+          onClose();
+        }}
+      >
+        {collectionContextTarget && syncingCollections.has(collectionContextTarget.id)
+          ? "Syncing..."
+          : "Sync with Git"}
+      </DropdownItem>
+      <DropdownDivider />
+    {/if}
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (collectionContextTarget) {
+          void handleExportCollection(collectionContextTarget.name);
+        }
+        onClose();
+      }}
+    >
+      Export
+    </DropdownItem>
+    <DropdownDivider />
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (collectionContextTarget) {
+          openRenameCollection(collectionContextTarget.name);
+        }
+        onClose();
+      }}
+    >
+      Rename
+    </DropdownItem>
+    <DropdownItem
+      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+      onclick={() => {
+        if (collectionContextTarget) {
+          handleDeleteCollection(collectionContextTarget.name);
+        }
+        onClose();
+      }}
+    >
+      Delete
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
+
+{#snippet folderContextActionsDropdown(triggeredBy: string, isOpen: boolean, onClose: () => void)}
+  <Dropdown {triggeredBy} {isOpen} class="z-50 w-44" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (folderContextMenuState.collectionName && folderContextMenuState.folderId) {
+          void handleAddRequestToFolder(
+            folderContextMenuState.collectionName,
+            folderContextMenuState.folderId
+          );
+        }
+        onClose();
+      }}
+    >
+      New request
+    </DropdownItem>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (folderContextMenuState.collectionName && folderContextMenuState.folderId) {
+          void handleAddFolder(
+            folderContextMenuState.collectionName,
+            folderContextMenuState.folderId
+          );
+        }
+        onClose();
+      }}
+    >
+      New subfolder
+    </DropdownItem>
+    <DropdownDivider />
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (folderContextMenuState.collectionName && folderContextTarget) {
+          openRenameFolder(folderContextMenuState.collectionName, folderContextTarget);
+        }
+        onClose();
+      }}
+    >
+      Rename
+    </DropdownItem>
+    <DropdownItem
+      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+      onclick={() => {
+        if (folderContextMenuState.collectionName && folderContextTarget) {
+          handleDeleteFolder(folderContextMenuState.collectionName, folderContextTarget);
+        }
+        onClose();
+      }}
+    >
+      Delete
+    </DropdownItem>
+  </Dropdown>
+{/snippet}
 
 <div
   class="relative flex h-full {!isCollapsed &&
@@ -683,15 +1069,21 @@
           <CollectionRow
             {collection}
             expanded={isExpanded(collection.name)}
+            searchQuery={normalizedQuery}
             {isSearching}
             {selectedRequestId}
+            visibleFolders={getVisibleFolders(collection.folders || [], normalizedQuery)}
             visibleRequests={getVisibleRequests(collection, normalizedQuery)}
-            dragState={requestDragState}
+            {expandedFolders}
             syncing={syncingCollections.has(collection.id)}
             providerIconPath={getProviderIconPath(collection.gitProvider || "git")}
             onActivateCollection={handleCollectionActivate}
             onToggleCollection={toggleCollection}
             onAddRequest={handleAddRequestToCollection}
+            onAddRequestToFolder={handleAddRequestToFolder}
+            onCreateFolder={handleAddFolder}
+            onRenameFolder={openRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
             onDeleteRequest={handleDeleteRequest}
             onOpenGitStatus={openGitStatusForCollection}
             onSync={(collectionId) => void handleSync(collectionId)}
@@ -714,6 +1106,54 @@
     </div>
   {/if}
 </div>
+
+{#if collectionContextTarget}
+  <button
+    id={getCollectionContextMenuTriggerId()}
+    type="button"
+    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
+    style={getCollectionContextMenuPositionStyle()}
+    tabindex="-1"
+    aria-hidden="true"
+  ></button>
+  {@render collectionContextActionsDropdown(
+    `#${getCollectionContextMenuTriggerId()}`,
+    collectionContextMenuState.open,
+    collectionTreeUI.closeCollectionContextMenu
+  )}
+{/if}
+
+{#if requestContextTarget && requestContextMenuState.collectionName}
+  <button
+    id={getRequestContextMenuTriggerId()}
+    type="button"
+    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
+    style={getRequestContextMenuPositionStyle()}
+    tabindex="-1"
+    aria-hidden="true"
+  ></button>
+  {@render requestContextActionsDropdown(
+    `#${getRequestContextMenuTriggerId()}`,
+    requestContextMenuState.open,
+    collectionTreeUI.closeRequestContextMenu
+  )}
+{/if}
+
+{#if folderContextTarget && folderContextMenuState.collectionName}
+  <button
+    id={getFolderContextMenuTriggerId()}
+    type="button"
+    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
+    style={getFolderContextMenuPositionStyle()}
+    tabindex="-1"
+    aria-hidden="true"
+  ></button>
+  {@render folderContextActionsDropdown(
+    `#${getFolderContextMenuTriggerId()}`,
+    folderContextMenuState.open,
+    collectionTreeUI.closeFolderContextMenu
+  )}
+{/if}
 
 {#if newCollectionModal.open}
   <Modal
@@ -793,6 +1233,32 @@
     {/snippet}
   </Modal>
 {/if}
+
+{#if deleteFolderModal.open}
+  <Modal
+    bind:open={deleteFolderModal.open}
+    onclose={closeDeleteFolderConfirmDialog}
+    title="Delete Folder"
+  >
+    {#if $topModalId === deleteFolderModal.id}
+      <ToastContainer />
+    {/if}
+    <div class="space-y-2 text-sm">
+      <p class="text-neutral-700 dark:text-neutral-200">
+        Are you sure you want to delete folder "{deleteFolderName}"?
+      </p>
+      <p class="text-danger-600 dark:text-danger-300">
+        This also removes all nested folders and requests.
+      </p>
+    </div>
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="red" onclick={confirmDeleteFolder}>Delete</Button>
+      </div>
+    {/snippet}
+  </Modal>
+{/if}
+
 {#if deleteRequestModal.open}
   <Modal
     bind:open={deleteRequestModal.open}

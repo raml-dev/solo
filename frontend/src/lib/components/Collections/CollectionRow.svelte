@@ -4,7 +4,13 @@
 -->
 
 <script lang="ts">
+  import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
+  import {
+    collectionTreeUI,
+    collectionTreeUIState
+  } from "$src/lib/features/collections/collectionTreeUI.svelte";
   import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
+  import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { collection } from "$wails/go/models";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
@@ -13,31 +19,30 @@
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
   import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
+  import { SvelteSet } from "svelte/reactivity";
   import { tick } from "svelte";
 
   const OUTLINE_BUTTON_CLASSES =
     "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
-  interface RequestDragState {
-    sourceRequestId: string | null;
-    sourceCollectionName: string | null;
-    targetRequestId: string | null;
-    targetCollectionName: string | null;
-    position: "before" | "after" | null;
-  }
-
   interface Props {
     collection: collection.Collection;
     expanded: boolean;
+    searchQuery: string;
     isSearching: boolean;
     selectedRequestId: string | null;
+    visibleFolders: collection.Folder[];
     visibleRequests: collection.Request[];
-    dragState: RequestDragState;
+    expandedFolders: SvelteSet<string>;
     syncing: boolean;
     providerIconPath: string;
     onActivateCollection: (collectionName: string) => void;
     onToggleCollection: (collectionName: string) => void;
     onAddRequest: (collectionName: string) => void;
+    onAddRequestToFolder: (collectionName: string, folderId: string) => void;
+    onCreateFolder: (collectionName: string, parentFolderId: string | null) => void;
+    onRenameFolder: (collectionName: string, folder: collection.Folder) => void;
+    onDeleteFolder: (collectionName: string, folder: collection.Folder) => void;
     onDeleteRequest: (collectionName: string, requestId: string) => void;
     onOpenGitStatus: (currentCollection: collection.Collection) => void;
     onSync: (collectionId: string) => void;
@@ -50,15 +55,21 @@
   let {
     collection: currentCollection,
     expanded,
+    searchQuery,
     isSearching,
     selectedRequestId,
+    visibleFolders,
     visibleRequests,
-    dragState,
+    expandedFolders,
     syncing,
     providerIconPath,
     onActivateCollection,
     onToggleCollection,
     onAddRequest,
+    onAddRequestToFolder,
+    onCreateFolder,
+    onRenameFolder,
+    onDeleteFolder,
     onDeleteRequest,
     onOpenGitStatus,
     onSync,
@@ -68,62 +79,139 @@
     onRequestSelect = () => {}
   }: Props = $props();
 
-  let contextMenuX = $state(0);
-  let contextMenuY = $state(0);
-  let contextMenuOpenKey = $state(0);
-  let isContextMenuOpen = $state(false);
+  let requestDragState = $derived(collectionTreeUIState.requestDrag);
+  let anyContextMenuOpen = $derived(
+    collectionTreeUIState.requestContextMenu.open ||
+      collectionTreeUIState.folderContextMenu.open ||
+      collectionTreeUIState.collectionContextMenu.open
+  );
 
   function isNoDragTarget(target: EventTarget | null): boolean {
     return target instanceof HTMLElement && target.closest('[data-no-drag="true"]') !== null;
   }
 
   function closeContextMenu() {
-    isContextMenuOpen = false;
+    collectionTreeUI.closeCollectionContextMenu();
   }
 
   function getMenuTriggerId(): string {
     return `collection-menu-${currentCollection.id}`;
   }
 
-  function getContextMenuTriggerId(): string {
-    return `collection-context-menu-${currentCollection.id}-${contextMenuOpenKey}`;
-  }
-
-  function getContextMenuPositionStyle(): string {
-    return `left: ${contextMenuX + 2}px; top: ${contextMenuY + 2}px;`;
-  }
-
   async function handleContextMenu(event: MouseEvent) {
-    if (dragState.sourceRequestId || isNoDragTarget(event.target)) {
+    if (requestDragState.sourceRequestId || isNoDragTarget(event.target)) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
-
-    isContextMenuOpen = false;
-    contextMenuX = event.clientX;
-    contextMenuY = event.clientY;
-    contextMenuOpenKey += 1;
-
+    closeContextMenu();
+    collectionTreeUI.stageCollectionContextMenu(
+      currentCollection,
+      currentCollection.id,
+      event.clientX,
+      event.clientY
+    );
     await tick();
-    isContextMenuOpen = true;
+    collectionTreeUI.showCollectionContextMenu();
   }
 
   function handleHeaderActivate(event: Event) {
     event.stopPropagation();
 
-    if (isContextMenuOpen) {
-      closeContextMenu();
+    onActivateCollection(currentCollection.name);
+  }
+
+  function isContextMenuGesture(event: MouseEvent): boolean {
+    return event.button !== 0 || event.ctrlKey;
+  }
+
+  function handleHeaderClick(event: MouseEvent) {
+    if (isContextMenuGesture(event)) {
       return;
     }
 
-    onActivateCollection(currentCollection.name);
+    if (anyContextMenuOpen) {
+      collectionTreeUI.closeAllContextMenus();
+      return;
+    }
+
+    handleHeaderActivate(event);
+  }
+
+  function getTotalRequestCount(currentFolderList: collection.Folder[]): number {
+    return currentFolderList.reduce(
+      (count, folder) =>
+        count + (folder.requests?.length || 0) + getTotalRequestCount(folder.folders || []),
+      0
+    );
+  }
+
+  function isRootRequestDropTarget(): boolean {
+    return (
+      requestDragState.targetMode === "container" &&
+      requestDragState.targetCollectionName === currentCollection.name &&
+      requestDragState.targetParentFolderId === null
+    );
+  }
+
+  function handleRootRequestDragOver(event: DragEvent) {
+    if (
+      !requestDragState.sourceRequestId ||
+      requestDragState.sourceCollectionName !== currentCollection.name ||
+      isSearching
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    collectionTreeUI.setRequestContainerTarget(currentCollection.name, null);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  }
+
+  async function handleRootRequestDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (
+      !requestDragState.sourceRequestId ||
+      requestDragState.sourceCollectionName !== currentCollection.name ||
+      requestDragState.targetMode !== "container" ||
+      requestDragState.targetParentFolderId !== null
+    ) {
+      collectionTreeUI.resetRequestDrag();
+      return;
+    }
+
+    try {
+      await collectionStore.moveRequest(
+        currentCollection.name,
+        requestDragState.sourceRequestId,
+        requestDragState.sourceParentFolderId,
+        null
+      );
+    } finally {
+      collectionTreeUI.resetRequestDrag();
+    }
   }
 </script>
 
 {#snippet actionsDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
   <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        onCreateFolder(currentCollection.name, null);
+        onClose();
+      }}
+    >
+      New folder
+    </DropdownItem>
+    <DropdownDivider />
     {#if currentCollection.gitRemote}
       <DropdownItem
         class="text-gray-900 dark:text-white"
@@ -181,14 +269,17 @@
   class="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/40"
 >
   <div
-    class="relative flex items-center px-2 py-2"
-    onclick={handleHeaderActivate}
+    class={`relative flex items-center px-2 py-2 ${isRootRequestDropTarget() ? "bg-primary-50/60 dark:bg-primary-900/10" : ""}`}
+    onclick={handleHeaderClick}
     onkeypress={(event) => {
       if (event.key === "Enter") {
         handleHeaderActivate(event);
       }
     }}
     oncontextmenu={(event) => void handleContextMenu(event)}
+    ondragenter={handleRootRequestDragOver}
+    ondragover={handleRootRequestDragOver}
+    ondrop={(event) => void handleRootRequestDrop(event)}
     role="button"
     tabindex="0"
   >
@@ -212,7 +303,8 @@
         <span
           class="w-6 rounded bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
         >
-          {currentCollection.requests?.length || 0}
+          {(currentCollection.requests?.length || 0) +
+            getTotalRequestCount(currentCollection.folders || [])}
         </span>
 
         {#if currentCollection.gitRemote}
@@ -270,20 +362,38 @@
   </div>
 
   {#if expanded}
-    <div class="space-y-1 border-t border-neutral-200 px-2 pt-1 pb-2 dark:border-neutral-700">
-      {#if visibleRequests.length === 0}
+    <div
+      class="space-y-1 border-t border-neutral-200 px-2 pt-1 pb-2 dark:border-neutral-700"
+      role="list"
+      aria-label={`${currentCollection.name} items`}
+    >
+      {#if visibleFolders.length === 0 && visibleRequests.length === 0}
         <div class="px-1 py-2 text-xs text-neutral-500 dark:text-neutral-400">
-          {isSearching ? "No matching requests" : "No requests yet"}
+          {isSearching ? "No matching items" : "No items yet"}
         </div>
       {:else}
+        {#each visibleFolders as folder (folder.id)}
+          <FolderRow
+            {folder}
+            collectionName={currentCollection.name}
+            {searchQuery}
+            {isSearching}
+            {selectedRequestId}
+            {expandedFolders}
+            {onAddRequestToFolder}
+            {onCreateFolder}
+            {onRenameFolder}
+            {onDeleteFolder}
+            {onDeleteRequest}
+            {onRequestSelect}
+          />
+        {/each}
         {#each visibleRequests as request (request.id)}
           <RequestRow
             {request}
             collectionName={currentCollection.name}
             selected={selectedRequestId === request.id}
-            requestCount={currentCollection.requests?.length || 0}
             {isSearching}
-            {dragState}
             {onDeleteRequest}
             {onRequestSelect}
             onAnyMenuOpen={closeContextMenu}
@@ -293,15 +403,3 @@
     </div>
   {/if}
 </div>
-
-{#if isContextMenuOpen}
-  <button
-    id={getContextMenuTriggerId()}
-    type="button"
-    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
-    style={getContextMenuPositionStyle()}
-    tabindex="-1"
-    aria-hidden="true"
-  ></button>
-  {@render actionsDropdown(`#${getContextMenuTriggerId()}`, isContextMenuOpen, closeContextMenu)}
-{/if}

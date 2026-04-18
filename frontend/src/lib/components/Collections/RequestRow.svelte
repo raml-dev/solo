@@ -4,6 +4,10 @@
 -->
 
 <script lang="ts">
+  import {
+    collectionTreeUI,
+    collectionTreeUIState
+  } from "$src/lib/features/collections/collectionTreeUI.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore.svelte";
@@ -18,21 +22,13 @@
   const OUTLINE_BUTTON_CLASSES =
     "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
-  interface RequestDragState {
-    sourceRequestId: string | null;
-    sourceCollectionName: string | null;
-    targetRequestId: string | null;
-    targetCollectionName: string | null;
-    position: "before" | "after" | null;
-  }
-
   interface Props {
     request: collection.Request;
     collectionName: string;
+    parentFolderId?: string | null;
     selected: boolean;
-    requestCount: number;
     isSearching: boolean;
-    dragState: RequestDragState;
+    dragEnabled?: boolean;
     onDeleteRequest: (collectionName: string, requestId: string) => void;
     onRequestSelect?: (requestId: string) => void;
     onAnyMenuOpen?: () => void;
@@ -41,10 +37,10 @@
   let {
     request,
     collectionName,
+    parentFolderId = null,
     selected,
-    requestCount,
     isSearching,
-    dragState,
+    dragEnabled = true,
     onDeleteRequest,
     onRequestSelect = () => {},
     onAnyMenuOpen = () => {}
@@ -53,10 +49,13 @@
   let editingNameInputEl: HTMLInputElement | undefined = $state();
   let isEditing = $state(false);
   let editingName = $state("");
-  let contextMenuX = $state(0);
-  let contextMenuY = $state(0);
-  let contextMenuOpenKey = $state(0);
-  let isContextMenuOpen = $state(false);
+  let requestDragState = $derived(collectionTreeUIState.requestDrag);
+  let requestRenameState = $derived(collectionTreeUIState.requestRename);
+  let anyContextMenuOpen = $derived(
+    collectionTreeUIState.collectionContextMenu.open ||
+      collectionTreeUIState.requestContextMenu.open ||
+      collectionTreeUIState.folderContextMenu.open
+  );
 
   function normalizeHeaders(headers: Record<string, unknown> | undefined) {
     return headers
@@ -91,15 +90,35 @@
     onRequestSelect(request.id);
   }
 
-  async function startRename(event: Event) {
-    event.stopPropagation();
+  function isContextMenuGesture(event: MouseEvent): boolean {
+    return event.button !== 0 || event.ctrlKey;
+  }
+
+  function handleRequestActivate(event: MouseEvent) {
+    if (isContextMenuGesture(event)) {
+      return;
+    }
+
+    if (anyContextMenuOpen) {
+      collectionTreeUI.closeAllContextMenus();
+      return;
+    }
+
+    openRequest();
+  }
+
+  async function beginRename() {
     isEditing = true;
     editingName = request.name || "";
-    closeContextMenu();
 
     await tick();
     editingNameInputEl?.focus();
     editingNameInputEl?.select();
+  }
+
+  async function startRename(event: Event) {
+    event.stopPropagation();
+    await beginRename();
   }
 
   function cancelRename() {
@@ -134,28 +153,28 @@
   }
 
   function resetDragState() {
-    dragState.sourceRequestId = null;
-    dragState.sourceCollectionName = null;
-    dragState.targetRequestId = null;
-    dragState.targetCollectionName = null;
-    dragState.position = null;
+    collectionTreeUI.resetRequestDrag();
   }
 
   function canDrag(): boolean {
-    return !isSearching && requestCount > 1 && !isEditing;
+    return dragEnabled && !isSearching && !isEditing;
   }
 
   function isDragSource(): boolean {
     return (
-      dragState.sourceRequestId === request.id && dragState.sourceCollectionName === collectionName
+      requestDragState.sourceRequestId === request.id &&
+      requestDragState.sourceCollectionName === collectionName &&
+      requestDragState.sourceParentFolderId === parentFolderId
     );
   }
 
   function isDropTarget(position: "before" | "after"): boolean {
     return (
-      dragState.targetRequestId === request.id &&
-      dragState.targetCollectionName === collectionName &&
-      dragState.position === position
+      requestDragState.targetMode === "request" &&
+      requestDragState.targetRequestId === request.id &&
+      requestDragState.targetCollectionName === collectionName &&
+      requestDragState.targetParentFolderId === parentFolderId &&
+      requestDragState.position === position
     );
   }
 
@@ -181,11 +200,7 @@
       return;
     }
 
-    dragState.sourceRequestId = request.id;
-    dragState.sourceCollectionName = collectionName;
-    dragState.targetRequestId = null;
-    dragState.targetCollectionName = null;
-    dragState.position = null;
+    collectionTreeUI.startRequestDrag(request.id, collectionName, parentFolderId);
 
     event.dataTransfer?.setData("text/plain", request.id);
     if (event.dataTransfer) {
@@ -194,13 +209,13 @@
   }
 
   function handleDragOver(event: DragEvent) {
-    if (!dragState.sourceRequestId || !dragState.sourceCollectionName) {
+    if (!requestDragState.sourceRequestId || !requestDragState.sourceCollectionName) {
       return;
     }
 
     if (
-      dragState.sourceCollectionName !== collectionName ||
-      dragState.sourceRequestId === request.id
+      requestDragState.sourceCollectionName !== collectionName ||
+      requestDragState.sourceRequestId === request.id
     ) {
       return;
     }
@@ -211,9 +226,8 @@
     }
 
     event.preventDefault();
-    dragState.targetRequestId = request.id;
-    dragState.targetCollectionName = collectionName;
-    dragState.position = nextPosition;
+    event.stopPropagation();
+    collectionTreeUI.setRequestTarget(collectionName, parentFolderId, request.id, nextPosition);
 
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = "move";
@@ -222,26 +236,31 @@
 
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
+    event.stopPropagation();
 
     if (
-      !dragState.sourceRequestId ||
-      !dragState.sourceCollectionName ||
-      dragState.sourceCollectionName !== collectionName ||
-      dragState.sourceRequestId === request.id ||
-      dragState.targetRequestId !== request.id ||
-      dragState.targetCollectionName !== collectionName ||
-      !dragState.position
+      !requestDragState.sourceRequestId ||
+      !requestDragState.sourceCollectionName ||
+      requestDragState.sourceCollectionName !== collectionName ||
+      requestDragState.sourceRequestId === request.id ||
+      requestDragState.targetMode !== "request" ||
+      requestDragState.targetRequestId !== request.id ||
+      requestDragState.targetCollectionName !== collectionName ||
+      requestDragState.targetParentFolderId !== parentFolderId ||
+      !requestDragState.position
     ) {
       resetDragState();
       return;
     }
 
     try {
-      await collectionStore.reorderRequests(
+      await collectionStore.moveRequest(
         collectionName,
-        dragState.sourceRequestId,
+        requestDragState.sourceRequestId,
+        requestDragState.sourceParentFolderId,
+        parentFolderId,
         request.id,
-        dragState.position
+        requestDragState.position
       );
     } finally {
       resetDragState();
@@ -253,37 +272,32 @@
   }
 
   function closeContextMenu() {
-    isContextMenuOpen = false;
+    collectionTreeUI.closeRequestContextMenu();
   }
 
   function getMenuTriggerId(): string {
     return `request-menu-${request.id}`;
   }
 
-  function getContextMenuTriggerId(): string {
-    return `request-context-menu-${request.id}-${contextMenuOpenKey}`;
-  }
-
-  function getContextMenuPositionStyle(): string {
-    return `left: ${contextMenuX + 2}px; top: ${contextMenuY + 2}px;`;
-  }
-
   async function handleContextMenu(event: MouseEvent) {
-    if (dragState.sourceRequestId || isEditing || isNoDragTarget(event.target)) {
+    if (requestDragState.sourceRequestId || isEditing || isNoDragTarget(event.target)) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
     onAnyMenuOpen();
-
-    isContextMenuOpen = false;
-    contextMenuX = event.clientX;
-    contextMenuY = event.clientY;
-    contextMenuOpenKey += 1;
-
+    closeContextMenu();
+    collectionTreeUI.stageRequestContextMenu(
+      request,
+      request.id,
+      collectionName,
+      parentFolderId,
+      event.clientX,
+      event.clientY
+    );
     await tick();
-    isContextMenuOpen = true;
+    collectionTreeUI.showRequestContextMenu();
   }
 
   async function duplicateRequest() {
@@ -294,7 +308,9 @@
     delete newRequest.id;
 
     try {
-      const duplicatedRequest = await collectionStore.addRequest(collectionName, newRequest);
+      const duplicatedRequest = parentFolderId
+        ? await collectionStore.addRequestToFolder(collectionName, parentFolderId, newRequest)
+        : await collectionStore.addRequest(collectionName, newRequest);
       if (duplicatedRequest?.id) {
         tabStore.renameTabsByRequestId(duplicatedRequest.id, duplicatedRequest.name);
         openDuplicatedRequest(duplicatedRequest);
@@ -319,6 +335,19 @@
     });
     onRequestSelect(duplicatedRequest.id);
   }
+
+  $effect(() => {
+    if (
+      requestRenameState.requestId !== request.id ||
+      requestRenameState.collectionName !== collectionName ||
+      requestRenameState.parentFolderId !== parentFolderId
+    ) {
+      return;
+    }
+
+    collectionTreeUI.consumeRequestRename();
+    void beginRename();
+  });
 </script>
 
 {#snippet actionsDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
@@ -359,10 +388,9 @@
   {/if}
 
   <div
-    class={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selected ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""} ${isDragSource() ? "opacity-50" : ""}`}
+    class={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 select-none [-webkit-user-drag:element] hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${selected ? "bg-neutral-200/70 dark:bg-neutral-700/90" : ""} ${isDragSource() ? "opacity-50" : ""}`}
     draggable={canDrag()}
-    onclick={openRequest}
-    ondblclick={(event) => void startRename(event)}
+    onclick={handleRequestActivate}
     onkeypress={(event) => event.key === "Enter" && !isEditing && openRequest()}
     oncontextmenu={(event) => void handleContextMenu(event)}
     ondragstart={handleDragStart}
@@ -400,10 +428,9 @@
       </div>
     {:else}
       <span
-        class="min-w-0 flex-1 truncate text-sm text-neutral-800 dark:text-neutral-100"
+        class="min-w-0 flex-1 truncate text-sm text-neutral-800 select-none dark:text-neutral-100"
         role="button"
         tabindex="0"
-        ondblclick={(event) => void startRename(event)}
         onkeydown={(event) => event.key === "Enter" && startRename(event)}
       >
         {request.name}
@@ -442,15 +469,3 @@
     <div class="pointer-events-none absolute inset-x-2 bottom-0 h-0.5 rounded bg-primary-500"></div>
   {/if}
 </div>
-
-{#if isContextMenuOpen}
-  <button
-    id={getContextMenuTriggerId()}
-    type="button"
-    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
-    style={getContextMenuPositionStyle()}
-    tabindex="-1"
-    aria-hidden="true"
-  ></button>
-  {@render actionsDropdown(`#${getContextMenuTriggerId()}`, isContextMenuOpen, closeContextMenu)}
-{/if}
