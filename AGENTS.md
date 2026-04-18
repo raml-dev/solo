@@ -28,8 +28,8 @@ This repo uses two skill files that are the authoritative source of truth for co
 
 | Skill | Path | When to use |
 |---|---|---|
-| Frontend | `docs/agents/FRONTEND_SKILL.md` | Any work touching `frontend/` |
-| Backend | `docs/agents/BACKEND_SKILL.md` | Any work touching `.go` files |
+| Frontend | `.agents/skills/solo-frontend-skill/SKILL.md` | Any work touching `frontend/` |
+| Backend | `.agents/skills/solo-backend-skill/SKILL.md` | Any work touching `.go` files |
 
 If a task spans both frontend and backend, read both skill files before starting.
 
