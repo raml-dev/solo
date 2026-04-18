@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+  import SoloLightning from "$src/lib/components/common/SoloLightning.svelte";
+  import SoloSvg from "$src/lib/components/common/SoloSvg.svelte";
   import { appInfoState } from "$src/lib/stores/appInfo.svelte";
   import { BrowserOpenURL } from "$wails/runtime/runtime";
   import BookSolid from "flowbite-svelte-icons/BookSolid.svelte";
@@ -15,11 +17,6 @@
   const docsLink = $derived((info?.docsLink || "").trim());
   const ghLink = $derived((info?.ghLink || "").trim());
   const orgLink = $derived((info?.orgLink || "").trim());
-
-  const appNameAscii = `     █
-▄▄▄  ▄▄▄  █  ▄▄▄
-▀▄▄  █   █ █ █   █
-▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀`;
 
   function handleButtonClick(link: string) {
     BrowserOpenURL(link);
@@ -41,10 +38,16 @@
     <div class="flex w-full max-w-xl flex-col items-center gap-3 p-4">
       <div class="flex flex-col items-center gap-1">
         <div class="flex items-center gap-4">
-          <h1 aria-label="solo" class="select-none">
-            <pre
+          <h1 aria-label="solo" class="flex flex-row items-baseline gap-4 select-none">
+            <SoloSvg
               aria-hidden="true"
-              class="pointer-events-none cursor-default font-mono text-[0.35rem]/[1.3] text-primary-700 select-none dark:text-primary-500">{appNameAscii}</pre>
+              size={52}
+              class="pointer-events-none cursor-default text-primary-700 select-none dark:text-primary-500"
+            /><SoloLightning
+              aria-hidden="true"
+              size={22}
+              class="pointer-events-none cursor-default text-primary-700 select-none dark:text-primary-500"
+            />
           </h1>
         </div>
         <p class="text-xs font-medium tracking-wide text-neutral-500 dark:text-neutral-400">

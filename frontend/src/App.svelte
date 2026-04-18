@@ -34,10 +34,6 @@
   let isResizing = $state(false);
   let resizeStartY = 0;
   let resizeStartH = 0;
-  const appNameAscii = `           █
- ▄▄▄  ▄▄▄  █  ▄▄▄
-▀▄▄  █   █ █ █   █
-▄▄▄▀ ▀▄▄▄▀ █ ▀▄▄▄▀`;
   // const globalUnsavedModal = modalStack.createModal("app-unsaved");
 
   const flowbiteTheme = {
@@ -220,7 +216,7 @@
     <ToastContainer />
   {/if}
 
-  <MainLayout title={appNameAscii}>
+  <MainLayout>
     <!-- Main area: sidebar + builder -->
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <CollectionList />

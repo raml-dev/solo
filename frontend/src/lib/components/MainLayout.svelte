@@ -8,6 +8,7 @@
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
   import UpdateBanner from "$src/lib/components/UpdateBanner.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import SoloSvg from "$src/lib/components/common/SoloSvg.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
@@ -20,13 +21,12 @@
   import { onDestroy } from "svelte";
 
   interface Props {
-    title?: string;
     navbar_actions?: import("svelte").Snippet;
     children?: import("svelte").Snippet;
     bottom_bar?: import("svelte").Snippet;
   }
 
-  let { title = "solo", navbar_actions, children, bottom_bar }: Props = $props();
+  let { navbar_actions, children, bottom_bar }: Props = $props();
   const environmentManagerModal = modalStack.createModal("layout-environments");
   const settingsModal = modalStack.createModal("layout-settings");
   let isEnvDropdownOpen = $state(false);
@@ -107,11 +107,13 @@
   <nav
     class="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800"
   >
-    <div class="flex items-center gap-4">
+    <div class="flex items-center">
       <h1 aria-label="solo" class="select-none">
-        <pre
+        <SoloSvg
           aria-hidden="true"
-          class="pointer-events-none cursor-default font-mono text-[0.35rem]/[1.3] text-primary-700 select-none dark:text-primary-500">{title}</pre>
+          size={32}
+          class="pointer-events-none cursor-default text-primary-700 select-none dark:text-primary-500"
+        />
       </h1>
     </div>
     <div class="flex items-center gap-2">
