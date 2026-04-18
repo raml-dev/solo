@@ -112,6 +112,7 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 	scanner := bufio.NewScanner(file)
 	var currentSection string
 	var isBodyBlock bool
+	isHTTPRequest := false
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -123,6 +124,7 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 		} else if strings.HasPrefix(line, "get {") || strings.HasPrefix(line, "post {") || strings.HasPrefix(line, "put {") || strings.HasPrefix(line, "patch {") || strings.HasPrefix(line, "delete {") {
 			currentSection = "http"
 			isBodyBlock = false
+			isHTTPRequest = true
 			req.Verb = strings.ToUpper(strings.TrimSuffix(line, " {"))
 			continue
 		} else if strings.HasPrefix(line, "headers {") {
@@ -183,6 +185,10 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 
 	if err := scanner.Err(); err != nil {
 		return nil, nil, err
+	}
+
+	if !isHTTPRequest || req.Verb == "" || req.Url == "" {
+		return nil, nil, nil
 	}
 
 	return &req, folderNames, nil

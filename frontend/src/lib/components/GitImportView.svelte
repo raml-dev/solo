@@ -24,8 +24,8 @@
 
 <GitImportCommon
   remotePathLabel="Remote File/Folder Path"
-  remotePathPlaceholder="e.g. my_collection.json or bruno_folder"
-  remotePathHelper="The path to the collection within the repository."
+  remotePathPlaceholder="e.g. my_collection.json, bruno_folder, or . for repo root"
+  remotePathHelper="The path to the collection within the repository. Use . for a Bruno collection at the repository root."
   successMessage="Git collection imported successfully"
   errorTitle="Failed to setup Git collection"
   infoMessage="solo will automatically detect the collection name from the file content."

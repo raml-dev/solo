@@ -157,12 +157,20 @@ func (m *Manager) SetupGitCollection(url, remotePath, targetDir string) error {
 		}
 	}
 
-	// 4. Configure sparse-checkout
-	if _, err := m.executeWithTimeout(10*time.Second, absTargetDir, "sparse-checkout", "init"); err != nil {
-		return err
-	}
-	if _, err := m.executeWithTimeout(10*time.Second, absTargetDir, "sparse-checkout", "set", "--skip-checks", remotePath); err != nil {
-		return err
+	// 4. Configure sparse-checkout only when we are not targeting repo root.
+	// Using "." with sparse-checkout does not materialize nested directories,
+	// which breaks Bruno collections rooted at the repository root.
+	// Also, the target directory is reused across imports for the same URL, so
+	// we must explicitly disable any previous sparse-checkout configuration.
+	if remotePath == "." {
+		_, _ = m.executeWithTimeout(10*time.Second, absTargetDir, "sparse-checkout", "disable")
+	} else {
+		if _, err := m.executeWithTimeout(10*time.Second, absTargetDir, "sparse-checkout", "init"); err != nil {
+			return err
+		}
+		if _, err := m.executeWithTimeout(10*time.Second, absTargetDir, "sparse-checkout", "set", "--skip-checks", remotePath); err != nil {
+			return err
+		}
 	}
 
 	// 5. Fetch specifically the branch

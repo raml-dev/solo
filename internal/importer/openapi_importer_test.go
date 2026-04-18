@@ -6,6 +6,7 @@ package importer
 import (
 	"os"
 	"path/filepath"
+	"solo/internal/collection"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,21 @@ func summarize(t *testing.T, path string) ([]requestSummary, []string) {
 	return summaries, result.Warnings
 }
 
+func summarizeRequests(reqs []collection.Request) []requestSummary {
+	summaries := make([]requestSummary, 0, len(reqs))
+	for _, req := range reqs {
+		summaries = append(summaries, requestSummary{
+			name:     req.Name,
+			verb:     req.Verb,
+			url:      req.Url,
+			bodyType: req.BodyType,
+			body:     req.Body,
+			headers:  req.Headers,
+		})
+	}
+	return summaries
+}
+
 // ── OpenAPI 3.x ──────────────────────────────────────────────────────────────
 
 func testOpenAPI3(t *testing.T, path string) {
@@ -67,11 +83,22 @@ func testOpenAPI3(t *testing.T, path string) {
 	if coll.Name != "OpenAPI Test Collection" {
 		t.Errorf("collection name: got %q, want %q", coll.Name, "OpenAPI Test Collection")
 	}
-	if len(coll.Requests) != 4 {
-		t.Fatalf("request count: got %d, want 4", len(coll.Requests))
+	if len(coll.Requests) != 1 {
+		t.Fatalf("root request count: got %d, want 1", len(coll.Requests))
+	}
+	if len(coll.Folders) != 1 {
+		t.Fatalf("folder count: got %d, want 1", len(coll.Folders))
+	}
+	if coll.Folders[0].Name != "users" {
+		t.Fatalf("folder name: got %q, want %q", coll.Folders[0].Name, "users")
+	}
+	if len(coll.Folders[0].Requests) != 3 {
+		t.Fatalf("tagged request count: got %d, want 3", len(coll.Folders[0].Requests))
 	}
 
-	reqs, warnings := summarize(t, path)
+	reqs := summarizeRequests(coll.Folders[0].Requests)
+	rootReqs := summarizeRequests(coll.Requests)
+	warnings := result.Warnings
 
 	// GET /users — operationId takes precedence as name
 	r := findRequest(t, reqs, "GET", "/users")
@@ -124,8 +151,8 @@ func testOpenAPI3(t *testing.T, path string) {
 		t.Errorf("PUT /users/{id} bodyType: got %q, want %q", r.bodyType, "json")
 	}
 
-	// DELETE /users/{id} — fallback name (no operationId, no summary)
-	r = findRequest(t, reqs, "DELETE", "/users/{id}")
+	// DELETE /users/{id} — fallback name (no operationId, no summary) and no tags => root
+	r = findRequest(t, rootReqs, "DELETE", "/users/{id}")
 	if r == nil {
 		t.Fatal("DELETE /users/{id} not found")
 	}
@@ -167,11 +194,22 @@ func testSwagger2(t *testing.T, path string) {
 	if coll.Name != "Swagger Test Collection" {
 		t.Errorf("collection name: got %q, want %q", coll.Name, "Swagger Test Collection")
 	}
-	if len(coll.Requests) != 4 {
-		t.Fatalf("request count: got %d, want 4", len(coll.Requests))
+	if len(coll.Requests) != 1 {
+		t.Fatalf("root request count: got %d, want 1", len(coll.Requests))
+	}
+	if len(coll.Folders) != 1 {
+		t.Fatalf("folder count: got %d, want 1", len(coll.Folders))
+	}
+	if coll.Folders[0].Name != "users" {
+		t.Fatalf("folder name: got %q, want %q", coll.Folders[0].Name, "users")
+	}
+	if len(coll.Folders[0].Requests) != 3 {
+		t.Fatalf("tagged request count: got %d, want 3", len(coll.Folders[0].Requests))
 	}
 
-	reqs, warnings := summarize(t, path)
+	reqs := summarizeRequests(coll.Folders[0].Requests)
+	rootReqs := summarizeRequests(coll.Requests)
+	warnings := result.Warnings
 
 	// Base URL must be composed from host + basePath + scheme
 	expectedBase := "https://api.example.com/v1"
@@ -218,8 +256,8 @@ func testSwagger2(t *testing.T, path string) {
 		t.Errorf("PUT /users/{id} url: got %q, want %q", r.url, expectedBase+"/users/{id}")
 	}
 
-	// DELETE /users/{id} — fallback name
-	r = findRequest(t, reqs, "DELETE", "/users/{id}")
+	// DELETE /users/{id} — fallback name and no tags => root
+	r = findRequest(t, rootReqs, "DELETE", "/users/{id}")
 	if r == nil {
 		t.Fatal("DELETE /users/{id} not found")
 	}
@@ -332,6 +370,9 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		if len(result.Collection.Requests) != 0 {
 			t.Errorf("expected 0 requests, got %d", len(result.Collection.Requests))
 		}
+		if len(result.Collection.Folders) != 0 {
+			t.Errorf("expected 0 folders, got %d", len(result.Collection.Folders))
+		}
 	})
 
 	t.Run("empty_paths_swagger2", func(t *testing.T) {
@@ -343,6 +384,9 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		}
 		if len(result.Collection.Requests) != 0 {
 			t.Errorf("expected 0 requests, got %d", len(result.Collection.Requests))
+		}
+		if len(result.Collection.Folders) != 0 {
+			t.Errorf("expected 0 folders, got %d", len(result.Collection.Folders))
 		}
 	})
 
@@ -434,7 +478,11 @@ func TestOpenAPIImporter_RequestMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	for i, req := range result.Collection.Requests {
+	allRequests := append([]collection.Request{}, result.Collection.Requests...)
+	for _, folder := range result.Collection.Folders {
+		allRequests = append(allRequests, folder.Requests...)
+	}
+	for i, req := range allRequests {
 		if req.Id == "" {
 			t.Errorf("request %d has empty ID", i)
 		}
@@ -451,7 +499,7 @@ func TestOpenAPIImporter_RequestMetadata(t *testing.T) {
 
 	// All request IDs must be unique
 	seen := make(map[string]bool)
-	for _, req := range result.Collection.Requests {
+	for _, req := range allRequests {
 		if seen[req.Id] {
 			t.Errorf("duplicate request ID: %s", req.Id)
 		}
