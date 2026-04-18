@@ -46,6 +46,7 @@ func (b *BrunoImporter) Import(dirPath string) (*collection.Collection, error) {
 		Id:                  generateUUID(),
 		Name:                brunoConfig.Name,
 		Requests:            []collection.Request{},
+		Folders:             []collection.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,
 	}
@@ -61,7 +62,7 @@ func (b *BrunoImporter) Import(dirPath string) (*collection.Collection, error) {
 		if !d.IsDir() && strings.HasSuffix(d.Name(), ".bru") {
 			slog.Info("Bruno Importer: Found .bru file", "path", path)
 			filesFound++
-			request, err := parseBruFile(path, dirPath)
+			request, folderNames, err := parseBruFile(path, dirPath)
 			if err != nil {
 				// Log the error but continue with other files
 				slog.Warn("Bruno Importer: Skipping file due to parse error", "path", path, "error", err)
@@ -70,7 +71,7 @@ func (b *BrunoImporter) Import(dirPath string) (*collection.Collection, error) {
 
 			if request != nil {
 				slog.Info("Bruno Importer: Successfully parsed request", "name", request.Name, "url", request.Url)
-				coll.Requests = append(coll.Requests, *request)
+				addRequestToCollectionTree(coll, folderNames, *request)
 			}
 		}
 		return nil
@@ -80,15 +81,15 @@ func (b *BrunoImporter) Import(dirPath string) (*collection.Collection, error) {
 		return nil, fmt.Errorf("error walking directory: %w", err)
 	}
 
-	slog.Info("Bruno Importer: Directory walk completed", "bru_files_found", filesFound, "requests_parsed", len(coll.Requests))
+	slog.Info("Bruno Importer: Directory walk completed", "bru_files_found", filesFound, "requests_parsed", countRequestsInCollection(coll))
 	return coll, nil
 }
 
 // parseBruFile reads a single .bru file and converts it into a models.Request.
-func parseBruFile(filePath string, basePath string) (*collection.Request, error) {
+func parseBruFile(filePath string, basePath string) (*collection.Request, []string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 
@@ -103,11 +104,10 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, error)
 	// Determine request name from path
 	relPath, _ := filepath.Rel(basePath, filePath)
 	nameParts := strings.Split(filepath.ToSlash(relPath), "/")
+	folderNames := append([]string(nil), nameParts[:len(nameParts)-1]...)
 	// Remove .bru extension from the last part
 	lastPart := nameParts[len(nameParts)-1]
-	nameParts[len(nameParts)-1] = strings.TrimSuffix(lastPart, ".bru")
-
-	req.Name = strings.Join(nameParts, " / ")
+	req.Name = strings.TrimSuffix(lastPart, ".bru")
 
 	scanner := bufio.NewScanner(file)
 	var currentSection string
@@ -164,10 +164,7 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, error)
 		switch currentSection {
 		case "meta":
 			if key == "name" {
-				// The name from meta overrides the filename-derived one
-				// We join it with the path part
-				nameParts[len(nameParts)-1] = value
-				req.Name = strings.Join(nameParts, " / ")
+				req.Name = value
 			}
 		case "http":
 			if key == "url" {
@@ -185,8 +182,77 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, error)
 	req.Body = strings.TrimRight(req.Body, "\n")
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &req, nil
+	return &req, folderNames, nil
+}
+
+func addRequestToCollectionTree(coll *collection.Collection, folderNames []string, req collection.Request) {
+	if len(folderNames) == 0 {
+		coll.Requests = append(coll.Requests, req)
+		return
+	}
+
+	currentFolders := &coll.Folders
+	for _, folderName := range folderNames {
+		folderIdx := indexFolderByName(*currentFolders, folderName)
+		if folderIdx == -1 {
+			*currentFolders = append(*currentFolders, collection.NewFolder(folderName))
+			folderIdx = len(*currentFolders) - 1
+		}
+		currentFolders = &(*currentFolders)[folderIdx].Folders
+	}
+
+	parent := findFolderByPath(&coll.Folders, folderNames)
+	if parent == nil {
+		coll.Requests = append(coll.Requests, req)
+		return
+	}
+
+	parent.Requests = append(parent.Requests, req)
+}
+
+func indexFolderByName(folders []collection.Folder, name string) int {
+	for i := range folders {
+		if folders[i].Name == name {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func findFolderByPath(folders *[]collection.Folder, folderNames []string) *collection.Folder {
+	currentFolders := folders
+	var current *collection.Folder
+
+	for _, folderName := range folderNames {
+		idx := indexFolderByName(*currentFolders, folderName)
+		if idx == -1 {
+			return nil
+		}
+		current = &(*currentFolders)[idx]
+		currentFolders = &current.Folders
+	}
+
+	return current
+}
+
+func countRequestsInCollection(coll *collection.Collection) int {
+	total := len(coll.Requests)
+	for i := range coll.Folders {
+		total += countRequestsInFolder(&coll.Folders[i])
+	}
+
+	return total
+}
+
+func countRequestsInFolder(folder *collection.Folder) int {
+	total := len(folder.Requests)
+	for i := range folder.Folders {
+		total += countRequestsInFolder(&folder.Folders[i])
+	}
+
+	return total
 }
