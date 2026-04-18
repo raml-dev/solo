@@ -22,7 +22,7 @@
 
 [![Build Status](https://github.com/raml-dev/solo/actions/workflows/ci.yaml/badge.svg)](https://github.com/raml-dev/solo/actions)
 [![Wails](https://img.shields.io/badge/Wails-v2-red)](https://wails.io)
-[![License](https://img.shields.io/badge/license-%20%20GNU%20GPLv3%20-blue?style=plastic)](LICENSE)
+[![License](https://img.shields.io/badge/license-%20%20AGPL3.0-blue?style=plastic)](LICENSE)
 
 [Features](#-features) • [Installation](#-installation) • [Contributing](#-contributing)
 
