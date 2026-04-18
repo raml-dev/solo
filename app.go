@@ -933,52 +933,9 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 		return err
 	}
 
-	// Detect format and create/update the local Solo collection metadata
-	var coll collection.Collection
-
-	// Load the file content to create the metadata
-	fullPath := filepath.Join(targetDir, remotePath)
-	fileInfo, err := os.Stat(fullPath)
+	coll, err := a.loadGitBackedCollection(targetDir, remotePath)
 	if err != nil {
-		return fmt.Errorf("file not found after git setup: %w", err)
-	}
-
-	if fileInfo.IsDir() {
-		// Bruno folder
-		imp := importer.NewBrunoImporter()
-		c, err := imp.Import(fullPath)
-		if err != nil {
-			return err
-		}
-		coll = *c
-	} else {
-		// File (Solo or Postman)
-		data, err := os.ReadFile(fullPath)
-		if err != nil {
-			return err
-		}
-
-		slog.Debug("File read from Git repo", "path", fullPath, "size", len(data))
-
-		// Try to detect format by attempting a Solo-native unmarshal first.
-		// Solo files contain "creationTimestamp" and "requests" fields;
-		// Postman files contain "info" and "item" fields instead.
-		// NOTE: "solo_version" does NOT exist in the Collection struct,
-		// so it must never be used as a detection key.
-		var trySolo collection.Collection
-		if err := json.Unmarshal(data, &trySolo); err == nil && trySolo.Name != "" && trySolo.Id != "" {
-			slog.Debug("Detected native format", "name", trySolo.Name, "requests", len(trySolo.Requests))
-			coll = trySolo
-		} else {
-			slog.Debug("Detected Postman format, calling importer")
-			// Postman
-			imp := importer.NewPostmanImporter()
-			c, err := imp.Import(fullPath)
-			if err != nil {
-				return err
-			}
-			coll = *c
-		}
+		return err
 	}
 
 	// Update metadata
@@ -996,7 +953,7 @@ func (a *App) SetupGitCollection(url, remotePath, localName, providerType string
 	coll.GitPath = remotePath
 	coll.GitProvider = providerType
 
-	return a.collectionManager.UpdateCollection(coll)
+	return a.collectionManager.UpdateCollection(*coll)
 }
 
 // SyncGitCollection performs pull, commit and push for a Git-backed collection.
@@ -1006,6 +963,13 @@ func (a *App) SyncGitCollection(collectionId string) error {
 		return err
 	}
 	gitFilePath := filepath.Join(gitRepoDir, targetColl.GitPath)
+	fileInfo, err := os.Stat(gitFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to inspect git-backed collection path: %w", err)
+	}
+	if fileInfo.IsDir() {
+		return fmt.Errorf("sync for Git-backed Bruno collections is not supported yet")
+	}
 
 	// 3. Save current Solo state to the file in the Git repo before syncing
 	// This ensures we push our latest local changes
@@ -1023,18 +987,15 @@ func (a *App) SyncGitCollection(collectionId string) error {
 	}
 
 	// 5. Reload the collection from the synced git file to update local Solo state
-	updatedData, err := os.ReadFile(gitFilePath)
+	updatedColl, err := a.loadGitBackedCollection(gitRepoDir, targetColl.GitPath)
 	if err == nil {
-		var updatedColl collection.Collection
-		if err := json.Unmarshal(updatedData, &updatedColl); err == nil {
-			// Keep our local metadata
-			updatedColl.Id = targetColl.Id
-			updatedColl.Name = targetColl.Name
-			updatedColl.GitRemote = targetColl.GitRemote
-			updatedColl.GitPath = targetColl.GitPath
-			updatedColl.GitProvider = targetColl.GitProvider
-			return a.collectionManager.UpdateCollection(updatedColl)
-		}
+		// Keep our local metadata
+		updatedColl.Id = targetColl.Id
+		updatedColl.Name = targetColl.Name
+		updatedColl.GitRemote = targetColl.GitRemote
+		updatedColl.GitPath = targetColl.GitPath
+		updatedColl.GitProvider = targetColl.GitProvider
+		return a.collectionManager.UpdateCollection(*updatedColl)
 	}
 
 	return nil
@@ -1226,6 +1187,36 @@ func (a *App) resolveGitCollectionDir(collectionId string) (gitRepoDir string, c
 	return dir, target, nil
 }
 
+func (a *App) loadGitBackedCollection(repoDir, remotePath string) (*collection.Collection, error) {
+	fullPath := filepath.Join(repoDir, remotePath)
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("file not found after git setup: %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		imp := importer.NewBrunoImporter()
+		return imp.Import(fullPath)
+	}
+
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.Debug("File read from Git repo", "path", fullPath, "size", len(data))
+
+	var trySolo collection.Collection
+	if err := json.Unmarshal(data, &trySolo); err == nil && trySolo.Name != "" && trySolo.Id != "" {
+		slog.Debug("Detected native format", "name", trySolo.Name, "requests", len(trySolo.Requests), "folders", len(trySolo.Folders))
+		return &trySolo, nil
+	}
+
+	slog.Debug("Detected Postman format, calling importer", "path", fullPath)
+	imp := importer.NewPostmanImporter()
+	return imp.Import(fullPath)
+}
+
 // ── Git Status Panel ─────────────────────────────────────────────────────────
 
 // GetGitCollectionStatus returns the current git status for a Git-backed collection.
@@ -1266,21 +1257,16 @@ func (a *App) GitKeepTheirs(collectionId string) error {
 	}
 	// After accepting remote changes, reload the collection from the git file
 	// so the local Solo state reflects the remote version.
-	gitFilePath := filepath.Join(dir, coll.GitPath)
-	data, err := os.ReadFile(gitFilePath)
+	updatedColl, err := a.loadGitBackedCollection(dir, coll.GitPath)
 	if err != nil {
 		return nil // best-effort, don't fail the whole operation
-	}
-	var updatedColl collection.Collection
-	if err := json.Unmarshal(data, &updatedColl); err != nil {
-		return nil
 	}
 	updatedColl.Id = coll.Id
 	updatedColl.Name = coll.Name
 	updatedColl.GitRemote = coll.GitRemote
 	updatedColl.GitPath = coll.GitPath
 	updatedColl.GitProvider = coll.GitProvider
-	return a.collectionManager.UpdateCollection(updatedColl)
+	return a.collectionManager.UpdateCollection(*updatedColl)
 }
 
 // GitAbortRebase aborts an in-progress rebase for a Git-backed collection.
