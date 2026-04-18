@@ -421,6 +421,7 @@
     align-items: center;
     width: 100%;
     background: transparent !important;
+    overflow-x: hidden;
   }
 
   :global(.env-token-input-editor .cm-content) {
