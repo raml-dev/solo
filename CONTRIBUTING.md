@@ -21,7 +21,8 @@ The project prioritizes:
 
 If a solution is difficult to explain, it is probably too complex.
 
-> ### AI disclaimer
+> [!CAUTION]
+> **AI disclaimer**
 >
 > We are strong supporters of automated programming tools and we use a wide variety of them. For this reason, we ask for the intelligent use of these tools and we are firmly committed to performing human code reviews. For this reason, we ask you to contribute with clear, atomic code that can be explained by the contributor themselves.
 
@@ -86,6 +87,7 @@ When opening a PR:
 
 PRs that are too large may be rejected.
 
+> [!NOTE]
 > **Golden rule:** if you cannot clearly explain the change in the description, the PR is probably too complex.
 
 ## Triage
