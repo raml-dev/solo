@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
-  import CollectionList from "$src/lib/components/CollectionList.svelte";
+  import CollectionList from "$src/lib/components/Collections/CollectionList.svelte";
   import Console from "$src/lib/components/Console/Console.svelte";
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
