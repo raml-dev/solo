@@ -137,14 +137,14 @@ func testOpenAPI3(t *testing.T, path string) {
 	}
 
 	// PUT /users/{id} — operationId
-	r = findRequest(t, reqs, "PUT", "/users/{id}")
+	r = findRequest(t, reqs, "PUT", "/users/{{id}}")
 	if r == nil {
 		t.Fatal("PUT /users/{id} not found")
 	}
 	if r.name != "updateUser" {
 		t.Errorf("PUT /users/{id} name: got %q, want %q", r.name, "updateUser")
 	}
-	if r.url != "https://api.example.com/users/{id}" {
+	if r.url != "https://api.example.com/users/{{id}}" {
 		t.Errorf("PUT /users/{id} url: got %q", r.url)
 	}
 	if r.bodyType != "json" {
@@ -152,12 +152,15 @@ func testOpenAPI3(t *testing.T, path string) {
 	}
 
 	// DELETE /users/{id} — fallback name (no operationId, no summary) and no tags => root
-	r = findRequest(t, rootReqs, "DELETE", "/users/{id}")
+	r = findRequest(t, rootReqs, "DELETE", "/users/{{id}}")
 	if r == nil {
 		t.Fatal("DELETE /users/{id} not found")
 	}
 	if r.name != "DELETE /users/{id}" {
 		t.Errorf("DELETE /users/{id} name: got %q, want %q", r.name, "DELETE /users/{id}")
+	}
+	if r.url != "https://api.example.com/users/{{id}}" {
+		t.Errorf("DELETE /users/{id} url: got %q, want %q", r.url, "https://api.example.com/users/{{id}}")
 	}
 	if r.bodyType != "" {
 		t.Errorf("DELETE /users/{id}: expected no bodyType, got %q", r.bodyType)
@@ -245,24 +248,27 @@ func testSwagger2(t *testing.T, path string) {
 	}
 
 	// PUT /users/{id} — operation-level consumes overrides root
-	r = findRequest(t, reqs, "PUT", "/users/{id}")
+	r = findRequest(t, reqs, "PUT", "/users/{{id}}")
 	if r == nil {
 		t.Fatal("PUT /users/{id} not found")
 	}
 	if r.bodyType != "json" {
 		t.Errorf("PUT /users/{id} bodyType: got %q, want %q", r.bodyType, "json")
 	}
-	if r.url != expectedBase+"/users/{id}" {
-		t.Errorf("PUT /users/{id} url: got %q, want %q", r.url, expectedBase+"/users/{id}")
+	if r.url != expectedBase+"/users/{{id}}" {
+		t.Errorf("PUT /users/{id} url: got %q, want %q", r.url, expectedBase+"/users/{{id}}")
 	}
 
 	// DELETE /users/{id} — fallback name and no tags => root
-	r = findRequest(t, rootReqs, "DELETE", "/users/{id}")
+	r = findRequest(t, rootReqs, "DELETE", "/users/{{id}}")
 	if r == nil {
 		t.Fatal("DELETE /users/{id} not found")
 	}
 	if r.name != "DELETE /users/{id}" {
 		t.Errorf("DELETE /users/{id} name: got %q, want %q", r.name, "DELETE /users/{id}")
+	}
+	if r.url != expectedBase+"/users/{{id}}" {
+		t.Errorf("DELETE /users/{id} url: got %q, want %q", r.url, expectedBase+"/users/{{id}}")
 	}
 
 	// Security warnings — fixture has 2 definitions: basicAuth, apiKey

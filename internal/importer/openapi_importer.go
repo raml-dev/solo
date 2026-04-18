@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"solo/internal/collection"
 	"strings"
 	"time"
@@ -141,10 +142,11 @@ func resolveBaseURL(doc unifiedAPIDocument, version string) string {
 
 // buildRequest constructs a collection.Request from a single OpenAPI operation.
 func buildRequest(method, path string, op *openAPIOperation, baseURL, version string, doc unifiedAPIDocument) collection.Request {
+	normalizedPath := normalizeOpenAPIPathPlaceholders(path)
 	req := collection.Request{
 		Id:                  generateUUID(),
 		Verb:                strings.ToUpper(method),
-		Url:                 baseURL + path,
+		Url:                 baseURL + normalizedPath,
 		Headers:             make(map[string]string),
 		Cookies:             make(map[string]string),
 		CreationTimestamp:   time.Now(),
@@ -296,6 +298,8 @@ type openAPIMediaType struct {
 	Schema map[string]interface{} `json:"schema" yaml:"schema"`
 }
 
+var openAPIPathParamPattern = regexp.MustCompile(`\{([A-Za-z0-9_.-]+)\}`)
+
 func addOpenAPIRequest(coll *collection.Collection, req collection.Request, tags []string) {
 	if len(tags) == 0 || strings.TrimSpace(tags[0]) == "" {
 		coll.Requests = append(coll.Requests, req)
@@ -313,4 +317,8 @@ func addOpenAPIRequest(coll *collection.Collection, req collection.Request, tags
 	folder := collection.NewFolder(tagName)
 	folder.Requests = append(folder.Requests, req)
 	coll.Folders = append(coll.Folders, folder)
+}
+
+func normalizeOpenAPIPathPlaceholders(path string) string {
+	return openAPIPathParamPattern.ReplaceAllString(path, "{{$1}}")
 }
