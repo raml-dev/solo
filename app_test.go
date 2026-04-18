@@ -154,6 +154,38 @@ func TestApp_LoadGitBackedCollection_PostmanWithFolders(t *testing.T) {
 	}
 }
 
+func TestApp_LoadGitBackedCollection_OpenAPIJSON(t *testing.T) {
+	app := NewApp()
+
+	coll, err := app.loadGitBackedCollection(".", filepath.Join("test", "testdata", "openapi_3_0.json"))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if coll.Name != "OpenAPI Test Collection" {
+		t.Fatalf("Expected collection name 'OpenAPI Test Collection', got '%s'", coll.Name)
+	}
+	if len(coll.Folders) != 1 || coll.Folders[0].Name != "users" {
+		t.Fatalf("Expected OpenAPI tag folder 'users', got %+v", coll.Folders)
+	}
+}
+
+func TestApp_LoadGitBackedCollection_SwaggerYAML(t *testing.T) {
+	app := NewApp()
+
+	coll, err := app.loadGitBackedCollection(".", filepath.Join("test", "testdata", "swagger_2_0.yaml"))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if coll.Name != "Swagger Test Collection" {
+		t.Fatalf("Expected collection name 'Swagger Test Collection', got '%s'", coll.Name)
+	}
+	if len(coll.Folders) != 1 || coll.Folders[0].Name != "users" {
+		t.Fatalf("Expected Swagger tag folder 'users', got %+v", coll.Folders)
+	}
+}
+
 func TestApp_LoadGitBackedCollection_BrunoDirectoryWithFolders(t *testing.T) {
 	app := NewApp()
 
@@ -173,6 +205,22 @@ func TestApp_LoadGitBackedCollection_BrunoDirectoryWithFolders(t *testing.T) {
 	}
 	if coll.Folders[0].Name != "users" {
 		t.Fatalf("Expected folder 'users', got '%s'", coll.Folders[0].Name)
+	}
+}
+
+func TestApp_LoadGitBackedCollection_BrunoRootDotPath(t *testing.T) {
+	app := NewApp()
+
+	coll, err := app.loadGitBackedCollection(filepath.Join("test", "testdata", "bruno_collection"), ".")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if coll.Name != "Bruno Test Collection" {
+		t.Fatalf("Expected collection name 'Bruno Test Collection', got '%s'", coll.Name)
+	}
+	if len(coll.Folders) != 1 || coll.Folders[0].Name != "users" {
+		t.Fatalf("Expected Bruno root import to resolve folder 'users', got %+v", coll.Folders)
 	}
 }
 
@@ -218,5 +266,43 @@ func TestApp_LoadGitBackedCollection_SoloNativePreservesFolders(t *testing.T) {
 	}
 	if coll.Folders[0].Requests[0].Name != "Get APIs" {
 		t.Fatalf("Expected request 'Get APIs', got '%s'", coll.Folders[0].Requests[0].Name)
+	}
+}
+
+func TestApp_LoadGitBackedCollection_SoloNativeWithoutID(t *testing.T) {
+	tempDir := t.TempDir()
+	app := NewApp()
+
+	payload := map[string]any{
+		"name":               "Solo Without ID",
+		"requests":           []any{},
+		"folders":            []any{},
+		"creationTimestamp":  time.Now(),
+		"lastUpdateTimestamp": time.Now(),
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal native collection payload: %v", err)
+	}
+
+	filePath := filepath.Join(tempDir, "collection.json")
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		t.Fatalf("Failed to write native collection file: %v", err)
+	}
+
+	coll, err := app.loadGitBackedCollection(tempDir, "collection.json")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if coll.Name != "Solo Without ID" {
+		t.Fatalf("Expected collection name 'Solo Without ID', got '%s'", coll.Name)
+	}
+	if len(coll.Requests) != 0 {
+		t.Fatalf("Expected 0 root requests, got %d", len(coll.Requests))
+	}
+	if len(coll.Folders) != 0 {
+		t.Fatalf("Expected 0 folders, got %d", len(coll.Folders))
 	}
 }

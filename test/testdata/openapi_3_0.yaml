@@ -18,6 +18,8 @@ paths:
     get:
       operationId: listUsers
       summary: List all users
+      tags:
+        - users
       parameters:
         - name: X-Request-Id
           in: header
@@ -25,6 +27,8 @@ paths:
             type: string
     post:
       summary: Create user
+      tags:
+        - users
       requestBody:
         content:
           application/json:
@@ -37,6 +41,8 @@ paths:
     put:
       operationId: updateUser
       summary: Update a user
+      tags:
+        - users
       requestBody:
         content:
           application/json:

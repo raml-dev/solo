@@ -25,6 +25,7 @@
       "get": {
         "operationId": "listUsers",
         "summary": "List all users",
+        "tags": ["users"],
         "parameters": [
           {
             "name": "X-Request-Id",
@@ -35,6 +36,7 @@
       },
       "post": {
         "summary": "Create user",
+        "tags": ["users"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -53,6 +55,7 @@
       "put": {
         "operationId": "updateUser",
         "summary": "Update a user",
+        "tags": ["users"],
         "requestBody": {
           "content": {
             "application/json": {

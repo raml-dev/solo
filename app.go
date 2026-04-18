@@ -1195,6 +1195,10 @@ func (a *App) loadGitBackedCollection(repoDir, remotePath string) (*collection.C
 	}
 
 	if fileInfo.IsDir() {
+		brunoConfigPath := filepath.Join(fullPath, "bruno.json")
+		if _, err := os.Stat(brunoConfigPath); err != nil {
+			return nil, fmt.Errorf("directory %q does not contain bruno.json", remotePath)
+		}
 		imp := importer.NewBrunoImporter()
 		return imp.Import(fullPath)
 	}
@@ -1207,14 +1211,42 @@ func (a *App) loadGitBackedCollection(repoDir, remotePath string) (*collection.C
 	slog.Debug("File read from Git repo", "path", fullPath, "size", len(data))
 
 	var trySolo collection.Collection
-	if err := json.Unmarshal(data, &trySolo); err == nil && trySolo.Name != "" && trySolo.Id != "" {
+	if err := json.Unmarshal(data, &trySolo); err == nil && trySolo.Name != "" {
 		slog.Debug("Detected native format", "name", trySolo.Name, "requests", len(trySolo.Requests), "folders", len(trySolo.Folders))
 		return &trySolo, nil
+	}
+
+	if isOpenAPIOrSwaggerFile(fullPath, data) {
+		slog.Debug("Detected OpenAPI/Swagger format", "path", fullPath)
+		imp := importer.NewOpenAPIImporter()
+		result, err := imp.Import(fullPath)
+		if err != nil {
+			return nil, err
+		}
+		return result.Collection, nil
 	}
 
 	slog.Debug("Detected Postman format, calling importer", "path", fullPath)
 	imp := importer.NewPostmanImporter()
 	return imp.Import(fullPath)
+}
+
+func isOpenAPIOrSwaggerFile(path string, data []byte) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".yaml" || ext == ".yml" {
+		content := string(data)
+		return strings.Contains(content, "openapi:") || strings.Contains(content, "swagger:")
+	}
+
+	var versionProbe struct {
+		OpenAPI string `json:"openapi"`
+		Swagger string `json:"swagger"`
+	}
+	if err := json.Unmarshal(data, &versionProbe); err != nil {
+		return false
+	}
+
+	return versionProbe.OpenAPI != "" || versionProbe.Swagger != ""
 }
 
 // ── Git Status Panel ─────────────────────────────────────────────────────────

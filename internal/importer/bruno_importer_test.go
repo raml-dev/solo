@@ -4,6 +4,7 @@
 package importer
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,5 +102,61 @@ func TestBrunoImporter_Import_DirNotFound(t *testing.T) {
 	_, err := importer.Import("non_existent_bruno_dir")
 	if err == nil {
 		t.Fatal("Expected error for non-existent directory, got nil")
+	}
+}
+
+func TestBrunoImporter_Import_IgnoresEnvironmentBruFiles(t *testing.T) {
+	importer := NewBrunoImporter()
+	testDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(testDir, "bruno.json"), []byte(`{"name":"GitHub API","type":"collection","version":"1"}`), 0644); err != nil {
+		t.Fatalf("Failed to write bruno.json: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Join(testDir, "Repository"), 0755); err != nil {
+		t.Fatalf("Failed to create request directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "Repository", "Repository Info.bru"), []byte(`meta {
+  name: Repository Info
+  type: http
+}
+
+get {
+  url: {{baseUrl}}/repos/usebruno/bruno-website
+  body: none
+}
+`), 0644); err != nil {
+		t.Fatalf("Failed to write request .bru: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Join(testDir, "environments"), 0755); err != nil {
+		t.Fatalf("Failed to create environments directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "environments", "Github.bru"), []byte(`vars {
+  baseUrl: https://api.github.com
+}
+`), 0644); err != nil {
+		t.Fatalf("Failed to write environment .bru: %v", err)
+	}
+
+	coll, err := importer.Import(testDir)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(coll.Requests) != 0 {
+		t.Fatalf("Expected 0 root requests, got %d", len(coll.Requests))
+	}
+	if len(coll.Folders) != 1 {
+		t.Fatalf("Expected 1 folder, got %d", len(coll.Folders))
+	}
+	if coll.Folders[0].Name != "Repository" {
+		t.Fatalf("Expected folder 'Repository', got '%s'", coll.Folders[0].Name)
+	}
+	if len(coll.Folders[0].Requests) != 1 {
+		t.Fatalf("Expected 1 request in Repository folder, got %d", len(coll.Folders[0].Requests))
+	}
+	if coll.Folders[0].Requests[0].Name != "Repository Info" {
+		t.Fatalf("Expected request 'Repository Info', got '%s'", coll.Folders[0].Requests[0].Name)
 	}
 }

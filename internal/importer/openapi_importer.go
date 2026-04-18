@@ -68,6 +68,7 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 		Id:                  generateUUID(),
 		Name:                doc.Info.Title,
 		Requests:            []collection.Request{},
+		Folders:             []collection.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,
 	}
@@ -93,7 +94,7 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 				continue
 			}
 			req := buildRequest(method, path, op, baseURL, version, doc)
-			coll.Requests = append(coll.Requests, req)
+			addOpenAPIRequest(coll, req, op.Tags)
 		}
 	}
 
@@ -275,6 +276,7 @@ type openAPIPathItem struct {
 type openAPIOperation struct {
 	OperationId string              `json:"operationId" yaml:"operationId"`
 	Summary     string              `json:"summary"     yaml:"summary"`
+	Tags        []string            `json:"tags"        yaml:"tags"`
 	Parameters  []openAPIParameter  `json:"parameters"  yaml:"parameters"`
 	RequestBody *openAPIRequestBody `json:"requestBody" yaml:"requestBody"` // OpenAPI 3.x only
 	Consumes    []string            `json:"consumes"    yaml:"consumes"`    // Swagger 2.x only
@@ -292,4 +294,23 @@ type openAPIRequestBody struct {
 
 type openAPIMediaType struct {
 	Schema map[string]interface{} `json:"schema" yaml:"schema"`
+}
+
+func addOpenAPIRequest(coll *collection.Collection, req collection.Request, tags []string) {
+	if len(tags) == 0 || strings.TrimSpace(tags[0]) == "" {
+		coll.Requests = append(coll.Requests, req)
+		return
+	}
+
+	tagName := strings.TrimSpace(tags[0])
+	for i := range coll.Folders {
+		if coll.Folders[i].Name == tagName {
+			coll.Folders[i].Requests = append(coll.Folders[i].Requests, req)
+			return
+		}
+	}
+
+	folder := collection.NewFolder(tagName)
+	folder.Requests = append(folder.Requests, req)
+	coll.Folders = append(coll.Folders, folder)
 }
