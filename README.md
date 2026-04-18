@@ -9,8 +9,8 @@
 <html>
     <h2 align="center" style="display: flex; flex-direction: column; align-items: center; padding: 2rem">
       <img src="hack/icon/icon-lighning-spike-round-inverted.svg" width="128"/>
-      <img width="256" src="hack/icon/icon-ascii.svg" />
     </h2>
+    <img width="256" src="hack/icon/icon-ascii.svg" />
 </html>
 
 
