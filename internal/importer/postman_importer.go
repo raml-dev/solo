@@ -40,42 +40,35 @@ func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
 		Id:                  generateUUID(),
 		Name:                pc.Info.Name,
 		Requests:            []models.Request{},
+		Folders:             []models.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,
 	}
 
-	processItems(pc.Item, "", &coll.Requests)
+	coll.Requests, coll.Folders = processItems(pc.Item)
 
 	slog.Info("Postman import completed", "requests_found", len(coll.Requests))
 	return coll, nil
 }
 
-// Recursive function to flatten folders
-func processItems(items []postmanItem, folderPath string, dest *[]models.Request) {
+// processItems converts Postman items into root requests and nested folders.
+func processItems(items []postmanItem) ([]models.Request, []models.Folder) {
+	requests := make([]models.Request, 0)
+	folders := make([]models.Folder, 0)
+
 	for _, item := range items {
-		// 1. Process as folder if it has children
 		if len(item.Item) > 0 {
-			newPath := item.Name + " / "
-			if folderPath != "" {
-				newPath = folderPath + item.Name + " / "
-			}
-			processItems(item.Item, newPath, dest)
-			// Note: We don't skip the rest of the loop because some exporters
-			// might put a request and an item array in the same object.
+			folder := models.NewFolder(item.Name)
+			folder.Requests, folder.Folders = processItems(item.Item)
+			folders = append(folders, folder)
 		}
 
-		// 2. Process as request if it has request data
 		if item.Request != nil {
-			reqName := item.Name
-			if folderPath != "" {
-				reqName = folderPath + item.Name
-			}
-
-			slog.Debug("Processing Postman request", "name", reqName)
+			slog.Debug("Processing Postman request", "name", item.Name)
 
 			req := models.Request{
 				Id:                  generateUUID(),
-				Name:                reqName,
+				Name:                item.Name,
 				Url:                 item.Request.URL.Raw,
 				Verb:                item.Request.Method,
 				Headers:             make(map[string]string),
@@ -118,9 +111,11 @@ func processItems(items []postmanItem, folderPath string, dest *[]models.Request
 				}
 			}
 
-			*dest = append(*dest, req)
+			requests = append(requests, req)
 		}
 	}
+
+	return requests, folders
 }
 
 // UUID v4 generator using only crypto/rand

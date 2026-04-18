@@ -30,9 +30,12 @@ func TestPostmanImporter_Import(t *testing.T) {
 		t.Errorf("Expected collection name 'Test Collection', got '%s'", coll.Name)
 	}
 
-	// Verify we got 3 requests
-	if len(coll.Requests) != 3 {
-		t.Fatalf("Expected 3 requests, got %d", len(coll.Requests))
+	if len(coll.Requests) != 1 {
+		t.Fatalf("Expected 1 root request, got %d", len(coll.Requests))
+	}
+
+	if len(coll.Folders) != 1 {
+		t.Fatalf("Expected 1 root folder, got %d", len(coll.Folders))
 	}
 
 	// 1. Root Request (Object URL)
@@ -54,10 +57,21 @@ func TestPostmanImporter_Import(t *testing.T) {
 		t.Errorf("Expected empty body type for first request, got '%s'", req1.BodyType)
 	}
 
+	folderA := coll.Folders[0]
+	if folderA.Name != "Folder A" {
+		t.Fatalf("Expected root folder name 'Folder A', got '%s'", folderA.Name)
+	}
+	if len(folderA.Requests) != 1 {
+		t.Fatalf("Expected Folder A to contain 1 request, got %d", len(folderA.Requests))
+	}
+	if len(folderA.Folders) != 1 {
+		t.Fatalf("Expected Folder A to contain 1 subfolder, got %d", len(folderA.Folders))
+	}
+
 	// 2. Nested Request 1 (String URL, JSON Body)
-	req2 := coll.Requests[1]
-	if req2.Name != "Folder A / Nested Request 1" {
-		t.Errorf("Expected second request name 'Folder A / Nested Request 1', got '%s'", req2.Name)
+	req2 := folderA.Requests[0]
+	if req2.Name != "Nested Request 1" {
+		t.Errorf("Expected nested request name 'Nested Request 1', got '%s'", req2.Name)
 	}
 	if req2.Url != "https://api.example.com/users" {
 		t.Errorf("Expected second request URL 'https://api.example.com/users', got '%s'", req2.Url)
@@ -75,10 +89,18 @@ func TestPostmanImporter_Import(t *testing.T) {
 		t.Errorf("Expected body to contain 'value', got '%s'", req2.Body)
 	}
 
+	subFolder := folderA.Folders[0]
+	if subFolder.Name != "SubFolder B" {
+		t.Fatalf("Expected subfolder name 'SubFolder B', got '%s'", subFolder.Name)
+	}
+	if len(subFolder.Requests) != 1 {
+		t.Fatalf("Expected SubFolder B to contain 1 request, got %d", len(subFolder.Requests))
+	}
+
 	// 3. Deeply Nested Request (Object URL, XML fallback)
-	req3 := coll.Requests[2]
-	if req3.Name != "Folder A / SubFolder B / Deeply Nested Request" {
-		t.Errorf("Expected third request name 'Folder A / SubFolder B / Deeply Nested Request', got '%s'", req3.Name)
+	req3 := subFolder.Requests[0]
+	if req3.Name != "Deeply Nested Request" {
+		t.Errorf("Expected third request name 'Deeply Nested Request', got '%s'", req3.Name)
 	}
 	if req3.Url != "https://api.example.com/update" {
 		t.Errorf("Expected third request URL 'https://api.example.com/update', got '%s'", req3.Url)
@@ -96,14 +118,20 @@ func TestPostmanImporter_Import(t *testing.T) {
 		t.Errorf("Expected body '<xml></xml>', got '%s'", req3.Body)
 	}
 
-	// General checks for UUIDs and Timestamps
-	for i, req := range coll.Requests {
-		if req.Id == "" {
-			t.Errorf("Request %d has empty ID", i)
-		}
-		if req.CreationTimestamp.IsZero() {
-			t.Errorf("Request %d has zero creation timestamp", i)
-		}
+	if req1.Id == "" || req1.CreationTimestamp.IsZero() {
+		t.Errorf("Expected root request to have ID and creation timestamp")
+	}
+	if req2.Id == "" || req2.CreationTimestamp.IsZero() {
+		t.Errorf("Expected nested request to have ID and creation timestamp")
+	}
+	if req3.Id == "" || req3.CreationTimestamp.IsZero() {
+		t.Errorf("Expected deeply nested request to have ID and creation timestamp")
+	}
+	if folderA.Id == "" || folderA.CreationTimestamp.IsZero() {
+		t.Errorf("Expected Folder A to have ID and creation timestamp")
+	}
+	if subFolder.Id == "" || subFolder.CreationTimestamp.IsZero() {
+		t.Errorf("Expected SubFolder B to have ID and creation timestamp")
 	}
 }
 
