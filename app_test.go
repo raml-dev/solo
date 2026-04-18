@@ -5,9 +5,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"solo/internal/collection"
 	"solo/internal/configuration"
 	"solo/internal/tools"
 	"testing"
@@ -127,4 +130,93 @@ func TestApp_ConfigurationIntegration(t *testing.T) {
 		t.Fatal("Expected override timeout error, got nil")
 	}
 	t.Logf("Got expected override error: %v", err)
+}
+
+func TestApp_LoadGitBackedCollection_PostmanWithFolders(t *testing.T) {
+	app := NewApp()
+
+	coll, err := app.loadGitBackedCollection(".", filepath.Join("test", "testdata", "postman_v2_1.json"))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if coll.Name != "Test Collection" {
+		t.Fatalf("Expected collection name 'Test Collection', got '%s'", coll.Name)
+	}
+	if len(coll.Requests) != 1 {
+		t.Fatalf("Expected 1 root request, got %d", len(coll.Requests))
+	}
+	if len(coll.Folders) != 1 {
+		t.Fatalf("Expected 1 root folder, got %d", len(coll.Folders))
+	}
+	if coll.Folders[0].Name != "Folder A" {
+		t.Fatalf("Expected folder 'Folder A', got '%s'", coll.Folders[0].Name)
+	}
+}
+
+func TestApp_LoadGitBackedCollection_BrunoDirectoryWithFolders(t *testing.T) {
+	app := NewApp()
+
+	coll, err := app.loadGitBackedCollection(".", filepath.Join("test", "testdata", "bruno_collection"))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if coll.Name != "Bruno Test Collection" {
+		t.Fatalf("Expected collection name 'Bruno Test Collection', got '%s'", coll.Name)
+	}
+	if len(coll.Requests) != 0 {
+		t.Fatalf("Expected 0 root requests, got %d", len(coll.Requests))
+	}
+	if len(coll.Folders) != 1 {
+		t.Fatalf("Expected 1 root folder, got %d", len(coll.Folders))
+	}
+	if coll.Folders[0].Name != "users" {
+		t.Fatalf("Expected folder 'users', got '%s'", coll.Folders[0].Name)
+	}
+}
+
+func TestApp_LoadGitBackedCollection_SoloNativePreservesFolders(t *testing.T) {
+	tempDir := t.TempDir()
+	app := NewApp()
+
+	nativeCollection := collection.NewCollection("Native Git Collection")
+	folder := collection.NewFolder("apis")
+	req := collection.Request{
+		Id:                  "req-1",
+		Name:                "Get APIs",
+		Url:                 "https://example.com/apis",
+		Verb:                "GET",
+		Headers:             map[string]string{},
+		Cookies:             map[string]string{},
+		CreationTimestamp:   time.Now(),
+		LastUpdateTimestamp: time.Now(),
+	}
+	folder.Requests = append(folder.Requests, req)
+	nativeCollection.Folders = append(nativeCollection.Folders, folder)
+
+	data, err := json.Marshal(nativeCollection)
+	if err != nil {
+		t.Fatalf("Failed to marshal native collection: %v", err)
+	}
+
+	filePath := filepath.Join(tempDir, "collection.json")
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		t.Fatalf("Failed to write native collection file: %v", err)
+	}
+
+	coll, err := app.loadGitBackedCollection(tempDir, "collection.json")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(coll.Folders) != 1 {
+		t.Fatalf("Expected 1 folder, got %d", len(coll.Folders))
+	}
+	if len(coll.Folders[0].Requests) != 1 {
+		t.Fatalf("Expected 1 request in folder, got %d", len(coll.Folders[0].Requests))
+	}
+	if coll.Folders[0].Requests[0].Name != "Get APIs" {
+		t.Fatalf("Expected request 'Get APIs', got '%s'", coll.Folders[0].Requests[0].Name)
+	}
 }
