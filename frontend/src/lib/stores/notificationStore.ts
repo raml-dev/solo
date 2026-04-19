@@ -33,6 +33,12 @@ function createNotificationStore() {
     if (!persistent) {
       setTimeout(() => dismiss(id), 5000);
     }
+    let fn: (...data: unknown[]) => void = console.log;
+    if (type === "error") fn = console.error;
+    else if (type === "warning") fn = console.warn;
+    else if (type === "info") fn = console.info;
+    if (detail) fn(message, detail);
+    else fn(message);
     return id;
   }
 

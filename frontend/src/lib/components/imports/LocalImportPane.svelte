@@ -6,6 +6,13 @@
 <script lang="ts" generics="TFormat extends string">
   import DropZone from "$src/lib/components/base/DropZone.svelte";
   import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
+  import {
+    collectionImportStore,
+    collectionImportStoreState,
+    type CollectionLocalImportFormat
+  } from "$src/lib/stores/collectionImportStore.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Select from "flowbite-svelte/Select.svelte";
 
@@ -18,6 +25,16 @@
   let { formats, selectedFormat = $bindable(), onImport }: Props = $props();
 
   const selectedOption = $derived(formats.find((format) => format.key === selectedFormat));
+  const activePendingLocalImport = $derived(
+    collectionImportStoreState.pendingLocalImport?.format === selectedFormat
+      ? collectionImportStoreState.pendingLocalImport
+      : null
+  );
+
+  function getChangeButtonLabel() {
+    if (!selectedOption) return "Change selection...";
+    return selectedOption.icon === "folder" ? "Change folder..." : "Change file...";
+  }
 
   async function handleDrop(paths: string[]) {
     if (!selectedOption) return;
@@ -27,6 +44,11 @@
     } else {
       await onImport(selectedOption.key);
     }
+  }
+
+  async function handlePickPath() {
+    collectionImportStoreState.selectedLocalFormat = selectedFormat as CollectionLocalImportFormat;
+    await collectionImportStore.pickLocalImportPath();
   }
 </script>
 
@@ -38,6 +60,36 @@
         <option value={format.key}>{format.label}</option>
       {/each}
     </Select>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <Label for="selected-import-path">Selected source</Label>
+    <div class="flex gap-2">
+      <Input
+        id="selected-import-path"
+        value={activePendingLocalImport?.path || ""}
+        placeholder="No file or folder selected yet"
+        class="flex-1"
+        readonly
+      />
+      <Button
+        color="primary"
+        onclick={handlePickPath}
+        disabled={collectionImportStoreState.localImportLoading}
+      >
+        {activePendingLocalImport ? getChangeButtonLabel() : selectedOption?.pickerButtonLabel}
+      </Button>
+      <Button
+        color="alternative"
+        onclick={collectionImportStore.clearPendingLocalImport}
+        disabled={!activePendingLocalImport || collectionImportStoreState.localImportLoading}
+      >
+        Clear
+      </Button>
+    </div>
+    <p class="text-sm text-neutral-600 dark:text-neutral-400">
+      The selected source will be imported only after you press Import.
+    </p>
   </div>
 
   {#if selectedOption}

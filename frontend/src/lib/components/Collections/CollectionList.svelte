@@ -5,14 +5,24 @@
 
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import CollectionRow from "$src/lib/components/Collections/CollectionRow.svelte";
+  import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
-  import CollectionRow from "$src/lib/components/Collections/CollectionRow.svelte";
   import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
   import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
+  import {
+    collectionTreeUI,
+    collectionTreeUIState
+  } from "$src/lib/features/collections/collectionTreeUI.svelte";
+  import {
+    collectionImportStore,
+    collectionImportStoreState,
+    type CollectionLocalImportFormat
+  } from "$src/lib/stores/collectionImportStore.svelte";
   import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -24,38 +34,26 @@
     GitDiscardChanges,
     GitKeepOurs,
     GitKeepTheirs,
-    ImportBrunoCollection,
     ImportCurlRequest,
-    ImportOpenAPICollection,
-    ImportPostmanCollection,
-    ImportSoloCollection,
     OpenCollectionInTerminal,
-    SelectDirectory,
-    SelectFile,
     SyncGitCollection
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
   import Button from "flowbite-svelte/Button.svelte";
+  import Dropdown from "flowbite-svelte/Dropdown.svelte";
+  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
+  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Select from "flowbite-svelte/Select.svelte";
+  import Spinner from "flowbite-svelte/Spinner.svelte";
   import { onDestroy, onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
-  import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
-  import {
-    collectionTreeUI,
-    collectionTreeUIState
-  } from "$src/lib/features/collections/collectionTreeUI.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
 
   interface Props {
     onRequestSelect?: (requestId: string) => void;
   }
-
-  type CollectionLocalImportFormat = "postman" | "bruno" | "openapi" | "solo";
 
   const COLLECTION_LOCAL_IMPORT_FORMATS: LocalImportFormatOption<CollectionLocalImportFormat>[] = [
     {
@@ -101,11 +99,6 @@
   const deleteRequestModal = modalStack.createModal("collections-delete-request");
   const importCollectionModal = modalStack.createModal("collections-import");
   const soloCollectionOverwriteModal = modalStack.createModal("collections-solo-overwrite");
-
-  let soloCollectionOverwriteName: string | null = $state(null);
-  let pendingSoloCollectionPath: string | null = null;
-
-  let localImportFormat = $state<CollectionLocalImportFormat>("postman");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
 
@@ -137,6 +130,10 @@
     if (importCollectionModal.open && collectionStoreState.selectedCollectionName) {
       curlTargetCollection = collectionStoreState.selectedCollectionName;
     }
+  });
+
+  $effect(() => {
+    soloCollectionOverwriteModal.open = !!collectionImportStoreState.soloCollectionOverwriteName;
   });
 
   let sidebarWidth = $state(280); // Default width
@@ -499,49 +496,6 @@
     localStorage.setItem("sidebar_collapsed", String(isCollapsed));
   }
 
-  async function handleImportPostman() {
-    try {
-      const filePath = await SelectFile("Select Postman Collection", "*.json", "JSON Files");
-      if (!filePath) return;
-      await ImportPostmanCollection(filePath);
-      await collectionStore.loadCollections();
-      notifications.success("Postman collection imported");
-    } catch (err) {
-      notifications.error("Failed to import Postman collection", String(err));
-    }
-  }
-
-  async function handleImportBruno() {
-    try {
-      const dirPath = await SelectDirectory("Select Bruno Collection Folder");
-      if (!dirPath) return;
-      await ImportBrunoCollection(dirPath);
-      await collectionStore.loadCollections();
-      notifications.success("Bruno collection imported");
-    } catch (err) {
-      notifications.error("Failed to import Bruno collection", String(err));
-    }
-  }
-
-  async function handleImportOpenAPI() {
-    try {
-      const filePath = await SelectFile(
-        "Select OpenAPI / Swagger Document",
-        "*.json;*.yaml;*.yml",
-        "OpenAPI / Swagger Files"
-      );
-      if (!filePath) return;
-      const warnings = await ImportOpenAPICollection(filePath);
-      await collectionStore.loadCollections();
-      for (const w of warnings) {
-        notifications.warning(w);
-      }
-      notifications.success("OpenAPI collection imported");
-    } catch (err) {
-      notifications.error("Failed to import OpenAPI collection", String(err));
-    }
-  }
-
   async function handleImportCurl() {
     if (!curlInput.trim()) return;
 
@@ -576,94 +530,12 @@
     }
   }
 
-  function parseCollectionNameFromError(message: string): string | null {
-    const match = message.match(/collection\s+(\S+)\s+already exists/i);
-    return match ? match[1] : null;
-  }
-
-  async function executeSoloCollectionImport(path: string, overwrite: boolean) {
-    try {
-      await ImportSoloCollection(path, overwrite);
-      await collectionStore.loadCollections();
-      notifications.success("Collection imported successfully");
-    } catch (err) {
-      const message = String(err ?? "Failed to import collection");
-      const existingName = parseCollectionNameFromError(message);
-      if (!overwrite && existingName) {
-        pendingSoloCollectionPath = path;
-        soloCollectionOverwriteName = existingName;
-        soloCollectionOverwriteModal.open = true;
-        return;
-      }
-      notifications.error("Failed to import collection", message);
-    }
-  }
-
-  async function handleImportSoloCollection(path?: string) {
-    const filePath = path ?? (await SelectFile("Select Solo Collection", "*.json", "JSON Files"));
-    if (!filePath) return;
-    importCollectionModal.open = false;
-    await executeSoloCollectionImport(filePath, false);
-  }
-
-  async function confirmSoloCollectionOverwrite() {
-    if (!pendingSoloCollectionPath) return;
-    const path = pendingSoloCollectionPath;
-    pendingSoloCollectionPath = null;
-    soloCollectionOverwriteModal.open = false;
-    await executeSoloCollectionImport(path, true);
-  }
-
   async function handleExportCollection(collectionName: string) {
     try {
       await ExportCollection(collectionName);
       notifications.success("Collection exported successfully");
     } catch (err) {
       notifications.error("Failed to export collection", String(err));
-    }
-  }
-
-  async function handleLocalCollectionImport(format: CollectionLocalImportFormat, path?: string) {
-    importCollectionModal.open = false;
-
-    if (format === "postman") {
-      if (path) {
-        await ImportPostmanCollection(path);
-        await collectionStore.loadCollections();
-      } else {
-        await handleImportPostman();
-      }
-      return;
-    }
-
-    if (format === "bruno") {
-      if (path) {
-        await ImportBrunoCollection(path);
-        await collectionStore.loadCollections();
-      } else {
-        await handleImportBruno();
-      }
-      return;
-    }
-
-    if (format === "openapi") {
-      if (path) {
-        const warnings = await ImportOpenAPICollection(path);
-        await collectionStore.loadCollections();
-        for (const warning of warnings) {
-          notifications.warning(warning);
-        }
-        notifications.success("OpenAPI collection imported");
-      } else {
-        await handleImportOpenAPI();
-      }
-      return;
-    }
-
-    if (path) {
-      await executeSoloCollectionImport(path, false);
-    } else {
-      await handleImportSoloCollection();
     }
   }
 
@@ -695,15 +567,38 @@
 
   function closeImportModal() {
     importCollectionModal.open = false;
+    collectionImportStore.resetLocalImport();
     curlInput = "";
     curlCreatingNew = false;
     curlNewCollectionName = "";
   }
 
   function openImportModal() {
-    localImportFormat = "postman";
+    collectionImportStore.resetLocalImport();
     gitImportActionState = null;
     importCollectionModal.open = true;
+  }
+
+  async function runPendingLocalImport() {
+    await collectionImportStore.runPendingLocalImport();
+
+    if (
+      !collectionImportStoreState.pendingLocalImport &&
+      !collectionImportStoreState.soloCollectionOverwriteName
+    ) {
+      importCollectionModal.open = false;
+    }
+  }
+
+  async function confirmSoloCollectionOverwrite() {
+    await collectionImportStore.confirmSoloCollectionOverwrite();
+
+    if (
+      !collectionImportStoreState.pendingLocalImport &&
+      !collectionImportStoreState.soloCollectionOverwriteName
+    ) {
+      importCollectionModal.open = false;
+    }
   }
 
   function isContextMenuOpen(): boolean {
@@ -780,8 +675,11 @@
   let filteredCollections = $derived(
     collections.filter((collection) => shouldShowCollection(collection, normalizedQuery))
   );
-  let selectedLocalImportOption = $derived(
-    COLLECTION_LOCAL_IMPORT_FORMATS.find((format) => format.key === localImportFormat)
+  let activePendingLocalImport = $derived(
+    collectionImportStoreState.pendingLocalImport?.format ===
+      collectionImportStoreState.selectedLocalFormat
+      ? collectionImportStoreState.pendingLocalImport
+      : null
   );
   let collectionContextMenuState = $derived(collectionTreeUIState.collectionContextMenu);
   let requestContextMenuState = $derived(collectionTreeUIState.requestContextMenu);
@@ -1288,8 +1186,9 @@
     bind:open={importCollectionModal.open}
     onClose={closeImportModal}
     showCurlSection
-    localActionLabel={selectedLocalImportOption?.pickerButtonLabel || "Select file..."}
-    onLocalAction={() => handleLocalCollectionImport(localImportFormat)}
+    localActionLabel={collectionImportStoreState.localImportLoading ? "Importing..." : "Import"}
+    localActionDisabled={!activePendingLocalImport || collectionImportStoreState.localImportLoading}
+    onLocalAction={runPendingLocalImport}
     curlActionLabel="Import Request"
     curlActionDisabled={!curlInput.trim() || (!curlTargetCollection && !curlCreatingNew)}
     onCurlAction={handleImportCurl}
@@ -1299,11 +1198,17 @@
       {#if $topModalId === importCollectionModal.id}
         <ToastContainer />
       {/if}
-      <LocalImportPane
-        formats={COLLECTION_LOCAL_IMPORT_FORMATS}
-        bind:selectedFormat={localImportFormat}
-        onImport={handleLocalCollectionImport}
-      />
+      {#if collectionImportStoreState.localImportLoading}
+        <div class="flex h-full items-center justify-center">
+          <Spinner type="bars" color="primary" />
+        </div>
+      {:else}
+        <LocalImportPane
+          formats={COLLECTION_LOCAL_IMPORT_FORMATS}
+          bind:selectedFormat={collectionImportStoreState.selectedLocalFormat}
+          onImport={collectionImportStore.setPendingLocalImportFromDrop}
+        />
+      {/if}
     {/snippet}
 
     {#snippet curlContent()}
@@ -1375,8 +1280,7 @@
     title="Overwrite collection?"
     bind:open={soloCollectionOverwriteModal.open}
     onclose={() => {
-      pendingSoloCollectionPath = null;
-      soloCollectionOverwriteName = null;
+      collectionImportStore.cancelSoloCollectionOverwrite();
       soloCollectionOverwriteModal.open = false;
     }}
     size="xl"
@@ -1384,7 +1288,7 @@
     {#if $topModalId === soloCollectionOverwriteModal.id}
       <ToastContainer />
     {/if}
-    <p>Collection "{soloCollectionOverwriteName}" already exists.</p>
+    <p>Collection "{collectionImportStoreState.soloCollectionOverwriteName}" already exists.</p>
     <p class="text-sm text-neutral-600 dark:text-neutral-400">Do you want to overwrite it?</p>
     {#snippet footer()}
       <div class="flex w-full justify-end gap-2">

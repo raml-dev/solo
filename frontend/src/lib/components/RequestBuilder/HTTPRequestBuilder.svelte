@@ -425,7 +425,7 @@
         auth: tab.auth,
         settings: tab.settings
       });
-      tabStore.bindTabToRequest(tab.id, newReq.id, data.collection, data.name)
+      tabStore.bindTabToRequest(tab.id, newReq.id, data.collection, data.name);
       showSaveDialog.open = false;
     } catch {
       /* shown by store */
