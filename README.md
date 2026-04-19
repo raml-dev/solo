@@ -67,10 +67,12 @@ If you prefer to manage dependencies manually, ensure you have [Go](https://go.d
 
 ## 🤝 Contributing
 
-We welcome all contributions! Whether it's a bug report, a feature suggestion, or a pull request, please feel free to:
+Contributions are welcome.
 
-- Open an [Issue](https://github.com/raml-dev/solo/issues) for bugs or ideas.
-- Submit a [Pull Request](https://github.com/raml-dev/solo/pulls) with your changes.
+- Open an [Issue](https://github.com/raml-dev/solo/issues) for bugs or ideas
+- Submit a [Pull Request](https://github.com/raml-dev/solo/pulls)
+
+Read the [contribution guidelines](CONTRIBUTING.md) before opening an issue or submitting a PR.
 
 ---
 
