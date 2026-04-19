@@ -108,7 +108,7 @@ func testOpenAPI3(t *testing.T, path string) {
 	if r.name != "listUsers" {
 		t.Errorf("GET /users name: got %q, want %q", r.name, "listUsers")
 	}
-	if r.url != "https://api.example.com/users" {
+	if r.url != "{{baseUrl}}/users" {
 		t.Errorf("GET /users url: got %q", r.url)
 	}
 	if _, ok := r.headers["X-Request-Id"]; !ok {
@@ -144,7 +144,7 @@ func testOpenAPI3(t *testing.T, path string) {
 	if r.name != "updateUser" {
 		t.Errorf("PUT /users/{id} name: got %q, want %q", r.name, "updateUser")
 	}
-	if r.url != "https://api.example.com/users/{{id}}" {
+	if r.url != "{{baseUrl}}/users/{{id}}" {
 		t.Errorf("PUT /users/{id} url: got %q", r.url)
 	}
 	if r.bodyType != "json" {
@@ -159,11 +159,17 @@ func testOpenAPI3(t *testing.T, path string) {
 	if r.name != "DELETE /users/{id}" {
 		t.Errorf("DELETE /users/{id} name: got %q, want %q", r.name, "DELETE /users/{id}")
 	}
-	if r.url != "https://api.example.com/users/{{id}}" {
-		t.Errorf("DELETE /users/{id} url: got %q, want %q", r.url, "https://api.example.com/users/{{id}}")
+	if r.url != "{{baseUrl}}/users/{{id}}" {
+		t.Errorf("DELETE /users/{id} url: got %q, want %q", r.url, "{{baseUrl}}/users/{{id}}")
 	}
 	if r.bodyType != "" {
 		t.Errorf("DELETE /users/{id}: expected no bodyType, got %q", r.bodyType)
+	}
+	if result.BasePath != "" {
+		t.Errorf("openapi3 basePath: got %q, want empty", result.BasePath)
+	}
+	if len(result.Servers) != 1 || result.Servers[0] != "https://api.example.com" {
+		t.Errorf("openapi3 servers: got %v, want %v", result.Servers, []string{"https://api.example.com"})
 	}
 
 	// Security warnings — fixture has 2 schemes: bearerAuth, apiKey
@@ -214,16 +220,13 @@ func testSwagger2(t *testing.T, path string) {
 	rootReqs := summarizeRequests(coll.Requests)
 	warnings := result.Warnings
 
-	// Base URL must be composed from host + basePath + scheme
-	expectedBase := "https://api.example.com/v1"
-
 	// GET /users
 	r := findRequest(t, reqs, "GET", "/users")
 	if r == nil {
 		t.Fatal("GET /users not found")
 	}
-	if r.url != expectedBase+"/users" {
-		t.Errorf("GET /users url: got %q, want %q", r.url, expectedBase+"/users")
+	if r.url != "{{baseUrl}}/users" {
+		t.Errorf("GET /users url: got %q, want %q", r.url, "{{baseUrl}}/users")
 	}
 	if r.name != "listUsers" {
 		t.Errorf("GET /users name: got %q, want %q", r.name, "listUsers")
@@ -255,8 +258,8 @@ func testSwagger2(t *testing.T, path string) {
 	if r.bodyType != "json" {
 		t.Errorf("PUT /users/{id} bodyType: got %q, want %q", r.bodyType, "json")
 	}
-	if r.url != expectedBase+"/users/{{id}}" {
-		t.Errorf("PUT /users/{id} url: got %q, want %q", r.url, expectedBase+"/users/{{id}}")
+	if r.url != "{{baseUrl}}/users/{{id}}" {
+		t.Errorf("PUT /users/{id} url: got %q, want %q", r.url, "{{baseUrl}}/users/{{id}}")
 	}
 
 	// DELETE /users/{id} — fallback name and no tags => root
@@ -267,8 +270,14 @@ func testSwagger2(t *testing.T, path string) {
 	if r.name != "DELETE /users/{id}" {
 		t.Errorf("DELETE /users/{id} name: got %q, want %q", r.name, "DELETE /users/{id}")
 	}
-	if r.url != expectedBase+"/users/{{id}}" {
-		t.Errorf("DELETE /users/{id} url: got %q, want %q", r.url, expectedBase+"/users/{{id}}")
+	if r.url != "{{baseUrl}}/users/{{id}}" {
+		t.Errorf("DELETE /users/{id} url: got %q, want %q", r.url, "{{baseUrl}}/users/{{id}}")
+	}
+	if result.BasePath != "/v1" {
+		t.Errorf("swagger2 basePath: got %q, want %q", result.BasePath, "/v1")
+	}
+	if len(result.Servers) != 0 {
+		t.Errorf("swagger2 servers: got %v, want none", result.Servers)
 	}
 
 	// Security warnings — fixture has 2 definitions: basicAuth, apiKey
@@ -396,7 +405,7 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		}
 	})
 
-	t.Run("no_servers_openapi3_url_starts_with_slash", func(t *testing.T) {
+	t.Run("no_servers_openapi3_uses_baseurl_placeholder", func(t *testing.T) {
 		tmp := t.TempDir() + "/no_servers.json"
 		_ = writeTemp(tmp, `{"openapi":"3.0.0","info":{"title":"T"},"paths":{"/ping":{"get":{"operationId":"ping"}}}}`)
 		result, err := imp.Import(tmp)
@@ -406,12 +415,15 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		if len(result.Collection.Requests) != 1 {
 			t.Fatalf("expected 1 request, got %d", len(result.Collection.Requests))
 		}
-		if result.Collection.Requests[0].Url != "/ping" {
-			t.Errorf("url: got %q, want %q", result.Collection.Requests[0].Url, "/ping")
+		if result.Collection.Requests[0].Url != "{{baseUrl}}/ping" {
+			t.Errorf("url: got %q, want %q", result.Collection.Requests[0].Url, "{{baseUrl}}/ping")
+		}
+		if len(result.Servers) != 0 {
+			t.Errorf("servers: got %v, want none", result.Servers)
 		}
 	})
 
-	t.Run("no_host_swagger2_url_starts_with_slash", func(t *testing.T) {
+	t.Run("no_host_swagger2_uses_baseurl_placeholder", func(t *testing.T) {
 		tmp := t.TempDir() + "/no_host.json"
 		_ = writeTemp(tmp, `{"swagger":"2.0","info":{"title":"T"},"basePath":"/api","paths":{"/ping":{"get":{"operationId":"ping"}}}}`)
 		result, err := imp.Import(tmp)
@@ -421,8 +433,11 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		if len(result.Collection.Requests) != 1 {
 			t.Fatalf("expected 1 request, got %d", len(result.Collection.Requests))
 		}
-		if result.Collection.Requests[0].Url != "/ping" {
-			t.Errorf("url: got %q, want %q", result.Collection.Requests[0].Url, "/ping")
+		if result.Collection.Requests[0].Url != "{{baseUrl}}/ping" {
+			t.Errorf("url: got %q, want %q", result.Collection.Requests[0].Url, "{{baseUrl}}/ping")
+		}
+		if result.BasePath != "/api" {
+			t.Errorf("basePath: got %q, want %q", result.BasePath, "/api")
 		}
 	})
 }

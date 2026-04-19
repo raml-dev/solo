@@ -79,6 +79,12 @@ type RequestOptions struct {
 	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
 }
 
+type OpenAPIImportCollectionResult struct {
+	Warnings []string `json:"warnings"`
+	BasePath string   `json:"basePath"`
+	Servers  []string `json:"servers"`
+}
+
 func (a *App) GetAppInfo() appinfo.AppInfo {
 	return appinfo.GetAppInfo(wailsJSON)
 }
@@ -428,20 +434,24 @@ func (a *App) ImportPostmanCollection(path string) error {
 
 // ImportOpenAPICollection imports an OpenAPI 3.x or Swagger 2.x collection
 // (JSON or YAML) into Solo.
-// Returns a (possibly empty) list of warning messages to show to the user.
-func (a *App) ImportOpenAPICollection(path string) ([]string, error) {
+// Returns warning messages and source metadata used by the frontend to build baseUrl.
+func (a *App) ImportOpenAPICollection(path string) (OpenAPIImportCollectionResult, error) {
 	imp := importer.NewOpenAPIImporter()
 
 	result, err := imp.Import(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to import OpenAPI collection: %w", err)
+		return OpenAPIImportCollectionResult{}, fmt.Errorf("failed to import OpenAPI collection: %w", err)
 	}
 
 	if err := a.collectionManager.UpdateCollection(*result.Collection); err != nil {
-		return nil, fmt.Errorf("failed to save imported OpenAPI collection: %w", err)
+		return OpenAPIImportCollectionResult{}, fmt.Errorf("failed to save imported OpenAPI collection: %w", err)
 	}
 
-	return result.Warnings, nil
+	return OpenAPIImportCollectionResult{
+		Warnings: result.Warnings,
+		BasePath: result.BasePath,
+		Servers:  result.Servers,
+	}, nil
 }
 
 // ImportCurlRequest parses a cURL command string and adds the resulting request
