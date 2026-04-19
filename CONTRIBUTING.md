@@ -30,16 +30,17 @@ If a solution is difficult to explain, it is probably too complex.
 
 ## How to contribute
 
-### 1. Always open an issue
+### 1. Open an issue
 
 Before working on:
 
 - new features
 - architectural changes
 - important refactors
-- bug fixes
 
-If you do not want to necessarily wait for the triage phase, you can start working on it and submit a PR.
+For small bug fixes you can open a PR directly.
+
+> If you do not want to necessarily wait for the triage phase, you can start working on it and submit a PR.
 
 ---
 
@@ -92,15 +93,14 @@ PRs that are too large may be rejected.
 
 ## Triage
 
-Issues and PRs are evaluated during triage.
+Issues and PRs are evaluated during triage. This process may affect the state and progress of a PR.
 
-A PR may be closed if:
+If the contribution does not fully follow these guidelines, we may ask for additional context or changes before proceeding.
 
-- not aligned with the project philosophy
-- too complex or out of scope
-- lacking sufficient context
+> [!NOTE]
+> This does not necessarily mean the PR will be closed, but it may impact review and merge timelines.
 
-We commit to providing clear feedback when possible.
+We aim to provide clear and constructive feedback whenever possible.
 
 ## Test
 
@@ -108,6 +108,8 @@ When applicable:
 
 - do not break existing tests
 - add tests for new features
+
+Avoid monkey patching in tests, as it introduces hidden behavior and reduces clarity.
 
 ## Security Issue
 
