@@ -342,26 +342,28 @@ func collectServerURLs(servers []openAPIServer) []string {
 }
 
 func resolveOpenAPIDefaultBaseURL(doc unifiedAPIDocument, version string) string {
+	basePath := strings.TrimSpace(doc.BasePath)
+	baseURL := ""
+
 	if version == "3.x" {
 		servers := collectServerURLs(doc.Servers)
-		if len(servers) == 0 {
-			return ""
+		if len(servers) > 0 {
+			baseURL = servers[0]
 		}
-		return servers[0]
+	} else {
+		host := strings.TrimSpace(doc.Host)
+
+    if host != "" {
+			scheme := "https"
+
+      if len(doc.Schemes) > 0 && strings.TrimSpace(doc.Schemes[0]) != "" {
+				scheme = strings.TrimSpace(doc.Schemes[0])
+			}
+
+			baseURL = strings.TrimRight(fmt.Sprintf("%s://%s", scheme, strings.TrimRight(host, "/")), "/")
+		}
 	}
 
-	host := strings.TrimSpace(doc.Host)
-	if host == "" {
-		return ""
-	}
-
-	scheme := "https"
-	if len(doc.Schemes) > 0 && strings.TrimSpace(doc.Schemes[0]) != "" {
-		scheme = strings.TrimSpace(doc.Schemes[0])
-	}
-
-	baseURL := strings.TrimRight(fmt.Sprintf("%s://%s", scheme, strings.TrimRight(host, "/")), "/")
-	basePath := strings.TrimSpace(doc.BasePath)
 	if basePath == "" || basePath == "/" {
 		return baseURL
 	}
