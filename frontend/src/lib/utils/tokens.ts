@@ -38,7 +38,7 @@ export interface EnvironmentTokenValueLike {
   type?: unknown;
 }
 
-export type EnvTokenStatus = "known" | "unknown" | "session";
+export type EnvTokenStatus = "known" | "unknown" | "session" | "collection";
 
 export function getTokenizedEditorSizeClass(size: TokenizedEditorSize = "md"): string {
   return size === "sm"

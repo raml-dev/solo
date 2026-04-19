@@ -398,6 +398,40 @@ export const collectionStore = {
     }
   },
 
+  async updateCollectionVariables(
+    collectionName: string,
+    values: Record<string, { value: string; type: string }>
+  ) {
+    const targetCollection = collectionStoreState.collections.find(
+      (currentCollection) => currentCollection.name === collectionName
+    );
+
+    if (!targetCollection) {
+      throw new Error(`Collection ${collectionName} not found`);
+    }
+
+    const previousCollections = collectionStoreState.collections;
+    const updatedCollection = collection.Collection.createFrom({
+      ...targetCollection,
+      variables: Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [key, new collection.ValueType(value)])
+      ),
+      lastUpdateTimestamp: new SvelteDate().toISOString()
+    });
+
+    collectionStoreState.collections = collectionStoreState.collections.map((currentCollection) =>
+      currentCollection.name === collectionName ? updatedCollection : currentCollection
+    );
+
+    try {
+      await UpdateCollection(updatedCollection);
+    } catch (err) {
+      collectionStoreState.collections = previousCollections;
+      notifications.error("Failed to update collection variables", String(err));
+      throw err;
+    }
+  },
+
   // Add a request to a collection
   async addRequest(
     collectionName: string,

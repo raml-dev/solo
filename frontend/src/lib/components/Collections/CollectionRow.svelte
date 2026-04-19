@@ -5,13 +5,14 @@
 
 <script lang="ts">
   import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
+  import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import {
     collectionTreeUI,
     collectionTreeUIState
   } from "$src/lib/features/collections/collectionTreeUI.svelte";
-  import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { collection } from "$wails/go/models";
+  import AdjustmentsVerticalOutline from "flowbite-svelte-icons/AdjustmentsVerticalOutline.svelte";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
@@ -19,8 +20,8 @@
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
   import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
-  import { SvelteSet } from "svelte/reactivity";
   import { tick } from "svelte";
+  import { SvelteSet } from "svelte/reactivity";
 
   const OUTLINE_BUTTON_CLASSES =
     "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
@@ -47,6 +48,7 @@
     onOpenGitStatus: (currentCollection: collection.Collection) => void;
     onSync: (collectionId: string) => void;
     onExportCollection: (collectionName: string) => void;
+    onOpenVariables: (collectionName: string) => void;
     onRenameCollection: (collectionName: string) => void;
     onDeleteCollection: (collectionName: string) => void;
     onRequestSelect?: (requestId: string) => void;
@@ -74,12 +76,14 @@
     onOpenGitStatus,
     onSync,
     onExportCollection,
+    onOpenVariables,
     onRenameCollection,
     onDeleteCollection,
     onRequestSelect = () => {}
   }: Props = $props();
 
   let requestDragState = $derived(collectionTreeUIState.requestDrag);
+  let hasCollectionVariables = $derived(Object.keys(currentCollection.variables ?? {}).length > 0);
   let anyContextMenuOpen = $derived(
     collectionTreeUIState.requestContextMenu.open ||
       collectionTreeUIState.folderContextMenu.open ||
@@ -237,6 +241,16 @@
     <DropdownItem
       class="text-gray-900 dark:text-white"
       onclick={() => {
+        onOpenVariables(currentCollection.name);
+        onClose();
+      }}
+    >
+      Variables
+    </DropdownItem>
+    <DropdownDivider />
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
         onExportCollection(currentCollection.name);
         onClose();
       }}
@@ -328,6 +342,21 @@
     </div>
 
     <div class="flex items-center gap-1">
+      <button
+        data-no-drag="true"
+        type="button"
+        class="shrink-0 {hasCollectionVariables
+          ? 'text-warning-500 hover:text-warning-600 dark:text-warning-400 dark:hover:text-warning-300'
+          : OUTLINE_BUTTON_CLASSES} hover:cursor-pointer"
+        title="Collection variables"
+        aria-label={`Open variables for ${currentCollection.name}`}
+        onclick={(event: MouseEvent) => {
+          event.stopPropagation();
+          onOpenVariables(currentCollection.name);
+        }}
+      >
+        <AdjustmentsVerticalOutline class="h-3.5 w-3.5" />
+      </button>
       <button
         data-no-drag="true"
         class="hover:cursor-pointer"

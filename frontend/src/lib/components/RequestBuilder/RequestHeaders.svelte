@@ -6,9 +6,14 @@
 <script lang="ts">
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
   import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
-  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
-  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
+  import {
+    createResolvedVariableEntryMap,
+    resolveVariableTokens,
+    type ResolvedVariableEntry
+  } from "$src/lib/utils/variableResolution";
   import ExclamationCircleSolid from "flowbite-svelte-icons/ExclamationCircleSolid.svelte";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
+  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Checkbox from "flowbite-svelte/Checkbox.svelte";
   import Input from "flowbite-svelte/Input.svelte";
@@ -17,10 +22,11 @@
     headers: Header[];
     body: string;
     bodyFormat: InputFormat;
+    variableEntries?: ResolvedVariableEntry[];
     onChange?: () => void;
   }
 
-  let { headers = $bindable(), body, bodyFormat, onChange }: Props = $props();
+  let { headers = $bindable(), body, bodyFormat, variableEntries = [], onChange }: Props = $props();
 
   type Header = {
     id: string;
@@ -56,27 +62,10 @@
     return header.key.trim().toLowerCase() === "content-type";
   }
 
-  let selectedEnvironment = $derived(
-    environmentStoreState.environments.find(
-      (environment) => environment.name === environmentStoreState.selectedEnvironmentName
-    ) || null
-  );
+  let variableEntryMap = $derived(createResolvedVariableEntryMap(variableEntries));
 
   function resolveTemplateTokens(value: string): string {
-    if (!value) return value;
-
-    const envValues = selectedEnvironment?.values ?? {};
-    const envMap = new Map(
-      Object.entries(envValues).map(([key, entry]) => [key, String(entry?.value ?? "")])
-    );
-    const sessionMap = new Map(Object.entries($sessionVarsStore ?? {}));
-
-    return value.replace(/\{\{([^{}\r\n]+?)\}\}/g, (full, key: string) => {
-      const normalizedKey = key.trim();
-      if (sessionMap.has(normalizedKey)) return String(sessionMap.get(normalizedKey) ?? "");
-      if (envMap.has(normalizedKey)) return String(envMap.get(normalizedKey) ?? "");
-      return full;
-    });
+    return resolveVariableTokens(value, variableEntryMap);
   }
 
   function getExpectedContentTypeValue(): string | null {
@@ -146,6 +135,7 @@
           disabled={!header.enabled}
           class="w-full"
           size="sm"
+          {variableEntries}
           right={contentTypeWarning}
           rightVisible={isContentTypeHeader(header) && shouldShowContentTypeWarning(header)}
           onChange={() => onChange?.()}
@@ -156,12 +146,17 @@
         size="xs"
         class="shrink-0"
         onclick={() => removeHeader(header.id)}
-        aria-label="Remove header">×</Button
+        aria-label="Remove header"
       >
+        <TrashBinOutline class="h-4 w-4" />
+      </Button>
     </div>
   {/each}
 
   <div class="pt-1">
-    <Button color="light" size="sm" onclick={addHeader}>+ Add Header</Button>
+    <Button color="light" size="sm" onclick={addHeader}>
+      <PlusOutline class="mr-1 h-4 w-4" />
+      <span>Add Header</span>
+    </Button>
   </div>
 </div>

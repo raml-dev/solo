@@ -8,6 +8,7 @@
   import CollectionRow from "$src/lib/components/Collections/CollectionRow.svelte";
   import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
+  import VariablesTableEditor from "$src/lib/components/common/VariablesTableEditor.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
   import GitStatusPanel from "$src/lib/components/GitStatusPanel.svelte";
   import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
@@ -98,6 +99,7 @@
   const deleteFolderModal = modalStack.createModal("collections-delete-folder");
   const deleteRequestModal = modalStack.createModal("collections-delete-request");
   const importCollectionModal = modalStack.createModal("collections-import");
+  const collectionVariablesModal = modalStack.createModal("collections-variables");
   const soloCollectionOverwriteModal = modalStack.createModal("collections-solo-overwrite");
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
@@ -111,6 +113,7 @@
   let deleteFolderTarget: string | null = $state(null);
   let deleteRequestTarget: string | null = null;
   let deleteRequestCollectionName: string | null = null;
+  let collectionVariablesTargetName: string | null = $state(null);
   let expandedCollections = new SvelteSet<string>();
   let expandedFolders = new SvelteSet<string>();
   let searchQuery = $state("");
@@ -134,6 +137,16 @@
 
   $effect(() => {
     soloCollectionOverwriteModal.open = !!collectionImportStoreState.soloCollectionOverwriteName;
+  });
+
+  $effect(() => {
+    if (
+      collectionVariablesModal.open &&
+      collectionVariablesTargetName &&
+      !collectionVariablesTarget
+    ) {
+      closeCollectionVariablesModal();
+    }
   });
 
   let sidebarWidth = $state(280); // Default width
@@ -539,6 +552,30 @@
     }
   }
 
+  function openCollectionVariables(collectionName: string) {
+    collectionVariablesTargetName = collectionName;
+    collectionVariablesModal.open = true;
+  }
+
+  function closeCollectionVariablesModal() {
+    collectionVariablesModal.open = false;
+    collectionVariablesTargetName = null;
+  }
+
+  async function handleUpdateCollectionVariables(
+    values: Record<string, { value: string; type: string }>
+  ) {
+    if (!collectionVariablesTargetName) {
+      return;
+    }
+
+    try {
+      await collectionStore.updateCollectionVariables(collectionVariablesTargetName, values);
+    } catch {
+      // error already shown by store
+    }
+  }
+
   async function handleSync(collectionId: string) {
     syncingCollections.add(collectionId);
     syncingCollections = new SvelteSet(syncingCollections);
@@ -659,6 +696,7 @@
     modalStack.destroyModal(deleteFolderModal.id);
     modalStack.destroyModal(deleteRequestModal.id);
     modalStack.destroyModal(importCollectionModal.id);
+    modalStack.destroyModal(collectionVariablesModal.id);
     modalStack.destroyModal(soloCollectionOverwriteModal.id);
     collectionTreeUI.closeCollectionContextMenu();
     collectionTreeUI.closeRequestContextMenu();
@@ -679,6 +717,13 @@
     collectionImportStoreState.pendingLocalImport?.format ===
       collectionImportStoreState.selectedLocalFormat
       ? collectionImportStoreState.pendingLocalImport
+      : null
+  );
+  let collectionVariablesTarget = $derived(
+    collectionVariablesTargetName
+      ? collections.find(
+          (currentCollection) => currentCollection.name === collectionVariablesTargetName
+        ) || null
       : null
   );
   let collectionContextMenuState = $derived(collectionTreeUIState.collectionContextMenu);
@@ -812,6 +857,18 @@
       }}
     >
       New folder
+    </DropdownItem>
+    <DropdownDivider />
+    <DropdownItem
+      class="text-gray-900 dark:text-white"
+      onclick={() => {
+        if (collectionContextTarget) {
+          openCollectionVariables(collectionContextTarget.name);
+        }
+        onClose();
+      }}
+    >
+      Variables
     </DropdownItem>
     <DropdownDivider />
     {#if collectionContextTarget?.gitRemote}
@@ -986,6 +1043,7 @@
             onOpenGitStatus={openGitStatusForCollection}
             onSync={(collectionId) => void handleSync(collectionId)}
             onExportCollection={(collectionName) => void handleExportCollection(collectionName)}
+            onOpenVariables={openCollectionVariables}
             onRenameCollection={openRenameCollection}
             onDeleteCollection={handleDeleteCollection}
             {onRequestSelect}
@@ -1273,6 +1331,24 @@
       />
     {/snippet}
   </ImportModal>
+{/if}
+
+{#if collectionVariablesModal.open && collectionVariablesTarget}
+  <Modal
+    bind:open={collectionVariablesModal.open}
+    onclose={closeCollectionVariablesModal}
+    title="Collection Variables"
+    size="xl"
+  >
+    {#if $topModalId === collectionVariablesModal.id}
+      <ToastContainer />
+    {/if}
+    <VariablesTableEditor
+      name={collectionVariablesTarget.name}
+      values={collectionVariablesTarget.variables}
+      onUpdate={handleUpdateCollectionVariables}
+    />
+  </Modal>
 {/if}
 
 {#if soloCollectionOverwriteModal.open}

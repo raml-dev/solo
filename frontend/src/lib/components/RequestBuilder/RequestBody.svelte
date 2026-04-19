@@ -6,28 +6,21 @@
 <script lang="ts">
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
-  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import type { ResolvedVariableEntry } from "$src/lib/utils/variableResolution";
 
   interface Props {
     requestBody: string;
     format: InputFormat;
+    variableEntries?: ResolvedVariableEntry[];
     onChange?: () => void;
   }
 
-  let { requestBody = $bindable(), format = $bindable(), onChange }: Props = $props();
-
-  let selectedEnvironment = $derived(
-    environmentStoreState.environments.find(
-      (e) => e.name === environmentStoreState.selectedEnvironmentName
-    ) || null
-  );
-
-  let environmentEntries = $derived(
-    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-      key,
-      value: String(val?.value ?? "")
-    }))
-  );
+  let {
+    requestBody = $bindable(),
+    format = $bindable(),
+    variableEntries = [],
+    onChange
+  }: Props = $props();
 </script>
 
 <div class="min-h-0 w-full flex-1 overflow-hidden">
@@ -35,7 +28,7 @@
     bind:value={requestBody}
     bind:format
     showCopyPaste
-    {environmentEntries}
+    {variableEntries}
     onChange={(value) => {
       requestBody = value;
       onChange?.();

@@ -33,6 +33,11 @@
     getHttpStatusString,
     getStatusBadgeColor
   } from "$src/lib/utils/http";
+  import {
+    resolveVariableEntries,
+    resolveVariableTokens,
+    type ResolvedVariableEntry
+  } from "$src/lib/utils/variableResolution";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
   import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
@@ -68,12 +73,17 @@
       (e) => e.name === environmentStoreState.selectedEnvironmentName
     ) || null
   );
-
-  let environmentEntries: { key: string; value: string }[] = $derived(
-    Object.entries(selectedEnvironment?.values ?? {}).map(([key, val]) => ({
-      key,
-      value: String(val?.value ?? "")
-    }))
+  let activeCollection = $derived(
+    collectionStoreState.collections.find(
+      (collection) => collection.name === getActiveTab()?.collectionName
+    ) || null
+  );
+  let resolvedVariableEntries = $derived(
+    resolveVariableEntries({
+      sessionValues: $sessionVarsStore,
+      environmentValues: selectedEnvironment?.values,
+      collectionValues: activeCollection?.variables
+    })
   );
 
   const globalConfig = $derived(configurationStoreState.config);
@@ -265,22 +275,33 @@
     return formatted.trim();
   }
 
-  // --- Environment token resolution ---
-  function resolveEnvironmentTokens(
-    value: string,
-    sessionVars: Record<string, string> = {}
-  ): string {
-    if (!value) return value;
-
-    const envMap = new Map(environmentEntries.map((e) => [e.key, e.value]));
-    const sessionMap = new Map(Object.entries(sessionVars || {}));
-
-    return value.replace(/\{\{([^{}\r\n]+?)\}\}/g, (_full, key: string) => {
-      const k = key.trim();
-      if (sessionMap.has(k)) return String(sessionMap.get(k) ?? "");
-      if (envMap.has(k)) return String(envMap.get(k) ?? "");
-      return _full;
+  function getResolvedVariableEntries(
+    sessionValues: Record<string, string> = $sessionVarsStore
+  ): ResolvedVariableEntry[] {
+    return resolveVariableEntries({
+      sessionValues,
+      environmentValues: selectedEnvironment?.values,
+      collectionValues: activeCollection?.variables
     });
+  }
+
+  function resolveRequestTokens(
+    value: string,
+    sessionValues: Record<string, string> = $sessionVarsStore
+  ): string {
+    return resolveVariableTokens(value, getResolvedVariableEntries(sessionValues));
+  }
+
+  function showUnresolvedVariableWarnings(values: string[]) {
+    const unresolved = values.flatMap((value) =>
+      [...value.matchAll(/\{\{([^{}\r\n]+?)\}\}/g)].map((match) => match[1].trim())
+    );
+
+    for (const key of [...new Set(unresolved)]) {
+      notifications.warning(
+        `Placeholder "{{${key}}}" not resolved — no value in Session, Environment, or Collection`
+      );
+    }
   }
 
   // --- Send request ---
@@ -341,11 +362,11 @@
 
     const sessionVars = await GetSessionVars().catch(() => ({}) as Record<string, string>);
 
-    const resolvedUrl = resolveEnvironmentTokens(tab.url, sessionVars);
+    const resolvedUrl = resolveRequestTokens(tab.url, sessionVars);
     const { body: resolvedBody, headers: resolvedHeaders } = buildResolvedRequestPayload({
       body: tab.body,
       headers: tab.headers,
-      resolveTokens: (value) => resolveEnvironmentTokens(value, sessionVars)
+      resolveTokens: (value) => resolveRequestTokens(value, sessionVars)
     });
 
     // Add cookies from the saved request as Cookie header if present
@@ -361,13 +382,7 @@
     }
 
     // Warn about unresolved placeholders
-    const allValues = [resolvedUrl, resolvedBody, ...Object.values(resolvedHeaders)].join("\n");
-    const unresolved = [...allValues.matchAll(/\{\{([^{}\r\n]+?)\}\}/g)].map((m) => m[1].trim());
-    for (const key of [...new Set(unresolved)]) {
-      notifications.warning(
-        `Placeholder "{{${key}}}" not resolved — no value in active environment`
-      );
-    }
+    showUnresolvedVariableWarnings([resolvedUrl, resolvedBody, ...Object.values(resolvedHeaders)]);
 
     try {
       const curl = await GenerateCurl({
@@ -500,6 +515,7 @@
           placeholder="Enter request URL"
           class="-ms-px min-w-0 flex-1 rounded-none"
           size="sm"
+          variableEntries={resolvedVariableEntries}
           onChange={onFieldChange}
           onEnter={sendRequest}
         />
@@ -584,6 +600,7 @@
           bind:headers={tab.headers}
           body={tab.body}
           bodyFormat={tab.bodyFormat}
+          variableEntries={resolvedVariableEntries}
           onChange={onFieldChange}
         />
       {:else if requestPaneTab === "Body"}
@@ -593,15 +610,23 @@
           <RequestBody
             bind:requestBody={tab.body}
             bind:format={tab.bodyFormat}
+            variableEntries={resolvedVariableEntries}
             onChange={onFieldChange}
           />
         {/if}
       {:else if requestPaneTab === "Auth"}
-        <RequestAuth bind:auth={tab.auth} onChange={onFieldChange} />
+        {#key tab.id}
+          <RequestAuth
+            bind:auth={tab.auth}
+            variableEntries={resolvedVariableEntries}
+            onChange={onFieldChange}
+          />
+        {/key}
       {:else if requestPaneTab === "Scripts"}
         <RequestScripts
           bind:preRequestScript={tab.preRequestScript}
           bind:postResponseScript={tab.postResponseScript}
+          variableEntries={resolvedVariableEntries}
           onPreChange={(val) => {
             tab.preRequestScript = val;
             onFieldChange();

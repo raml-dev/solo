@@ -84,6 +84,12 @@
   font-weight: 700;
 }
 
+.cm-env-token--collection {
+  background-color: var(--color-warning-500);
+  color: var(--color-neutral-950);
+  font-weight: var(--font-weight-bold);
+}
+
 .dark .cm-editor {
   background: var(--color-neutral-900);
   color: var(--color-neutral-100);
@@ -130,4 +136,10 @@
   background: var(--color-neutral-500);
   color: var(--color-neutral-100);
   font-weight: 700;
+}
+
+.dark .cm-env-token--collection {
+  background-color: var(--color-warning-500);
+  color: var(--color-neutral-950);
+  font-weight: var(--font-weight-bold);
 }

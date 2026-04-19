@@ -5,8 +5,11 @@
 
 <script lang="ts">
   import EnvAutocompletePopover from "$src/lib/components/RequestBuilder/EnvAutocompletePopover.svelte";
-  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
+  import {
+    createResolvedVariableEntryMap,
+    type ResolvedVariableEntry
+  } from "$src/lib/utils/variableResolution";
   import {
     clampActiveIndex,
     createEnvTokenDecorationPlugin,
@@ -69,7 +72,7 @@
     value: string;
     format?: "none" | "json" | "xml" | "text";
     language?: "json" | "xml" | "lua" | "text" | "none" | "";
-    environmentEntries?: { key: string; value: string }[];
+    variableEntries?: ResolvedVariableEntry[];
     readOnly?: boolean;
     size?: "sm" | "md" | "lg";
     onChange?: (value: string) => void;
@@ -80,7 +83,7 @@
     value = $bindable(""),
     format = $bindable("json"),
     language = "",
-    environmentEntries = [],
+    variableEntries = [],
     readOnly = false,
     size = "md",
     onChange,
@@ -101,7 +104,7 @@
 
   let autocompleteOpen = $state(false);
   let autocompleteActiveIndex = $state(0);
-  let autocompleteEntries: { key: string; value: string }[] = $state([]);
+  let autocompleteEntries: ResolvedVariableEntry[] = $state([]);
   let autocompleteLeft = $state(8);
   let autocompleteTop = $state(8);
   let autocompleteMaxWidth = $state(320);
@@ -111,10 +114,10 @@
   );
 
   let sizeClass = $derived(getTokenizedEditorSizeClass(size));
-  let knownEnvironmentKeys = $derived(new Set(environmentEntries.map((entry) => entry.key)));
-  let sessionKeys = $derived(new Set(Object.keys($sessionVarsStore ?? {})));
+  let variableEntryMap = $derived(createResolvedVariableEntryMap(variableEntries));
+  let knownVariableKeys = $derived(new Set(variableEntries.map((entry) => entry.key)));
   let knownKeysSignature = $derived(
-    `${environmentEntries.map((entry) => entry.key).join("\u0000")}|${Object.keys($sessionVarsStore ?? {}).join("\u0000")}`
+    variableEntries.map((entry) => `${entry.key}:${entry.winningSource}`).join("\u0000")
   );
 
   let searchToolbarOpen = $state(false);
@@ -327,13 +330,13 @@
     }
 
     const normalizedQuery = triggerContext.normalizedQuery;
-    autocompleteEntries = filterEnvTokenEntries(environmentEntries, normalizedQuery);
+    autocompleteEntries = filterEnvTokenEntries(variableEntries, normalizedQuery);
     autocompleteActiveIndex = clampActiveIndex(autocompleteActiveIndex, autocompleteEntries.length);
     autocompleteOpen = true;
     updateAutocompletePosition(triggerContext.to, autocompleteEntries.length);
   }
 
-  function applyAutocompleteEntry(entry: { key: string; value: string }) {
+  function applyAutocompleteEntry(entry: ResolvedVariableEntry) {
     if (!view) return;
 
     const triggerContext = findEnvTokenTriggerContext(
@@ -487,11 +490,13 @@
     return createEnvTokenDecorationPlugin({
       tokenClassName: "cm-env-token",
       resolveTokenStatus: (tokenKey) =>
-        sessionKeys.has(tokenKey)
+        variableEntryMap.get(tokenKey)?.winningSource === "session"
           ? "session"
-          : knownEnvironmentKeys.has(tokenKey)
-            ? "known"
-            : "unknown",
+          : variableEntryMap.get(tokenKey)?.winningSource === "collection"
+            ? "collection"
+            : knownVariableKeys.has(tokenKey)
+              ? "known"
+              : "unknown",
       onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
       onTokenMouseOut: () => hideTokenTooltipDelay()
     });
