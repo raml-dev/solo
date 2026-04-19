@@ -17,6 +17,10 @@
   import { hasOpenModals } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
+  import {
+    initWindowDimensions,
+    saveWindowState
+  } from "$src/lib/stores/windowDimensionsStore.svelte";
   import { initZoom } from "$src/lib/stores/zoomStore.svelte";
   import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
   import { ForceQuit } from "$wails/go/main/App";
@@ -26,7 +30,6 @@
   import Button from "flowbite-svelte/Button.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
   import { onMount } from "svelte";
-  import { initWindowDimensions, saveWindowState } from "./lib/stores/windowDimensionsStore.svelte";
 
   let consoleOpen = $state(false);
   let consoleHeight = $state(260);
