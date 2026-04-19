@@ -416,8 +416,8 @@
       const headersObj = tab.headers
         .filter((h) => h.enabled && h.key)
         .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
-      await collectionStore.addRequest(data.collection, {
-        name: data.name || "Untitled Request",
+      const newReq = await collectionStore.addRequest(data.collection, {
+        name: data.name,
         url: tab.url,
         verb: tab.verb,
         body: tab.body,
@@ -425,6 +425,7 @@
         auth: tab.auth,
         settings: tab.settings
       });
+      tabStore.bindTabToRequest(tab.id, newReq.id, data.collection, data.name)
       showSaveDialog.open = false;
     } catch {
       /* shown by store */
