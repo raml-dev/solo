@@ -40,6 +40,7 @@ func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
 		Id:                  generateUUID(),
 		Name:                pc.Info.Name,
 		Requests:            []models.Request{},
+		Variables:           map[string]models.ValueType{},
 		Folders:             []models.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,

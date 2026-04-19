@@ -25,15 +25,16 @@ import (
 
 // ExecutionOptions encapsulates all parameters required to execute a request
 type ExecutionOptions struct {
-	Method             string                                 `json:"method"`
-	URL                string                                 `json:"url"`
-	Body               string                                 `json:"body"`
-	Headers            map[string]any                         `json:"headers"`
-	Cookies            map[string]any                         `json:"cookies"`
-	Settings           *configuration.RequestSettingsOverride `json:"settings,omitempty"`
-	Auth               *collection.AuthConfiguration          `json:"auth,omitempty"`
-	PreRequestScript   string                                 `json:"preRequestScript,omitempty"`
-	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
+	Method              string                                 `json:"method"`
+	URL                 string                                 `json:"url"`
+	Body                string                                 `json:"body"`
+	Headers             map[string]any                         `json:"headers"`
+	Cookies             map[string]any                         `json:"cookies"`
+	CollectionVariables map[string]string                      `json:"collectionVariables,omitempty"`
+	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
+	Auth                *collection.AuthConfiguration          `json:"auth,omitempty"`
+	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
+	PostResponseScript  string                                 `json:"postResponseScript,omitempty"`
 }
 
 type Service struct {
@@ -46,10 +47,11 @@ type Service struct {
 }
 
 type executeResult struct {
-	response    *http.Response
-	request     *http.Request
-	requestBody string
-	envVars     map[string]string
+	response       *http.Response
+	request        *http.Request
+	requestBody    string
+	envVars        map[string]string
+	collectionVars map[string]string
 }
 
 func NewService(cm *configuration.ConfigurationManager, em *environment.EnvironmentManager, sm *script.ScriptManager, hm *host.HostManager, am *auth.AuthManager) *Service {
@@ -257,14 +259,19 @@ func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
 		"body_length", len(opts.Body))
 
 	envVars := s.loadSelectedEnvironmentValues()
+	collectionVars := opts.CollectionVariables
+	if collectionVars == nil {
+		collectionVars = map[string]string{}
+	}
 	sessionVars := map[string]string{}
 	if s.scriptManager != nil {
 		sessionVars = s.scriptManager.GetSessionVars()
 	}
 
 	resolutionCtx := resolutionContext{
-		sessionVars: sessionVars,
-		envVars:     envVars,
+		sessionVars:    sessionVars,
+		envVars:        envVars,
+		collectionVars: collectionVars,
 	}
 	resolvedOpts := opts.resolve(resolutionCtx)
 
@@ -278,14 +285,15 @@ func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
 
 	// Execute pre-request script (may mutate method, url, headers, body)
 	if s.scriptManager != nil && opts.PreRequestScript != "" {
-		sessionVars, err = s.scriptManager.ExecutePreRequestWithEnvironment(opts.PreRequestScript, request, envVars)
+		sessionVars, err = s.scriptManager.ExecutePreRequestWithScope(opts.PreRequestScript, request, envVars, collectionVars)
 		if err != nil {
 			slog.Warn("Pre-request script error", "error", err)
 			return nil, fmt.Errorf("pre-request script error: %w", err)
 		}
 		resolveRequestInPlace(request, resolutionContext{
-			sessionVars: sessionVars,
-			envVars:     envVars,
+			sessionVars:    sessionVars,
+			envVars:        envVars,
+			collectionVars: collectionVars,
 		})
 		slog.Debug("Pre-request script executed successfully")
 	}
@@ -300,8 +308,9 @@ func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
 	s.applyHostCookies(request)
 
 	finalAuthConfig := resolveAuthConfig(opts.Auth, resolutionContext{
-		sessionVars: sessionVars,
-		envVars:     envVars,
+		sessionVars:    sessionVars,
+		envVars:        envVars,
+		collectionVars: collectionVars,
 	})
 	if err := s.injectAuthorization(request, finalAuthConfig); err != nil {
 		return nil, err
@@ -312,14 +321,15 @@ func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
 
 	if err != nil {
 		slog.Error("Error occurred in HTTP request", "method", request.Method, "url", request.URL.String(), "error", err)
-		return &executeResult{request: request, requestBody: finalRequestBody, envVars: envVars}, err
+		return &executeResult{request: request, requestBody: finalRequestBody, envVars: envVars, collectionVars: collectionVars}, err
 	}
 
 	return &executeResult{
-		response:    response,
-		request:     request,
-		requestBody: finalRequestBody,
-		envVars:     envVars,
+		response:       response,
+		request:        request,
+		requestBody:    finalRequestBody,
+		envVars:        envVars,
+		collectionVars: collectionVars,
 	}, nil
 
 }
@@ -343,11 +353,13 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 	var req *http.Request
 	var finalRequestBody string
 	var envVars map[string]string
+	var collectionVars map[string]string
 	if execResult != nil {
 		resp = execResult.response
 		req = execResult.request
 		finalRequestBody = execResult.requestBody
 		envVars = execResult.envVars
+		collectionVars = execResult.collectionVars
 	}
 
 	var responseData *ResponseData
@@ -385,7 +397,7 @@ func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
 
 		// Execute post-response script (read-only on request/response, can write session vars)
 		if s.scriptManager != nil && opts.PostResponseScript != "" {
-			if err := s.scriptManager.ExecutePostResponseWithEnvironment(opts.PostResponseScript, req, resp, string(bodyBytes), duration, envVars); err != nil {
+			if err := s.scriptManager.ExecutePostResponseWithScope(opts.PostResponseScript, req, resp, string(bodyBytes), duration, envVars, collectionVars); err != nil {
 				slog.Warn("Post-response script error", "error", err)
 				// Non-fatal: log the error but return the response anyway
 			} else {

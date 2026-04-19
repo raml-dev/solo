@@ -46,6 +46,7 @@ func (b *BrunoImporter) Import(dirPath string) (*collection.Collection, error) {
 		Id:                  generateUUID(),
 		Name:                brunoConfig.Name,
 		Requests:            []collection.Request{},
+		Variables:           map[string]collection.ValueType{},
 		Folders:             []collection.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,

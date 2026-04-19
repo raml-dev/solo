@@ -83,6 +83,9 @@ func testOpenAPI3(t *testing.T, path string) {
 	if coll.Name != "OpenAPI Test Collection" {
 		t.Errorf("collection name: got %q, want %q", coll.Name, "OpenAPI Test Collection")
 	}
+	if got := coll.Variables["baseUrl"].Value; got != "https://api.example.com" {
+		t.Errorf("collection baseUrl variable: got %q, want %q", got, "https://api.example.com")
+	}
 	if len(coll.Requests) != 1 {
 		t.Fatalf("root request count: got %d, want 1", len(coll.Requests))
 	}
@@ -202,6 +205,9 @@ func testSwagger2(t *testing.T, path string) {
 	coll := result.Collection
 	if coll.Name != "Swagger Test Collection" {
 		t.Errorf("collection name: got %q, want %q", coll.Name, "Swagger Test Collection")
+	}
+	if got := coll.Variables["baseUrl"].Value; got != "https://api.example.com/v1" {
+		t.Errorf("collection baseUrl variable: got %q, want %q", got, "https://api.example.com/v1")
 	}
 	if len(coll.Requests) != 1 {
 		t.Fatalf("root request count: got %d, want 1", len(coll.Requests))
@@ -421,6 +427,9 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		if len(result.Servers) != 0 {
 			t.Errorf("servers: got %v, want none", result.Servers)
 		}
+		if _, ok := result.Collection.Variables["baseUrl"]; ok {
+			t.Errorf("collection baseUrl variable should be absent when no servers are declared")
+		}
 	})
 
 	t.Run("no_host_swagger2_uses_baseurl_placeholder", func(t *testing.T) {
@@ -438,6 +447,9 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		}
 		if result.BasePath != "/api" {
 			t.Errorf("basePath: got %q, want %q", result.BasePath, "/api")
+		}
+		if _, ok := result.Collection.Variables["baseUrl"]; ok {
+			t.Errorf("collection baseUrl variable should be absent when swagger host is missing")
 		}
 	})
 }

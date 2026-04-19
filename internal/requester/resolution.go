@@ -15,8 +15,9 @@ import (
 )
 
 type resolutionContext struct {
-	sessionVars map[string]string
-	envVars     map[string]string
+	sessionVars    map[string]string
+	envVars        map[string]string
+	collectionVars map[string]string
 }
 
 var placeholderPattern = regexp.MustCompile(tools.PLACEHOLDER_REGEXP)
@@ -35,14 +36,33 @@ func resolveTemplateString(input string, ctx resolutionContext) string {
 		}
 
 		key := strings.TrimSpace(groups[1])
-		if val, ok := ctx.sessionVars[key]; ok {
-			return val
-		}
-		if val, ok := ctx.envVars[key]; ok {
+		if val, ok := resolveScopedValue(key, ctx); ok {
 			return val
 		}
 		return match
 	})
+}
+
+func resolveScopedValue(key string, ctx resolutionContext) (string, bool) {
+	if val, ok := ctx.sessionVars[key]; ok {
+		return val, true
+	}
+
+	if val, ok := ctx.envVars[key]; ok {
+		if strings.TrimSpace(val) != "" {
+			return val, true
+		}
+		if collectionVal, ok := ctx.collectionVars[key]; ok {
+			return collectionVal, true
+		}
+		return val, true
+	}
+
+	if val, ok := ctx.collectionVars[key]; ok {
+		return val, true
+	}
+
+	return "", false
 }
 
 // resolveHeaders resolves placeholders in both header names and values.

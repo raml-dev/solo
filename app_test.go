@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"solo/internal/collection"
 	"solo/internal/configuration"
+	"solo/internal/environment"
 	"solo/internal/tools"
 	"testing"
 	"time"
@@ -130,6 +131,91 @@ func TestApp_ConfigurationIntegration(t *testing.T) {
 		t.Fatal("Expected override timeout error, got nil")
 	}
 	t.Logf("Got expected override error: %v", err)
+}
+
+func TestApp_Execute_CollectionVariablesFallbackAndEnvPrecedence(t *testing.T) {
+	tempHome, err := os.MkdirTemp("", "solo_app_collection_vars")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", originalHome)
+
+	app := NewApp()
+	app.startup(context.TODO())
+
+	if err := app.CreateCollection("Orders"); err != nil {
+		t.Fatalf("failed to create collection: %v", err)
+	}
+
+	coll, err := app.LoadCollection("Orders")
+	if err != nil {
+		t.Fatalf("failed to load collection: %v", err)
+	}
+
+	collectionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/orders" {
+			t.Errorf("collection fallback path = %q, want %q", got, "/orders")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collectionServer.Close()
+
+	envServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/orders" {
+			t.Errorf("env precedence path = %q, want %q", got, "/orders")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer envServer.Close()
+
+	coll.Variables = map[string]collection.ValueType{
+		"baseUrl": {Value: collectionServer.URL, Type: "text"},
+	}
+	if err := app.UpdateCollection(*coll); err != nil {
+		t.Fatalf("failed to update collection variables: %v", err)
+	}
+
+	env := environment.NewEnvironment("dev")
+	env.Values["baseUrl"] = environment.ValueType{Value: "", Type: "text"}
+	if err := app.UpdateEnvironment(env); err != nil {
+		t.Fatalf("failed to create environment: %v", err)
+	}
+	if err := app.SetSelectedEnvironment("dev"); err != nil {
+		t.Fatalf("failed to select environment: %v", err)
+	}
+
+	resp, err := app.Execute(RequestOptions{
+		Method:         "GET",
+		URL:            "{{baseUrl}}/orders",
+		CollectionName: "Orders",
+	})
+	if err != nil {
+		t.Fatalf("collection fallback execute failed: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("collection fallback status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	env.Values["baseUrl"] = environment.ValueType{Value: envServer.URL, Type: "text"}
+	if err := app.UpdateEnvironment(env); err != nil {
+		t.Fatalf("failed to update environment override: %v", err)
+	}
+
+	resp, err = app.Execute(RequestOptions{
+		Method:         "GET",
+		URL:            "{{baseUrl}}/orders",
+		CollectionName: "Orders",
+	})
+	if err != nil {
+		t.Fatalf("env precedence execute failed: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("env precedence status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
 }
 
 func TestApp_LoadGitBackedCollection_PostmanWithFolders(t *testing.T) {
@@ -274,10 +360,10 @@ func TestApp_LoadGitBackedCollection_SoloNativeWithoutID(t *testing.T) {
 	app := NewApp()
 
 	payload := map[string]any{
-		"name":               "Solo Without ID",
-		"requests":           []any{},
-		"folders":            []any{},
-		"creationTimestamp":  time.Now(),
+		"name":                "Solo Without ID",
+		"requests":            []any{},
+		"folders":             []any{},
+		"creationTimestamp":   time.Now(),
 		"lastUpdateTimestamp": time.Now(),
 	}
 

@@ -70,12 +70,19 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 		Id:                  generateUUID(),
 		Name:                doc.Info.Title,
 		Requests:            []collection.Request{},
+		Variables:           map[string]collection.ValueType{},
 		Folders:             []collection.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,
 	}
 	if coll.Name == "" {
 		coll.Name = "Imported API"
+	}
+	if defaultBaseURL := resolveOpenAPIDefaultBaseURL(doc, version); defaultBaseURL != "" {
+		coll.Variables["baseUrl"] = collection.ValueType{
+			Value: defaultBaseURL,
+			Type:  "text",
+		}
 	}
 
 	// Iterate paths in a deterministic method order
@@ -332,4 +339,34 @@ func collectServerURLs(servers []openAPIServer) []string {
 		return nil
 	}
 	return urls
+}
+
+func resolveOpenAPIDefaultBaseURL(doc unifiedAPIDocument, version string) string {
+	if version == "3.x" {
+		servers := collectServerURLs(doc.Servers)
+		if len(servers) == 0 {
+			return ""
+		}
+		return servers[0]
+	}
+
+	host := strings.TrimSpace(doc.Host)
+	if host == "" {
+		return ""
+	}
+
+	scheme := "https"
+	if len(doc.Schemes) > 0 && strings.TrimSpace(doc.Schemes[0]) != "" {
+		scheme = strings.TrimSpace(doc.Schemes[0])
+	}
+
+	baseURL := strings.TrimRight(fmt.Sprintf("%s://%s", scheme, strings.TrimRight(host, "/")), "/")
+	basePath := strings.TrimSpace(doc.BasePath)
+	if basePath == "" || basePath == "/" {
+		return baseURL
+	}
+	if !strings.HasPrefix(basePath, "/") {
+		basePath = "/" + basePath
+	}
+	return strings.TrimRight(baseURL+strings.TrimRight(basePath, "/"), "/")
 }

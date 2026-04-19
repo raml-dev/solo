@@ -142,6 +142,29 @@ func TestScriptManager_EnvironmentFallback(t *testing.T) {
 	}
 }
 
+func TestScriptManager_CollectionFallback(t *testing.T) {
+	sm := NewScriptManager(nil)
+	req, _ := http.NewRequest("GET", "http://dummy", nil)
+
+	_, err := sm.ExecutePreRequestWithScope(`
+		if env.baseUrl ~= "http://collection.local" then
+			error("collection fallback mismatch: " .. tostring(env.baseUrl))
+		end
+	`, req, map[string]string{"baseUrl": ""}, map[string]string{"baseUrl": "http://collection.local"})
+	if err != nil {
+		t.Fatalf("collection fallback script failed: %v", err)
+	}
+
+	_, err = sm.ExecutePreRequestWithScope(`
+		if env.baseUrl ~= "http://env.local" then
+			error("valued env should win: " .. tostring(env.baseUrl))
+		end
+	`, req, map[string]string{"baseUrl": "http://env.local"}, map[string]string{"baseUrl": "http://collection.local"})
+	if err != nil {
+		t.Fatalf("env precedence script failed: %v", err)
+	}
+}
+
 func TestScriptManager_Concurrency(t *testing.T) {
 	sm := NewScriptManager(nil)
 	var wg sync.WaitGroup

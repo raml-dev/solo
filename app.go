@@ -73,6 +73,7 @@ type RequestOptions struct {
 	URL                string                                 `json:"url"`
 	Headers            map[string]any                         `json:"headers"`
 	Body               string                                 `json:"body"`
+	CollectionName     string                                 `json:"collectionName,omitempty"`
 	Auth               *collection.AuthConfiguration          `json:"auth,omitempty"`
 	Settings           *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript   string                                 `json:"preRequestScript,omitempty"`
@@ -149,15 +150,16 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 	}
 
 	execOpts := requester.ExecutionOptions{
-		Method:             options.Method,
-		URL:                options.URL,
-		Body:               options.Body,
-		Headers:            options.Headers,
-		Cookies:            nil,
-		Auth:               options.Auth,
-		Settings:           options.Settings,
-		PreRequestScript:   options.PreRequestScript,
-		PostResponseScript: options.PostResponseScript,
+		Method:              options.Method,
+		URL:                 options.URL,
+		Body:                options.Body,
+		Headers:             options.Headers,
+		Cookies:             nil,
+		CollectionVariables: a.loadCollectionVariableValues(options.CollectionName),
+		Auth:                options.Auth,
+		Settings:            options.Settings,
+		PreRequestScript:    options.PreRequestScript,
+		PostResponseScript:  options.PostResponseScript,
 	}
 
 	opts := runner.RunnerOptions{
@@ -277,15 +279,16 @@ func (a *App) ForceQuit() {
 // Execute performs the HTTP request with the given options.
 func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 	execOpts := requester.ExecutionOptions{
-		Method:             options.Method,
-		URL:                options.URL,
-		Body:               options.Body,
-		Headers:            options.Headers,
-		Cookies:            nil,
-		Auth:               options.Auth,
-		Settings:           options.Settings,
-		PreRequestScript:   options.PreRequestScript,
-		PostResponseScript: options.PostResponseScript,
+		Method:              options.Method,
+		URL:                 options.URL,
+		Body:                options.Body,
+		Headers:             options.Headers,
+		Cookies:             nil,
+		CollectionVariables: a.loadCollectionVariableValues(options.CollectionName),
+		Auth:                options.Auth,
+		Settings:            options.Settings,
+		PreRequestScript:    options.PreRequestScript,
+		PostResponseScript:  options.PostResponseScript,
 	}
 	return a.service.ExecuteRequest(execOpts)
 }
@@ -873,15 +876,53 @@ func (a *App) ResolveRequestPlaceholders(reqId string, collName string, envId st
 		return nil, err
 	}
 
+	coll, err := a.collectionManager.LoadCollection(collName)
+
+	if err != nil {
+		return nil, err
+	}
+
 	env, err := a.environmentManager.LoadEnvironment(envId)
 
 	if err != nil {
 		return nil, err
 	}
 
-	resolvedMap := env.GetSelectedValues(req.GetPlaceholders())
+	resolvedMap := make(map[string]environment.ValueType)
+	for _, key := range req.GetPlaceholders() {
+		envValue, hasEnv := env.Values[key]
+		collectionValue, hasCollection := coll.Variables[key]
 
-	return resolvedMap, nil
+		switch {
+		case hasEnv && strings.TrimSpace(envValue.Value) != "":
+			resolvedMap[key] = envValue
+		case hasCollection:
+			resolvedMap[key] = environment.ValueType{
+				Value: collectionValue.Value,
+				Type:  collectionValue.Type,
+			}
+		case hasEnv:
+			resolvedMap[key] = envValue
+		}
+	}
+
+	return &resolvedMap, nil
+}
+
+func (a *App) loadCollectionVariableValues(collectionName string) map[string]string {
+	if a.collectionManager == nil || strings.TrimSpace(collectionName) == "" {
+		return map[string]string{}
+	}
+
+	coll, err := a.collectionManager.LoadCollection(collectionName)
+	if err != nil {
+		slog.Warn("Failed to load collection variables for request execution",
+			"collection", collectionName,
+			"error", err)
+		return map[string]string{}
+	}
+
+	return coll.VariableStringValues()
 }
 
 // SetDebugMode changes the application's log level at runtime.

@@ -46,8 +46,8 @@ func (api *EnvAPI) Get(L *lua.LState) int {
 		return 1
 	}
 
-	// 2. Check currentEnv
-	if val, ok := api.sm.currentEnv[key]; ok {
+	// 2. Check currentEnv/currentCollection fallback chain
+	if val, ok := api.sm.resolveScopedValueLocked(key); ok {
 		L.Push(lua.LString(val))
 		return 1
 	}
@@ -93,7 +93,7 @@ func (api *EnvAPI) Index(L *lua.LState) int {
 		L.Push(lua.LString(val))
 		return 1
 	}
-	if val, ok := api.sm.currentEnv[key]; ok {
+	if val, ok := api.sm.resolveScopedValueLocked(key); ok {
 		L.Push(lua.LString(val))
 		return 1
 	}
