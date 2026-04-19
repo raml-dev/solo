@@ -28,7 +28,9 @@
 
 <div class="space-y-4">
   {#if env}
-    <VariablesTableEditor name={env.name} values={env.values} onUpdate={handleUpdate} />
+    {#key env.id}
+      <VariablesTableEditor name={env.name} values={env.values} onUpdate={handleUpdate} />
+    {/key}
   {:else}
     <div
       class="rounded-lg border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400"

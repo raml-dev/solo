@@ -1343,11 +1343,13 @@
     {#if $topModalId === collectionVariablesModal.id}
       <ToastContainer />
     {/if}
-    <VariablesTableEditor
-      name={collectionVariablesTarget.name}
-      values={collectionVariablesTarget.variables}
-      onUpdate={handleUpdateCollectionVariables}
-    />
+    {#key collectionVariablesTarget.id}
+      <VariablesTableEditor
+        name={collectionVariablesTarget.name}
+        values={collectionVariablesTarget.variables}
+        onUpdate={handleUpdateCollectionVariables}
+      />
+    {/key}
   </Modal>
 {/if}
 

@@ -4,16 +4,17 @@
 -->
 
 <script lang="ts">
-  import Button from "flowbite-svelte/Button.svelte";
-  import Input from "flowbite-svelte/Input.svelte";
-  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
-  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
   import { debounce } from "$src/lib/utils/debounce";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import type {
     NormalizedVariableValue,
     VariableValueLike
   } from "$src/lib/utils/variableResolution";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
+  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import { tick } from "svelte";
 
   interface Props {
     name: string;
@@ -31,37 +32,28 @@
 
   let { name, values = {}, onUpdate }: Props = $props();
 
-  let variables: VariableRow[] = $state([]);
-  let lastLoadedSignature: string | null = $state(null);
-
-  function computeValuesSignature(currentValues: Record<string, VariableValueLike> = {}) {
-    const entries = Object.entries(currentValues)
-      .map(([key, value]) => [key, String(value?.value ?? ""), String(value?.type ?? "default")])
-      .sort((left, right) => left[0].localeCompare(right[0]));
-
-    return JSON.stringify(entries);
-  }
-
-  $effect(() => {
-    const signature = `${name}::${computeValuesSignature(values ?? {})}`;
-    if (signature === lastLoadedSignature) {
-      return;
-    }
-
+  function createVariableRows(currentValues: Record<string, VariableValueLike> = {}) {
     const normalizedValues = Object.fromEntries(
-      Object.entries(values ?? {}).map(([key, value]) => [key, String(value?.value ?? "")])
+      Object.entries(currentValues).map(([key, value]) => [key, String(value?.value ?? "")])
     );
     const valueTypes = Object.fromEntries(
-      Object.entries(values ?? {}).map(([key, value]) => [key, String(value?.type ?? "default")])
+      Object.entries(currentValues).map(([key, value]) => [key, String(value?.type ?? "default")])
     );
 
-    variables = mapRecordToRowsWithStableIds(normalizedValues, variables).map((row) => ({
+    return mapRecordToRowsWithStableIds(normalizedValues, []).map((row) => ({
       ...row,
       type: valueTypes[row.key] ?? "default",
       enabled: true
     }));
-    lastLoadedSignature = signature;
-  });
+  }
+
+  function initializeVariables() {
+    return createVariableRows(values ?? {});
+  }
+
+  let variables: VariableRow[] = $state([]);
+  variables = initializeVariables();
+  let keyInputRefs: Record<string, HTMLInputElement | undefined> = $state({});
 
   const debouncedUpdate = debounce(() => {
     const updatedValues = variables.reduce(
@@ -83,15 +75,22 @@
     onUpdate?.(updatedValues);
   }, 500);
 
-  function addVariable() {
-    variables = [
-      ...variables,
-      { id: createStableId(), key: "", value: "", type: "default", enabled: true }
-    ];
+  async function addVariable() {
+    const newVariable = {
+      id: createStableId(),
+      key: "",
+      value: "",
+      type: "default",
+      enabled: true
+    };
+    variables = [...variables, newVariable];
+    await tick();
+    keyInputRefs[newVariable.id]?.focus();
   }
 
   function removeVariable(id: string) {
     variables = variables.filter((variable) => variable.id !== id);
+    delete keyInputRefs[id];
     debouncedUpdate();
   }
 </script>
@@ -113,6 +112,7 @@
     {#each variables as variable (variable.id)}
       <div class="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
         <Input
+          bind:elementRef={keyInputRefs[variable.id]}
           type="text"
           size="sm"
           placeholder="Key"
