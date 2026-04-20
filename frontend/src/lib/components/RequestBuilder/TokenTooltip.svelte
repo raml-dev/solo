@@ -286,7 +286,7 @@
           {/if}
         </div>
 
-        {#if resolvedEntry}
+        {#if resolvedEntry && resolvedEntry.hasConflicts}
           <p class="flex flex-col gap-1 text-xs text-neutral-500 dark:text-neutral-400">
             <span class="flex flex-row items-center gap-1">
               <ExclamationCircleSolid class="h-4 w-4 shrink-0 fill-warning-500" /><span
@@ -298,7 +298,7 @@
               > Collection.</span
             >
           </p>
-        {:else}
+        {:else if !resolvedEntry}
           <p class="text-xs text-neutral-500 dark:text-neutral-400">
             This variable is not defined in Session, Environment, or Collection.
           </p>
