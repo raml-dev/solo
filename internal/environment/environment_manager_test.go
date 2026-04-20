@@ -786,3 +786,115 @@ func TestDeleteEnvironment_DefaultProtectionAndFallback(t *testing.T) {
 		t.Errorf("Selection changed unexpectedly. Expected %s, got %s", env1, cm.GetSelectedEnvironment())
 	}
 }
+
+func TestRenameEnvironment(t *testing.T) {
+	tests := []struct {
+		name          string
+		oldName       string
+		newName       string
+		setupExisting bool
+		isSelected    bool
+		expectError   bool
+	}{
+		{
+			name:          "Rename existing environment",
+			oldName:       "old-name",
+			newName:       "new-name",
+			setupExisting: true,
+			expectError:   false,
+		},
+		{
+			name:          "Rename non-existent environment",
+			oldName:       "non-existent",
+			newName:       "some-name",
+			setupExisting: false,
+			expectError:   true,
+		},
+		{
+			name:          "Rename with empty new name",
+			oldName:       "old-name",
+			newName:       "",
+			setupExisting: true,
+			expectError:   true,
+		},
+		{
+			name:          "Rename default environment (protected)",
+			oldName:       DEFAULT_ENVIRONMENT_NAME,
+			newName:       "new-default",
+			setupExisting: true,
+			expectError:   true,
+		},
+		{
+			name:          "Rename to existing name (conflict)",
+			oldName:       "env1",
+			newName:       "env2",
+			setupExisting: true,
+			expectError:   true,
+		},
+		{
+			name:          "Rename selected environment updates selection",
+			oldName:       "selected-env",
+			newName:       "renamed-env",
+			setupExisting: true,
+			isSelected:    true,
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			em, cleanup := setupTestManager(t)
+			defer cleanup()
+
+			if tt.setupExisting {
+				if tt.oldName != DEFAULT_ENVIRONMENT_NAME {
+					if err := em.CreateEnvironment(tt.oldName); err != nil {
+						t.Fatalf("Setup failed: %v", err)
+					}
+				}
+				if tt.name == "Rename to existing name (conflict)" {
+					if err := em.CreateEnvironment(tt.newName); err != nil {
+						t.Fatalf("Setup failed: %v", err)
+					}
+				}
+			}
+
+			if tt.isSelected {
+				em.cm.SetSelectedEnvironment(tt.oldName)
+			}
+
+			err := em.RenameEnvironment(tt.oldName, tt.newName)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+
+				// Verify new file exists
+				if _, statErr := os.Stat(em.buildEnvironmentFileName(tt.newName)); os.IsNotExist(statErr) {
+					t.Errorf("New environment file should exist")
+				}
+
+				// Verify old file is gone
+				if _, statErr := os.Stat(em.buildEnvironmentFileName(tt.oldName)); !os.IsNotExist(statErr) {
+					t.Errorf("Old environment file should not exist")
+				}
+
+				// Verify internal name was updated
+				loaded, _ := em.LoadEnvironment(tt.newName)
+				if loaded.Name != tt.newName {
+					t.Errorf("Expected internal name %s, got %s", tt.newName, loaded.Name)
+				}
+
+				// Verify selection update
+				if tt.isSelected && em.cm.GetSelectedEnvironment() != tt.newName {
+					t.Errorf("Expected selected environment to be %s, got %s", tt.newName, em.cm.GetSelectedEnvironment())
+				}
+			}
+		})
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"solo/internal/configuration"
 	fs "solo/internal/tools"
 	"strings"
+	"time"
 )
 
 const DEFAULT_ENVIRONMENT_NAME = "default"
@@ -312,6 +313,57 @@ func (em *EnvironmentManager) UpdateValue(environmentName, valueName string, upd
 	}
 
 	slog.Debug("Value updated", "environment", environmentName, "key", valueName)
+	return nil
+}
+
+func (em *EnvironmentManager) RenameEnvironment(oldName string, newName string) error {
+	if oldName == "" || newName == "" {
+		return errors.New("environment name cannot be empty")
+	}
+
+	if oldName == DEFAULT_ENVIRONMENT_NAME {
+		return errors.New("default environment cannot be renamed")
+	}
+
+	if oldName == newName {
+		return nil
+	}
+
+	// 1. Check if the new name is already occupied
+	exists, err := em.environmentExists(newName)
+	if err == nil && exists {
+		return fmt.Errorf("environment %s already exists", newName)
+	}
+
+	// 2. Physically rename the file on the filesystem
+	oldPath := filepath.Join(em.path, oldName+".json")
+	newPath := filepath.Join(em.path, newName+".json")
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("failed to rename environment file: %w", err)
+	}
+
+	// 3. Load the environment from the new path, update internal name and save
+	env, err := em.LoadEnvironment(newName)
+	if err != nil {
+		return err
+	}
+
+	env.Name = newName
+	env.LastUpdateTimestamp = time.Now()
+
+	// UpdateEnvironment will write to the new file (newName.json) updating the JSON content
+	if err := em.UpdateEnvironment(env); err != nil {
+		return err
+	}
+
+	slog.Info("Environment renamed successfully", "old", oldName, "new", newName)
+
+	// 4. Update selection if needed
+	if em.cm.GetSelectedEnvironment() == oldName {
+		em.cm.SetSelectedEnvironment(newName)
+	}
+
 	return nil
 }
 

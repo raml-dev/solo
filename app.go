@@ -845,6 +845,14 @@ func (a *App) DeleteEnvironment(name string) error {
 	return a.environmentManager.DeleteEnvironment(name)
 }
 
+// RenameEnvironment changes the name of an environment.
+func (a *App) RenameEnvironment(oldName, newName string) error {
+	if a.environmentManager == nil {
+		return fmt.Errorf("environment manager not initialized")
+	}
+	return a.environmentManager.RenameEnvironment(oldName, newName)
+}
+
 // Environment Value Management Methods
 
 // GetValues returns all key-value pairs for a specific environment.

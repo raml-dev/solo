@@ -10,6 +10,7 @@ import {
   GetSelectedEnvironment,
   LoadEnvironment,
   LoadEnvironments,
+  RenameEnvironment,
   SetSelectedEnvironment,
   UpdateEnvironment
 } from "$wails/go/main/App";
@@ -147,43 +148,20 @@ export const environmentStore = {
       throw new Error("Environment name cannot be empty");
     }
 
-    if (
-      currentName.toLowerCase() !== trimmedName.toLowerCase() &&
-      hasEnvironmentName(trimmedName)
-    ) {
-      throw new Error(`Environment "${trimmedName}" already exists`);
+    if (currentName === trimmedName) {
+      return;
     }
-
-    const sourceEnvironment = environmentStoreState.environments.find(
-      (environment) => environment.name === currentName
-    );
-    if (!sourceEnvironment) {
-      throw new Error(`Environment "${currentName}" not found`);
-    }
-
-    const renamedEnvironment = new environment.Environment({
-      ...sourceEnvironment,
-      name: trimmedName
-    });
-    const wasSelected = environmentStoreState.selectedEnvironmentName === currentName;
 
     environmentStoreState.loading = true;
     try {
-      await UpdateEnvironment(renamedEnvironment);
-      if (wasSelected) {
-        this.selectEnvironment(trimmedName);
-      }
-      await DeleteEnvironment(currentName);
+      await RenameEnvironment(currentName, trimmedName);
       await this.loadEnvironments();
-      if (wasSelected) {
-        this.selectEnvironment(trimmedName);
-      }
-      return renamedEnvironment;
+      return environmentStoreState.environments.find((e) => e.name === trimmedName);
     } catch (err) {
       notifications.error("Failed to rename environment", String(err));
-      environmentStoreState.loading = false;
       throw err;
     } finally {
+      environmentStoreState.loading = false;
       environmentStoreState.renameEnvironmentName = null;
     }
   },
