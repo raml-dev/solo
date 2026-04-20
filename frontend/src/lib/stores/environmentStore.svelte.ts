@@ -23,17 +23,49 @@ interface EnvironmentState {
   environments: Environment[];
   selectedEnvironmentName: string | null;
   loading: boolean;
+  renameEnvironmentName: string | null;
 }
 
 const initialState: EnvironmentState = {
   environments: [],
   selectedEnvironmentName: null,
-  loading: false
+  loading: false,
+  renameEnvironmentName: null
 };
 
 export const DEFAULT_ENV_NAME = "default";
 
 export const environmentStoreState = $state<EnvironmentState>({ ...initialState });
+
+function hasEnvironmentName(name: string): boolean {
+  return environmentStoreState.environments.some(
+    (environment) => environment.name.toLowerCase() === name.toLowerCase()
+  );
+}
+
+function getDuplicateEnvironmentName(sourceName: string): string {
+  let copyIndex = 1;
+  let candidateName = `${sourceName} (copy)`;
+
+  while (hasEnvironmentName(candidateName)) {
+    copyIndex += 1;
+    candidateName = `${sourceName} (copy ${copyIndex})`;
+  }
+
+  return candidateName;
+}
+
+function cloneEnvironmentValues(values: Record<string, environment.ValueType> | undefined) {
+  return Object.fromEntries(
+    Object.entries(values || {}).map(([key, value]) => [
+      key,
+      new environment.ValueType({
+        value: value?.value || "",
+        type: value?.type || "text"
+      })
+    ])
+  );
+}
 
 export const environmentStore = {
   async loadEnvironments() {
@@ -101,6 +133,61 @@ export const environmentStore = {
     }
   },
 
+  startRenameEnvironment(name: string) {
+    environmentStoreState.renameEnvironmentName = name;
+  },
+
+  consumeRenameEnvironment() {
+    environmentStoreState.renameEnvironmentName = null;
+  },
+
+  async renameEnvironment(currentName: string, nextName: string) {
+    const trimmedName = nextName.trim();
+    if (!trimmedName) {
+      throw new Error("Environment name cannot be empty");
+    }
+
+    if (
+      currentName.toLowerCase() !== trimmedName.toLowerCase() &&
+      hasEnvironmentName(trimmedName)
+    ) {
+      throw new Error(`Environment "${trimmedName}" already exists`);
+    }
+
+    const sourceEnvironment = environmentStoreState.environments.find(
+      (environment) => environment.name === currentName
+    );
+    if (!sourceEnvironment) {
+      throw new Error(`Environment "${currentName}" not found`);
+    }
+
+    const renamedEnvironment = new environment.Environment({
+      ...sourceEnvironment,
+      name: trimmedName
+    });
+    const wasSelected = environmentStoreState.selectedEnvironmentName === currentName;
+
+    environmentStoreState.loading = true;
+    try {
+      await UpdateEnvironment(renamedEnvironment);
+      if (wasSelected) {
+        this.selectEnvironment(trimmedName);
+      }
+      await DeleteEnvironment(currentName);
+      await this.loadEnvironments();
+      if (wasSelected) {
+        this.selectEnvironment(trimmedName);
+      }
+      return renamedEnvironment;
+    } catch (err) {
+      notifications.error("Failed to rename environment", String(err));
+      environmentStoreState.loading = false;
+      throw err;
+    } finally {
+      environmentStoreState.renameEnvironmentName = null;
+    }
+  },
+
   async updateEnvironment(env: Environment) {
     try {
       const envInstance = new environment.Environment(env);
@@ -110,6 +197,42 @@ export const environmentStore = {
       );
     } catch (err) {
       notifications.error("Failed to save environment", String(err));
+      throw err;
+    }
+  },
+
+  async duplicateEnvironment(name: string) {
+    const sourceEnvironment = environmentStoreState.environments.find(
+      (environment) => environment.name === name
+    );
+    if (!sourceEnvironment) {
+      throw new Error(`Environment "${name}" not found`);
+    }
+
+    const duplicateName = getDuplicateEnvironmentName(sourceEnvironment.name);
+
+    try {
+      await this.createEnvironment(duplicateName);
+
+      const createdEnvironment = environmentStoreState.environments.find(
+        (environment) => environment.name === duplicateName
+      );
+      if (!createdEnvironment) {
+        throw new Error(`Failed to create duplicate environment "${duplicateName}"`);
+      }
+
+      await this.updateEnvironment(
+        new environment.Environment({
+          ...createdEnvironment,
+          values: cloneEnvironmentValues(sourceEnvironment.values)
+        })
+      );
+
+      await this.loadEnvironments();
+      this.selectEnvironment(duplicateName);
+      return duplicateName;
+    } catch (err) {
+      notifications.error("Failed to duplicate environment", String(err));
       throw err;
     }
   },

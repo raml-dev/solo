@@ -5,6 +5,9 @@
 
 <script lang="ts">
   import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import {
     collectionTreeUI,
     collectionTreeUIState
@@ -18,9 +21,6 @@
   import FolderOpenOutline from "flowbite-svelte-icons/FolderOpenOutline.svelte";
   import FolderOutline from "flowbite-svelte-icons/FolderOutline.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -292,45 +292,42 @@
 </script>
 
 {#snippet actionsDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
-  <Dropdown {triggeredBy} {isOpen} class="z-50 w-44" triggerDelay={0} onclose={onClose}>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-44" {onClose}>
+    <ContextMenuItem
       onclick={() => {
         onAddRequestToFolder(collectionName, folder.id);
         onClose();
       }}
     >
       New request
-    </DropdownItem>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuItem
       onclick={() => {
         onCreateFolder(collectionName, folder.id);
         onClose();
       }}
     >
       New subfolder
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={(event) => {
         void startRename(event);
         onClose();
       }}
     >
       Rename
-    </DropdownItem>
-    <DropdownItem
-      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+    </ContextMenuItem>
+    <ContextMenuItem
+      className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
       onclick={() => {
         onDeleteFolder(collectionName, folder);
         onClose();
       }}
     >
       Delete
-    </DropdownItem>
-  </Dropdown>
+    </ContextMenuItem>
+  </ContextMenu>
 {/snippet}
 
 <div class="relative space-y-1">

@@ -8,6 +8,8 @@
   import MainConfiguration from "$src/lib/components/MainConfiguration.svelte";
   import UpdateBanner from "$src/lib/components/UpdateBanner.svelte";
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import SoloSvg from "$src/lib/components/common/SoloSvg.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
@@ -15,8 +17,6 @@
   import EditOutline from "flowbite-svelte-icons/EditOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import { onDestroy } from "svelte";
 
@@ -52,16 +52,9 @@
 </script>
 
 {#snippet envDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
-  <Dropdown
-    {triggeredBy}
-    {isOpen}
-    class="z-50 w-max max-w-72 min-w-40"
-    triggerDelay={0}
-    onclose={onClose}
-  >
+  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-max max-w-72 min-w-40" {onClose}>
     {#each environments as environment (environment.id)}
-      <DropdownItem
-        class="text-gray-900 dark:text-white"
+      <ContextMenuItem
         onclick={() => {
           void environmentStore.selectEnvironment(environment.name);
           onClose();
@@ -89,17 +82,16 @@
             />
           </div>
         </div>
-      </DropdownItem>
+      </ContextMenuItem>
     {/each}
-    <!-- <DropdownItem
-      class="text-gray-900 dark:text-white"
+    <!-- <ContextMenuItem
       onclick={() => {
         onClose();
       }}
     >
       <div class="flex items-center gap-2">add env</div>
-    </DropdownItem> -->
-  </Dropdown>
+    </ContextMenuItem> -->
+  </ContextMenu>
 {/snippet}
 
 <div class="flex h-screen flex-col overflow-hidden">

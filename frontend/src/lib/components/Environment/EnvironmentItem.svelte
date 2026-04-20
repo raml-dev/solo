@@ -4,41 +4,42 @@
 -->
 
 <script lang="ts">
-  import { DEFAULT_ENV_NAME } from "$src/lib/stores/environmentStore.svelte";
+  import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import type { environment } from "$wails/go/models";
-  import Button from "flowbite-svelte/Button.svelte";
+  import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
+  import Input from "flowbite-svelte/Input.svelte";
+  import { tick } from "svelte";
+
+  const OUTLINE_BUTTON_CLASSES =
+    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   interface Props {
     env: environment.Environment;
-    menuOpen: boolean;
     isActive?: boolean;
     isFocused?: boolean;
-    isSyncing?: boolean;
-    onDelete?: (name: string) => void;
-    onExport?: (name: string) => void;
+    isMenuOpen?: boolean;
     onOpen?: (name: string) => void;
     onActivate?: (name: string) => void;
-    onToggleMenu?: (name: string) => void;
-    onSync?: (id: string) => void;
-    onGitStatus?: (id: string) => void;
+    onOpenMenu?: (name: string, event: MouseEvent) => void;
   }
 
   let {
     env,
-    menuOpen,
     isActive = false,
     isFocused = false,
-    isSyncing = false,
-    onDelete,
-    onExport,
+    isMenuOpen = false,
     onOpen,
     onActivate,
-    onToggleMenu,
-    onSync,
-    onGitStatus
+    onOpenMenu
   }: Props = $props();
 
+  let editingNameInputEl: HTMLInputElement | undefined = $state();
+  let isEditing = $state(false);
+  let editingName = $state("");
+  let renameEnvironmentName = $derived(environmentStoreState.renameEnvironmentName);
+
   function openEnvironment() {
+    onActivate?.(env.name);
     onOpen?.(env.name);
   }
 
@@ -46,30 +47,40 @@
     onActivate?.(env.name);
   }
 
-  function toggleMenu(e: Event) {
-    e.stopPropagation();
-    onToggleMenu?.(env.name);
+  function openMenu(event: MouseEvent) {
+    onOpenMenu?.(env.name, event);
   }
 
-  function handleDeleteEnvironment(e: Event) {
-    e.stopPropagation();
-    onDelete?.(env.name);
+  async function beginRename() {
+    isEditing = true;
+    editingName = env.name || "";
+
+    await tick();
+    editingNameInputEl?.focus();
+    editingNameInputEl?.select();
   }
 
-  function handleExportEnvironment(e: Event) {
-    e.stopPropagation();
-    onExport?.(env.name);
-    onToggleMenu?.(env.name);
+  function cancelRename() {
+    isEditing = false;
+    editingName = "";
   }
 
-  function handleSync(e: Event) {
-    e.stopPropagation();
-    onSync?.(env.id);
-  }
+  async function commitRename() {
+    if (!isEditing) return;
 
-  function handleGitStatus(e: Event) {
-    e.stopPropagation();
-    onGitStatus?.(env.id);
+    const nextName = editingName.trim();
+    if (!nextName || nextName === env.name) {
+      cancelRename();
+      return;
+    }
+
+    try {
+      await environmentStore.renameEnvironment(env.name, nextName);
+    } catch {
+      // error already shown by store
+    } finally {
+      cancelRename();
+    }
   }
 
   function getProviderIconPath(provider: string) {
@@ -82,97 +93,101 @@
         return "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
     }
   }
+
+  $effect(() => {
+    if (renameEnvironmentName !== env.name) {
+      return;
+    }
+
+    environmentStore.consumeRenameEnvironment();
+    void beginRename();
+  });
 </script>
 
 <div
-  class="relative flex items-center gap-1.5 px-2 py-1.5 {isFocused
-    ? 'bg-primary-50 dark:bg-primary-900/30'
-    : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'}"
+  class="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800/40"
 >
-  <input
-    type="radio"
-    name="active-environment"
-    checked={isActive}
-    onchange={activateEnvironment}
-    aria-label={`Set ${env.name} as active environment`}
-    class="relative mr-2 flex h-4 w-4 shrink-0 items-center border-gray-300 bg-gray-100 text-primary-600 dark:border-gray-600 dark:bg-gray-700"
-  />
-  {#if env.gitRemote}
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      class="shrink-0 text-neutral-400"
-      aria-label={`Git remote: ${env.gitRemote}`}
-    >
-      <path d={getProviderIconPath(env.gitProvider || "git")} />
-    </svg>
-  {/if}
-  <Button
-    color="light"
-    size="sm"
-    class="min-w-0 flex-1 justify-start truncate border-0 shadow-none"
+  <div
+    class={`group relative flex items-center gap-2 px-2 py-2 ${isFocused ? "bg-primary-50/60 ring-1 ring-primary-300/70 ring-inset dark:bg-primary-900/10 dark:ring-primary-700/70" : "hover:bg-neutral-100 dark:hover:bg-neutral-700/60"}`}
+    role="button"
+    tabindex="0"
+    aria-label={`${env.name} environment row`}
     onclick={openEnvironment}
+    onkeypress={(event) => {
+      if (event.key === "Enter") {
+        openEnvironment();
+      }
+    }}
+    oncontextmenu={openMenu}
   >
-    {env.name}
-  </Button>
-  <Button
-    color="light"
-    size="xs"
-    class="shrink-0 border-0 shadow-none"
-    onclick={toggleMenu}
-    title="More actions"
-    aria-label="More actions"
-  >
-    •••
-  </Button>
+    <div class="flex h-6 w-4 items-center justify-center">
+      <input
+        type="radio"
+        name="active-environment"
+        checked={isActive}
+        onchange={activateEnvironment}
+        onclick={(event) => event.stopPropagation()}
+        aria-label={`Set ${env.name} as active environment`}
+        class="relative h-4 w-4 shrink-0 border-gray-300 bg-gray-100 text-primary-600 dark:border-gray-600 dark:bg-gray-700"
+      />
+    </div>
 
-  {#if menuOpen}
-    <div
-      class="absolute top-full right-0 z-50 min-w-40 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
-    >
-      {#if env.gitRemote}
-        <Button
-          color="light"
-          size="sm"
-          class="w-full justify-start border-0 shadow-none"
-          onclick={handleGitStatus}
-        >
-          Git status
-        </Button>
-        <Button
-          color="light"
-          size="sm"
-          class="w-full justify-start border-0 shadow-none disabled:opacity-50"
-          onclick={handleSync}
-          disabled={isSyncing}
-        >
-          {isSyncing ? "Syncing..." : "Sync with Git"}
-        </Button>
-        <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
-      {/if}
-      <Button
-        color="light"
-        size="sm"
-        class="w-full justify-start border-0 shadow-none"
-        onclick={handleExportEnvironment}
-      >
-        Export
-      </Button>
-      {#if env.name !== DEFAULT_ENV_NAME}
-        <div class="my-1 border-t border-neutral-200 dark:border-neutral-700"></div>
-        <Button
-          color="light"
-          size="sm"
-          class="w-full justify-start border-0 text-danger-600 shadow-none hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
-          onclick={handleDeleteEnvironment}
-        >
-          Delete
-        </Button>
+    <div class="min-w-0 flex-1">
+      {#if isEditing}
+        <div class="pr-2">
+          <Input
+            type="text"
+            size="sm"
+            class="min-w-0 flex-1"
+            bind:value={editingName}
+            bind:elementRef={editingNameInputEl}
+            autofocus
+            onclick={(event) => event.stopPropagation()}
+            onmousedown={(event) => event.stopPropagation()}
+            onkeydown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Enter") {
+                void commitRename();
+              }
+              if (event.key === "Escape") {
+                cancelRename();
+              }
+            }}
+            onblur={() => void commitRename()}
+          />
+        </div>
+      {:else}
+        <div class="flex items-center gap-2">
+          {#if env.gitRemote}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              class="text-neutral-500 dark:text-neutral-400"
+              aria-label={`Git remote: ${env.gitRemote}`}
+            >
+              <path d={getProviderIconPath(env.gitProvider || "git")} />
+            </svg>
+          {/if}
+          <span class="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">
+            {env.name}
+          </span>
+        </div>
       {/if}
     </div>
-  {/if}
+
+    <button
+      type="button"
+      class="visible ml-1 hover:cursor-pointer"
+      onclick={openMenu}
+      title="More actions"
+      aria-label="More actions"
+      aria-expanded={isMenuOpen}
+    >
+      <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+    </button>
+  </div>
 </div>

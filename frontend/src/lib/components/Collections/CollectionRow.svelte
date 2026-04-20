@@ -4,6 +4,9 @@
 -->
 
 <script lang="ts">
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
   import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import {
@@ -17,9 +20,6 @@
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -205,29 +205,26 @@
 </script>
 
 {#snippet actionsDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
-  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+  <ContextMenu {triggeredBy} {isOpen} {onClose}>
+    <ContextMenuItem
       onclick={() => {
         onCreateFolder(currentCollection.name, null);
         onClose();
       }}
     >
       New folder
-    </DropdownItem>
-    <DropdownDivider />
+    </ContextMenuItem>
+    <ContextMenuDivider />
     {#if currentCollection.gitRemote}
-      <DropdownItem
-        class="text-gray-900 dark:text-white"
+      <ContextMenuItem
         onclick={() => {
           onOpenGitStatus(currentCollection);
           onClose();
         }}
       >
         Git status
-      </DropdownItem>
-      <DropdownItem
-        class="text-gray-900 dark:text-white"
+      </ContextMenuItem>
+      <ContextMenuItem
         disabled={syncing}
         onclick={() => {
           onSync(currentCollection.id);
@@ -235,48 +232,45 @@
         }}
       >
         {syncing ? "Syncing..." : "Sync with Git"}
-      </DropdownItem>
-      <DropdownDivider />
+      </ContextMenuItem>
+      <ContextMenuDivider />
     {/if}
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    <ContextMenuItem
       onclick={() => {
         onOpenVariables(currentCollection.name);
         onClose();
       }}
     >
       Variables
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={() => {
         onExportCollection(currentCollection.name);
         onClose();
       }}
     >
       Export
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={() => {
         onRenameCollection(currentCollection.name);
         onClose();
       }}
     >
       Rename
-    </DropdownItem>
-    <DropdownItem
-      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+    </ContextMenuItem>
+    <ContextMenuItem
+      className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
       onclick={() => {
         onDeleteCollection(currentCollection.name);
         onClose();
       }}
     >
       Delete
-    </DropdownItem>
-  </Dropdown>
+    </ContextMenuItem>
+  </ContextMenu>
 {/snippet}
 
 <div

@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import {
     collectionTreeUI,
     collectionTreeUIState
@@ -14,8 +16,6 @@
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { collection } from "$wails/go/models";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import { tick } from "svelte";
 
@@ -351,35 +351,33 @@
 </script>
 
 {#snippet actionsDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
-  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+  <ContextMenu {triggeredBy} {isOpen} {onClose}>
+    <ContextMenuItem
       onclick={(event) => {
         void startRename(event);
         onClose();
       }}
     >
       Rename
-    </DropdownItem>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuItem
       onclick={() => {
         void duplicateRequest();
         onClose();
       }}
     >
       Duplicate
-    </DropdownItem>
-    <DropdownItem
-      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+    </ContextMenuItem>
+    <ContextMenuItem
+      className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
       onclick={() => {
         onDeleteRequest(collectionName, request.id);
         onClose();
       }}
     >
       Delete
-    </DropdownItem>
-  </Dropdown>
+    </ContextMenuItem>
+  </ContextMenu>
 {/snippet}
 
 <div class="relative">

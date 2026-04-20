@@ -7,6 +7,9 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionRow from "$src/lib/components/Collections/CollectionRow.svelte";
   import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import VariablesTableEditor from "$src/lib/components/common/VariablesTableEditor.svelte";
   import GitImportView from "$src/lib/components/GitImportView.svelte";
@@ -41,9 +44,6 @@
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
   import Button from "flowbite-svelte/Button.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownDivider from "flowbite-svelte/DropdownDivider.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
@@ -787,9 +787,8 @@
 </script>
 
 {#snippet requestContextActionsDropdown(triggeredBy: string, isOpen: boolean, onClose: () => void)}
-  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+  <ContextMenu {triggeredBy} {isOpen} {onClose}>
+    <ContextMenuItem
       onclick={() => {
         if (requestContextMenuState.requestId && requestContextMenuState.collectionName) {
           collectionTreeUI.startRequestRename(
@@ -802,18 +801,17 @@
       }}
     >
       Rename
-    </DropdownItem>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuItem
       onclick={() => {
         void handleDuplicateRequestFromContextMenu();
         onClose();
       }}
     >
       Duplicate
-    </DropdownItem>
-    <DropdownItem
-      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+    </ContextMenuItem>
+    <ContextMenuItem
+      className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
       onclick={() => {
         if (requestContextMenuState.collectionName && requestContextMenuState.requestId) {
           void handleDeleteRequest(
@@ -825,8 +823,8 @@
       }}
     >
       Delete
-    </DropdownItem>
-  </Dropdown>
+    </ContextMenuItem>
+  </ContextMenu>
 {/snippet}
 
 {#snippet collectionContextActionsDropdown(
@@ -834,9 +832,8 @@
   isOpen: boolean,
   onClose: () => void
 )}
-  <Dropdown {triggeredBy} {isOpen} class="z-50 w-40" triggerDelay={0} onclose={onClose}>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+  <ContextMenu {triggeredBy} {isOpen} {onClose}>
+    <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
           handleAddRequestToCollection(collectionContextTarget.name);
@@ -845,10 +842,9 @@
       }}
     >
       New request
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
           void handleAddFolder(collectionContextTarget.name, null);
@@ -857,10 +853,9 @@
       }}
     >
       New folder
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
           openCollectionVariables(collectionContextTarget.name);
@@ -869,11 +864,10 @@
       }}
     >
       Variables
-    </DropdownItem>
-    <DropdownDivider />
+    </ContextMenuItem>
+    <ContextMenuDivider />
     {#if collectionContextTarget?.gitRemote}
-      <DropdownItem
-        class="text-gray-900 dark:text-white"
+      <ContextMenuItem
         onclick={() => {
           if (collectionContextTarget) {
             openGitStatusForCollection(collectionContextTarget);
@@ -882,9 +876,8 @@
         }}
       >
         Git status
-      </DropdownItem>
-      <DropdownItem
-        class="text-gray-900 dark:text-white"
+      </ContextMenuItem>
+      <ContextMenuItem
         disabled={!!collectionContextTarget && syncingCollections.has(collectionContextTarget.id)}
         onclick={() => {
           if (collectionContextTarget) {
@@ -896,11 +889,10 @@
         {collectionContextTarget && syncingCollections.has(collectionContextTarget.id)
           ? "Syncing..."
           : "Sync with Git"}
-      </DropdownItem>
-      <DropdownDivider />
+      </ContextMenuItem>
+      <ContextMenuDivider />
     {/if}
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
           void handleExportCollection(collectionContextTarget.name);
@@ -909,10 +901,9 @@
       }}
     >
       Export
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
           openRenameCollection(collectionContextTarget.name);
@@ -921,9 +912,9 @@
       }}
     >
       Rename
-    </DropdownItem>
-    <DropdownItem
-      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+    </ContextMenuItem>
+    <ContextMenuItem
+      className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
       onclick={() => {
         if (collectionContextTarget) {
           handleDeleteCollection(collectionContextTarget.name);
@@ -932,14 +923,13 @@
       }}
     >
       Delete
-    </DropdownItem>
-  </Dropdown>
+    </ContextMenuItem>
+  </ContextMenu>
 {/snippet}
 
 {#snippet folderContextActionsDropdown(triggeredBy: string, isOpen: boolean, onClose: () => void)}
-  <Dropdown {triggeredBy} {isOpen} class="z-50 w-44" triggerDelay={0} onclose={onClose}>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-44" {onClose}>
+    <ContextMenuItem
       onclick={() => {
         if (folderContextMenuState.collectionName && folderContextMenuState.folderId) {
           void handleAddRequestToFolder(
@@ -951,9 +941,8 @@
       }}
     >
       New request
-    </DropdownItem>
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuItem
       onclick={() => {
         if (folderContextMenuState.collectionName && folderContextMenuState.folderId) {
           void handleAddFolder(
@@ -965,10 +954,9 @@
       }}
     >
       New subfolder
-    </DropdownItem>
-    <DropdownDivider />
-    <DropdownItem
-      class="text-gray-900 dark:text-white"
+    </ContextMenuItem>
+    <ContextMenuDivider />
+    <ContextMenuItem
       onclick={() => {
         if (folderContextMenuState.collectionName && folderContextTarget) {
           openRenameFolder(folderContextMenuState.collectionName, folderContextTarget);
@@ -977,9 +965,9 @@
       }}
     >
       Rename
-    </DropdownItem>
-    <DropdownItem
-      class="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
+    </ContextMenuItem>
+    <ContextMenuItem
+      className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-900/20"
       onclick={() => {
         if (folderContextMenuState.collectionName && folderContextTarget) {
           handleDeleteFolder(folderContextMenuState.collectionName, folderContextTarget);
@@ -988,8 +976,8 @@
       }}
     >
       Delete
-    </DropdownItem>
-  </Dropdown>
+    </ContextMenuItem>
+  </ContextMenu>
 {/snippet}
 
 <div

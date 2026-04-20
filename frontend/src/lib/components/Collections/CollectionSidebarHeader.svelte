@@ -4,14 +4,14 @@
 -->
 
 <script lang="ts">
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import CloseSidebarSolid from "flowbite-svelte-icons/CloseSidebarSolid.svelte";
   import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
   import SearchOutline from "flowbite-svelte-icons/SearchOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
-  import Dropdown from "flowbite-svelte/Dropdown.svelte";
-  import DropdownItem from "flowbite-svelte/DropdownItem.svelte";
   import Input from "flowbite-svelte/Input.svelte";
 
   const OUTLINE_BUTTON_CLASSES =
@@ -81,23 +81,21 @@
           >
         </ButtonGroup>
         <!-- Import dropdown -->
-        <Dropdown
+        <ContextMenu
           triggeredBy="#import-dropdown-button"
           isOpen={isImportMenuOpen}
-          class="z-50 w-50"
-          triggerDelay={0}
-          onclose={onCloseImportMenu}
+          menuClass="z-50 w-50"
+          onClose={onCloseImportMenu}
         >
-          <DropdownItem
-            class="text-gray-900 dark:text-white"
+          <ContextMenuItem
             onclick={() => {
               onOpenImportModal();
               onCloseImportMenu();
             }}
           >
             Import collection...
-          </DropdownItem>
-        </Dropdown>
+          </ContextMenuItem>
+        </ContextMenu>
       {/if}
     </div>
   </div>
