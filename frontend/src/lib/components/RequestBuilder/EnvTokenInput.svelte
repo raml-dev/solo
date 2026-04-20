@@ -6,12 +6,14 @@
 <script lang="ts">
   import EnvAutocompletePopover from "$src/lib/components/RequestBuilder/EnvAutocompletePopover.svelte";
   import {
+    createResolvedVariableEntryMap,
+    type ResolvedVariableEntry
+  } from "$src/lib/utils/variableResolution";
+  import {
     forceHideTokenTooltip,
     hideTokenTooltipDelay,
     showTokenTooltip
   } from "$src/lib/stores/tokenTooltipStore";
-  import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
-  import { environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import {
     clampActiveIndex,
     createEnvTokenDecorationPlugin,
@@ -19,8 +21,7 @@
     createTokenizedEditorTheme,
     filterEnvTokenEntries,
     findEnvTokenTriggerContext,
-    getTokenizedEditorSizeClass,
-    normalizeEnvironmentTokenEntries
+    getTokenizedEditorSizeClass
   } from "$src/lib/utils/tokens";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
   import { Annotation, Compartment, EditorSelection, EditorState } from "@codemirror/state";
@@ -35,11 +36,10 @@
     class?: string;
     right?: Snippet;
     rightVisible?: boolean;
+    variableEntries?: ResolvedVariableEntry[];
     onChange?: () => void;
     onEnter?: () => void;
   }
-
-  type EnvEntry = { key: string; value: string; type?: string };
 
   let {
     value = $bindable(""),
@@ -49,6 +49,7 @@
     class: className = "",
     right,
     rightVisible = true,
+    variableEntries = [],
     onChange,
     onEnter
   }: Props = $props();
@@ -63,7 +64,7 @@
   let autocompleteOpen = $state(false);
   let autocompleteQuery = $state("");
   let autocompleteActiveIndex = $state(0);
-  let autocompleteEntries: EnvEntry[] = $state([]);
+  let autocompleteEntries: ResolvedVariableEntry[] = $state([]);
   let shouldUseMacOsLayoutNudge = $state(false);
   let editorReady = $state(true);
 
@@ -71,17 +72,10 @@
     return (input ?? "").replace(/[\r\n]+/g, " ");
   }
 
-  let selectedEnvironment = $derived(
-    environmentStoreState.environments.find(
-      (e) => e.name === environmentStoreState.selectedEnvironmentName
-    ) || null
-  );
-
-  let environmentEntries = $derived(normalizeEnvironmentTokenEntries(selectedEnvironment?.values));
-  let knownEnvironmentKeys = $derived(new Set(environmentEntries.map((entry) => entry.key)));
-  let sessionKeys = $derived(new Set(Object.keys($sessionVarsStore ?? {})));
+  let variableEntryMap = $derived(createResolvedVariableEntryMap(variableEntries));
+  let knownVariableKeys = $derived(new Set(variableEntries.map((entry) => entry.key)));
   let knownKeysSignature = $derived(
-    `${environmentEntries.map((entry) => entry.key).join("\u0000")}|${Object.keys($sessionVarsStore ?? {}).join("\u0000")}`
+    variableEntries.map((entry) => `${entry.key}:${entry.winningSource}`).join("\u0000")
   );
 
   let sizeClass = $derived(
@@ -98,11 +92,13 @@
     return createEnvTokenDecorationPlugin({
       tokenClassName: "cm-env-token",
       resolveTokenStatus: (tokenKey) =>
-        sessionKeys.has(tokenKey)
+        variableEntryMap.get(tokenKey)?.winningSource === "session"
           ? "session"
-          : knownEnvironmentKeys.has(tokenKey)
-            ? "known"
-            : "unknown",
+          : variableEntryMap.get(tokenKey)?.winningSource === "collection"
+            ? "collection"
+            : knownVariableKeys.has(tokenKey)
+              ? "known"
+              : "unknown",
       onTokenMouseOver: (tokenKey, rect) => showTokenTooltip(tokenKey, rect.left, rect.bottom),
       onTokenMouseOut: () => hideTokenTooltipDelay()
     });
@@ -127,13 +123,13 @@
     }
 
     autocompleteQuery = triggerContext.normalizedQuery;
-    autocompleteEntries = filterEnvTokenEntries(environmentEntries, autocompleteQuery);
+    autocompleteEntries = filterEnvTokenEntries(variableEntries, autocompleteQuery);
     autocompleteActiveIndex = clampActiveIndex(autocompleteActiveIndex, autocompleteEntries.length);
     autocompleteOpen = true;
     forceHideTokenTooltip();
   }
 
-  function applyAutocompleteEntry(entry: EnvEntry) {
+  function applyAutocompleteEntry(entry: ResolvedVariableEntry) {
     if (!view) return;
     const triggerContext = findEnvTokenTriggerContext(
       view.state.doc.toString(),
@@ -399,7 +395,7 @@
     open={autocompleteOpen}
     entries={autocompleteEntries}
     activeIndex={autocompleteActiveIndex}
-    class="env-token-autocomplete absolute top-full right-0 left-0 z-90 mt-1"
+    class="absolute top-full right-0 left-0 z-90 mt-1"
     onHoverIndex={(index) => (autocompleteActiveIndex = index)}
     onSelect={(entry) => applyAutocompleteEntry(entry)}
     onRequestClose={() => (autocompleteOpen = false)}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,17 +17,23 @@ import (
 // Collection represents a group of HTTP requests.
 // NOTE: This type is not safe for concurrent use.
 // If concurrent access is needed in the future, add sync.RWMutex.
+type ValueType struct {
+	Value string `json:"value"`
+	Type  string `json:"type"`
+}
+
 type Collection struct {
-	CreationTimestamp   time.Time         `json:"creationTimestamp"`
-	LastUpdateTimestamp time.Time         `json:"lastUpdateTimestamp"`
-	Requests            []Request         `json:"requests"`
-	Name                string            `json:"name"`
-	Id                  string            `json:"id"`
-	Auth                AuthConfiguration `json:"auth,omitempty"`
-	GitRemote           string            `json:"gitRemote,omitempty"`
-	GitPath             string            `json:"gitPath,omitempty"`
-	GitProvider         string            `json:"gitProvider,omitempty"`
-	Folders             []Folder          `json:"folders"`
+	CreationTimestamp   time.Time            `json:"creationTimestamp"`
+	LastUpdateTimestamp time.Time            `json:"lastUpdateTimestamp"`
+	Requests            []Request            `json:"requests"`
+	Name                string               `json:"name"`
+	Id                  string               `json:"id"`
+	Auth                AuthConfiguration    `json:"auth,omitempty"`
+	Variables           map[string]ValueType `json:"variables,omitempty"`
+	GitRemote           string               `json:"gitRemote,omitempty"`
+	GitPath             string               `json:"gitPath,omitempty"`
+	GitProvider         string               `json:"gitProvider,omitempty"`
+	Folders             []Folder             `json:"folders"`
 }
 
 func NewCollection(name string) Collection {
@@ -37,6 +44,7 @@ func NewCollection(name string) Collection {
 		LastUpdateTimestamp: tsp,
 		Name:                name,
 		Requests:            make([]Request, 0),
+		Variables:           make(map[string]ValueType),
 		Folders:             make([]Folder, 0),
 	}
 }
@@ -47,6 +55,42 @@ func (c *Collection) GetRequests() *[]Request {
 
 func (c *Collection) GetFolders() *[]Folder {
 	return &c.Folders
+}
+
+func (c *Collection) GetSelectedVariables(keys []string) *map[string]ValueType {
+	result := make(map[string]ValueType)
+	for _, key := range keys {
+		if value, ok := c.Variables[key]; ok {
+			result[key] = value
+		}
+	}
+	return &result
+}
+
+func (c *Collection) VariableStringValues() map[string]string {
+	values := make(map[string]string, len(c.Variables))
+	for key, value := range c.Variables {
+		values[key] = value.Value
+	}
+	return values
+}
+
+func (c *Collection) ResolveVariableValue(key string, envValues map[string]string) (string, bool) {
+	if value, ok := envValues[key]; ok {
+		if strings.TrimSpace(value) != "" {
+			return value, true
+		}
+		if collectionValue, ok := c.Variables[key]; ok {
+			return collectionValue.Value, true
+		}
+		return value, true
+	}
+
+	if collectionValue, ok := c.Variables[key]; ok {
+		return collectionValue.Value, true
+	}
+
+	return "", false
 }
 
 func (c *Collection) GetRequestById(id string) (*Request, error) {

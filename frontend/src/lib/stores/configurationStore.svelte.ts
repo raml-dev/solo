@@ -4,6 +4,7 @@
  */
 
 import { notifications } from "$src/lib/stores/notificationStore";
+import type { ThemeMode } from "$src/lib/theme/themeModel";
 import {
   applyTheme,
   applyThemeMode as applyThemeModeRuntime,
@@ -18,7 +19,6 @@ import {
   UpdateConfiguration
 } from "$wails/go/main/App";
 import { configuration, theme } from "$wails/go/models";
-import type { ThemeMode } from "../theme/themeModel";
 
 const SAVE_DEBOUNCE_MS = 800;
 const SAVED_STATUS_TIMEOUT_MS = 1500;

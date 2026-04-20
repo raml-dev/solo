@@ -217,6 +217,103 @@ func TestService_Execute_UsesSelectedEnvironmentInsideLua(t *testing.T) {
 	}
 }
 
+func TestService_Execute_UsesCollectionVariablesWhenEnvironmentLacksKey(t *testing.T) {
+	service, configManager, envManager, _ := newTestService(t)
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/from-collection" {
+			t.Errorf("path = %q, want %q", got, "/from-collection")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	saveEnvironment(t, envManager, "dev", map[string]string{})
+	if err := configManager.SetSelectedEnvironment("dev"); err != nil {
+		t.Fatalf("failed to select environment: %v", err)
+	}
+
+	_, err := service.ExecuteRequest(ExecutionOptions{
+		Method:  "GET",
+		URL:     "{{base_url}}/from-collection",
+		Headers: map[string]any{},
+		CollectionVariables: map[string]string{
+			"base_url": apiServer.URL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteRequest returned error: %v", err)
+	}
+}
+
+func TestService_Execute_EnvironmentWinsOverCollectionWhenValued(t *testing.T) {
+	service, configManager, envManager, _ := newTestService(t)
+
+	collectionServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("collection server should not be used when environment is valued")
+	}))
+	defer collectionServer.Close()
+
+	envServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/from-env" {
+			t.Errorf("path = %q, want %q", got, "/from-env")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer envServer.Close()
+
+	saveEnvironment(t, envManager, "dev", map[string]string{
+		"base_url": envServer.URL,
+	})
+	if err := configManager.SetSelectedEnvironment("dev"); err != nil {
+		t.Fatalf("failed to select environment: %v", err)
+	}
+
+	_, err := service.ExecuteRequest(ExecutionOptions{
+		Method:  "GET",
+		URL:     "{{base_url}}/from-env",
+		Headers: map[string]any{},
+		CollectionVariables: map[string]string{
+			"base_url": collectionServer.URL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteRequest returned error: %v", err)
+	}
+}
+
+func TestService_Execute_UsesCollectionVariablesInsideLuaFallback(t *testing.T) {
+	service, configManager, envManager, _ := newTestService(t)
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/from-lua-collection" {
+			t.Errorf("path = %q, want %q", got, "/from-lua-collection")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer apiServer.Close()
+
+	saveEnvironment(t, envManager, "dev", map[string]string{
+		"base_url": "",
+	})
+	if err := configManager.SetSelectedEnvironment("dev"); err != nil {
+		t.Fatalf("failed to select environment: %v", err)
+	}
+
+	_, err := service.ExecuteRequest(ExecutionOptions{
+		Method:           "GET",
+		URL:              "http://placeholder.invalid",
+		Headers:          map[string]any{},
+		PreRequestScript: `request.url = env.get("base_url") .. "/from-lua-collection"`,
+		CollectionVariables: map[string]string{
+			"base_url": apiServer.URL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteRequest returned error: %v", err)
+	}
+}
+
 func TestService_Execute_ResolvesAuthAfterPreScript(t *testing.T) {
 	service, configManager, envManager, _ := newTestService(t)
 

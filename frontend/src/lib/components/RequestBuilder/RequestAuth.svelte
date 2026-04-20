@@ -4,19 +4,29 @@
 -->
 
 <script lang="ts">
+  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
+  import type { ResolvedVariableEntry } from "$src/lib/utils/variableResolution";
   import { collection } from "$wails/go/models";
+  import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
+  import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
 
   interface Props {
     auth: collection.AuthConfiguration;
+    variableEntries?: ResolvedVariableEntry[];
     onChange?: () => void;
   }
 
-  let { auth = $bindable(), onChange }: Props = $props();
+  type TemplateRow = {
+    id: string;
+    key: string;
+    value: string;
+  };
+
+  let { auth = $bindable(), variableEntries = [], onChange }: Props = $props();
 
   function handleChange() {
     onChange?.();
@@ -32,14 +42,20 @@
     onChange?.();
   }
 
-  // Convert map to array for easier editing in UI
-  let templateRows = $state(
-    Object.entries(auth.template || {}).map(([key, value], i) => ({
-      id: `row-${i}-${Date.now()}`,
+  function createTemplateRows(template: Record<string, string> = {}): TemplateRow[] {
+    return Object.entries(template).map(([key, value], index) => ({
+      id: `row-${index}-${Date.now()}`,
       key,
       value: String(value)
-    }))
-  );
+    }));
+  }
+
+  function initializeTemplateRows() {
+    return createTemplateRows(auth.template || {});
+  }
+
+  let templateRows = $state<TemplateRow[]>([]);
+  templateRows = initializeTemplateRows();
 
   function syncTemplateToAuth() {
     const newTemplate: Record<string, string> = {};
@@ -103,6 +119,7 @@
             placeholder="https://auth.example.com/oauth2/token"
             onChange={() => handleTokenUrlChange(auth.tokenUrl)}
             size="sm"
+            {variableEntries}
           />
           <div class="text-xs text-neutral-500">
             The endpoint where the POST request for the token will be sent.
@@ -128,7 +145,10 @@
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <Label class="font-semibold">Token Request Template (POST Body)</Label>
-          <Button color="light" size="xs" onclick={addRow}>+ Add Parameter</Button>
+          <Button color="light" size="xs" onclick={addRow}>
+            <PlusOutline class="mr-1 h-4 w-4" />
+            <span>Add Parameter</span>
+          </Button>
         </div>
 
         <div
@@ -158,6 +178,7 @@
                   placeholder="client_credentials"
                   onChange={() => updateTemplateRowValue(row.id, row.value)}
                   size="sm"
+                  {variableEntries}
                 />
                 <Button
                   color="light"
@@ -166,14 +187,7 @@
                   onclick={() => removeRow(row.id)}
                   title="Remove parameter"
                 >
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                  <TrashBinOutline class="h-4 w-4" />
                 </Button>
               </div>
             {/each}

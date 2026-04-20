@@ -17,10 +17,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ImportResult carries the imported collection and any non-fatal warnings
-// (e.g. skipped security schemes) to be surfaced to the user.
+// ImportResult carries the imported collection, metadata extracted from the
+// source document, and any non-fatal warnings (e.g. skipped security schemes)
+// to be surfaced to the user.
 type ImportResult struct {
 	Collection *collection.Collection
+	BasePath   string
+	Servers    []string
 	Warnings   []string
 }
 
@@ -62,19 +65,24 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 		return ImportResult{}, fmt.Errorf("unsupported format: expected openapi 3.x or swagger 2.0 (got openapi=%q swagger=%q)", doc.OpenAPI, doc.Swagger)
 	}
 
-	baseURL := resolveBaseURL(doc, version)
-
 	now := time.Now()
 	coll := &collection.Collection{
 		Id:                  generateUUID(),
 		Name:                doc.Info.Title,
 		Requests:            []collection.Request{},
+		Variables:           map[string]collection.ValueType{},
 		Folders:             []collection.Folder{},
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,
 	}
 	if coll.Name == "" {
 		coll.Name = "Imported API"
+	}
+	if defaultBaseURL := resolveOpenAPIDefaultBaseURL(doc, version); defaultBaseURL != "" {
+		coll.Variables["baseUrl"] = collection.ValueType{
+			Value: defaultBaseURL,
+			Type:  "text",
+		}
 	}
 
 	// Iterate paths in a deterministic method order
@@ -94,7 +102,7 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 			if op == nil {
 				continue
 			}
-			req := buildRequest(method, path, op, baseURL, version, doc)
+			req := buildRequest(method, path, op, version, doc)
 			addOpenAPIRequest(coll, req, op.Tags)
 		}
 	}
@@ -117,36 +125,21 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 		warnings = append(warnings, msg)
 	}
 
-	return ImportResult{Collection: coll, Warnings: warnings}, nil
-}
-
-// resolveBaseURL returns the base URL for requests depending on the format version.
-func resolveBaseURL(doc unifiedAPIDocument, version string) string {
-	if version == "3.x" {
-		if len(doc.Servers) == 0 {
-			return ""
-		}
-		return strings.TrimRight(doc.Servers[0].URL, "/")
-	}
-
-	// Swagger 2.x
-	if doc.Host == "" {
-		return ""
-	}
-	scheme := "https"
-	if len(doc.Schemes) > 0 {
-		scheme = doc.Schemes[0]
-	}
-	return scheme + "://" + doc.Host + strings.TrimRight(doc.BasePath, "/")
+	return ImportResult{
+		Collection: coll,
+		BasePath:   doc.BasePath,
+		Servers:    collectServerURLs(doc.Servers),
+		Warnings:   warnings,
+	}, nil
 }
 
 // buildRequest constructs a collection.Request from a single OpenAPI operation.
-func buildRequest(method, path string, op *openAPIOperation, baseURL, version string, doc unifiedAPIDocument) collection.Request {
+func buildRequest(method, path string, op *openAPIOperation, version string, doc unifiedAPIDocument) collection.Request {
 	normalizedPath := normalizeOpenAPIPathPlaceholders(path)
 	req := collection.Request{
 		Id:                  generateUUID(),
 		Verb:                strings.ToUpper(method),
-		Url:                 baseURL + normalizedPath,
+		Url:                 buildOpenAPIRequestURL(normalizedPath),
 		Headers:             make(map[string]string),
 		Cookies:             make(map[string]string),
 		CreationTimestamp:   time.Now(),
@@ -321,4 +314,61 @@ func addOpenAPIRequest(coll *collection.Collection, req collection.Request, tags
 
 func normalizeOpenAPIPathPlaceholders(path string) string {
 	return openAPIPathParamPattern.ReplaceAllString(path, "{{$1}}")
+}
+
+func buildOpenAPIRequestURL(path string) string {
+	if strings.HasPrefix(path, "/") {
+		return "{{baseUrl}}" + path
+	}
+	return "{{baseUrl}}/" + path
+}
+
+func collectServerURLs(servers []openAPIServer) []string {
+	if len(servers) == 0 {
+		return nil
+	}
+
+	urls := make([]string, 0, len(servers))
+	for _, server := range servers {
+		if strings.TrimSpace(server.URL) == "" {
+			continue
+		}
+		urls = append(urls, strings.TrimRight(server.URL, "/"))
+	}
+	if len(urls) == 0 {
+		return nil
+	}
+	return urls
+}
+
+func resolveOpenAPIDefaultBaseURL(doc unifiedAPIDocument, version string) string {
+	basePath := strings.TrimSpace(doc.BasePath)
+	baseURL := ""
+
+	if version == "3.x" {
+		servers := collectServerURLs(doc.Servers)
+		if len(servers) > 0 {
+			baseURL = servers[0]
+		}
+	} else {
+		host := strings.TrimSpace(doc.Host)
+
+    if host != "" {
+			scheme := "https"
+
+      if len(doc.Schemes) > 0 && strings.TrimSpace(doc.Schemes[0]) != "" {
+				scheme = strings.TrimSpace(doc.Schemes[0])
+			}
+
+			baseURL = strings.TrimRight(fmt.Sprintf("%s://%s", scheme, strings.TrimRight(host, "/")), "/")
+		}
+	}
+
+	if basePath == "" || basePath == "/" {
+		return baseURL
+	}
+	if !strings.HasPrefix(basePath, "/") {
+		basePath = "/" + basePath
+	}
+	return strings.TrimRight(baseURL+strings.TrimRight(basePath, "/"), "/")
 }

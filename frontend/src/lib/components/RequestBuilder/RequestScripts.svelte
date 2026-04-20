@@ -6,6 +6,7 @@
 <script lang="ts">
   import CodeMirrorEditor from "$src/lib/components/RequestBuilder/CodeMirrorEditor.svelte";
   import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
+  import type { ResolvedVariableEntry } from "$src/lib/utils/variableResolution";
   import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
@@ -13,6 +14,7 @@
   interface Props {
     preRequestScript?: string;
     postResponseScript?: string;
+    variableEntries?: ResolvedVariableEntry[];
     onPreChange?: (val: string) => void;
     onPostChange?: (val: string) => void;
   }
@@ -20,6 +22,7 @@
   let {
     preRequestScript = $bindable(""),
     postResponseScript = $bindable(""),
+    variableEntries = [],
     onPreChange = () => {},
     onPostChange = () => {}
   }: Props = $props();
@@ -123,11 +126,21 @@
 
     {#if activeSection === "pre"}
       <div class="min-h-0 flex-1 overflow-hidden">
-        <CodeMirrorEditor value={preRequestScript} language="lua" onChange={onPreChange} />
+        <CodeMirrorEditor
+          value={preRequestScript}
+          language="lua"
+          {variableEntries}
+          onChange={onPreChange}
+        />
       </div>
     {:else}
       <div class="min-h-0 flex-1 overflow-hidden">
-        <CodeMirrorEditor value={postResponseScript} language="lua" onChange={onPostChange} />
+        <CodeMirrorEditor
+          value={postResponseScript}
+          language="lua"
+          {variableEntries}
+          onChange={onPostChange}
+        />
       </div>
     {/if}
   </div>

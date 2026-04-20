@@ -73,10 +73,17 @@ type RequestOptions struct {
 	URL                string                                 `json:"url"`
 	Headers            map[string]any                         `json:"headers"`
 	Body               string                                 `json:"body"`
+	CollectionName     string                                 `json:"collectionName,omitempty"`
 	Auth               *collection.AuthConfiguration          `json:"auth,omitempty"`
 	Settings           *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript   string                                 `json:"preRequestScript,omitempty"`
 	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
+}
+
+type OpenAPIImportCollectionResult struct {
+	Warnings []string `json:"warnings"`
+	BasePath string   `json:"basePath"`
+	Servers  []string `json:"servers"`
 }
 
 func (a *App) GetAppInfo() appinfo.AppInfo {
@@ -143,15 +150,16 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 	}
 
 	execOpts := requester.ExecutionOptions{
-		Method:             options.Method,
-		URL:                options.URL,
-		Body:               options.Body,
-		Headers:            options.Headers,
-		Cookies:            nil,
-		Auth:               options.Auth,
-		Settings:           options.Settings,
-		PreRequestScript:   options.PreRequestScript,
-		PostResponseScript: options.PostResponseScript,
+		Method:              options.Method,
+		URL:                 options.URL,
+		Body:                options.Body,
+		Headers:             options.Headers,
+		Cookies:             nil,
+		CollectionVariables: a.loadCollectionVariableValues(options.CollectionName),
+		Auth:                options.Auth,
+		Settings:            options.Settings,
+		PreRequestScript:    options.PreRequestScript,
+		PostResponseScript:  options.PostResponseScript,
 	}
 
 	opts := runner.RunnerOptions{
@@ -271,15 +279,16 @@ func (a *App) ForceQuit() {
 // Execute performs the HTTP request with the given options.
 func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 	execOpts := requester.ExecutionOptions{
-		Method:             options.Method,
-		URL:                options.URL,
-		Body:               options.Body,
-		Headers:            options.Headers,
-		Cookies:            nil,
-		Auth:               options.Auth,
-		Settings:           options.Settings,
-		PreRequestScript:   options.PreRequestScript,
-		PostResponseScript: options.PostResponseScript,
+		Method:              options.Method,
+		URL:                 options.URL,
+		Body:                options.Body,
+		Headers:             options.Headers,
+		Cookies:             nil,
+		CollectionVariables: a.loadCollectionVariableValues(options.CollectionName),
+		Auth:                options.Auth,
+		Settings:            options.Settings,
+		PreRequestScript:    options.PreRequestScript,
+		PostResponseScript:  options.PostResponseScript,
 	}
 	return a.service.ExecuteRequest(execOpts)
 }
@@ -428,20 +437,24 @@ func (a *App) ImportPostmanCollection(path string) error {
 
 // ImportOpenAPICollection imports an OpenAPI 3.x or Swagger 2.x collection
 // (JSON or YAML) into Solo.
-// Returns a (possibly empty) list of warning messages to show to the user.
-func (a *App) ImportOpenAPICollection(path string) ([]string, error) {
+// Returns warning messages and source metadata used by the frontend to build baseUrl.
+func (a *App) ImportOpenAPICollection(path string) (OpenAPIImportCollectionResult, error) {
 	imp := importer.NewOpenAPIImporter()
 
 	result, err := imp.Import(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to import OpenAPI collection: %w", err)
+		return OpenAPIImportCollectionResult{}, fmt.Errorf("failed to import OpenAPI collection: %w", err)
 	}
 
 	if err := a.collectionManager.UpdateCollection(*result.Collection); err != nil {
-		return nil, fmt.Errorf("failed to save imported OpenAPI collection: %w", err)
+		return OpenAPIImportCollectionResult{}, fmt.Errorf("failed to save imported OpenAPI collection: %w", err)
 	}
 
-	return result.Warnings, nil
+	return OpenAPIImportCollectionResult{
+		Warnings: result.Warnings,
+		BasePath: result.BasePath,
+		Servers:  result.Servers,
+	}, nil
 }
 
 // ImportCurlRequest parses a cURL command string and adds the resulting request
@@ -863,15 +876,53 @@ func (a *App) ResolveRequestPlaceholders(reqId string, collName string, envId st
 		return nil, err
 	}
 
+	coll, err := a.collectionManager.LoadCollection(collName)
+
+	if err != nil {
+		return nil, err
+	}
+
 	env, err := a.environmentManager.LoadEnvironment(envId)
 
 	if err != nil {
 		return nil, err
 	}
 
-	resolvedMap := env.GetSelectedValues(req.GetPlaceholders())
+	resolvedMap := make(map[string]environment.ValueType)
+	for _, key := range req.GetPlaceholders() {
+		envValue, hasEnv := env.Values[key]
+		collectionValue, hasCollection := coll.Variables[key]
 
-	return resolvedMap, nil
+		switch {
+		case hasEnv && strings.TrimSpace(envValue.Value) != "":
+			resolvedMap[key] = envValue
+		case hasCollection:
+			resolvedMap[key] = environment.ValueType{
+				Value: collectionValue.Value,
+				Type:  collectionValue.Type,
+			}
+		case hasEnv:
+			resolvedMap[key] = envValue
+		}
+	}
+
+	return &resolvedMap, nil
+}
+
+func (a *App) loadCollectionVariableValues(collectionName string) map[string]string {
+	if a.collectionManager == nil || strings.TrimSpace(collectionName) == "" {
+		return map[string]string{}
+	}
+
+	coll, err := a.collectionManager.LoadCollection(collectionName)
+	if err != nil {
+		slog.Warn("Failed to load collection variables for request execution",
+			"collection", collectionName,
+			"error", err)
+		return map[string]string{}
+	}
+
+	return coll.VariableStringValues()
 }
 
 // SetDebugMode changes the application's log level at runtime.

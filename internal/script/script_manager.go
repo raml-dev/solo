@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,11 +16,12 @@ import (
 )
 
 type ScriptManager struct {
-	state       *lua.LState
-	mutex       sync.Mutex
-	sessionVars map[string]string // vars modified/created by Lua (ephemeral and in-memory only)
-	currentEnv  map[string]string // vars of the selected env (Lua is read-only on these)
-	wailsCtx    context.Context
+	state             *lua.LState
+	mutex             sync.Mutex
+	sessionVars       map[string]string // vars modified/created by Lua (ephemeral and in-memory only)
+	currentEnv        map[string]string // vars of the selected env (Lua is read-only on these)
+	currentCollection map[string]string // vars of the current collection (Lua is read-only on these)
+	wailsCtx          context.Context
 }
 
 func NewScriptManager(ctx context.Context) *ScriptManager {
@@ -72,11 +74,12 @@ func NewScriptManager(ctx context.Context) *ScriptManager {
 	}()
 
 	sm := &ScriptManager{
-		state:       L,
-		mutex:       sync.Mutex{},
-		sessionVars: make(map[string]string),
-		currentEnv:  make(map[string]string),
-		wailsCtx:    ctx,
+		state:             L,
+		mutex:             sync.Mutex{},
+		sessionVars:       make(map[string]string),
+		currentEnv:        make(map[string]string),
+		currentCollection: make(map[string]string),
+		wailsCtx:          ctx,
 	}
 
 	// Register global 'env' table and API
@@ -114,17 +117,24 @@ func cloneStringMap(values map[string]string) map[string]string {
 	return cloned
 }
 
-// executeWithEnvironment temporarily swaps the Lua environment for a single execution.
-// When env is nil, it keeps the current environment unchanged.
-func (sm *ScriptManager) executeWithEnvironment(env map[string]string, fn func() error) error {
-	if env == nil {
+// executeWithScope temporarily swaps the Lua variable sources for a single execution.
+// When both maps are nil, it keeps the current values unchanged.
+func (sm *ScriptManager) executeWithScope(env map[string]string, collectionVars map[string]string, fn func() error) error {
+	if env == nil && collectionVars == nil {
 		return fn()
 	}
 
 	previousEnv := sm.currentEnv
-	sm.currentEnv = cloneStringMap(env)
+	previousCollection := sm.currentCollection
+	if env != nil {
+		sm.currentEnv = cloneStringMap(env)
+	}
+	if collectionVars != nil {
+		sm.currentCollection = cloneStringMap(collectionVars)
+	}
 	defer func() {
 		sm.currentEnv = previousEnv
+		sm.currentCollection = previousCollection
 	}()
 
 	return fn()
@@ -147,6 +157,12 @@ func (sm *ScriptManager) ExecutePreRequest(script string, req *http.Request) (er
 // with a per-execution environment snapshot. It returns the session variables
 // immediately after script execution for downstream placeholder resolution.
 func (sm *ScriptManager) ExecutePreRequestWithEnvironment(script string, req *http.Request, env map[string]string) (_ map[string]string, err error) {
+	return sm.ExecutePreRequestWithScope(script, req, env, nil)
+}
+
+// ExecutePreRequestWithScope runs a Lua script before a request is sent
+// with per-execution environment and collection variable snapshots.
+func (sm *ScriptManager) ExecutePreRequestWithScope(script string, req *http.Request, env map[string]string, collectionVars map[string]string) (_ map[string]string, err error) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -161,7 +177,7 @@ func (sm *ScriptManager) ExecutePreRequestWithEnvironment(script string, req *ht
 		return sm.copySessionVarsLocked(), nil
 	}
 
-	err = sm.executeWithEnvironment(env, func() error {
+	err = sm.executeWithScope(env, collectionVars, func() error {
 		// 500ms timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
@@ -200,6 +216,12 @@ func (sm *ScriptManager) ExecutePostResponse(script string, req *http.Request, r
 // ExecutePostResponseWithEnvironment runs a Lua script after a response is received
 // with a per-execution environment snapshot.
 func (sm *ScriptManager) ExecutePostResponseWithEnvironment(script string, req *http.Request, resp *http.Response, body string, responseTime int64, env map[string]string) (err error) {
+	return sm.ExecutePostResponseWithScope(script, req, resp, body, responseTime, env, nil)
+}
+
+// ExecutePostResponseWithScope runs a Lua script after a response is received
+// with per-execution environment and collection variable snapshots.
+func (sm *ScriptManager) ExecutePostResponseWithScope(script string, req *http.Request, resp *http.Response, body string, responseTime int64, env map[string]string, collectionVars map[string]string) (err error) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -217,7 +239,7 @@ func (sm *ScriptManager) ExecutePostResponseWithEnvironment(script string, req *
 		return nil
 	}
 
-	return sm.executeWithEnvironment(env, func() error {
+	return sm.executeWithScope(env, collectionVars, func() error {
 		// 500ms timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond) //TODO: does make sense to have this param as configurable?
 		defer cancel()
@@ -242,7 +264,7 @@ func (sm *ScriptManager) ExecutePostResponseWithEnvironment(script string, req *
 func (sm *ScriptManager) SetEnvironment(env map[string]string) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	sm.currentEnv = env
+	sm.currentEnv = cloneStringMap(env)
 }
 
 // SetContext injects the Wails runtime context so scripts can emit events.
@@ -273,4 +295,22 @@ func (sm *ScriptManager) ClearSessionVars() {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	sm.sessionVars = make(map[string]string)
+}
+
+func (sm *ScriptManager) resolveScopedValueLocked(key string) (string, bool) {
+	if value, ok := sm.currentEnv[key]; ok {
+		if strings.TrimSpace(value) != "" {
+			return value, true
+		}
+		if collectionValue, ok := sm.currentCollection[key]; ok {
+			return collectionValue, true
+		}
+		return value, true
+	}
+
+	if value, ok := sm.currentCollection[key]; ok {
+		return value, true
+	}
+
+	return "", false
 }

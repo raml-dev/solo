@@ -15,6 +15,7 @@
   } from "$src/lib/stores/configurationStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
+  import type { ThemeMode } from "$src/lib/theme/themeModel";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
     DeleteHost,
@@ -43,7 +44,6 @@
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
   import { onMount } from "svelte";
-  import type { ThemeMode } from "../theme/themeModel";
 
   // 1) custom types
   type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts" | "about";
