@@ -38,6 +38,7 @@
     settings: conf.RequestSettingsOverride;
     preRequestScript: string;
     postResponseScript: string;
+    collectionName?: string;
   }
 
   let {
@@ -47,7 +48,8 @@
     headers = $bindable(),
     settings = $bindable(),
     preRequestScript,
-    postResponseScript
+    postResponseScript,
+    collectionName = ""
   }: Props = $props();
 
   let concurrency = $state(5);
@@ -77,6 +79,7 @@
       headers: requestHeaders,
       method,
       url,
+      collectionName: collectionName,
       settings: settings,
       preRequestScript: preRequestScript || "",
       postResponseScript: postResponseScript || ""

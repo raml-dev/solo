@@ -328,6 +328,7 @@
       headers: requestHeaders,
       method: tab.verb,
       url: tab.url,
+      collectionName: tab.collectionName || "",
       auth: authConfig,
       settings: tab.settings,
       preRequestScript: tab.preRequestScript || "",
@@ -647,6 +648,7 @@
           method={tab.verb}
           url={tab.url}
           body={tab.body}
+          collectionName={tab.collectionName || ""}
           bind:headers={tab.headers}
           bind:settings={tab.settings}
           preRequestScript={tab.preRequestScript}
