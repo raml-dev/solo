@@ -217,8 +217,8 @@ func TestService_Execute_UsesSelectedEnvironmentInsideLua(t *testing.T) {
 	}
 }
 
-func TestService_Execute_UsesCollectionVariablesWhenEnvironmentMissing(t *testing.T) {
-	service, _, _, _ := newTestService(t)
+func TestService_Execute_UsesCollectionVariablesWhenEnvironmentLacksKey(t *testing.T) {
+	service, configManager, envManager, _ := newTestService(t)
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.URL.Path; got != "/from-collection" {
@@ -227,6 +227,11 @@ func TestService_Execute_UsesCollectionVariablesWhenEnvironmentMissing(t *testin
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer apiServer.Close()
+
+	saveEnvironment(t, envManager, "dev", map[string]string{})
+	if err := configManager.SetSelectedEnvironment("dev"); err != nil {
+		t.Fatalf("failed to select environment: %v", err)
+	}
 
 	_, err := service.ExecuteRequest(ExecutionOptions{
 		Method:  "GET",

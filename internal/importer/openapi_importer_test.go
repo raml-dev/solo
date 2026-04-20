@@ -432,6 +432,46 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		}
 	})
 
+	t.Run("no_servers_openapi3_uses_normalized_basepath_as_baseurl", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			basePath     string
+			wantBaseURL  string
+			wantVariable bool
+		}{
+			{
+				name:         "normalizes_missing_leading_slash_and_trailing_slash",
+				basePath:     "api/",
+				wantBaseURL:  "/api",
+				wantVariable: true,
+			},
+			{
+				name:         "root_basepath_collapses_to_empty",
+				basePath:     "/",
+				wantBaseURL:  "",
+				wantVariable: false,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				tmp := t.TempDir() + "/no_servers_basepath.json"
+				_ = writeTemp(tmp, `{"openapi":"3.0.0","info":{"title":"T"},"servers":[],"basePath":"`+tc.basePath+`","paths":{"/ping":{"get":{"operationId":"ping"}}}}`)
+				result, err := imp.Import(tmp)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				baseURL, ok := result.Collection.Variables["baseUrl"]
+				if ok != tc.wantVariable {
+					t.Fatalf("baseUrl variable presence = %v, want %v", ok, tc.wantVariable)
+				}
+				if tc.wantVariable && baseURL.Value != tc.wantBaseURL {
+					t.Errorf("baseUrl value: got %q, want %q", baseURL.Value, tc.wantBaseURL)
+				}
+			})
+		}
+	})
+
 	t.Run("no_host_swagger2_uses_baseurl_placeholder", func(t *testing.T) {
 		tmp := t.TempDir() + "/no_host.json"
 		_ = writeTemp(tmp, `{"swagger":"2.0","info":{"title":"T"},"basePath":"/api","paths":{"/ping":{"get":{"operationId":"ping"}}}}`)
@@ -448,8 +488,62 @@ func TestOpenAPIImporter_ErrorCases(t *testing.T) {
 		if result.BasePath != "/api" {
 			t.Errorf("basePath: got %q, want %q", result.BasePath, "/api")
 		}
-		if _, ok := result.Collection.Variables["baseUrl"]; ok {
-			t.Errorf("collection baseUrl variable should be absent when swagger host is missing")
+		baseURL, ok := result.Collection.Variables["baseUrl"]
+		if !ok {
+			t.Fatal("collection baseUrl variable should be present when swagger basePath is defined")
+		}
+		if baseURL.Value != "/api" {
+			t.Errorf("baseUrl value: got %q, want %q", baseURL.Value, "/api")
+		}
+	})
+
+	t.Run("no_host_swagger2_uses_normalized_basepath_as_baseurl", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			basePath     string
+			wantBaseURL  string
+			wantVariable bool
+		}{
+			{
+				name:         "normalizes_missing_leading_slash_and_trailing_slash",
+				basePath:     "api/",
+				wantBaseURL:  "/api",
+				wantVariable: true,
+			},
+			{
+				name:         "root_basepath_collapses_to_empty",
+				basePath:     "/",
+				wantBaseURL:  "",
+				wantVariable: false,
+			},
+			{
+				name:         "missing_basepath_keeps_baseurl_absent",
+				basePath:     "",
+				wantBaseURL:  "",
+				wantVariable: false,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				tmp := t.TempDir() + "/no_host_normalized.json"
+				doc := `{"swagger":"2.0","info":{"title":"T"},"paths":{"/ping":{"get":{"operationId":"ping"}}}}`
+				if tc.basePath != "" {
+					doc = `{"swagger":"2.0","info":{"title":"T"},"basePath":"` + tc.basePath + `","paths":{"/ping":{"get":{"operationId":"ping"}}}}`
+				}
+				_ = writeTemp(tmp, doc)
+				result, err := imp.Import(tmp)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				baseURL, ok := result.Collection.Variables["baseUrl"]
+				if ok != tc.wantVariable {
+					t.Fatalf("baseUrl variable presence = %v, want %v", ok, tc.wantVariable)
+				}
+				if tc.wantVariable && baseURL.Value != tc.wantBaseURL {
+					t.Errorf("baseUrl value: got %q, want %q", baseURL.Value, tc.wantBaseURL)
+				}
+			})
 		}
 	})
 }
