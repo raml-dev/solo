@@ -552,7 +552,7 @@
             <span class="inline-flex items-center gap-1">
               <span>Scripts</span>
               {#if tab.preRequestScript.trim() || tab.postResponseScript.trim()}
-                <span aria-hidden="true">●</span>
+                <span class="h-1.5 w-1.5 rounded-full bg-primary-500" aria-hidden="true"></span>
               {/if}
             </span>
           {/snippet}
