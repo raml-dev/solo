@@ -46,7 +46,7 @@
   import { onMount } from "svelte";
 
   // 1) custom types
-  type SettingsSection = "general" | "themes" | "troubleshooting" | "hosts" | "about";
+  type SettingsSection = "general" | "appearance" | "troubleshooting" | "hosts" | "about";
   type HostCookieRow = { id: string; key: string; value: string };
 
   // 2) props
@@ -55,7 +55,7 @@
   // constants
   const NAV_ITEMS: { id: SettingsSection; label: string }[] = [
     { id: "general", label: "General" },
-    { id: "themes", label: "Themes" },
+    { id: "appearance", label: "Appearance" },
     { id: "hosts", label: "Hosts" },
     { id: "troubleshooting", label: "Troubleshooting" },
     { id: "about", label: "About" }
@@ -313,7 +313,7 @@
 
   <!-- Content -->
   <div class="min-w-0 flex-1 overflow-y-auto">
-    {#if activeSection === "themes"}
+    {#if activeSection === "appearance"}
       <div class="flex flex-col gap-4">
         <div>
           <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">Themes</h2>

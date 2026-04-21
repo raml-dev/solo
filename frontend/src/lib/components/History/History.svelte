@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-  import ConsoleEntry from "$src/lib/components/Console/ConsoleEntry.svelte";
+  import HistoryEntry from "$src/lib/components/History/HistoryEntry.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
   import Button from "flowbite-svelte/Button.svelte";
@@ -66,7 +66,7 @@
   <div
     class="flex flex-wrap items-center gap-4 border-b border-neutral-200 pb-3 dark:border-neutral-700"
   >
-    <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-200">Console</span>
+    <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-200">History</span>
 
     <div class="flex flex-1 items-center gap-2">
       <span class="text-xs font-bold whitespace-nowrap text-neutral-500 uppercase">URL</span>
@@ -139,7 +139,7 @@
           <FeedbackEmptyState
             compact
             title="No requests yet"
-            detail="Send a request to see it in the console"
+            detail="Send a request to see it in the history"
           />
         {:else}
           <FeedbackEmptyState compact title="No entries match the current filters" />
@@ -148,7 +148,7 @@
     {:else}
       <div class="space-y-2">
         {#each filtered as entry (entry.id)}
-          <ConsoleEntry {entry} />
+          <HistoryEntry {entry} />
         {/each}
       </div>
     {/if}
