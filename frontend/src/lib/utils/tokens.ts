@@ -25,6 +25,12 @@ export interface EnvTokenTriggerContext {
   normalizedQuery: string;
 }
 
+export interface EnvTokenAutocompleteChange {
+  from: number;
+  to: number;
+  insert: string;
+}
+
 export type TokenizedEditorSize = "sm" | "md" | "lg";
 
 export interface EnvTokenEntry {
@@ -75,6 +81,24 @@ const ENV_TOKEN_REGEX = /\{\{([^{}\r\n]+?)\}\}/g;
 
 export function createEnvTokenSnippet(key: string): string {
   return `{{${key}}}`;
+}
+
+export function createEnvTokenAutocompleteChange(
+  text: string,
+  cursor: number,
+  key: string
+): EnvTokenAutocompleteChange | null {
+  const triggerContext = findEnvTokenTriggerContext(text, cursor);
+  if (!triggerContext) return null;
+
+  const inserted = createEnvTokenSnippet(key);
+  const hasExistingClosingBraces = text.slice(triggerContext.to, triggerContext.to + 2) === "}}";
+
+  return {
+    from: triggerContext.from,
+    to: hasExistingClosingBraces ? triggerContext.to + 2 : triggerContext.to,
+    insert: inserted
+  };
 }
 
 export function extractEnvTokenMatches(text: string): EnvTokenMatch[] {

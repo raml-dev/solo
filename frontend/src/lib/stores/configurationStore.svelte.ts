@@ -82,13 +82,23 @@ function getPersistenceSignature(cfg: configuration.Configuration): string {
 export interface ConfigurationStoreState {
   config: configuration.Configuration;
   allThemes: theme.Theme[];
+  appliedThemeMode: ThemeMode;
   initialized: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
 }
 
+const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+let systemIsDark = $state(prefersDark.matches);
+
+prefersDark.addEventListener("change", (e) => {
+  systemIsDark = e.matches;
+});
+
 export const configurationStoreState: ConfigurationStoreState = $state({
   config: createEmptyConfig(),
   allThemes: [],
+  appliedThemeMode: "dark",
   initialized: false,
   saveStatus: "idle"
 });
@@ -142,6 +152,11 @@ const debouncedPersistConfig = debounce(() => {
   void persistConfig();
 }, SAVE_DEBOUNCE_MS);
 
+function resolveAppliedMode(themeMode: ThemeMode) {
+  console.log(themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode);
+  if (themeMode === "system") return systemIsDark ? "dark" : "light";
+  return themeMode;
+}
 export function saveConfig() {
   debouncedPersistConfig();
 }
@@ -157,6 +172,9 @@ export const configurationStore = {
       configurationStoreState.config = normalizedConfig;
       configurationStoreState.allThemes = normalizedThemes;
       configurationStoreState.initialized = true;
+      configurationStoreState.appliedThemeMode = resolveAppliedMode(
+        (normalizedConfig.general.themeMode as ThemeMode) ?? "system"
+      );
       configurationStoreState.saveStatus = "idle";
       lastPersistedSignature = getPersistenceSignature(normalizedConfig);
 
@@ -188,6 +206,7 @@ export const configurationStore = {
   applyThemeMode(mode: ThemeMode) {
     setActiveThemeMode(mode);
     applyThemeModeRuntime(mode);
+    configurationStoreState.appliedThemeMode = resolveAppliedMode(mode);
   }
 };
 

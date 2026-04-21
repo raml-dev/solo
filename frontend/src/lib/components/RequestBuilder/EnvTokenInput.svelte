@@ -16,8 +16,8 @@
   } from "$src/lib/stores/tokenTooltipStore";
   import {
     clampActiveIndex,
+    createEnvTokenAutocompleteChange,
     createEnvTokenDecorationPlugin,
-    createEnvTokenSnippet,
     createTokenizedEditorTheme,
     filterEnvTokenEntries,
     findEnvTokenTriggerContext,
@@ -131,17 +131,16 @@
 
   function applyAutocompleteEntry(entry: ResolvedVariableEntry) {
     if (!view) return;
-    const triggerContext = findEnvTokenTriggerContext(
+    const completionChange = createEnvTokenAutocompleteChange(
       view.state.doc.toString(),
-      view.state.selection.main.head
+      view.state.selection.main.head,
+      entry.key
     );
-    if (!triggerContext) return;
-
-    const inserted = createEnvTokenSnippet(entry.key);
+    if (!completionChange) return;
 
     view.dispatch({
-      changes: { from: triggerContext.from, to: triggerContext.to, insert: inserted },
-      selection: EditorSelection.cursor(triggerContext.from + inserted.length)
+      changes: completionChange,
+      selection: EditorSelection.cursor(completionChange.from + completionChange.insert.length)
     });
 
     autocompleteOpen = false;

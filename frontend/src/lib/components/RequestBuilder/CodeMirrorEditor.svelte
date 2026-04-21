@@ -4,27 +4,29 @@
 -->
 
 <script lang="ts">
+  import { jsonVars } from "$src/lib/codemirror/lang-json-vars";
+  import { vsCodeDarkHighlightStyle } from "$src/lib/codemirror/themes/vscode/dark";
+  import { vsCodeLightHighlightStyle } from "$src/lib/codemirror/themes/vscode/light";
   import EnvAutocompletePopover from "$src/lib/components/RequestBuilder/EnvAutocompletePopover.svelte";
+  import { configurationStoreState } from "$src/lib/stores/configurationStore.svelte";
   import { hideTokenTooltipDelay, showTokenTooltip } from "$src/lib/stores/tokenTooltipStore";
   import {
-    createResolvedVariableEntryMap,
-    type ResolvedVariableEntry
-  } from "$src/lib/utils/variableResolution";
-  import {
     clampActiveIndex,
+    createEnvTokenAutocompleteChange,
     createEnvTokenDecorationPlugin,
-    createEnvTokenSnippet,
     createTokenizedEditorTheme,
     filterEnvTokenEntries,
     findEnvTokenTriggerContext,
     getTokenizedEditorSizeClass
   } from "$src/lib/utils/tokens";
+  import {
+    createResolvedVariableEntryMap,
+    type ResolvedVariableEntry
+  } from "$src/lib/utils/variableResolution";
   import { closeBrackets } from "@codemirror/autocomplete";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-  import { json } from "@codemirror/lang-json";
   import { xml } from "@codemirror/lang-xml";
   import {
-    defaultHighlightStyle,
     foldGutter,
     foldKeymap,
     HighlightStyle,
@@ -55,13 +57,13 @@
   } from "@codemirror/view";
   import { tags } from "@lezer/highlight";
   import { indentationMarkers } from "@replit/codemirror-indentation-markers";
-  import Button from "flowbite-svelte/Button.svelte";
-  import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import ArrowDownOutline from "flowbite-svelte-icons/ArrowDownOutline.svelte";
   import ArrowUpOutline from "flowbite-svelte-icons/ArrowUpOutline.svelte";
   import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
   import ClipboardCleanSolid from "flowbite-svelte-icons/ClipboardCleanSolid.svelte";
+  import Button from "flowbite-svelte/Button.svelte";
   import Clipboard from "flowbite-svelte/Clipboard.svelte";
+  import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Toolbar from "flowbite-svelte/Toolbar.svelte";
   import ToolbarButton from "flowbite-svelte/ToolbarButton.svelte";
@@ -92,6 +94,8 @@
 
   let success = $state(false);
 
+  const config = $derived(configurationStoreState);
+
   // Annotation to mark transactions initiated by us (external sync) so the
   // updateListener does NOT re-emit "change" and cause an infinite loop.
   const externalUpdate = Annotation.define<boolean>();
@@ -100,6 +104,7 @@
   let view: EditorView | undefined = $state();
 
   let languageCompartment = new Compartment();
+  let highlightThemeCompartment = new Compartment();
   let tokenDecoratorCompartment = new Compartment();
 
   let autocompleteOpen = $state(false);
@@ -339,16 +344,16 @@
   function applyAutocompleteEntry(entry: ResolvedVariableEntry) {
     if (!view) return;
 
-    const triggerContext = findEnvTokenTriggerContext(
+    const completionChange = createEnvTokenAutocompleteChange(
       view.state.doc.toString(),
-      view.state.selection.main.head
+      view.state.selection.main.head,
+      entry.key
     );
-    if (!triggerContext) return;
+    if (!completionChange) return;
 
-    const inserted = createEnvTokenSnippet(entry.key);
     view.dispatch({
-      changes: { from: triggerContext.from, to: triggerContext.to, insert: inserted },
-      selection: EditorSelection.cursor(triggerContext.from + inserted.length)
+      changes: completionChange,
+      selection: EditorSelection.cursor(completionChange.from + completionChange.insert.length)
     });
 
     autocompleteOpen = false;
@@ -420,8 +425,8 @@
       searchToolbarKeymap,
       keymap.of([...defaultKeymap, ...foldKeymap]),
       languageCompartment.of(getLangExtension()),
+      highlightThemeCompartment.of(getHighlightThemeExtension()),
       syntaxHighlighting(customHighlightStyle),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       createTokenizedEditorTheme(),
       appTheme,
       tokenDecoratorCompartment.of(readOnly ? [] : createTokenHighlightPlugin()),
@@ -471,10 +476,16 @@
   function getLangExtension() {
     // explicit language prop takes priority
     const lang = language || format;
-    if (lang === "json") return json();
+    if (lang === "json") return jsonVars();
     if (lang === "xml") return xml();
     if (lang === "lua") return StreamLanguage.define(lua);
     return [];
+  }
+
+  function getHighlightThemeExtension() {
+    return syntaxHighlighting(
+      config.appliedThemeMode === "dark" ? vsCodeDarkHighlightStyle : vsCodeLightHighlightStyle
+    );
   }
 
   // --- Extensions ---
@@ -527,6 +538,14 @@
         effects: languageCompartment.reconfigure(getLangExtension())
       });
     }
+  });
+
+  $effect(() => {
+    if (!view) return;
+
+    view.dispatch({
+      effects: highlightThemeCompartment.reconfigure(getHighlightThemeExtension())
+    });
   });
 
   $effect(() => {

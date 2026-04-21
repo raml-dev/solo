@@ -68,26 +68,42 @@
 
 .cm-env-token--known {
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-primary-700) !important;
   font-weight: 700;
+}
+
+.cm-env-token--known * {
+  color: inherit !important;
 }
 
 .cm-env-token--unknown {
   background: var(--color-neutral-400);
-  color: var(--color-neutral-100);
+  color: var(--color-neutral-100) !important;
   font-style: italic;
+}
+
+.cm-env-token--unknown * {
+  color: inherit !important;
 }
 
 .cm-env-token--session {
   background: var(--color-neutral-500);
-  color: var(--color-neutral-100);
+  color: var(--color-neutral-100) !important;
   font-weight: 700;
+}
+
+.cm-env-token--session * {
+  color: inherit !important;
 }
 
 .cm-env-token--collection {
   background-color: var(--color-warning-500);
-  color: var(--color-neutral-950);
+  color: var(--color-neutral-950) !important;
   font-weight: var(--font-weight-bold);
+}
+
+.cm-env-token--collection * {
+  color: inherit !important;
 }
 
 .dark .cm-editor {
@@ -122,24 +138,40 @@
 
 .dark .cm-env-token--known {
   background: var(--color-primary-900);
-  color: var(--color-primary-300);
+  color: var(--color-primary-300) !important;
   font-weight: 700;
+}
+
+.dark .cm-env-token--known * {
+  color: inherit !important;
 }
 
 .dark .cm-env-token--unknown {
   background: var(--color-neutral-500);
-  color: var(--color-neutral-100);
+  color: var(--color-neutral-100) !important;
   font-style: italic;
+}
+
+.dark .cm-env-token--unknown * {
+  color: inherit !important;
 }
 
 .dark .cm-env-token--session {
   background: var(--color-neutral-500);
-  color: var(--color-neutral-100);
+  color: var(--color-neutral-100) !important;
   font-weight: 700;
+}
+
+.dark .cm-env-token--session * {
+  color: inherit !important;
 }
 
 .dark .cm-env-token--collection {
   background-color: var(--color-warning-500);
-  color: var(--color-neutral-950);
+  color: var(--color-neutral-950) !important;
   font-weight: var(--font-weight-bold);
+}
+
+.dark .cm-env-token--collection * {
+  color: inherit !important;
 }
