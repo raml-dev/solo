@@ -6,6 +6,8 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionList from "$src/lib/components/Collections/CollectionList.svelte";
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import History from "$src/lib/components/History/History.svelte";
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
@@ -14,7 +16,7 @@
   import { configurationStore } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
-  import { hasOpenModals } from "$src/lib/stores/modalStackStore.svelte";
+  import { hasOpenModals, modalStack } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
   import {
@@ -25,12 +27,20 @@
   import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
+  import EditOutline from "flowbite-svelte-icons/EditOutline.svelte";
   import GlobeOutline from "flowbite-svelte-icons/GlobeOutline.svelte";
-  import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
+  import ClockArrowOutline from "flowbite-svelte-icons/ClockArrowOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
   import { onMount } from "svelte";
+
+  let isEnvDropdownOpen = $state(false);
+
+  let environments = $derived(environmentStoreState.environments);
+  let selectedEnvironmentName = $derived(environmentStoreState.selectedEnvironmentName);
+
+  const environmentManagerModal = modalStack.createModal("app-environments");
 
   let historyOpen = $state(false);
   let consoleHeight = $state(260);
@@ -52,6 +62,14 @@
 
   function toggleHistory() {
     historyOpen = !historyOpen;
+  }
+
+  function toggleEnvironmentManager() {
+    environmentManagerModal.open = !environmentManagerModal.open;
+  }
+
+  function closeEnvDropdown() {
+    isEnvDropdownOpen = false;
   }
 
   function startResize(e: MouseEvent) {
@@ -187,6 +205,48 @@
   });
 </script>
 
+{#snippet envDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
+  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-max max-w-72 min-w-40" {onClose}>
+    {#each environments as environment (environment.id)}
+      <ContextMenuItem
+        onclick={() => {
+          void environmentStore.selectEnvironment(environment.name);
+          onClose();
+        }}
+      >
+        <div class="flex items-center gap-2">
+          <div class="flex flex-1 items-center gap-2">
+            <input
+              type="radio"
+              name="active-environment"
+              checked={selectedEnvironmentName === environment.name}
+              onchange={() => {
+                void environmentStore.selectEnvironment(environment.name);
+                onClose();
+              }}
+              aria-label={`Set ${environment.name} as active environment`}
+              class="relative mr-2 flex h-4 w-4 shrink-0 items-center border-gray-300 bg-gray-100 text-primary-600 dark:border-gray-600 dark:bg-gray-700"
+            />
+            <span>{environment.name}</span>
+          </div>
+          <div class="flex">
+            <EditOutline
+              class="h-4 w-4 shrink-0 cursor-pointer"
+              onclick={toggleEnvironmentManager}
+            />
+          </div>
+        </div>
+      </ContextMenuItem>
+    {/each}
+    <!-- <ContextMenuItem
+      onclick={() => {
+        onClose();
+      }}
+    >
+      <div class="flex items-center gap-2">add env</div>
+    </ContextMenuItem> -->
+  </ContextMenu>
+{/snippet}
 <ThemeProvider theme={flowbiteTheme}>
   {#if !$hasOpenModals}
     <ToastContainer />
@@ -230,12 +290,12 @@
           color="alternative"
           size="xs"
           onclick={toggleHistory}
-          class="border-0 bg-transparent shadow-none hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent
+          class="gap-1 border-0 bg-transparent shadow-none hover:cursor-pointer hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent
           {historyOpen
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-neutral-600 dark:text-neutral-400'}"
         >
-          <TerminalOutline size="xs" />
+          <ClockArrowOutline class="h-4 -ml-1.5" />
           History
           {#if $historyStore.length > 0}
             <Badge
@@ -246,14 +306,21 @@
             </Badge>
           {/if}
         </Button>
-        <span
-          class="flex items-center gap-1 text-xs {environmentStoreState.selectedEnvironmentName
+        <Button
+          id="env-dropdown-button"
+          size="xs"
+          onclick={() => (isEnvDropdownOpen = true)}
+          class="items-center gap-1 border-0 bg-transparent shadow-none hover:cursor-pointer hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent {selectedEnvironmentName
             ? 'text-neutral-600 dark:text-neutral-400'
             : 'text-neutral-400 dark:text-neutral-600'}"
+          color="alternative"
         >
-          <GlobeOutline size="xs" />
-          Active env: {environmentStoreState.selectedEnvironmentName ?? "No environment"}
-        </span>
+          <GlobeOutline class="h-4" />
+          Active env: {selectedEnvironmentName ?? "No environment"}
+          <!-- <AngleUpOutline class="w-3 shrink-0" /> -->
+        </Button>
+
+        {@render envDropdown("#env-dropdown-button", isEnvDropdownOpen, closeEnvDropdown)}
       </div>
     {/snippet}
   </MainLayout>
