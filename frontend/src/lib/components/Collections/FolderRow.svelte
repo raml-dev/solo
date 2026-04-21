@@ -363,7 +363,7 @@
     {/if}
 
     <span
-      class="w-8 rounded font-mono bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+      class="w-8 rounded bg-neutral-200 px-1.5 py-0.5 text-center font-mono text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
     >
       {clampNumberToMax(getTotalRequestCount(folder))}
     </span>
