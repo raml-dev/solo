@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
+  import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
   import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
   import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
@@ -12,8 +13,8 @@
     collectionTreeUI,
     collectionTreeUIState
   } from "$src/lib/features/collections/collectionTreeUI.svelte";
-  import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
+  import { clampNumberToMax, getTotalRequestCount } from "$src/lib/utils/helpers";
   import { collection } from "$wails/go/models";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import AngleRightOutline from "flowbite-svelte-icons/AngleRightOutline.svelte";
@@ -107,10 +108,6 @@
 
   function getVisibleFolderRequests(): collection.Request[] {
     return getVisibleRequests(folder.requests || [], searchQuery);
-  }
-
-  function getDirectItemCount(): number {
-    return (folder.folders?.length || 0) + (folder.requests?.length || 0);
   }
 
   function isExpanded(): boolean {
@@ -366,9 +363,9 @@
     {/if}
 
     <span
-      class="w-6 rounded bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+      class="w-8 rounded font-mono bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
     >
-      {getDirectItemCount()}
+      {clampNumberToMax(getTotalRequestCount(folder))}
     </span>
 
     {#if isEditing}

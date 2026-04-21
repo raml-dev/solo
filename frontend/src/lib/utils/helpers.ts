@@ -3,6 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import type { collection } from "$wails/go/models";
+
+const MAX_REQUESTS_BEFORE_TRIM = 99;
+
 /**
  * Filters the array _in place_ to only retain elements matching the given predicate.
  *
@@ -36,4 +40,23 @@ export function truncateString(url: string, max = 60): string {
 export function formatTime(ts: string): string {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+export function clampNumberToMax(numberToClamp: number) {
+  if (numberToClamp > MAX_REQUESTS_BEFORE_TRIM) return `${MAX_REQUESTS_BEFORE_TRIM}+`;
+  return String(numberToClamp);
+}
+
+export function getTotalRequestCount(
+  collectionOrFolder: collection.Collection | collection.Folder
+): number {
+  return (
+    collectionOrFolder.requests.length ||
+    0 +
+      collectionOrFolder.folders.reduce(
+        (count: number, folder: collection.Folder) =>
+          count + (folder.requests?.length || 0) + getTotalRequestCount(folder),
+        0
+      )
+  );
 }

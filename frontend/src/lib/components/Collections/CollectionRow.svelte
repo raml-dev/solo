@@ -4,16 +4,17 @@
 -->
 
 <script lang="ts">
+  import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
+  import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
   import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
   import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
-  import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
-  import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import {
     collectionTreeUI,
     collectionTreeUIState
   } from "$src/lib/features/collections/collectionTreeUI.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
+  import { clampNumberToMax, getTotalRequestCount } from "$src/lib/utils/helpers";
   import { collection } from "$wails/go/models";
   import AdjustmentsVerticalOutline from "flowbite-svelte-icons/AdjustmentsVerticalOutline.svelte";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
@@ -141,14 +142,6 @@
     }
 
     handleHeaderActivate(event);
-  }
-
-  function getTotalRequestCount(currentFolderList: collection.Folder[]): number {
-    return currentFolderList.reduce(
-      (count, folder) =>
-        count + (folder.requests?.length || 0) + getTotalRequestCount(folder.folders || []),
-      0
-    );
   }
 
   function isRootRequestDropTarget(): boolean {
@@ -309,10 +302,9 @@
     <div class="min-w-0 flex-1">
       <div class="flex cursor-pointer items-center gap-2">
         <span
-          class="w-6 rounded bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
+          class="w-8 rounded font-mono bg-neutral-200 px-1.5 py-0.5 text-center text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
         >
-          {(currentCollection.requests?.length || 0) +
-            getTotalRequestCount(currentCollection.folders || [])}
+          {clampNumberToMax(getTotalRequestCount(currentCollection))}
         </span>
 
         {#if currentCollection.gitRemote}
