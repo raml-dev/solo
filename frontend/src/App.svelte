@@ -6,13 +6,13 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionList from "$src/lib/components/Collections/CollectionList.svelte";
-  import Console from "$src/lib/components/Console/Console.svelte";
+  import History from "$src/lib/components/History/History.svelte";
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore.svelte";
-  import { environmentStore } from "$src/lib/stores/environmentStore.svelte";
+  import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { historyStore } from "$src/lib/stores/historyStore";
   import { hasOpenModals } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
@@ -25,13 +25,14 @@
   import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
   import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
+  import GlobeOutline from "flowbite-svelte-icons/GlobeOutline.svelte";
   import TerminalOutline from "flowbite-svelte-icons/TerminalOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
   import { onMount } from "svelte";
 
-  let consoleOpen = $state(false);
+  let historyOpen = $state(false);
   let consoleHeight = $state(260);
   const MIN_HEIGHT = 120;
   const MAX_HEIGHT = 700;
@@ -49,8 +50,8 @@
     });
   }
 
-  function toggleConsole() {
-    consoleOpen = !consoleOpen;
+  function toggleHistory() {
+    historyOpen = !historyOpen;
   }
 
   function startResize(e: MouseEvent) {
@@ -201,9 +202,9 @@
       </div>
     </div>
 
-    <!-- Console panel + status bar -->
+    <!-- History panel + status bar -->
     {#snippet bottom_bar()}
-      {#if consoleOpen}
+      {#if historyOpen}
         <div
           class="flex flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
           style="height: {consoleHeight}px"
@@ -216,25 +217,26 @@
             aria-label="Resize console"
           ></button>
           <div class="min-h-0 flex-1 overflow-hidden">
-            <Console />
+            <History />
           </div>
         </div>
       {/if}
 
       <!-- Status bar -->
       <div
-        class="flex h-[--spacing-statusbar] shrink-0 items-center border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
+        class="flex h-[--spacing-statusbar] shrink-0 items-center justify-between border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
       >
         <Button
-          color="light"
+          color="alternative"
           size="xs"
-          onclick={toggleConsole}
-          class="border-0 shadow-none {consoleOpen
+          onclick={toggleHistory}
+          class="border-0 bg-transparent shadow-none hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent
+          {historyOpen
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-neutral-600 dark:text-neutral-400'}"
         >
           <TerminalOutline size="xs" />
-          Console
+          History
           {#if $historyStore.length > 0}
             <Badge
               color="primary"
@@ -244,6 +246,14 @@
             </Badge>
           {/if}
         </Button>
+        <span
+          class="flex items-center gap-1 text-xs {environmentStoreState.selectedEnvironmentName
+            ? 'text-neutral-600 dark:text-neutral-400'
+            : 'text-neutral-400 dark:text-neutral-600'}"
+        >
+          <GlobeOutline size="xs" />
+          Active env: {environmentStoreState.selectedEnvironmentName ?? "No environment"}
+        </span>
       </div>
     {/snippet}
   </MainLayout>
