@@ -92,7 +92,7 @@ func InitDiscoveryClient(repositoryURL string) *DiscoveryClient {
 This function determines whether a newer release exists for the current
 version and returns the most recent eligible release.
 */
-func (dc *DiscoveryClient) GetUpdatesFromRepo(currentVersion string) (*GitHubResponse, error) {
+func (dc *DiscoveryClient) GetUpdatesFromRepo(currentVersion string, includePrereleases bool) (*GitHubResponse, error) {
 	if dc == nil {
 		return nil, errors.New("discovery client not initialized")
 	}
@@ -121,7 +121,7 @@ func (dc *DiscoveryClient) GetUpdatesFromRepo(currentVersion string) (*GitHubRes
 		candidates = append(candidates, converted)
 	}
 
-	latest := findLatestRelease(candidates, currentVersion)
+	latest := findLatestRelease(candidates, currentVersion, includePrereleases)
 	if latest == nil {
 		return nil, nil
 	}
@@ -306,8 +306,8 @@ func toGitHubRelease(release *github.RepositoryRelease) (GitHubRelease, bool) {
 	}, true
 }
 
-func findLatestRelease(releases []GitHubRelease, currentVersion string) *GitHubRelease {
-	includePrereleases := shouldIncludePrereleases(currentVersion)
+func findLatestRelease(releases []GitHubRelease, currentVersion string, includePrereleases bool) *GitHubRelease {
+	includePrereleases = shouldIncludePrereleases(currentVersion, includePrereleases)
 
 	var latest *GitHubRelease
 	for i := range releases {

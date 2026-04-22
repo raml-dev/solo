@@ -48,9 +48,17 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	if cfg.Request.TimeoutSeconds != tools.DEFAULT_TIMEOUT_SECONDS {
 		t.Errorf("Expected default timeout %d, got %d", tools.DEFAULT_TIMEOUT_SECONDS, cfg.Request.TimeoutSeconds)
 	}
+	if cfg.General.IncludePrereleaseUpdates != tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES {
+		t.Errorf(
+			"Expected prerelease toggle default %t, got %t",
+			tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES,
+			cfg.General.IncludePrereleaseUpdates,
+		)
+	}
 
 	newTheme := "nord"
 	cfg.General.ActiveTheme = newTheme
+	cfg.General.IncludePrereleaseUpdates = true
 	if err := cm.Save(cfg); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
@@ -62,6 +70,9 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	cfg2 := cm2.Get()
 	if cfg2.General.ActiveTheme != newTheme {
 		t.Errorf("Persistence failed: expected theme %s, got %s", newTheme, cfg2.General.ActiveTheme)
+	}
+	if !cfg2.General.IncludePrereleaseUpdates {
+		t.Error("Expected prerelease toggle to persist")
 	}
 }
 

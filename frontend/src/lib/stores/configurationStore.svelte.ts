@@ -62,6 +62,7 @@ function getPersistenceSignature(cfg: configuration.Configuration): string {
       activeTheme: cfg.general?.activeTheme ?? "",
       themeMode: cfg.general?.themeMode ?? "system",
       checkForUpdates: cfg.general?.checkForUpdates ?? false,
+      includePrereleaseUpdates: cfg.general?.includePrereleaseUpdates ?? false,
       debugMode: cfg.general?.debugMode ?? false,
       dayTheme: cfg.general?.dayTheme ?? "",
       nightTheme: cfg.general?.nightTheme ?? "",

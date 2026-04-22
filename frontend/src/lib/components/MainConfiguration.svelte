@@ -15,6 +15,7 @@
   } from "$src/lib/stores/configurationStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
+  import { updateStore } from "$src/lib/stores/updateStore.svelte";
   import type { ThemeMode } from "$src/lib/theme/themeModel";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
@@ -113,6 +114,11 @@
 
   function handleToggleSettingChange() {
     saveConfig();
+  }
+
+  function handleUpdateToggleSettingChange() {
+    saveConfig();
+    void updateStore.syncWithConfiguration();
   }
 
   function handleThemeModeChange() {
@@ -371,9 +377,17 @@
 
         <Toggle
           bind:checked={configurationStoreState.config.general.checkForUpdates}
-          onchange={handleToggleSettingChange}
+          onchange={handleUpdateToggleSettingChange}
         >
           Check for updates on startup
+        </Toggle>
+
+        <Toggle
+          bind:checked={configurationStoreState.config.general.includePrereleaseUpdates}
+          onchange={handleUpdateToggleSettingChange}
+          disabled={!configurationStoreState.config.general.checkForUpdates}
+        >
+          Include release candidates in update discovery
         </Toggle>
 
         <div>

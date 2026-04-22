@@ -6,25 +6,15 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
-  import { notifications } from "$src/lib/stores/notificationStore";
-  import { DownloadAssets, GetAppInfo, GetUpdatesFromRepo } from "$wails/go/main/App";
+  import { updateStore, updateStoreState } from "$src/lib/stores/updateStore.svelte";
   import { appinfo } from "$wails/go/models";
-  import { EventsOff, EventsOn } from "$wails/runtime";
-  import { BrowserOpenURL } from "$wails/runtime/runtime";
   import DOMPurify from "dompurify";
   import Button from "flowbite-svelte/Button.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import { marked } from "marked";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy } from "svelte";
 
-  let visible = $state(false);
-  let loading = $state(false);
-  let ignoredVersion = $state("");
-  let currentVersion = $state("");
-  let updateInfo: appinfo.GitHubResponse | null = $state(null);
-  let selectedRelease: appinfo.GitHubRelease | null = $state(null);
   let releaseNotesHtml = $state("");
-  let downloadedPath = $state("");
 
   const releaseNotesModal = modalStack.createModal("update-release-notes");
   const downloadCompleteModal = modalStack.createModal("update-downloaded");
@@ -64,55 +54,10 @@
     return (release.tag_name || release.name || "").trim();
   }
 
-  function handleUpdateAvailable(payload: unknown) {
-    const release = appinfo.GitHubResponse.createFrom(payload);
-    if (!release || !release.Release) return;
-
-    const version = getVersion(release.Release);
-    if (!version) return;
-    if (ignoredVersion === version) return;
-
-    updateInfo = release;
-    selectedRelease = release.Release;
-    visible = true;
-  }
-
-  function handleDownloaded(payload?: unknown) {
-    loading = false;
-    visible = false;
-    downloadedPath =
-      typeof payload === "object" &&
-      payload !== null &&
-      "path" in payload &&
-      typeof payload.path === "string"
-        ? payload.path
-        : "";
-    downloadCompleteModal.open = true;
-  }
-
-  function handleIgnore() {
-    if (!selectedRelease) return;
-    ignoredVersion = getVersion(selectedRelease);
-    visible = false;
-  }
-
-  async function handleUpdate() {
-    if (!updateInfo || loading) return;
-
-    loading = true;
-    try {
-      const result = await DownloadAssets(updateInfo, currentVersion);
-      if (!result) {
-        loading = false;
-      }
-    } catch (err) {
-      loading = false;
-      notifications.error("Failed to download update", String(err));
-    }
-  }
-
   function openReleaseNotesModal() {
-    const markdown = selectedRelease ? getReleaseNotes(selectedRelease) : "";
+    const markdown = updateStoreState.selectedRelease
+      ? getReleaseNotes(updateStoreState.selectedRelease)
+      : "";
 
     if (!markdown) {
       releaseNotesHtml = "<p>No release notes available.</p>";
@@ -133,35 +78,16 @@
   }
 
   function openReleasePage() {
-    const releaseURL = (selectedRelease?.html_url || "").trim();
-    if (!releaseURL) return;
-    BrowserOpenURL(releaseURL);
+    updateStore.openReleasePage();
   }
 
-  onMount(() => {
-    EventsOn("updates:available", handleUpdateAvailable);
-    EventsOn("updates:downloaded", handleDownloaded);
-
-    (async () => {
-      try {
-        const [appData, latestUpdate] = await Promise.all([GetAppInfo(), GetUpdatesFromRepo()]);
-        currentVersion = appData?.productVersion ?? "";
-        handleUpdateAvailable(latestUpdate);
-      } catch {
-        currentVersion = "";
-      }
-    })();
-  });
-
   onDestroy(() => {
-    EventsOff("updates:available");
-    EventsOff("updates:downloaded");
     modalStack.destroyModal(releaseNotesModal.id);
     modalStack.destroyModal(downloadCompleteModal.id);
   });
 </script>
 
-{#if visible && selectedRelease}
+{#if updateStoreState.visible && updateStoreState.selectedRelease}
   <div
     class="sticky top-0 z-40 border-b border-blue-200 bg-primary-500/40 px-3 py-2 dark:border-primary-700 dark:bg-primary-900/40"
   >
@@ -169,7 +95,7 @@
       <div class="min-w-0 flex-1">
         <p class="text-sm font-semibold text-blue-900 dark:text-blue-100">Update available</p>
         <p class="text-sm text-blue-900/90 dark:text-blue-100/90">
-          Solo version {getVersion(selectedRelease)} is available.
+          Solo version {getVersion(updateStoreState.selectedRelease)} is available.
           <button
             type="button"
             class="ml-1 underline underline-offset-2 hover:no-underline"
@@ -180,14 +106,24 @@
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <Button size="xs" color="light" onclick={handleIgnore} disabled={loading}>Ignore</Button>
-        {#if selectedRelease.html_url}
-          <Button size="xs" color="light" onclick={openReleasePage} disabled={loading}>
-            Release page
-          </Button>
-        {/if}
-        <Button size="xs" color="primary" onclick={handleUpdate} disabled={loading} {loading}
-          >Download latest version</Button
+        <Button
+          size="xs"
+          color="light"
+          onclick={() => updateStore.ignoreCurrentRelease()}
+          disabled={updateStoreState.loading}>Ignore</Button
+        >
+        <Button
+          size="xs"
+          color="light"
+          onclick={openReleasePage}
+          disabled={updateStoreState.loading}>Release page</Button
+        >
+        <Button
+          size="xs"
+          color="primary"
+          onclick={() => updateStore.downloadLatestRelease()}
+          disabled={updateStoreState.loading}
+          loading={updateStoreState.loading}>Download latest version</Button
         >
       </div>
     </div>
@@ -206,15 +142,15 @@
   </Modal>
 {/if}
 
-{#if downloadCompleteModal.open}
-  <Modal title="Update downloaded" bind:open={downloadCompleteModal.open} size="md">
+{#if updateStoreState.downloadCompleteOpen}
+  <Modal title="Update downloaded" bind:open={updateStoreState.downloadCompleteOpen} size="md">
     {#if $topModalId === downloadCompleteModal.id}
       <ToastContainer />
     {/if}
     <p class="text-sm text-neutral-700 dark:text-neutral-200">
       Downloaded the latest release package.
-      {#if downloadedPath}
-        It was saved to <span class="font-medium">{downloadedPath}</span>.
+      {#if updateStoreState.downloadedPath}
+        It was saved to <span class="font-medium">{updateStoreState.downloadedPath}</span>.
       {/if}
       Install or replace the app manually using your preferred update path.
     </p>

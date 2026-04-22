@@ -93,8 +93,12 @@ func (a *App) GetAppInfo() appinfo.AppInfo {
 // GetUpdatesFromRepo fetches release updates and emits an event for the frontend.
 func (a *App) GetUpdatesFromRepo() (*appinfo.GitHubResponse, error) {
 	dc := appinfo.InitDiscoveryClient(a.GetAppInfo().GHLink)
+	includePrereleases := false
+	if a.configManager != nil {
+		includePrereleases = a.configManager.Get().General.IncludePrereleaseUpdates
+	}
 
-	info, err := dc.GetUpdatesFromRepo(a.GetAppInfo().ProductVersion)
+	info, err := dc.GetUpdatesFromRepo(a.GetAppInfo().ProductVersion, includePrereleases)
 	if err != nil {
 		a.emitEvent("updates:error", err.Error())
 		return nil, err
@@ -229,27 +233,15 @@ func (a *App) startup(ctx context.Context) {
 		a.service.SetContext(ctx)
 	}
 
-	checkForUpdates := true
 	debugMode := false
 
 	if a.configManager != nil {
 		cfg := a.configManager.Get()
-		checkForUpdates = cfg.General.CheckForUpdates
 		debugMode = cfg.General.DebugMode
 		a.SetDebugMode(cfg.General.DebugMode)
 	}
 
-	if checkForUpdates {
-		go a.checkUpdatesOnStartup()
-	}
-
-	slog.Info("Application started", "debug_mode", debugMode, "check_for_updates", checkForUpdates)
-}
-
-func (a *App) checkUpdatesOnStartup() {
-	if _, err := a.GetUpdatesFromRepo(); err != nil {
-		slog.Warn("Startup update check failed", "error", err)
-	}
+	slog.Info("Application started", "debug_mode", debugMode)
 }
 
 // beforeClose is called when the user tries to close the application.
