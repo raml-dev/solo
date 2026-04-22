@@ -45,9 +45,6 @@ jobs:
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
     env:
       MISE_ENV: ci
-      UPDATE_ENDPOINT: ${{ vars.UPDATE_ENDPOINT }}
-      UPDATE_KID: ${{ secrets.UPDATE_KID }}
-      UPDATE_SECRET: ${{ secrets.UPDATE_SECRET }}
     strategy:
       fail-fast: false
       matrix:
@@ -69,9 +66,6 @@ jobs:
         with:
           cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
           version: "2026.3.10"
-      - name: Generate update config
-        shell: bash
-        run: mise run ci:be:gen-update-config
       - name: Inject version into wails.json
         uses: actions/github-script@v8
         env:

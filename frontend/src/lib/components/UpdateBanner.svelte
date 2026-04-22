@@ -10,6 +10,7 @@
   import { DownloadAssets, GetAppInfo, GetUpdatesFromRepo } from "$wails/go/main/App";
   import { appinfo } from "$wails/go/models";
   import { EventsOff, EventsOn } from "$wails/runtime";
+  import { BrowserOpenURL } from "$wails/runtime/runtime";
   import DOMPurify from "dompurify";
   import Button from "flowbite-svelte/Button.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
@@ -23,6 +24,7 @@
   let updateInfo: appinfo.GitHubResponse | null = $state(null);
   let selectedRelease: appinfo.GitHubRelease | null = $state(null);
   let releaseNotesHtml = $state("");
+  let downloadedPath = $state("");
 
   const releaseNotesModal = modalStack.createModal("update-release-notes");
   const downloadCompleteModal = modalStack.createModal("update-downloaded");
@@ -75,9 +77,16 @@
     visible = true;
   }
 
-  function handleDownloaded() {
+  function handleDownloaded(payload?: unknown) {
     loading = false;
     visible = false;
+    downloadedPath =
+      typeof payload === "object" &&
+      payload !== null &&
+      "path" in payload &&
+      typeof payload.path === "string"
+        ? payload.path
+        : "";
     downloadCompleteModal.open = true;
   }
 
@@ -123,6 +132,12 @@
     releaseNotesModal.open = true;
   }
 
+  function openReleasePage() {
+    const releaseURL = (selectedRelease?.html_url || "").trim();
+    if (!releaseURL) return;
+    BrowserOpenURL(releaseURL);
+  }
+
   onMount(() => {
     EventsOn("updates:available", handleUpdateAvailable);
     EventsOn("updates:downloaded", handleDownloaded);
@@ -154,7 +169,7 @@
       <div class="min-w-0 flex-1">
         <p class="text-sm font-semibold text-blue-900 dark:text-blue-100">Update available</p>
         <p class="text-sm text-blue-900/90 dark:text-blue-100/90">
-          Solo version {getVersion(selectedRelease)} is out!
+          Solo version {getVersion(selectedRelease)} is available.
           <button
             type="button"
             class="ml-1 underline underline-offset-2 hover:no-underline"
@@ -166,9 +181,14 @@
       </div>
       <div class="flex items-center gap-2">
         <Button size="xs" color="light" onclick={handleIgnore} disabled={loading}>Ignore</Button>
-        <Button size="xs" color="primary" onclick={handleUpdate} disabled={loading} {loading}>
-          Update
-        </Button>
+        {#if selectedRelease.html_url}
+          <Button size="xs" color="light" onclick={openReleasePage} disabled={loading}>
+            Release page
+          </Button>
+        {/if}
+        <Button size="xs" color="primary" onclick={handleUpdate} disabled={loading} {loading}
+          >Download latest version</Button
+        >
       </div>
     </div>
   </div>
@@ -192,7 +212,11 @@
       <ToastContainer />
     {/if}
     <p class="text-sm text-neutral-700 dark:text-neutral-200">
-      Downloaded new version. Close this window and open the new binary to start using it.
+      Downloaded the latest release package.
+      {#if downloadedPath}
+        It was saved to <span class="font-medium">{downloadedPath}</span>.
+      {/if}
+      Install or replace the app manually using your preferred update path.
     </p>
   </Modal>
 {/if}

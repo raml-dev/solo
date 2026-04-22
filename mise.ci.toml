@@ -30,26 +30,6 @@ run = "npm run check"
 [tasks."ci:be:build"]
 run = "wails build -tags webkit2_41"
 
-[tasks."ci:be:gen-update-config"]
-shell = "bash -c"
-run = """
-set -eu
-
-: "${UPDATE_ENDPOINT:?UPDATE_ENDPOINT is required}"
-: "${UPDATE_KID:?UPDATE_KID is required}"
-: "${UPDATE_SECRET:?UPDATE_SECRET is required}"
-
-mkdir -p internal/appinfo
-
-cat > internal/appinfo/update_config.json <<EOF
-{
-  "endpoint": "${UPDATE_ENDPOINT}",
-  "kid": "${UPDATE_KID}",
-  "secret": "${UPDATE_SECRET}"
-}
-EOF
-"""
-
 [tasks."ci:be:tests"]
 run = "go test -v ./..."
 

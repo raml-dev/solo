@@ -4,99 +4,45 @@
 package appinfo
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
+	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/go-github/v76/github"
 )
 
-func loadDiscoveryConfig() (discoveryConfig, error) {
-	discoveryConfigOnce.Do(func() {
-		if len(embeddedUpdateConfig) == 0 {
-			discoveryConfigErr = errors.New("embedded update configuration is empty")
-			return
-		}
-
-		var cfg discoveryConfig
-		if err := json.Unmarshal(embeddedUpdateConfig, &cfg); err != nil {
-			discoveryConfigErr = fmt.Errorf("invalid embedded update configuration: %w", err)
-			return
-		}
-		if strings.TrimSpace(cfg.Endpoint) == "" {
-			discoveryConfigErr = errors.New("update endpoint is required")
-			return
-		}
-		if strings.TrimSpace(cfg.Kid) == "" {
-			discoveryConfigErr = errors.New("update kid is required")
-			return
-		}
-		if strings.TrimSpace(cfg.Secret) == "" {
-			discoveryConfigErr = errors.New("update secret is required")
-			return
-		}
-
-		discoveryConfigData = cfg
-	})
-
-	return discoveryConfigData, discoveryConfigErr
+type parsedVersion struct {
+	major            int
+	minor            int
+	patch            int
+	prerelease       string
+	prereleasePrefix string
+	prereleaseNumber int
+	hasPreNumber     bool
 }
 
-func newDiscoveryClient(endpoint string, httpClient *http.Client) *DiscoveryClient {
-	ghClient := github.NewClient(httpClient)
-	parsedEndpoint, err := url.Parse(endpoint)
-	if err == nil {
-		ghClient.BaseURL = &url.URL{
-			Scheme: parsedEndpoint.Scheme,
-			Host:   parsedEndpoint.Host,
-			Path:   "/",
-		}
+var prereleasePattern = regexp.MustCompile(`^([A-Za-z]+)[\.-]?(\d+)?$`)
+
+func parseRepository(repositoryURL string) (owner string, repo string) {
+	raw := strings.TrimSpace(repositoryURL)
+	if raw == "" {
+		raw = defaultRepositoryURL
 	}
 
-	return &DiscoveryClient{
-		client:   httpClient,
-		endpoint: endpoint,
-		ghClient: ghClient,
-	}
-}
-
-func parseRepoEndpoint(endpoint string) (owner string, repo string, perPage int, err error) {
-	parsed, err := url.Parse(endpoint)
+	parsed, err := url.Parse(raw)
 	if err != nil {
-		return "", "", 0, err
+		return "raml-dev", "solo"
 	}
 
 	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	if len(parts) < 4 || parts[0] != "repos" {
-		return "", "", 0, fmt.Errorf("invalid release endpoint path: %s", parsed.Path)
+	if len(parts) < 2 {
+		return "raml-dev", "solo"
 	}
 
-	perPage = 10
-	if value := parsed.Query().Get("per_page"); value != "" {
-		parsedPerPage, convErr := strconv.Atoi(value)
-		if convErr != nil || parsedPerPage <= 0 {
-			return "", "", 0, fmt.Errorf("invalid per_page value: %s", value)
-		}
-		perPage = parsedPerPage
-	}
-
-	return parts[1], parts[2], perPage, nil
-}
-
-func buildProxyAssetURL(endpoint string, owner string, repo string, assetID int64) (string, error) {
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return "", err
-	}
-	parsed.Path = fmt.Sprintf("/repos/%s/%s/releases/assets/%d", owner, repo, assetID)
-	parsed.RawQuery = ""
-	return parsed.String(), nil
+	return parts[0], strings.TrimSuffix(parts[1], ".git")
 }
 
 func normalizedReleaseTime(release GitHubRelease) time.Time {
@@ -104,6 +50,16 @@ func normalizedReleaseTime(release GitHubRelease) time.Time {
 		return release.UpdatedAt
 	}
 	return release.CreatedAt
+}
+
+func shouldIncludePrereleases(currentVersion string) bool {
+	current := strings.TrimSpace(strings.TrimPrefix(currentVersion, "v"))
+	if current == "" || strings.EqualFold(current, "dev") {
+		return true
+	}
+
+	parsed, ok := parseVersion(current)
+	return ok && parsed.prerelease != ""
 }
 
 func isCurrentVersionOlder(currentVersion, latestVersion string) bool {
@@ -114,7 +70,6 @@ func isCurrentVersionOlder(currentVersion, latestVersion string) bool {
 		return latest != ""
 	}
 
-	// If the caller doesn't provide a current version, consider any latest release as newer.
 	if current == "" {
 		return latest != ""
 	}
@@ -155,7 +110,7 @@ func parseVersion(raw string) (parsedVersion, bool) {
 	}
 
 	parts := strings.Split(base, ".")
-	if len(parts) < 2 || len(parts) > 3 {
+	if len(parts) != 3 {
 		return parsedVersion{}, false
 	}
 
@@ -167,21 +122,33 @@ func parseVersion(raw string) (parsedVersion, bool) {
 	if err != nil {
 		return parsedVersion{}, false
 	}
-
-	patch := 0
-	if len(parts) == 3 {
-		patch, err = strconv.Atoi(parts[2])
-		if err != nil {
-			return parsedVersion{}, false
-		}
+	patch, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return parsedVersion{}, false
 	}
 
-	return parsedVersion{
+	parsed := parsedVersion{
 		major:      major,
 		minor:      minor,
 		patch:      patch,
 		prerelease: prerelease,
-	}, true
+	}
+
+	if prerelease != "" {
+		matches := prereleasePattern.FindStringSubmatch(prerelease)
+		if len(matches) == 3 {
+			parsed.prereleasePrefix = strings.ToLower(matches[1])
+			if matches[2] != "" {
+				number, numberErr := strconv.Atoi(matches[2])
+				if numberErr == nil {
+					parsed.prereleaseNumber = number
+					parsed.hasPreNumber = true
+				}
+			}
+		}
+	}
+
+	return parsed, true
 }
 
 func compareParsedVersion(left, right parsedVersion) int {
@@ -204,65 +171,93 @@ func compareParsedVersion(left, right parsedVersion) int {
 		return -1
 	}
 
-	// Stable release outranks prerelease when core versions match.
 	if left.prerelease == "" && right.prerelease != "" {
 		return 1
 	}
 	if left.prerelease != "" && right.prerelease == "" {
 		return -1
 	}
+	if left.prerelease == "" && right.prerelease == "" {
+		return 0
+	}
+
+	if left.prereleasePrefix != "" && right.prereleasePrefix != "" && left.prereleasePrefix != right.prereleasePrefix {
+		return strings.Compare(left.prereleasePrefix, right.prereleasePrefix)
+	}
+	if left.hasPreNumber && right.hasPreNumber && left.prereleasePrefix == right.prereleasePrefix {
+		switch {
+		case left.prereleaseNumber > right.prereleaseNumber:
+			return 1
+		case left.prereleaseNumber < right.prereleaseNumber:
+			return -1
+		default:
+			return 0
+		}
+	}
+
 	return strings.Compare(left.prerelease, right.prerelease)
 }
 
 func selectAsset(assets []Asset) *Asset {
-	osName := strings.ToLower(runtime.GOOS)
-	arch := strings.ToLower(runtime.GOARCH)
+	expectedName := expectedAssetName(runtime.GOOS, runtime.GOARCH)
+	if expectedName == "" {
+		return nil
+	}
 
-	bestScore := -1
-	var best *Asset
-	for _, asset := range assets {
-		if asset.ID == 0 {
-			continue
-		}
-
-		name := strings.ToLower(asset.Name)
-		if name == "" {
-			name = strings.ToLower(asset.Url)
-		}
-
-		score := 0
-		if strings.Contains(name, osName) {
-			score += 4
-		}
-		if strings.Contains(name, arch) {
-			score += 5
-		}
-		if is32BitRuntime() && strings.Contains(name, "32") {
-			score += 2
-		}
-		if !is32BitRuntime() && strings.Contains(name, "64") {
-			score += 2
-		}
-		if runtime.GOOS == "darwin" && strings.Contains(name, ".dmg") {
-			score += 2
-		}
-		if runtime.GOOS == "windows" && strings.Contains(name, ".exe") {
-			score += 2
-		}
-		if runtime.GOOS == "linux" && strings.Contains(name, ".appimage") {
-			score += 2
-		}
-
-		if score > bestScore {
-			bestScore = score
-			chosen := asset
-			best = &chosen
+	for i := range assets {
+		if strings.EqualFold(strings.TrimSpace(assets[i].Name), expectedName) {
+			return &assets[i]
 		}
 	}
 
-	return best
+	return nil
 }
 
-func is32BitRuntime() bool {
-	return strconv.IntSize == 32
+func expectedAssetName(goos, goarch string) string {
+	switch goos {
+	case "windows":
+		switch goarch {
+		case "amd64":
+			return "solo-windows-amd64.exe"
+		case "arm64":
+			return "solo-windows-arm64.exe"
+		}
+	case "linux":
+		switch goarch {
+		case "amd64":
+			return "solo-linux-amd64"
+		case "arm64":
+			return "solo-linux-arm64"
+		}
+	case "darwin":
+		switch goarch {
+		case "amd64":
+			return "solo-darwin-amd64.dmg"
+		case "arm64":
+			return "solo-darwin-arm64.dmg"
+		}
+	}
+
+	return ""
+}
+
+func parseChecksums(content string) (map[string]string, error) {
+	result := map[string]string{}
+
+	for lineNumber, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return nil, fmt.Errorf("invalid checksum line %d", lineNumber+1)
+		}
+
+		filename := filepath.Base(strings.TrimPrefix(fields[len(fields)-1], "*"))
+		result[filename] = strings.ToLower(fields[0])
+	}
+
+	return result, nil
 }
