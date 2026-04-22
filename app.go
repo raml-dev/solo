@@ -92,7 +92,7 @@ func (a *App) GetAppInfo() appinfo.AppInfo {
 
 // GetUpdatesFromRepo fetches release updates and emits an event for the frontend.
 func (a *App) GetUpdatesFromRepo() (*appinfo.GitHubResponse, error) {
-	dc := appinfo.InitDiscoveryCient()
+	dc := appinfo.InitDiscoveryClient(a.GetAppInfo().GHLink)
 
 	info, err := dc.GetUpdatesFromRepo(a.GetAppInfo().ProductVersion)
 	if err != nil {
@@ -131,7 +131,7 @@ func (a *App) DownloadAssets(info *appinfo.GitHubResponse, currentVersion string
 		return "", nil // user cancelled
 	}
 
-	dc := appinfo.InitDiscoveryCient()
+	dc := appinfo.InitDiscoveryClient(a.GetAppInfo().GHLink)
 	changelog, downloadErr := dc.DownloadAssetsToPath(info, currentVersion, path)
 	if downloadErr != nil {
 		a.emitEvent("updates:download-error", downloadErr.Error())

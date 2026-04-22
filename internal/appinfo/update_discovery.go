@@ -1,52 +1,37 @@
 // Copyright 2026-present raml-dev
 // SPDX-License-Identifier: AGPL-3.0-only
+
 package appinfo
-
-/*
-  NOTE:
-    this module is a tempi implementation just for the beta version of this app (Solo).
-    It will be totally (more or less) replaced by new implementation when the beta version
-    will be over.
-
-*/
 
 import (
 	"context"
-	_ "embed"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/go-github/v76/github"
-	"github.com/google/uuid"
-	"github.com/matstech/aegis-go/client"
 )
 
-// This var is used for storing custom configuration endpoints and secret
-// for aegis server interaction
-//
-//go:embed update_config.json
-var embeddedUpdateConfig []byte
-
-var (
-	discoveryConfigOnce sync.Once
-	discoveryConfigData discoveryConfig
-	discoveryConfigErr  error
+const (
+	defaultRepositoryURL = "https://github.com/raml-dev/solo"
+	releasesPerPage      = 20
+	checksumsAssetName   = "SHA256SUMS"
 )
 
 type DiscoveryClient struct {
 	client   *http.Client
-	endpoint string
 	ghClient *github.Client
+	owner    string
+	repo     string
 }
 
 type GitHubResponse struct {
@@ -57,6 +42,7 @@ type GitHubRelease struct {
 	Assets     []Asset   `json:"assets"`
 	Body       string    `json:"body"`
 	CreatedAt  time.Time `json:"created_at"`
+	HTMLURL    string    `json:"html_url"`
 	UpdatedAt  time.Time `json:"updated_at"`
 	Name       string    `json:"name"`
 	TagName    string    `json:"tag_name"`
@@ -70,32 +56,11 @@ type Asset struct {
 	Url   string `json:"browser_download_url"`
 }
 
-type discoveryConfig struct {
-	Endpoint string `json:"endpoint"`
-	Kid      string `json:"kid"`
-	Secret   string `json:"secret"`
-}
-
-type parsedVersion struct {
-	major      int
-	minor      int
-	patch      int
-	prerelease string
-}
-
-// Aegis-go client round tripper
-type roundTripperFunc func(*http.Request) (*http.Response, error)
-
-// Basic round-trip function
-func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
-
 // SuggestedAssetName returns the platform-compatible asset filename selected by
 // the same logic used during download. It returns an empty string when a
 // suitable asset cannot be determined.
 func SuggestedAssetName(info *GitHubResponse) string {
-	if info == nil {
+	if info == nil || info.Release == nil {
 		return ""
 	}
 
@@ -108,97 +73,60 @@ func SuggestedAssetName(info *GitHubResponse) string {
 }
 
 func InitDiscoveryCient() *DiscoveryClient {
-	cfg, err := loadDiscoveryConfig()
-	if err != nil {
-		slog.Error("Failed to load embedded update discovery configuration", "error", err)
-	}
+	return InitDiscoveryClient("")
+}
 
-	httpClient := &http.Client{
-		Transport: client.NewTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-			return http.DefaultTransport.RoundTrip(req)
-		}), client.Config{
-			Kid:    cfg.Kid,
-			Secret: cfg.Secret,
-		}),
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+func InitDiscoveryClient(repositoryURL string) *DiscoveryClient {
+	owner, repo := parseRepository(repositoryURL)
+	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	return newDiscoveryClient(cfg.Endpoint, httpClient)
+	return &DiscoveryClient{
+		client:   httpClient,
+		ghClient: github.NewClient(httpClient),
+		owner:    owner,
+		repo:     repo,
+	}
 }
 
 /*
-	  This function determines the effective update availability of a new release over the currentVersion.
-		-- Definition of "update availability" --
-		   `currentVersion` must appear in the list of versions (versions must be immutable) and its timestamp (the `created_at` field will suffice)
-		   must be earlier than that of the others. The latest version will be returned to the frontend
+This function determines whether a newer release exists for the current
+version and returns the most recent eligible release.
 */
 func (dc *DiscoveryClient) GetUpdatesFromRepo(currentVersion string) (*GitHubResponse, error) {
-	owner, repo, perPage, err := parseRepoEndpoint(dc.endpoint)
+	if dc == nil {
+		return nil, errors.New("discovery client not initialized")
+	}
+
+	releases, _, err := dc.ghClient.Repositories.ListReleases(
+		context.Background(),
+		dc.owner,
+		dc.repo,
+		&github.ListOptions{PerPage: releasesPerPage},
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	options := &github.ListOptions{PerPage: perPage}
-	releases, _, err := dc.ghClient.Repositories.ListReleases(context.Background(), owner, repo, options)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if the currentVersion appears in the release list
-	var cv *github.RepositoryRelease
-	for _, release := range releases {
-		if *release.Name == currentVersion {
-			cv = release
-			break
-		}
-	}
-
-	if cv == nil {
-		return nil, fmt.Errorf("current version %s of Solo does not appear in the releases and the update cannot be determined", currentVersion)
-	}
-
-	result := make([]GitHubRelease, 0, len(releases))
+	candidates := make([]GitHubRelease, 0, len(releases))
 	for _, release := range releases {
 		if release == nil {
 			continue
 		}
 
-		if *release.Prerelease && release.CreatedAt.Time.After(cv.CreatedAt.Time) {
-
-			assets := make([]Asset, 0, len(release.Assets))
-			for _, asset := range release.Assets {
-				assets = append(assets, Asset{
-					ID:    asset.GetID(),
-					Name:  asset.GetName(),
-					State: asset.GetState(),
-					Url:   asset.GetBrowserDownloadURL(),
-				})
-			}
-
-			result = append(result, GitHubRelease{
-				Assets:     assets,
-				Body:       release.GetBody(),
-				CreatedAt:  release.GetCreatedAt().Time,
-				UpdatedAt:  release.GetPublishedAt().Time,
-				Name:       release.GetName(),
-				TagName:    release.GetTagName(),
-				PreRelease: release.GetPrerelease(),
-			})
+		converted, ok := toGitHubRelease(release)
+		if !ok {
+			continue
 		}
+
+		candidates = append(candidates, converted)
 	}
 
-	if len(result) <= 0 {
+	latest := findLatestRelease(candidates, currentVersion)
+	if latest == nil {
 		return nil, nil
 	}
 
-	// maybe useless but not so expensive in this case, just a "pac"
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].CreatedAt.After(result[j].CreatedAt)
-	})
-
-	return &GitHubResponse{Release: &result[0]}, nil
+	return &GitHubResponse{Release: latest}, nil
 }
 
 func (dc *DiscoveryClient) DownloadAssets(info *GitHubResponse, currentVersion string) (string, error) {
@@ -211,31 +139,6 @@ func (dc *DiscoveryClient) DownloadAssetsToPath(info *GitHubResponse, currentVer
 	}
 
 	return dc.downloadAssets(info, currentVersion, destinationPath)
-}
-
-//------ Utilities and tools
-
-func (dc *DiscoveryClient) newGetUpdatesRequest() (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, dc.endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Auth-CorrelationId", uuid.NewString())
-
-	return req, nil
-}
-
-func (dc *DiscoveryClient) newGetAssetsRequest(endpoint string) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Auth-CorrelationId", uuid.NewString())
-	req.Header.Set("Accept", "application/octet-stream")
-
-	return req, nil
 }
 
 func (dc *DiscoveryClient) downloadAssets(info *GitHubResponse, currentVersion, destinationPath string) (string, error) {
@@ -252,86 +155,208 @@ func (dc *DiscoveryClient) downloadAssets(info *GitHubResponse, currentVersion, 
 		return "", fmt.Errorf("no compatible asset found for runtime %s/%s (%d-bit)", runtime.GOOS, runtime.GOARCH, strconv.IntSize)
 	}
 
-	owner, repo, _, err := parseRepoEndpoint(dc.endpoint)
+	expectedChecksums, err := dc.fetchReleaseChecksums(info.Release.Assets)
 	if err != nil {
 		return "", err
 	}
 
-	assetURL, err := buildProxyAssetURL(dc.endpoint, owner, repo, asset.ID)
-	if err != nil {
+	expectedChecksum := expectedChecksums[asset.Name]
+	if expectedChecksum == "" {
+		return "", fmt.Errorf("missing checksum for asset %s", asset.Name)
+	}
+
+	outputPath := destinationPath
+	if outputPath == "" {
+		outputPath = asset.Name
+	}
+
+	if err := dc.downloadAssetToPath(asset.Url, outputPath, expectedChecksum); err != nil {
 		return "", err
-	}
-	req, err := dc.newGetAssetsRequest(assetURL)
-	if err != nil {
-		return "", err
-	}
-	resp, err := dc.client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	outputPath := asset.Name
-	if destinationPath != "" {
-		outputPath = destinationPath
-	}
-
-	fileout, err := os.Create(outputPath)
-	if err != nil {
-		return "", err
-	}
-	defer fileout.Close()
-
-	if resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest {
-		location := resp.Header.Get("Location")
-		if location == "" {
-			return "", fmt.Errorf("asset download redirected by proxy without location: %s", resp.Status)
-		}
-
-		redirectReq, redirectErr := dc.newGetAssetsRequest(location)
-		if redirectErr != nil {
-			return "", redirectErr
-		}
-		redirectResp, redirectDoErr := dc.client.Do(redirectReq)
-		if redirectDoErr != nil {
-			return "", redirectDoErr
-		}
-		defer redirectResp.Body.Close()
-		if redirectResp.StatusCode < http.StatusOK || redirectResp.StatusCode >= http.StatusMultipleChoices {
-			body, _ := io.ReadAll(redirectResp.Body)
-			return "", fmt.Errorf("asset redirected download failed: %s - %s", redirectResp.Status, string(body))
-		}
-
-		_, copyErr := io.Copy(fileout, redirectResp.Body)
-		if copyErr != nil {
-			return "", copyErr
-		}
-		return info.Release.Body, nil
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("asset download failed: %s - %s", resp.Status, string(body))
-	}
-	_, copyErr := io.Copy(fileout, resp.Body)
-	if copyErr != nil {
-		return "", copyErr
 	}
 
 	return info.Release.Body, nil
 }
 
-func (dc *DiscoveryClient) doRequest(req *http.Request) string {
-	resp, err := dc.client.Do(req)
+func (dc *DiscoveryClient) fetchReleaseChecksums(assets []Asset) (map[string]string, error) {
+	checksumAsset := findChecksumsAsset(assets)
+	if checksumAsset == nil {
+		return nil, errors.New("release checksums asset not found")
+	}
+
+	body, err := dc.downloadText(checksumAsset.Url)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+
+	checksums, err := parseChecksums(body)
+	if err != nil {
+		return nil, err
+	}
+	if len(checksums) == 0 {
+		return nil, errors.New("release checksums are empty")
+	}
+
+	return checksums, nil
+}
+
+func (dc *DiscoveryClient) downloadText(url string) (string, error) {
+	resp, err := dc.client.Get(url)
+	if err != nil {
+		return "", err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
+	if err := expectHTTPSuccess(resp); err != nil {
+		return "", err
 	}
 
-	return string(body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
+}
+
+func (dc *DiscoveryClient) downloadAssetToPath(downloadURL, destinationPath, expectedChecksum string) (err error) {
+	resp, err := dc.client.Get(downloadURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if err := expectHTTPSuccess(resp); err != nil {
+		return err
+	}
+
+	destinationPath = filepath.Clean(destinationPath)
+	parentDir := filepath.Dir(destinationPath)
+	if mkErr := os.MkdirAll(parentDir, 0o755); mkErr != nil {
+		return mkErr
+	}
+
+	tempFile, err := os.CreateTemp(parentDir, filepath.Base(destinationPath)+".*.part")
+	if err != nil {
+		return err
+	}
+
+	tempPath := tempFile.Name()
+	defer func() {
+		closeErr := tempFile.Close()
+		if err == nil && closeErr != nil {
+			err = closeErr
+		}
+		if err != nil {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	hasher := sha256.New()
+	if _, err = io.Copy(io.MultiWriter(tempFile, hasher), resp.Body); err != nil {
+		return err
+	}
+
+	actualChecksum := hex.EncodeToString(hasher.Sum(nil))
+	if !strings.EqualFold(actualChecksum, expectedChecksum) {
+		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s", filepath.Base(destinationPath), expectedChecksum, actualChecksum)
+	}
+
+	if chmodErr := maybeMakeExecutable(tempFile.Name()); chmodErr != nil {
+		return chmodErr
+	}
+
+	if err := tempFile.Close(); err != nil {
+		tempFile = nil
+		return err
+	}
+	tempFile = nil
+
+	if removeErr := os.Remove(destinationPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return removeErr
+	}
+
+	return os.Rename(tempPath, destinationPath)
+}
+
+func toGitHubRelease(release *github.RepositoryRelease) (GitHubRelease, bool) {
+	tagName := strings.TrimSpace(release.GetTagName())
+	if tagName == "" {
+		return GitHubRelease{}, false
+	}
+
+	assets := make([]Asset, 0, len(release.Assets))
+	for _, asset := range release.Assets {
+		assets = append(assets, Asset{
+			ID:    asset.GetID(),
+			Name:  asset.GetName(),
+			State: asset.GetState(),
+			Url:   asset.GetBrowserDownloadURL(),
+		})
+	}
+
+	return GitHubRelease{
+		Assets:     assets,
+		Body:       release.GetBody(),
+		CreatedAt:  release.GetCreatedAt().Time,
+		HTMLURL:    release.GetHTMLURL(),
+		UpdatedAt:  release.GetPublishedAt().Time,
+		Name:       release.GetName(),
+		TagName:    tagName,
+		PreRelease: release.GetPrerelease(),
+	}, true
+}
+
+func findLatestRelease(releases []GitHubRelease, currentVersion string) *GitHubRelease {
+	includePrereleases := shouldIncludePrereleases(currentVersion)
+
+	var latest *GitHubRelease
+	for i := range releases {
+		release := releases[i]
+		if strings.TrimSpace(release.TagName) == "" {
+			continue
+		}
+		if release.PreRelease && !includePrereleases {
+			continue
+		}
+		if !isCurrentVersionOlder(currentVersion, release.TagName) {
+			continue
+		}
+		if latest == nil || compareVersionStrings(release.TagName, latest.TagName) > 0 {
+			chosen := release
+			latest = &chosen
+		}
+	}
+
+	return latest
+}
+
+func findChecksumsAsset(assets []Asset) *Asset {
+	for i := range assets {
+		if strings.EqualFold(strings.TrimSpace(assets[i].Name), checksumsAssetName) {
+			return &assets[i]
+		}
+	}
+
+	return nil
+}
+
+func expectHTTPSuccess(resp *http.Response) error {
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		return nil
+	}
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	return fmt.Errorf("request failed: %s - %s", resp.Status, strings.TrimSpace(string(body)))
+}
+
+func maybeMakeExecutable(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	if runtime.GOOS == "darwin" {
+		return nil
+	}
+
+	return os.Chmod(path, 0o755)
 }
