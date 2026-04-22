@@ -1,0 +1,10 @@
+version: 3
+
+targets:
+  exclude:
+    - type: setuptools
+      path: hack/icon
+    - type: npm
+      path: frontend/wailsjs/runtime
+    - type: pnpm
+      path: .mcp/flowbite-svelte-mcp
