@@ -5,7 +5,6 @@
 
 <div align="center">
 
-
 <html>
     <h2 align="center" style="display: flex; flex-direction: column; align-items: center; padding: 2rem">
       <img src="hack/icon/icon-lighning-spike-round-inverted.svg" width="128"/>
@@ -13,16 +12,15 @@
     <img width="256" src="hack/icon/icon-ascii.svg" />
 </html>
 
-
 **The lightweight, fast, open-source API client for modern development.**
 
 [![Build Status](https://github.com/raml-dev/solo/actions/workflows/ci.yaml/badge.svg)](https://github.com/raml-dev/solo/actions)
 [![Wails](https://img.shields.io/badge/Wails-v2-red)](https://wails.io)
 [![License](https://img.shields.io/badge/license-%20%20AGPL3.0-blue?style=plastic)](LICENSE)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Framl-dev%2Fsolo.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Framl-dev%2Fsolo?ref=badge_shield&issueType=security)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Framl-dev%2Fsolo.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Framl-dev%2Fsolo?ref=badge_shield&issueType=license)
 
 [Features](#-features) • [Installation](#-installation) • [Contributing](#-contributing)
-
-
 
 </div>
 
@@ -34,11 +32,12 @@
 
 - **Blazing Fast**: Minimal memory footprint and instant startup.
 - **Smart Collections**: Effortlessly organize and manage your REST requests.
-- **Dynamic Environments**: Seamlessly switch between development, staging, and production.
-- **Git Native Sync**: Import and synchronize collections directly via Git.
-- **Interoperability**: First-class support for importing **Postman**, **Bruno**, and **OpenAPI**.
-- **Scripting with Lua**: Power your workflow with pre-request and post-response Lua scripts.
-- **Modern UI**: Clean, intuitive interface with full Dark Mode support.
+- **Dynamic Environments**: Seamlessly switch variables between development, staging, and production.
+- **Git Native Sync**: Synchronize collections directly via Git.
+- **First-class Interoperability**: Import **Postman**, **Bruno**, and **OpenAPI**.
+- **Advanced Scripting**: Extend your workflow with **Lua** pre-request and post-response scripts.
+- **Automated Auth**: Built-in support for **OAuth2** token retrieval and automatic refresh.
+- **Privacy First**: Your data stays local. No cloud account required, no tracking.
 
 ## 🚀 Installation
 
@@ -57,13 +56,11 @@ The easiest way to build Solo is using [mise](https://mise.jdx.dev/), which auto
    git clone https://github.com/raml-dev/solo.git
    cd solo
    ```
-2. Install dependencies and build:
+2. Install dependencies and start the development environment:
    ```bash
    mise install
-   wails build
+   mise run dev
    ```
-
-If you prefer to manage dependencies manually, ensure you have [Go](https://go.dev/), [Node.js](https://nodejs.org/), and the [Wails CLI](https://wails.io/docs/gettingstarted/installation) installed before running `wails build`.
 
 ## 🤝 Contributing
 
