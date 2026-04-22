@@ -52,7 +52,11 @@ func normalizedReleaseTime(release GitHubRelease) time.Time {
 	return release.CreatedAt
 }
 
-func shouldIncludePrereleases(currentVersion string) bool {
+func shouldIncludePrereleases(currentVersion string, allowConfiguredPrereleases bool) bool {
+	if allowConfiguredPrereleases {
+		return true
+	}
+
 	current := strings.TrimSpace(strings.TrimPrefix(currentVersion, "v"))
 	if current == "" || strings.EqualFold(current, "dev") {
 		return true

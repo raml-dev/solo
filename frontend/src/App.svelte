@@ -19,6 +19,7 @@
   import { hasOpenModals, modalStack } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
+  import { updateStore } from "$src/lib/stores/updateStore.svelte";
   import {
     initWindowDimensions,
     saveWindowState
@@ -51,8 +52,9 @@
   let resizeStartH = 0;
 
   async function initializeApp() {
+    await configurationStore.init();
     await Promise.all([
-      configurationStore.init(),
+      updateStore.init(),
       collectionStore.loadCollections(),
       environmentStore.loadEnvironments()
     ]).catch((err) => {

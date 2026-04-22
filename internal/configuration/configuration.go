@@ -12,13 +12,14 @@ type Configuration struct {
 }
 
 type GeneralSettings struct {
-	ActiveTheme         string `json:"activeTheme"`
-	ThemeMode           string `json:"themeMode,omitempty"`  // "manual" | "sync"
-	DayTheme            string `json:"dayTheme,omitempty"`   // tema usato in sync light
-	NightTheme          string `json:"nightTheme,omitempty"` // tema usato in sync dark
-	CheckForUpdates     bool   `json:"checkForUpdates"`
-	DebugMode           bool   `json:"debugMode"`
-	SelectedEnvironment string `json:"selectedEnvironment,omitempty"`
+	ActiveTheme              string `json:"activeTheme"`
+	ThemeMode                string `json:"themeMode,omitempty"`  // "manual" | "sync"
+	DayTheme                 string `json:"dayTheme,omitempty"`   // tema usato in sync light
+	NightTheme               string `json:"nightTheme,omitempty"` // tema usato in sync dark
+	CheckForUpdates          bool   `json:"checkForUpdates"`
+	IncludePrereleaseUpdates bool   `json:"includePrereleaseUpdates"`
+	DebugMode                bool   `json:"debugMode"`
+	SelectedEnvironment      string `json:"selectedEnvironment,omitempty"`
 }
 
 type RequestSettings struct {

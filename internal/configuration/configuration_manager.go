@@ -53,12 +53,13 @@ func NewConfigurationManager() (*ConfigurationManager, error) {
 func (cm *ConfigurationManager) createDefault() Configuration {
 	return Configuration{
 		General: GeneralSettings{
-			ActiveTheme:     tools.DEFAULT_THEME,
-			ThemeMode:       "system",
-			DayTheme:        tools.DEFAULT_THEME_LIGHT,
-			NightTheme:      tools.DEFAULT_THEME_DARK,
-			CheckForUpdates: tools.DEFAULT_CHECK_UPDATES,
-			DebugMode:       false,
+			ActiveTheme:              tools.DEFAULT_THEME,
+			ThemeMode:                "system",
+			DayTheme:                 tools.DEFAULT_THEME_LIGHT,
+			NightTheme:               tools.DEFAULT_THEME_DARK,
+			CheckForUpdates:          tools.DEFAULT_CHECK_UPDATES,
+			IncludePrereleaseUpdates: tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES,
+			DebugMode:                false,
 		},
 		Request: RequestSettings{
 			TimeoutSeconds:   tools.DEFAULT_TIMEOUT_SECONDS,

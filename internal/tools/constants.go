@@ -15,14 +15,15 @@ const (
 )
 
 const (
-	DEFAULT_THEME           = "ocean"
-	DEFAULT_THEME_LIGHT     = "ocean"
-	DEFAULT_THEME_DARK      = "nord"
-	DEFAULT_CHECK_UPDATES   = true
-	DEFAULT_TIMEOUT_SECONDS = 30
-	DEFAULT_MAX_REDIRECTS   = 10
-	DEFAULT_VALIDATE_SSL    = true
-	DEFAULT_USER_AGENT      = "Solo/1.0"
+	DEFAULT_THEME                      = "ocean"
+	DEFAULT_THEME_LIGHT                = "ocean"
+	DEFAULT_THEME_DARK                 = "nord"
+	DEFAULT_CHECK_UPDATES              = true
+	DEFAULT_INCLUDE_PRERELEASE_UPDATES = false
+	DEFAULT_TIMEOUT_SECONDS            = 30
+	DEFAULT_MAX_REDIRECTS              = 10
+	DEFAULT_VALIDATE_SSL               = true
+	DEFAULT_USER_AGENT                 = "Solo/1.0"
 )
 
 const (
