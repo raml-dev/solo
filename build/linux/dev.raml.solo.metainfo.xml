@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright 2026-present raml-dev
+ SPDX-License-Identifier: AGPL-3.0-only
+-->
+<component type="desktop-application">
+  <id>dev.raml.solo</id>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <name>Solo</name>
+  <summary>The lightweight, fast, open-source API client for modern development</summary>
+  <description>
+    <p>Solo is a high-performance API client built with Wails for API testing and debugging.</p>
+  </description>
+  <launchable type="desktop-id">dev.raml.solo.desktop</launchable>
+  <url type="homepage">https://github.com/raml-dev/solo</url>
+  <developer id="dev.raml">
+    <name>raml-dev</name>
+  </developer>
+</component>

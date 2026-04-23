@@ -1,0 +1,37 @@
+# Copyright 2026-present raml-dev
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: solo
+platform: linux
+arch: "@ARCH@"
+version: "@VERSION@"
+release: "1"
+section: default
+priority: optional
+maintainer: raml-dev
+description: |
+  The lightweight, fast, open-source API client for modern development.
+vendor: raml-dev
+homepage: https://github.com/raml-dev/solo
+license: AGPL-3.0-only
+contents:
+  - src: "@PACKAGE_ROOT@/usr/bin/solo"
+    dst: /usr/bin/solo
+  - src: "@PACKAGE_ROOT@/usr/share/applications/dev.raml.solo.desktop"
+    dst: /usr/share/applications/dev.raml.solo.desktop
+  - src: "@PACKAGE_ROOT@/usr/share/metainfo/dev.raml.solo.metainfo.xml"
+    dst: /usr/share/metainfo/dev.raml.solo.metainfo.xml
+  - src: "@PACKAGE_ROOT@/usr/share/icons/hicolor/512x512/apps/dev.raml.solo.png"
+    dst: /usr/share/icons/hicolor/512x512/apps/dev.raml.solo.png
+  - src: "@PACKAGE_ROOT@/usr/share/doc/solo/LICENSE"
+    dst: /usr/share/doc/solo/LICENSE
+overrides:
+  deb:
+    depends:
+      - libwebkit2gtk-4.1-0
+  rpm:
+    depends:
+      - webkit2gtk4.1
+  archlinux:
+    depends:
+      - webkit2gtk-4.1

@@ -4,7 +4,8 @@
 [tools]
 pnpm = "10.32.1"
 "npm:@mariozechner/pi-coding-agent" = "0.64.0"
-"go:github.com/rhysd/actionlint/cmd/actionlint" = "1.7.11"
+rg = "15.1.0"
+"codex" = "0.125.0"
 
 [hooks]
 postinstall = { task = "mcp:check" }
@@ -120,4 +121,244 @@ echo "server up"
 while true; do
 sleep 1
 done
+"""
+
+[tasks."local-dist-server"]
+run = """
+podman run --rm -p 8080:8000 \
+  -v {{config_root}}/dist:/data:ro \
+  -w /data python:3-alpine \
+  python -m http.server 8000
+"""
+
+[tasks."local-release-test"]
+description = "Detect the host platform and run the matching local release simulation"
+run = """
+os="$(uname -s)"
+case "$os" in
+  Linux)
+    mise run local-release-test:linux
+    ;;
+  Darwin)
+    mise run local-release-test:macos
+    ;;
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    mise run local-release-test:windows
+    ;;
+  *)
+    echo "unsupported host platform: $os" >&2
+    exit 1
+    ;;
+esac
+"""
+
+[tasks."local-release-test:emit-json"]
+description = "Write release.json and one dispatch payload from the prepared dist/assets tree"
+hide = true
+run = """
+RELEASE_DIR="repos/raml-dev/solo/releases"
+mkdir -p "dist/${RELEASE_DIR}"
+assets_json="$(
+  for path in dist/assets/*; do
+    [ -f "$path" ] || continue
+    basename "$path"
+  done | LC_ALL=C sort | jq -R . | jq -s --arg base "${LOCAL_RELEASE_BASE_URL}/assets" '
+    map({
+      name: .,
+      url: null,
+      browser_download_url: ($base + "/" + .)
+    })
+  '
+)"
+
+jq -n \
+  --arg version "${SOLO_RELEASE_VERSION}" \
+  --arg base "${LOCAL_RELEASE_BASE_URL}" \
+  --arg published_at "${LOCAL_RELEASE_PUBLISHED_AT}" \
+  --argjson assets "${assets_json}" \
+  '{
+    draft: false,
+    prerelease: false,
+    html_url: ($base + "/releases/" + $version),
+    published_at: $published_at,
+    assets: $assets
+  }' > "dist/${RELEASE_DIR}/release.json"
+
+jq -n \
+  --arg event_type "${LOCAL_RELEASE_EVENT_TYPE}" \
+  --arg object_key "${LOCAL_RELEASE_OBJECT_KEY}" \
+  --arg object_name "${LOCAL_RELEASE_OBJECT_NAME}" \
+  --arg source_repository "raml-dev/solo" \
+  --arg version "${SOLO_RELEASE_VERSION}" \
+  --arg api_url "${LOCAL_RELEASE_BASE_URL}/${RELEASE_DIR}/release.json" \
+  --arg html_url "${LOCAL_RELEASE_BASE_URL}/releases/${SOLO_RELEASE_VERSION}" \
+  --arg app_name "${LOCAL_RELEASE_APP_NAME:-Solo}" \
+  --arg description "${LOCAL_RELEASE_DESCRIPTION:-The lightweight, fast, open-source API client for modern development}" \
+  --arg license "${LOCAL_RELEASE_LICENSE:-AGPL-3.0-only}" \
+  '{
+    event_type: $event_type,
+    client_payload: (
+      {
+        release: {
+          version: $version,
+          api_url: $api_url,
+          html_url: $html_url
+        }
+      }
+      + {
+          ($object_key): {
+            name: $object_name,
+            source_repository: $source_repository,
+            app_name: $app_name,
+            description: $description,
+            license: $license
+          }
+        }
+    )
+  }' > "dist/${LOCAL_RELEASE_DISPATCH_FILE}"
+"""
+
+[tasks."local-release-test:linux"]
+description = "Simulate the Linux build and package jobs, then emit the Linux repo dispatch payload"
+run = """
+export MISE_ENV=ci
+export SOLO_BUILD_TAGS=webkit2_41
+WAILS_JSON_BACKUP="$(mktemp)"
+cp {{config_root}}/wails.json "$WAILS_JSON_BACKUP"
+cleanup() {
+  mv "$WAILS_JSON_BACKUP" {{config_root}}/wails.json
+}
+trap cleanup EXIT
+
+arch="$(uname -m)"
+case "$arch" in
+  x86_64|amd64)
+    build_target="linux-amd64"
+    built_artifact="dist/solo-linux-amd64"
+    sibling_artifact="dist/solo-linux-arm64"
+    ;;
+  aarch64|arm64)
+    build_target="linux-arm64"
+    built_artifact="dist/solo-linux-arm64"
+    sibling_artifact="dist/solo-linux-amd64"
+    ;;
+  *)
+    echo "unsupported Linux architecture: $arch" >&2
+    exit 1
+    ;;
+esac
+
+mise run ci:rel:prepare
+mise run ci:rel:build -- "$build_target"
+cp "$built_artifact" "$sibling_artifact"
+mise run ci:rel:package:linux
+mise run ci:rel:checksums
+
+mkdir -p dist/assets
+cp dist/solo_${SOLO_RELEASE_VERSION}_*.deb dist/assets/
+cp dist/solo-${SOLO_RELEASE_VERSION}-1.*.rpm dist/assets/
+cp dist/solo-${SOLO_RELEASE_VERSION}-1-*.pkg.tar.zst dist/assets/
+cp dist/SHA256SUMS dist/assets/
+
+LOCAL_RELEASE_EVENT_TYPE="linux-package-release" \
+LOCAL_RELEASE_OBJECT_KEY="package" \
+LOCAL_RELEASE_OBJECT_NAME="${RELEASE_PACKAGE_NAME:-solo}" \
+LOCAL_RELEASE_DISPATCH_FILE="linux-packages-repos-dispatch.json" \
+MISE_ENV=dev mise run local-release-test:emit-json
+
+echo "now run 'mise run local-dist-server', then move to linux-packages-repos and run 'mise run local-publish-test'"
+"""
+
+[tasks."local-release-test:macos"]
+description = "Simulate the macOS build job, then emit the Homebrew tap dispatch payload"
+run = """
+export MISE_ENV=ci
+WAILS_JSON_BACKUP="$(mktemp)"
+cp {{config_root}}/wails.json "$WAILS_JSON_BACKUP"
+cleanup() {
+  mv "$WAILS_JSON_BACKUP" {{config_root}}/wails.json
+}
+trap cleanup EXIT
+
+arch="$(uname -m)"
+case "$arch" in
+  x86_64|amd64)
+    build_target="darwin-amd64"
+    built_artifact="dist/solo-darwin-amd64.dmg"
+    sibling_artifact="dist/solo-darwin-arm64.dmg"
+    ;;
+  arm64|aarch64)
+    build_target="darwin-arm64"
+    built_artifact="dist/solo-darwin-arm64.dmg"
+    sibling_artifact="dist/solo-darwin-amd64.dmg"
+    ;;
+  *)
+    echo "unsupported macOS architecture: $arch" >&2
+    exit 1
+    ;;
+esac
+
+mise run ci:rel:prepare
+mise run ci:rel:build -- "$build_target"
+cp "$built_artifact" "$sibling_artifact"
+mise run ci:rel:checksums
+
+mkdir -p dist/assets
+cp dist/solo-darwin-*.dmg dist/assets/
+cp dist/SHA256SUMS dist/assets/
+
+LOCAL_RELEASE_EVENT_TYPE="homebrew-cask-release" \
+LOCAL_RELEASE_OBJECT_KEY="cask" \
+LOCAL_RELEASE_OBJECT_NAME="${RELEASE_PACKAGE_NAME:-solo}" \
+LOCAL_RELEASE_DISPATCH_FILE="homebrew-tap-dispatch.json" \
+MISE_ENV=dev mise run local-release-test:emit-json
+
+echo "now run 'mise run local-dist-server', then move to homebrew-raml-dev and run 'mise run local-publish-test'"
+"""
+
+[tasks."local-release-test:windows"]
+description = "Simulate the Windows build job, then emit the Scoop bucket dispatch payload"
+run = """
+export MISE_ENV=ci
+WAILS_JSON_BACKUP="$(mktemp)"
+cp {{config_root}}/wails.json "$WAILS_JSON_BACKUP"
+cleanup() {
+  mv "$WAILS_JSON_BACKUP" {{config_root}}/wails.json
+}
+trap cleanup EXIT
+
+arch="${PROCESSOR_ARCHITECTURE:-$(uname -m)}"
+case "$arch" in
+  AMD64|x86_64|amd64)
+    build_target="windows-amd64"
+    built_artifact="dist/solo-windows-amd64.exe"
+    sibling_artifact="dist/solo-windows-arm64.exe"
+    ;;
+  ARM64|aarch64|arm64)
+    build_target="windows-arm64"
+    built_artifact="dist/solo-windows-arm64.exe"
+    sibling_artifact="dist/solo-windows-amd64.exe"
+    ;;
+  *)
+    echo "unsupported Windows architecture: $arch" >&2
+    exit 1
+    ;;
+esac
+
+mise run ci:rel:prepare
+mise run ci:rel:build -- "$build_target"
+cp "$built_artifact" "$sibling_artifact"
+mise run ci:rel:checksums
+
+mkdir -p dist/assets
+cp dist/solo-windows-*.exe dist/assets/
+cp dist/SHA256SUMS dist/assets/
+
+LOCAL_RELEASE_EVENT_TYPE="scoop-manifest-release" \
+LOCAL_RELEASE_OBJECT_KEY="manifest" \
+LOCAL_RELEASE_OBJECT_NAME="${RELEASE_PACKAGE_NAME:-solo}" \
+LOCAL_RELEASE_DISPATCH_FILE="scoop-bucket-dispatch.json" \
+MISE_ENV=dev mise run local-release-test:emit-json
+
+echo "now run 'mise run local-dist-server', then move to scoop-bucket and run 'mise run local-publish-test'"
 """

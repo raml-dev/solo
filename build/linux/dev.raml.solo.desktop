@@ -1,0 +1,12 @@
+# Copyright 2026-present raml-dev
+# SPDX-License-Identifier: AGPL-3.0-only
+[Desktop Entry]
+Type=Application
+Name=Solo
+Comment=The lightweight, fast, open-source API client for modern development
+Exec=solo
+Icon=dev.raml.solo
+Terminal=false
+Categories=Development;Network;
+StartupNotify=false
+StartupWMClass=Solo

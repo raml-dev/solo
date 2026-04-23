@@ -48,3 +48,6 @@ internal/appinfo/update_config.json
 .codex
 .claudeignore
 .cache/*
+
+*.asc
+dist/
