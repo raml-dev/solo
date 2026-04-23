@@ -17,8 +17,7 @@
 [![Build Status](https://github.com/raml-dev/solo/actions/workflows/ci.yaml/badge.svg)](https://github.com/raml-dev/solo/actions)
 [![Wails](https://img.shields.io/badge/Wails-v2-red)](https://wails.io)
 [![License](https://img.shields.io/badge/license-%20%20AGPL3.0-blue?style=plastic)](LICENSE)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Framl-dev%2Fsolo.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2Framl-dev%2Fsolo?ref=badge_shield&issueType=security)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Framl-dev%2Fsolo.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Framl-dev%2Fsolo?ref=badge_shield&issueType=license)
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B61952%2Fgit%40github.com%3Araml-dev%2Fsolo.git.svg?type=small)](https://app.fossa.com/projects/custom%2B61952%2Fgit%40github.com%3Araml-dev%2Fsolo.git?ref=badge_small)
 
 [Features](#-features) • [Installation](#-installation) • [Contributing](#-contributing)
 
