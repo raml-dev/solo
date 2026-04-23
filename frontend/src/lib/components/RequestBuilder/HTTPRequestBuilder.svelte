@@ -40,7 +40,7 @@
   } from "$src/lib/utils/variableResolution";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
-  import FileExportSolid from "flowbite-svelte-icons/FileExportSolid.svelte";
+  import TerminalSolid from "flowbite-svelte-icons/TerminalSolid.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
@@ -495,7 +495,7 @@
           title="Export as cURL"
           onclick={handleExportCurl}
         >
-          <FileExportSolid class="m-1 h-4 w-4 shrink-0" /><span>Export</span>
+          <TerminalSolid class="m-1 h-4 w-4 shrink-0" /><span>Export curl</span>
         </Button>
       </div>
     </div>
