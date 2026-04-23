@@ -1,3 +1,8 @@
+/**
+ * Copyright 2026-present raml-dev
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 export const flowbiteTheme = {
   input: {
     input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"

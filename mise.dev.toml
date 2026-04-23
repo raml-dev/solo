@@ -60,14 +60,14 @@ description = "Add license headers to all files"
 dir = "{{ config_root }}"
 run = '''
 echo "📄 Adding license headers..."
-addlicense -c "raml-dev" -y "2026-present" -v -s -l AGPL-3.0-only -ignore frontend/node_modules/* frontend internal go.mod go.sum *.go
+addlicense -c "raml-dev" -y "2026-present" -v -s -l AGPL-3.0-only \
+  -ignore=frontend/node_modules/**/* \
+  -ignore=frontend/dist/**/* \
+  -ignore=frontend/src/lib/codemirror/lang-json-vars/parser.js \
+  -ignore=frontend/src/lib/codemirror/lang-json-vars/parser.terms.js \
+  ./frontend ./internal ./hack go.mod go.sum *.go
 echo "✅ License headers added!"
 '''
-
-[tasks."ci:gha:lint"]
-description = "Lint GitHub Actions workflows"
-dir = "{{ config_root }}"
-run = "actionlint -color"
 
 [tasks.gen-tls]
 dir = "{{ config_root }}/test/self-signed-tls"
