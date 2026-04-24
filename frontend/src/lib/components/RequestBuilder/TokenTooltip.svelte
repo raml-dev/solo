@@ -269,7 +269,10 @@
           <div class="min-w-0">
             <div class="font-mono text-sm text-neutral-800 dark:text-neutral-100">{tokenKey}</div>
             {#if resolvedEntry}
-              <div class="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
+              <div
+                class="mt-1 max-w-120 truncate text-sm text-neutral-600 dark:text-neutral-300"
+                title={resolvedEntry.computedValue}
+              >
                 {resolvedEntry.computedValue}
               </div>
             {:else}
