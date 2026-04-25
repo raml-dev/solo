@@ -30,20 +30,22 @@ jobs:
     timeout-minutes: 15
     outputs:
       valid: ${{ steps.check.outputs.valid }}
+    env:
+      MISE_ENV: ci
     steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+        with:
+          cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
+          version: "2026.3.10"
       - id: check
-        run: |
-          if mise run ci:check-license ; then
-            echo "valid=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "valid=false" >> "$GITHUB_OUTPUT"
+        run: mise run ci:check-license
 
   # Outputs variables to decide which jobs to run after this
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [check-license-headers]
-    if: needs.check-license-headers.outputs.valid == 'true'
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
