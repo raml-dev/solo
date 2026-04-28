@@ -45,19 +45,46 @@ jobs:
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
     env:
       MISE_ENV: ci
+      SOLO_RELEASE_TAG: ${{ github.ref_name }}
+      SOLO_RELEASE_VERSION: ${{ github.ref_name }}
+      SOLO_RELEASE_CHANNEL: ${{ needs.validate.outputs.prerelease == 'true' && 'prerelease' || 'stable' }}
+      SOLO_DIST_DIR: ${{ github.workspace }}/dist
     strategy:
       fail-fast: false
       matrix:
-        build: [
-          { name: "solo-windows-amd64.exe", platform: windows/amd64, os: windows-2025 },
-          { name: "solo-windows-arm64.exe", platform: windows/arm64, os: windows-11-arm },
-          { name: "solo-linux-amd64", platform: linux/amd64, os: ubuntu-24.04 },
-          { name: "solo-linux-arm64", platform: linux/arm64, os: ubuntu-24.04-arm },
-          { name: "solo-darwin-amd64.dmg", platform: darwin/amd64, os: macos-26-intel },
-          { name: "solo-darwin-arm64.dmg", platform: darwin/arm64, os: macos-26 }
-        ]
+        include:
+          - target: windows-amd64
+            artifact_name: solo-windows-amd64.exe
+            runner: windows-2025
+            build_tags: ""
+            needs_linux_deps: false
+          - target: windows-arm64
+            artifact_name: solo-windows-arm64.exe
+            runner: windows-11-arm
+            build_tags: ""
+            needs_linux_deps: false
+          - target: linux-amd64
+            artifact_name: solo-linux-amd64
+            runner: ubuntu-24.04
+            build_tags: webkit2_41
+            needs_linux_deps: true
+          - target: linux-arm64
+            artifact_name: solo-linux-arm64
+            runner: ubuntu-24.04-arm
+            build_tags: webkit2_41
+            needs_linux_deps: true
+          - target: darwin-amd64
+            artifact_name: solo-darwin-amd64.dmg
+            runner: macos-26-intel
+            build_tags: ""
+            needs_linux_deps: false
+          - target: darwin-arm64
+            artifact_name: solo-darwin-arm64.dmg
+            runner: macos-26
+            build_tags: ""
+            needs_linux_deps: false
 
-    runs-on: ${{ matrix.build.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -66,73 +93,70 @@ jobs:
         with:
           cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
           version: "2026.3.10"
-      - name: Inject version into wails.json
-        uses: actions/github-script@v8
-        env:
-          RELEASE_VERSION: ${{ github.ref_name }}
-        with:
-          script: |
-            const fs = require('node:fs');
-            const path = 'wails.json';
-            const raw = fs.readFileSync(path, 'utf8');
-            const data = JSON.parse(raw);
-            data.info = data.info || {};
-            data.info.productVersion = process.env.RELEASE_VERSION;
-            fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n', 'utf8');
-
-      - uses: The-Egg-Corp/wails-build-action@v2.1
-        with:
-          name: solo
-          build-name: ${{ startsWith(matrix.build.platform, 'darwin/') && 'solo' || matrix.build.name }}
-          build-platform: ${{ matrix.build.platform }}
-          nsis: false
-          package: false
-          # TODO: versifyr
-          go-version: 1.25.6
-          # TODO: versifyr
-          node-version: 24.12.0
-          build-obfuscate: false
-      - name: Create macOS DMG
-        if: startsWith(matrix.build.platform, 'darwin/')
-        shell: bash
+      - name: Install Linux build dependencies
+        if: matrix.needs_linux_deps
         run: |
-          APP_PATH="build/bin/solo.app"
-          DMG_PATH="build/bin/${{ matrix.build.name }}"
-
-          if [ ! -d "$APP_PATH" ]; then
-            echo "Missing app bundle: $APP_PATH"
-            ls -la build/bin || true
-            exit 1
-          fi
-
-          # Sign nested frameworks/libs/binaries and the bundle itself
-          codesign --force --deep --sign - "$APP_PATH"
-
-          # Verify signature integrity
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-
-          # print signing info for debugging
-          codesign -dv --verbose=4 "$APP_PATH" || true
-
-          hdiutil create \
-            -volname "solo" \
-            -srcfolder "$APP_PATH" \
-            -ov \
-            -format UDZO \
-            "$DMG_PATH"
-
-          echo "Created $DMG_PATH"
+          sudo apt-get update
+          sudo apt-get -yq install libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Prepare release context
+        run: mise run ci:rel:prepare
+      - name: Build raw artifact
+        env:
+          SOLO_BUILD_TAGS: ${{ matrix.build_tags }}
+        run: mise run ci:rel:build -- ${{ matrix.target }}
       - name: Upload matrix artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.build.name }}
+          name: ${{ matrix.artifact_name }}
           if-no-files-found: error
-          path: |
-            build/bin/${{ matrix.build.name }}
-  release:
+          path: dist/${{ matrix.artifact_name }}
+  package-linux:
     needs: [validate, build]
     runs-on: ubuntu-latest
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
+    env:
+      MISE_ENV: ci
+      SOLO_RELEASE_TAG: ${{ github.ref_name }}
+      SOLO_RELEASE_VERSION: ${{ github.ref_name }}
+      SOLO_RELEASE_CHANNEL: ${{ needs.validate.outputs.prerelease == 'true' && 'prerelease' || 'stable' }}
+      SOLO_DIST_DIR: ${{ github.workspace }}/dist
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+        with:
+          cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
+          version: "2026.3.10"
+      - name: Download Linux raw artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: solo-linux-*
+          path: dist
+          merge-multiple: true
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -yq install rpm zstd
+      - name: Build Linux package artifacts
+        run: mise run ci:rel:package:linux
+      - name: Upload Linux package artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-package-artifacts
+          if-no-files-found: error
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+  release:
+    needs: [validate, build, package-linux]
+    runs-on: ubuntu-latest
+    if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
+    env:
+      MISE_ENV: ci
+      SOLO_RELEASE_TAG: ${{ github.ref_name }}
+      SOLO_RELEASE_VERSION: ${{ github.ref_name }}
+      SOLO_RELEASE_CHANNEL: ${{ needs.validate.outputs.prerelease == 'true' && 'prerelease' || 'stable' }}
+      SOLO_DIST_DIR: ${{ github.workspace }}/dist
     permissions:
      contents: write
      id-token: write
@@ -140,6 +164,10 @@ jobs:
      artifact-metadata: write
     steps:
       - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+        with:
+          cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
+          version: "2026.3.10"
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
@@ -173,12 +201,9 @@ jobs:
             echo "Using stable release notes: $NOTES_FILE"
           fi
       - name: Generate SHA256 checksums
-        shell: bash
-        run: |
-          cd dist
-          find . -maxdepth 1 -type f ! -name 'SHA256SUMS' -print0 \
-            | sort -z \
-            | xargs -0 sha256sum > SHA256SUMS
+        run: mise run ci:rel:checksums
+      - name: Validate publication inputs
+        run: mise run ci:rel:validate-publish-inputs
       # TODO: uncomment when we switch to a public repo
       # - name: Attest release artifacts provenance
       #   uses: actions/attest@v4
@@ -192,3 +217,38 @@ jobs:
           fail_on_unmatched_files: true
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           make_latest: ${{ needs.validate.outputs.make_latest == 'true' }}
+  dispatch-external:
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    if: needs.validate.outputs.prerelease != 'true'
+    env:
+      MISE_ENV: ci
+      SOLO_RELEASE_TAG: ${{ github.ref_name }}
+      SOLO_RELEASE_VERSION: ${{ github.ref_name }}
+      SOLO_RELEASE_CHANNEL: stable
+      RELEASE_PACKAGE_NAME: solo
+      RELEASE_APP_NAME: Solo
+      RELEASE_DESCRIPTION: The lightweight, fast, open-source API client for modern development
+      RELEASE_LICENSE: AGPL-3.0-only
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+        with:
+          cache_key: "mise-{{platform}}-{{version}}-{{file_hash}}"
+          version: "2026.3.10"
+      - name: Generate external package repos GitHub App token
+        id: external_repos_app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.RAML_DEV_AUTOMATIONS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RAML_DEV_AUTOMATIONS_APP_PRIVATE_KEY }}
+          owner: raml-dev
+          repositories: |
+            linux-packages-repos
+            homebrew-tap
+            scoop-bucket
+          permission-contents: write
+      - name: Dispatch stable release to external package repos
+        env:
+          EXTERNAL_REPOS_DISPATCH_TOKEN: ${{ steps.external_repos_app_token.outputs.token }}
+        run: mise run ci:rel:dispatch

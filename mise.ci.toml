@@ -1,6 +1,10 @@
 # Copyright 2026 raml-dev
 # SPDX-License-Identifier: AGPL-3.0-only
 
+[tools]
+jq = "1.8.1"
+nfpm = "2.46.3"
+
 [tasks."ci:fe:install"]
 dir = "{{ config_root }}/frontend"
 run = "npm install"
@@ -17,6 +21,7 @@ run = "npm run build"
 [tasks."ci:fe:build-wails-module"]
 dir = "{{ config_root }}"
 run = """
+#!/usr/bin/env bash
 mkdir -p frontend/dist/assets
 touch frontend/dist/index.html
 wails generate module
@@ -37,10 +42,99 @@ run = "go test -v ./..."
 [tasks."ci:check-license"]
 description = "Check license headers in all files"
 run = """
+#!/usr/bin/env bash
 addlicense -check -c "raml-dev" -s -l AGPL-3.0-only \
   -ignore=frontend/node_modules/**/* \
   -ignore=frontend/dist/**/* \
   -ignore=frontend/src/lib/codemirror/lang-json-vars/parser.js \
   -ignore=frontend/src/lib/codemirror/lang-json-vars/parser.terms.js \
   ./frontend ./internal ./hack go.mod go.sum *.go
+"""
+
+[tasks."ci:rel:prepare"]
+description = "Prepare release context, dist layout, version metadata, and Wails prerequisites"
+run = [
+  { task = "ci:rel:ctx:validate" },
+  { task = "ci:rel:ctx:prepare-dist" },
+  { task = "ci:rel:ctx:inject-version" },
+  { task = "ci:fe:build-wails-module" },
+]
+
+[tasks."ci:rel:build"]
+description = "Build one raw release artifact for the requested target"
+usage = """
+arg "<target>" help="Raw build target" {
+  choices "windows-amd64" "windows-arm64" "linux-amd64" "linux-arm64" "darwin-amd64" "darwin-arm64"
+}
+"""
+run = """
+#!/usr/bin/env bash
+case "${usage_target?}" in
+  windows-*)
+    bash "{{ config_root }}/hack/release/build-windows.sh" "${usage_target?}"
+    ;;
+  linux-*)
+    bash "{{ config_root }}/hack/release/build-linux.sh" "${usage_target?}"
+    ;;
+  darwin-*)
+    bash "{{ config_root }}/hack/release/build-macos.sh" "${usage_target?}"
+    ;;
+  *)
+    echo "unknown raw build target: ${usage_target?}" >&2
+    exit 1
+    ;;
+esac
+"""
+
+[tasks."ci:rel:package:linux"]
+description = "Build all Linux native package artifacts that are currently implemented (.deb, .rpm, and Arch packages)"
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/package-linux.sh'
+"""
+
+[tasks."ci:rel:checksums"]
+description = "Generate SHA256SUMS for releasable artifacts in SOLO_DIST_DIR"
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/checksums.sh'
+"""
+
+[tasks."ci:rel:validate-publish-inputs"]
+description = "Validate release publication inputs"
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/validate-publish-inputs.sh'
+"""
+
+[tasks."ci:rel:ctx:validate"]
+description = "Validate shared release context"
+hide = true
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/prepare.sh validate-context'
+"""
+
+[tasks."ci:rel:ctx:inject-version"]
+description = "Inject SOLO_RELEASE_VERSION into wails.json"
+hide = true
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/prepare.sh inject-version'
+"""
+
+[tasks."ci:rel:ctx:prepare-dist"]
+description = "Prepare the release dist directory structure"
+hide = true
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/prepare.sh prepare-dist'
+"""
+
+[tasks."ci:rel:dispatch"]
+description = "Dispatch stable release events to external package repositories"
+hide = true
+run = """
+#!/usr/bin/env bash
+bash '{{ config_root }}/hack/release/dispatch-external-repos.sh'
 """
