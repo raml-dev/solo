@@ -6,6 +6,7 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionRow from "$src/lib/components/Collections/CollectionRow.svelte";
+  import ExportCollectionModal from "$src/lib/components/Collections/ExportCollectionModal.svelte";
   import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
   import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
@@ -33,6 +34,7 @@
   import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import {
     ExportCollection,
+    ExportOpenAPICollection,
     GetGitCollectionStatus,
     GitAbortRebase,
     GitDiscardChanges,
@@ -101,6 +103,8 @@
   const importCollectionModal = modalStack.createModal("collections-import");
   const collectionVariablesModal = modalStack.createModal("collections-variables");
   const soloCollectionOverwriteModal = modalStack.createModal("collections-solo-overwrite");
+  const exportCollectionModal = modalStack.createModal("collections-export");
+  let exportCollectionTargetName = $state<string | null>(null);
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
 
@@ -543,9 +547,21 @@
     }
   }
 
-  async function handleExportCollection(collectionName: string) {
+  function openExportModal(collectionName: string) {
+    exportCollectionTargetName = collectionName;
+    exportCollectionModal.open = true;
+  }
+
+  async function handleExportCollection(format: "solo" | "openapi") {
+    if (!exportCollectionTargetName) return;
+    const name = exportCollectionTargetName;
+    exportCollectionModal.open = false;
     try {
-      await ExportCollection(collectionName);
+      if (format === "openapi") {
+        await ExportOpenAPICollection(name);
+      } else {
+        await ExportCollection(name);
+      }
       notifications.success("Collection exported successfully");
     } catch (err) {
       notifications.error("Failed to export collection", String(err));
@@ -698,6 +714,7 @@
     modalStack.destroyModal(importCollectionModal.id);
     modalStack.destroyModal(collectionVariablesModal.id);
     modalStack.destroyModal(soloCollectionOverwriteModal.id);
+    modalStack.destroyModal(exportCollectionModal.id);
     collectionTreeUI.closeCollectionContextMenu();
     collectionTreeUI.closeRequestContextMenu();
     collectionTreeUI.closeFolderContextMenu();
@@ -895,7 +912,7 @@
     <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
-          void handleExportCollection(collectionContextTarget.name);
+          openExportModal(collectionContextTarget.name);
         }
         onClose();
       }}
@@ -1030,7 +1047,7 @@
             onDeleteRequest={handleDeleteRequest}
             onOpenGitStatus={openGitStatusForCollection}
             onSync={(collectionId) => void handleSync(collectionId)}
-            onExportCollection={(collectionName) => void handleExportCollection(collectionName)}
+            onExportCollection={(collectionName) => openExportModal(collectionName)}
             onOpenVariables={openCollectionVariables}
             onRenameCollection={openRenameCollection}
             onDeleteCollection={handleDeleteCollection}
@@ -1363,6 +1380,12 @@
     {/snippet}
   </Modal>
 {/if}
+
+<ExportCollectionModal
+  bind:open={exportCollectionModal.open}
+  onExport={(format) => void handleExportCollection(format)}
+  onClose={() => (exportCollectionModal.open = false)}
+/>
 
 {#if gitStatusCollectionId && gitStatusCollectionName}
   <GitStatusPanel
