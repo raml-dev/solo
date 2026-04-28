@@ -133,6 +133,33 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 	}, nil
 }
 
+// extractExample returns the first non-nil example value following priority:
+// inline example > first named example > schema default.
+func extractExample(example interface{}, examples map[string]openAPIExample, schemaDefault interface{}) interface{} {
+	if example != nil {
+		return example
+	}
+	for _, ex := range examples {
+		if ex.Value != nil {
+			return ex.Value
+		}
+	}
+	return schemaDefault
+}
+
+// exampleToJSONString serialises a value to a JSON string.
+// Returns "{}" when the value is nil or serialisation fails.
+func exampleToJSONString(v interface{}) string {
+	if v == nil {
+		return "{}"
+	}
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
 // buildRequest constructs a collection.Request from a single OpenAPI operation.
 func buildRequest(method, path string, op *openAPIOperation, version string, doc unifiedAPIDocument) collection.Request {
 	normalizedPath := normalizeOpenAPIPathPlaceholders(path)
@@ -159,28 +186,29 @@ func buildRequest(method, path string, op *openAPIOperation, version string, doc
 	// Header parameters (both formats)
 	for _, p := range op.Parameters {
 		if p.In == "header" {
-			req.Headers[p.Name] = ""
+			v := extractExample(p.Example, p.Examples, p.Schema["default"])
+			if v != nil {
+				req.Headers[p.Name] = fmt.Sprintf("%v", v)
+			} else {
+				req.Headers[p.Name] = ""
+			}
 		}
 	}
 
 	// Body — format-specific
 	if version == "3.x" {
 		if op.RequestBody != nil {
-			if _, ok := op.RequestBody.Content["application/json"]; ok {
-				req.Body = "{}"
+			if media, ok := op.RequestBody.Content["application/json"]; ok {
+				req.Body = exampleToJSONString(extractExample(media.Example, media.Examples, media.Schema["default"]))
 				req.BodyType = "json"
 			}
 		}
 	} else {
 		// Swagger 2.x: body is a parameter with in=="body"
-		hasBodyParam := false
 		for _, p := range op.Parameters {
-			if p.In == "body" {
-				hasBodyParam = true
-				break
+			if p.In != "body" {
+				continue
 			}
-		}
-		if hasBodyParam {
 			// consumes priority: operation-level > root-level > default JSON
 			effectiveConsumes := op.Consumes
 			if len(effectiveConsumes) == 0 {
@@ -194,9 +222,10 @@ func buildRequest(method, path string, op *openAPIOperation, version string, doc
 				}
 			}
 			if isJSON {
-				req.Body = "{}"
+				req.Body = exampleToJSONString(extractExample(p.Example, p.Examples, p.Schema["default"]))
 				req.BodyType = "json"
 			}
+			break
 		}
 	}
 
@@ -278,9 +307,15 @@ type openAPIOperation struct {
 }
 
 type openAPIParameter struct {
-	Name   string                 `json:"name"   yaml:"name"`
-	In     string                 `json:"in"     yaml:"in"`
-	Schema map[string]interface{} `json:"schema" yaml:"schema"`
+	Name     string                      `json:"name"     yaml:"name"`
+	In       string                      `json:"in"       yaml:"in"`
+	Schema   map[string]interface{}      `json:"schema"   yaml:"schema"`
+	Example  interface{}                 `json:"example"  yaml:"example"`
+	Examples map[string]openAPIExample   `json:"examples" yaml:"examples"`
+}
+
+type openAPIExample struct {
+	Value interface{} `json:"value" yaml:"value"`
 }
 
 type openAPIRequestBody struct {
@@ -288,7 +323,9 @@ type openAPIRequestBody struct {
 }
 
 type openAPIMediaType struct {
-	Schema map[string]interface{} `json:"schema" yaml:"schema"`
+	Schema   map[string]interface{}    `json:"schema"   yaml:"schema"`
+	Example  interface{}               `json:"example"  yaml:"example"`
+	Examples map[string]openAPIExample `json:"examples" yaml:"examples"`
 }
 
 var openAPIPathParamPattern = regexp.MustCompile(`\{([A-Za-z0-9_.-]+)\}`)
