@@ -493,6 +493,34 @@ func (a *App) ExportCollection(collectionName string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+// ExportOpenAPICollection opens a native save dialog and writes the collection as an OpenAPI 3.1 YAML document.
+func (a *App) ExportOpenAPICollection(collectionName string) error {
+	coll, err := a.collectionManager.LoadCollection(collectionName)
+	if err != nil {
+		return fmt.Errorf("failed to load collection %q: %w", collectionName, err)
+	}
+
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export as OpenAPI",
+		DefaultFilename: collectionName + ".yaml",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "YAML files", Pattern: "*.yaml"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled
+	}
+
+	data, err := exporter.ExportOpenAPI(coll)
+	if err != nil {
+		return fmt.Errorf("failed to export collection as OpenAPI: %w", err)
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
 // ExportEnvironment opens a native save dialog and writes the environment as Solo-native JSON.
 func (a *App) ExportEnvironment(environmentName string) error {
 	env, err := a.environmentManager.LoadEnvironment(environmentName)
