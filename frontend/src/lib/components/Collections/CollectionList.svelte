@@ -59,6 +59,14 @@
 
   const COLLECTION_LOCAL_IMPORT_FORMATS: LocalImportFormatOption<CollectionLocalImportFormat>[] = [
     {
+      key: "solo",
+      label: "Solo",
+      dropTitle: "Drop your Solo collection here",
+      dropSubtitle: "Supports Solo collection JSON",
+      pickerButtonLabel: "Select file...",
+      icon: "upload"
+    },
+    {
       key: "postman",
       label: "Postman",
       dropTitle: "Drop your Postman collection here",
@@ -81,14 +89,6 @@
       dropSubtitle: "Supports OpenAPI 3.x and Swagger 2.x (JSON or YAML)",
       pickerButtonLabel: "Select file...",
       icon: "document"
-    },
-    {
-      key: "solo",
-      label: "solo",
-      dropTitle: "Drop your solo collection here",
-      dropSubtitle: "Supports solo collection JSON",
-      pickerButtonLabel: "Select file...",
-      icon: "upload"
     }
   ];
 

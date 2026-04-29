@@ -6,7 +6,7 @@
 <script lang="ts">
   import HistoryEntry from "$src/lib/components/History/HistoryEntry.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
-  import { historyStore } from "$src/lib/stores/historyStore";
+  import { historyStore } from "$src/lib/stores/historyStore.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Select from "flowbite-svelte/Select.svelte";

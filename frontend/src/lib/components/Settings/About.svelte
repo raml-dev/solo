@@ -38,7 +38,7 @@
     <div class="flex w-full max-w-xl flex-col items-center gap-3 p-4">
       <div class="flex flex-col items-center gap-1">
         <div class="flex items-center gap-4">
-          <h1 aria-label="solo" class="flex flex-row items-baseline gap-4 select-none">
+          <h1 aria-label="Solo" class="flex flex-row items-baseline gap-4 select-none">
             <SoloSvg
               aria-hidden="true"
               size={52}

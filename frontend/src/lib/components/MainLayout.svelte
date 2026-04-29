@@ -46,7 +46,7 @@
     class="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800"
   >
     <div class="flex items-center">
-      <h1 aria-label="solo" class="select-none">
+      <h1 aria-label="Solo" class="select-none">
         <SoloSvg
           aria-hidden="true"
           size={32}

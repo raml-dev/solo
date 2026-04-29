@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-  import type { HistoryEntry } from "$src/lib/stores/historyStore";
+  import type { HistoryEntry } from "$src/lib/stores/historyStore.svelte";
   import { formatTime, truncateString } from "$src/lib/utils/helpers";
   import {
     getHttpStatusString,

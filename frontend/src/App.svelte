@@ -15,7 +15,7 @@
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { configurationStore } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
-  import { historyStore } from "$src/lib/stores/historyStore";
+  import { historyStore } from "$src/lib/stores/historyStore.svelte";
   import { hasOpenModals, modalStack } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";

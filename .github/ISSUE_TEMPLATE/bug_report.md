@@ -34,5 +34,5 @@ If applicable, add screenshots to help explain your problem.
 
 Please complete the following information:
 
-- solo version: [e.g. 0.1.0]
-- platform: [e.g. macOS arm64]
+- Solo version: [e.g. 0.1.0]
+- Platform: [e.g. macOS arm64]

@@ -1,5 +1,5 @@
 <!--
-Thank you for contributing to solo! Fill out the information below, so we can better review this pull request.
+Thank you for contributing to Solo! Fill out the information below, so we can better review this pull request.
 
 If you couldn't find an issue related to your changes, please create one before opening this PR.
 

@@ -4,6 +4,7 @@
  */
 
 import { writable } from "svelte/store";
+import { appInfoState } from "./appInfo.svelte";
 
 export interface HistoryRequest {
   method: string;
@@ -31,6 +32,8 @@ export interface HistoryEntry {
 
 const MAX_ENTRIES = 500;
 
+const version = $derived(appInfoState.info?.productVersion ?? "")
+
 function createHistoryStore() {
   const { subscribe, update } = writable<HistoryEntry[]>([]);
 
@@ -54,6 +57,7 @@ function createHistoryStore() {
     },
 
     exportHAR(entries: HistoryEntry[]): string {
+      console.log("history export")
       const harEntries = entries.map((e) => ({
         startedDateTime: e.timestamp,
         time: e.response?.time ?? 0,
@@ -105,7 +109,7 @@ function createHistoryStore() {
         {
           log: {
             version: "1.2",
-            creator: { name: "solo", version: "1.0" },
+            creator: { name: "Solo", version: version },
             entries: harEntries
           }
         },
