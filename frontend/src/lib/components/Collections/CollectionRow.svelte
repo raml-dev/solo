@@ -7,7 +7,6 @@
   import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
   import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
-  import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
   import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import {
     collectionTreeUI,
@@ -207,7 +206,7 @@
     >
       New folder
     </ContextMenuItem>
-    <ContextMenuDivider />
+
     {#if currentCollection.gitRemote}
       <ContextMenuItem
         onclick={() => {
@@ -226,7 +225,6 @@
       >
         {syncing ? "Syncing..." : "Sync with Git"}
       </ContextMenuItem>
-      <ContextMenuDivider />
     {/if}
     <ContextMenuItem
       onclick={() => {
@@ -236,7 +234,7 @@
     >
       Variables
     </ContextMenuItem>
-    <ContextMenuDivider />
+
     <ContextMenuItem
       onclick={() => {
         onExportCollection(currentCollection.name);
@@ -245,7 +243,7 @@
     >
       Export
     </ContextMenuItem>
-    <ContextMenuDivider />
+
     <ContextMenuItem
       onclick={() => {
         onRenameCollection(currentCollection.name);

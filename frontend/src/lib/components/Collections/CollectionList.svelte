@@ -6,10 +6,9 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionRow from "$src/lib/components/Collections/CollectionRow.svelte";
-  import ExportCollectionModal from "$src/lib/components/Collections/ExportCollectionModal.svelte";
   import CollectionSidebarHeader from "$src/lib/components/Collections/CollectionSidebarHeader.svelte";
+  import ExportCollectionModal from "$src/lib/components/Collections/ExportCollectionModal.svelte";
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
-  import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
   import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import VariablesTableEditor from "$src/lib/components/common/VariablesTableEditor.svelte";
@@ -860,7 +859,6 @@
     >
       New request
     </ContextMenuItem>
-    <ContextMenuDivider />
     <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
@@ -871,7 +869,6 @@
     >
       New folder
     </ContextMenuItem>
-    <ContextMenuDivider />
     <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
@@ -882,7 +879,6 @@
     >
       Variables
     </ContextMenuItem>
-    <ContextMenuDivider />
     {#if collectionContextTarget?.gitRemote}
       <ContextMenuItem
         onclick={() => {
@@ -907,7 +903,6 @@
           ? "Syncing..."
           : "Sync with Git"}
       </ContextMenuItem>
-      <ContextMenuDivider />
     {/if}
     <ContextMenuItem
       onclick={() => {
@@ -919,7 +914,7 @@
     >
       Export
     </ContextMenuItem>
-    <ContextMenuDivider />
+
     <ContextMenuItem
       onclick={() => {
         if (collectionContextTarget) {
@@ -972,7 +967,7 @@
     >
       New subfolder
     </ContextMenuItem>
-    <ContextMenuDivider />
+
     <ContextMenuItem
       onclick={() => {
         if (folderContextMenuState.collectionName && folderContextTarget) {
