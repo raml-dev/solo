@@ -5,6 +5,8 @@
 
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
+  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
+  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
@@ -15,14 +17,29 @@
   import { onDestroy, tick } from "svelte";
   import RequestTabDropdown from "./RequestTabDropdown.svelte";
 
+  // --- Derived state ---
   let tabs = $derived(tabStoreState.tabs);
   let activeTabId = $derived(getActiveTab()?.id ?? null);
+  let tabToClose = $derived(tabs.find((t) => t.id === tabToCloseId));
 
-  let tabToCloseId: string | null = $state(null);
-
+  // --- Scroll state ---
   let scrollEl = $state<HTMLElement | null>(null);
   let fadeLeft = $state(false);
   let fadeRight = $state(false);
+
+  // --- Close confirmation state ---
+  let tabToCloseId: string | null = $state(null);
+  const confirmCloseModal = modalStack.createModal("tabbar-confirm-close");
+
+  // --- Context menu state ---
+  let contextMenuTabId: string | null = $state(null);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuOpen = $state(false);
+  let contextMenuKey = $state(0);
+
+  // --- Close All flow ---
+  let isClosingAll = $state(false);
 
   function updateFades() {
     if (!scrollEl) return;
@@ -60,14 +77,13 @@
     });
   });
 
-  const confirmCloseModal = modalStack.createModal("tabbar-confirm-close");
-
   onDestroy(() => {
     modalStack.destroyModal(confirmCloseModal.id);
   });
 
-  let tabToClose = $derived(tabs.find((t) => t.id === tabToCloseId));
+  // --- Scroll functions ---
 
+  // --- Tab navigation ---
   function focusTabByIndex(index: number) {
     if (!tabs.length) return;
     const normalized = ((index % tabs.length) + tabs.length) % tabs.length;
@@ -116,6 +132,7 @@
     }
   }
 
+  // --- Close single tab ---
   function handleClose(e: MouseEvent | KeyboardEvent, tabId: string) {
     e.stopPropagation();
     if (e instanceof MouseEvent || e.key === "Space") {
@@ -129,6 +146,7 @@
     }
   }
 
+  // --- Close confirmation modal ---
   async function confirmCloseSave() {
     if (tabToCloseId) {
       if (tabToClose?.requestId) {
@@ -136,19 +154,83 @@
       }
       tabStore.closeTab(tabToCloseId);
     }
-    closeConfirmModal();
+    confirmCloseModal.open = false;
+    tabToCloseId = null;
+    if (isClosingAll) {
+      closeNextDirtyTab();
+    }
   }
 
   function confirmCloseDiscard() {
     if (tabToCloseId) {
       tabStore.closeTab(tabToCloseId);
     }
-    closeConfirmModal();
+    confirmCloseModal.open = false;
+    tabToCloseId = null;
+    if (isClosingAll) {
+      closeNextDirtyTab();
+    }
   }
 
   function closeConfirmModal() {
     confirmCloseModal.open = false;
     tabToCloseId = null;
+    isClosingAll = false;
+  }
+
+  // --- Context menu ---
+  function handleTabContextMenu(event: MouseEvent, tabId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    contextMenuOpen = false;
+    contextMenuTabId = tabId;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    contextMenuKey++;
+    tick().then(() => {
+      contextMenuOpen = true;
+    });
+  }
+
+  function closeContextMenu() {
+    contextMenuOpen = false;
+    contextMenuTabId = null;
+  }
+
+  function getContextMenuTriggerId(): string {
+    return `tab-context-menu-trigger-${contextMenuKey}`;
+  }
+
+  function getContextMenuPositionStyle(): string {
+    return `left: ${contextMenuX + 2}px; top: ${contextMenuY + 2}px;`;
+  }
+
+  // --- Close All flow ---
+  function handleCloseAll() {
+    closeContextMenu();
+    isClosingAll = true;
+    closeNextDirtyTab();
+  }
+
+  function closeNextDirtyTab() {
+    const dirtyTab = tabs.find((t) => t.isDirty);
+    if (dirtyTab) {
+      tabToCloseId = dirtyTab.id;
+      tabStore.setActiveTab(dirtyTab.id);
+      confirmCloseModal.open = true;
+    } else {
+      // All dirty tabs resolved — close the remaining non-dirty ones
+      isClosingAll = false;
+      tabStore.closeNonDirtyTabs();
+    }
+  }
+
+  function handleContextClose() {
+    if (!contextMenuTabId) return;
+    const tabId = contextMenuTabId;
+    closeContextMenu();
+    const synthetic = new MouseEvent("click");
+    handleClose(synthetic, tabId);
   }
 </script>
 
@@ -183,6 +265,7 @@
             if (e.button === 1) handleClose(e, tab.id);
           }}
           onkeydown={(event: KeyboardEvent) => handleTabKeydown(event, index, tab.id)}
+          oncontextmenu={(event: MouseEvent) => handleTabContextMenu(event, tab.id)}
           class={`group inline-flex max-w-xs items-center rounded-md border inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden focus:outline-hidden ${
             tab.id === activeTabId
               ? "border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/40"
@@ -234,6 +317,25 @@
   </Button>
   <RequestTabDropdown {tabs} {activeTabId} onselect={tabStore.setActiveTab} />
 </div>
+
+{#if contextMenuTabId}
+  <button
+    id={getContextMenuTriggerId()}
+    type="button"
+    class="pointer-events-none fixed z-90 h-0 w-0 opacity-0"
+    style={getContextMenuPositionStyle()}
+    tabindex="-1"
+    aria-hidden="true"
+  ></button>
+  <ContextMenu
+    triggeredBy={`#${getContextMenuTriggerId()}`}
+    isOpen={contextMenuOpen}
+    onClose={closeContextMenu}
+  >
+    <ContextMenuItem onclick={handleContextClose}>Close</ContextMenuItem>
+    <ContextMenuItem onclick={handleCloseAll}>Close All</ContextMenuItem>
+  </ContextMenu>
+{/if}
 
 {#if confirmCloseModal.open}
   <Modal title="Unsaved Changes" bind:open={confirmCloseModal.open}>

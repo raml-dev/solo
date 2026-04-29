@@ -378,10 +378,28 @@ export function storeTabsInLocalStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tabStoreState));
 }
 
+/**
+ * Close all non-dirty tabs. Called only after all dirty tabs have been resolved.
+ */
+export function closeNonDirtyTabs(): void {
+  tabStoreState.tabs = tabStoreState.tabs.filter((t) => t.isDirty);
+  if (tabStoreState.tabs.length === 0) {
+    tabStoreState.activeTabIndex = -1;
+  } else {
+    // Keep active index in bounds
+    tabStoreState.activeTabIndex = Math.min(
+      tabStoreState.activeTabIndex,
+      tabStoreState.tabs.length - 1
+    );
+  }
+  storeTabsInLocalStorage();
+}
+
 export const tabStore = {
   makeEmptyTab,
   openTab,
   closeTab,
+  closeNonDirtyTabs,
   setActiveTab,
   updateTabFormState,
   bindTabToRequest,
