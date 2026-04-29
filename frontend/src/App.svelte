@@ -292,7 +292,7 @@
           color="alternative"
           size="xs"
           onclick={toggleHistory}
-          class="gap-1 border-0 bg-transparent shadow-none hover:cursor-pointer hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent
+          class="gap-1 border-0 bg-transparent shadow-none hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent
           {historyOpen
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-neutral-600 dark:text-neutral-400'}"
@@ -312,7 +312,7 @@
           id="env-dropdown-button"
           size="xs"
           onclick={() => (isEnvDropdownOpen = true)}
-          class="items-center gap-1 border-0 bg-transparent shadow-none hover:cursor-pointer hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent {selectedEnvironmentName
+          class="items-center gap-1 border-0 bg-transparent shadow-none hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent {selectedEnvironmentName
             ? 'text-neutral-600 dark:text-neutral-400'
             : 'text-neutral-400 dark:text-neutral-600'}"
           color="alternative"

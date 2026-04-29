@@ -343,7 +343,7 @@
     tabindex="0"
   >
     <button
-      class="h-6 w-4 p-0 text-xs hover:cursor-pointer dark:text-white"
+      class="h-6 w-4 p-0 text-xs dark:text-white"
       onclick={toggleFolder}
       aria-label="Toggle folder"
     >
@@ -402,7 +402,7 @@
 
     <button
       data-no-drag="true"
-      class="invisible group-hover:visible hover:cursor-pointer"
+      class="invisible group-hover:visible h-6 {OUTLINE_BUTTON_CLASSES}"
       onclick={(event: MouseEvent) => {
         event.stopPropagation();
         onAddRequestToFolder(collectionName, folder.id);
@@ -410,12 +410,12 @@
       title="Add request"
       aria-label="Add request"
     >
-      <PlusOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+      <PlusOutline class="h-4 w-4" />
     </button>
     <button
       data-no-drag="true"
       id={getMenuTriggerId()}
-      class="invisible group-hover:visible hover:cursor-pointer"
+      class="invisible group-hover:visible h-6 {OUTLINE_BUTTON_CLASSES}"
       title="Folder actions"
       aria-label="Folder actions"
       onclick={(event: MouseEvent) => {
@@ -427,7 +427,7 @@
         event.stopPropagation();
       }}
     >
-      <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+      <DotsHorizontalOutline class="h-4 w-4" />
     </button>
     {@render actionsDropdown(`#${getMenuTriggerId()}`, undefined, closeContextMenu)}
   </div>

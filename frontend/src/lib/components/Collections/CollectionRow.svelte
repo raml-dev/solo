@@ -283,7 +283,7 @@
     tabindex="0"
   >
     <button
-      class="h-6 w-4 p-0 text-xs hover:cursor-pointer dark:text-white"
+      class="h-6 w-4 p-0 text-xs dark:text-white"
       onclick={(event: MouseEvent) => {
         event.stopPropagation();
         onToggleCollection(currentCollection.name);
@@ -329,9 +329,9 @@
       <button
         data-no-drag="true"
         type="button"
-        class="shrink-0 {hasCollectionVariables
+        class="h-6 shrink-0 {hasCollectionVariables
           ? 'text-warning-500 hover:text-warning-600 dark:text-warning-400 dark:hover:text-warning-300'
-          : OUTLINE_BUTTON_CLASSES} hover:cursor-pointer"
+          : OUTLINE_BUTTON_CLASSES}"
         title="Collection variables"
         aria-label={`Open variables for ${currentCollection.name}`}
         onclick={(event: MouseEvent) => {
@@ -339,11 +339,11 @@
           onOpenVariables(currentCollection.name);
         }}
       >
-        <AdjustmentsVerticalOutline class="h-3.5 w-3.5" />
+        <AdjustmentsVerticalOutline class="h-4 w-4" />
       </button>
       <button
         data-no-drag="true"
-        class="hover:cursor-pointer"
+        class="{OUTLINE_BUTTON_CLASSES} h-6"
         onclick={(event: MouseEvent) => {
           event.stopPropagation();
           onAddRequest(currentCollection.name);
@@ -351,12 +351,12 @@
         title="Add request"
         aria-label="Add request"
       >
-        <PlusOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+        <PlusOutline class="h-4 w-4" />
       </button>
       <button
         data-no-drag="true"
         id={getMenuTriggerId()}
-        class="ml-1 hover:cursor-pointer"
+        class="{OUTLINE_BUTTON_CLASSES} ml-1 h-6"
         title="More actions"
         aria-label="More actions"
         onclick={(event: MouseEvent) => {
@@ -368,7 +368,7 @@
           event.stopPropagation();
         }}
       >
-        <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+        <DotsHorizontalOutline class="h-4 w-4" />
       </button>
       {@render actionsDropdown(`#${getMenuTriggerId()}`, undefined, closeContextMenu)}
     </div>

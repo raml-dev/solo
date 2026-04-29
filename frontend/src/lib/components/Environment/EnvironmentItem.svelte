@@ -181,13 +181,13 @@
 
     <button
       type="button"
-      class="visible ml-1 hover:cursor-pointer"
+      class="visible ml-1 h-6 {OUTLINE_BUTTON_CLASSES}"
       onclick={openMenu}
       title="More actions"
       aria-label="More actions"
       aria-expanded={isMenuOpen}
     >
-      <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+      <DotsHorizontalOutline class="h-4 w-4" />
     </button>
   </div>
 </div>
