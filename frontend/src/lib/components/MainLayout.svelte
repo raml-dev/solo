@@ -57,10 +57,10 @@
     <div class="flex items-center gap-2">
       {@render navbar_actions?.()}
       <Button class="h-8 gap-1" color="light" onclick={toggleEnvironmentManager}
-        ><GlobeSolid class="h-4 -ml-1.5" />Environments</Button
+        ><GlobeSolid class="-ml-1.5 h-4" />Environments</Button
       >
       <Button class="h-8 gap-1" color="light" onclick={toggleMainConfiguration}
-        ><CogSolid class="h-4 -ml-1.5" />Settings</Button
+        ><CogSolid class="-ml-1.5 h-4" />Settings</Button
       >
     </div>
   </nav>

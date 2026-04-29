@@ -297,7 +297,7 @@
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-neutral-600 dark:text-neutral-400'}"
         >
-          <ClockArrowOutline class="h-4 -ml-1.5" />
+          <ClockArrowOutline class="-ml-1.5 h-4" />
           History
           {#if $historyStore.length > 0}
             <Badge
