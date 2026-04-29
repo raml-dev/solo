@@ -52,7 +52,7 @@
   import Spinner from "flowbite-svelte/Spinner.svelte";
   import TabItem from "flowbite-svelte/TabItem.svelte";
   import Tabs from "flowbite-svelte/Tabs.svelte";
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
 
   // UI-only local state (not tab data)
   let requestPaneTab = $state("Body");
@@ -89,6 +89,37 @@
   const globalConfig = $derived(configurationStoreState.config);
 
   let requestName = $derived(tabStoreState.tabs[tabStoreState.activeTabIndex]?.label || "");
+
+  // --- Inline rename state ---
+  let isEditingName = $state(false);
+  let editingName = $state("");
+  let nameInputEl = $state<HTMLInputElement | null>(null);
+
+  function startEditingName() {
+    editingName = requestName || "New Request";
+    isEditingName = true;
+    tick().then(() => {
+      nameInputEl?.focus();
+      nameInputEl?.select();
+    });
+  }
+
+  function confirmEditingName() {
+    if (!isEditingName) return;
+    isEditingName = false;
+    const tab = getActiveTab();
+    if (!tab) return;
+    const trimmed = editingName.trim();
+    const newName = trimmed || "New Request";
+    if (newName !== tab.label) {
+      tab.label = newName;
+      onFieldChange();
+    }
+  }
+
+  function cancelEditingName() {
+    isEditingName = false;
+  }
 
   onMount(() => {
     if (builderElement) {
@@ -470,10 +501,41 @@
       class="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-1 dark:border-neutral-700"
     >
       <div class="flex items-center gap-2">
-        <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
-          >{tab.collectionName ? `${tab.collectionName} / ` : ""}{requestName ||
-            "New Request"}</span
-        >
+        {#if tab.collectionName}
+          <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100"
+            >{tab.collectionName} /&nbsp;</span
+          >
+        {/if}
+        {#if isEditingName}
+          <input
+            bind:this={nameInputEl}
+            bind:value={editingName}
+            class="max-w-64 rounded-md border border-primary-300 bg-white px-2 py-0.5 text-sm font-semibold text-neutral-800 focus:ring-1 focus:ring-primary-500 focus:outline-none dark:border-primary-700 dark:bg-neutral-800 dark:text-neutral-100"
+            onblur={confirmEditingName}
+            onkeydown={(e: KeyboardEvent) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                confirmEditingName();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                cancelEditingName();
+              }
+            }}
+          />
+        {:else}
+          <span
+            class="cursor-pointer text-sm font-semibold text-neutral-800 hover:underline dark:text-neutral-100"
+            role="button"
+            tabindex="0"
+            title="Double-click to rename"
+            ondblclick={startEditingName}
+            onkeydown={(e: KeyboardEvent) => {
+              if (e.key === "Enter") startEditingName();
+            }}
+          >
+            {requestName || "New Request"}
+          </span>
+        {/if}
       </div>
       <div>
         {#if !tab.requestId || tab.isDirty}
