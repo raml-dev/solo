@@ -28,7 +28,7 @@
   remotePathHelper="The path to the environment file within the repository."
   successMessage="Git environment imported successfully"
   errorTitle="Failed to setup Git environment"
-  infoMessage="solo will automatically detect the environment name from the file content."
+  infoMessage="Solo will automatically detect the environment name from the file content."
   setupFromGit={(urlWithBranch, remotePath, provider) =>
     SetupGitEnvironment(urlWithBranch, remotePath, "", provider)}
   reloadAfterImport={environmentStore.loadEnvironments}

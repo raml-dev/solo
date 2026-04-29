@@ -154,7 +154,6 @@ const debouncedPersistConfig = debounce(() => {
 }, SAVE_DEBOUNCE_MS);
 
 function resolveAppliedMode(themeMode: ThemeMode) {
-  console.log(themeMode === "system" ? (systemIsDark ? "dark" : "light") : themeMode);
   if (themeMode === "system") return systemIsDark ? "dark" : "light";
   return themeMode;
 }

@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a new idea for solo
+about: Suggest a new idea for Solo
 title: ''
 type: Feature
 assignees: ''

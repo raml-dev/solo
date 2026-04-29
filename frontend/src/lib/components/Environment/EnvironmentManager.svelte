@@ -65,6 +65,14 @@
   const ENVIRONMENT_LOCAL_IMPORT_FORMATS: LocalImportFormatOption<EnvironmentLocalImportFormat>[] =
     [
       {
+        key: "solo",
+        label: "Solo",
+        dropTitle: "Drop your Solo environment here",
+        dropSubtitle: "Supports Solo environment JSON",
+        pickerButtonLabel: "Select file...",
+        icon: "upload"
+      },
+      {
         key: "postman",
         label: "Postman",
         dropTitle: "Drop your Postman environment here",
@@ -79,14 +87,6 @@
         dropSubtitle: "Supports Bruno environment .bru files",
         pickerButtonLabel: "Select file...",
         icon: "folder"
-      },
-      {
-        key: "solo",
-        label: "solo",
-        dropTitle: "Drop your solo environment here",
-        dropSubtitle: "Supports solo environment JSON",
-        pickerButtonLabel: "Select file...",
-        icon: "upload"
       }
     ];
 

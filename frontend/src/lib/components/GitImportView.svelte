@@ -28,7 +28,7 @@
   remotePathHelper="The path to the collection within the repository. Use . for a Bruno collection at the repository root."
   successMessage="Git collection imported successfully"
   errorTitle="Failed to setup Git collection"
-  infoMessage="solo will automatically detect the collection name from the file content."
+  infoMessage="Solo will automatically detect the collection name from the file content."
   setupFromGit={(urlWithBranch, remotePath, provider) =>
     SetupGitCollection(urlWithBranch, remotePath, "", provider)}
   reloadAfterImport={collectionStore.loadCollections}
