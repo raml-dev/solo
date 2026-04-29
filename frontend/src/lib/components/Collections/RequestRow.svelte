@@ -437,7 +437,7 @@
     <button
       data-no-drag="true"
       draggable={false}
-      class="invisible group-hover:visible hover:cursor-pointer"
+      class="invisible group-hover:visible"
       id={getMenuTriggerId()}
       onclick={(event: MouseEvent) => {
         event.stopPropagation();

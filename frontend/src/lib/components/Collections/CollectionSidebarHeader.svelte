@@ -44,7 +44,7 @@
   <div class="flex items-center justify-between">
     <div class="flex h-10 items-center gap-2">
       <button
-        class="h-6 w-6 flex-1 p-0 text-xs hover:cursor-pointer dark:text-white"
+        class="h-6 w-6 flex-1 p-0 text-xs dark:text-white"
         onclick={onToggleCollapse}
         aria-label="Toggle collection list sidebar"
       >
