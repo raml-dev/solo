@@ -122,6 +122,44 @@
     display: none;
   }
 
+  :where(
+    button,
+    [role="button"],
+    [role="checkbox"],
+    [role="radio"],
+    a[href],
+    summary,
+    label[for],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    input[type="checkbox"],
+    input[type="radio"],
+    select
+  ) {
+    cursor: pointer;
+  }
+
+  :where(
+    label:has(input[type="checkbox"]:not(:disabled)),
+    label:has(input[type="radio"]:not(:disabled))
+  ) {
+    cursor: pointer;
+  }
+
+  :where(
+    button:disabled,
+    [role="button"][aria-disabled="true"],
+    [role="checkbox"][aria-disabled="true"],
+    [role="radio"][aria-disabled="true"],
+    input:disabled,
+    select:disabled,
+    label:has(input[type="checkbox"]:disabled),
+    label:has(input[type="radio"]:disabled)
+  ) {
+    cursor: not-allowed;
+  }
+
   body {
     @apply bg-neutral-50 font-sans text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
     font-size: 0.875rem; /* 14px global base text */
