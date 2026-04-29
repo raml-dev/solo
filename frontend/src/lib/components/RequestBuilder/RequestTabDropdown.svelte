@@ -44,6 +44,7 @@
 <Dropdown
   triggeredBy="#tab-list-dropdown-btn"
   bind:isOpen
+  triggerDelay={0}
   class="z-50 w-64 overflow-visible! p-0 dark:bg-neutral-700"
 >
   <div class="max-h-64 overflow-y-auto py-1">
