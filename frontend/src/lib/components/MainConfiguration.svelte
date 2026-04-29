@@ -490,7 +490,7 @@
           <p class="text-sm text-neutral-500 dark:text-neutral-400">
             Enable detailed runtime logs. This can increase log volume.
           </p>
-          <Toggle bind:checked={configurationStoreState.config.general.debugMode} disabled>
+          <Toggle bind:checked={configurationStoreState.config.general.debugMode}>
             Enable debug mode
           </Toggle>
         </div>
