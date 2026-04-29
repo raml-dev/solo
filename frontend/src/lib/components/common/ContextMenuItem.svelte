@@ -19,8 +19,13 @@
     onclick = () => {},
     children
   }: Props = $props();
+
+  function handleClick(event: MouseEvent) {
+    event.stopPropagation();
+    return onclick(event);
+  }
 </script>
 
-<DropdownItem class={className} {disabled} {onclick}>
+<DropdownItem class={className} {disabled} onclick={handleClick}>
   {@render children?.()}
 </DropdownItem>
