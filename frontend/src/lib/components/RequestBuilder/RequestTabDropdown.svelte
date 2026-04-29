@@ -31,7 +31,7 @@
   id="tab-list-dropdown-btn"
   color="light"
   size="xs"
-  class="h-8 shrink-0 border-none disabled:cursor-auto bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+  class="h-8 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden disabled:cursor-auto dark:border-none dark:bg-transparent"
   title="Open tab list"
   aria-label="Open tab list"
   disabled={tabs.length === 0}
@@ -41,7 +41,11 @@
   />
 </Button>
 
-<Dropdown triggeredBy="#tab-list-dropdown-btn" bind:isOpen class="z-50 w-64 overflow-visible! p-0 dark:bg-neutral-700">
+<Dropdown
+  triggeredBy="#tab-list-dropdown-btn"
+  bind:isOpen
+  class="z-50 w-64 overflow-visible! p-0 dark:bg-neutral-700"
+>
   <div class="max-h-64 overflow-y-auto py-1">
     {#each tabs as tab (tab.id)}
       <DropdownItem

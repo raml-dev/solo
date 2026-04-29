@@ -402,7 +402,7 @@
 
     <button
       data-no-drag="true"
-      class="invisible group-hover:visible h-6 {OUTLINE_BUTTON_CLASSES}"
+      class="invisible h-6 group-hover:visible {OUTLINE_BUTTON_CLASSES}"
       onclick={(event: MouseEvent) => {
         event.stopPropagation();
         onAddRequestToFolder(collectionName, folder.id);
@@ -415,7 +415,7 @@
     <button
       data-no-drag="true"
       id={getMenuTriggerId()}
-      class="invisible group-hover:visible h-6 {OUTLINE_BUTTON_CLASSES}"
+      class="invisible h-6 group-hover:visible {OUTLINE_BUTTON_CLASSES}"
       title="Folder actions"
       aria-label="Folder actions"
       onclick={(event: MouseEvent) => {
