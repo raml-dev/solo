@@ -6,7 +6,7 @@
 <script lang="ts">
   import HistoryEntry from "$src/lib/components/History/HistoryEntry.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
-  import { historyStore } from "$src/lib/stores/historyStore.svelte";
+  import { historyStore, historyStoreState } from "$src/lib/stores/historyStore.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Select from "flowbite-svelte/Select.svelte";
@@ -49,17 +49,6 @@
       return true;
     })
   );
-
-  function handleExport() {
-    const har = historyStore.exportHAR($historyStore);
-    const blob = new Blob([har], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "solo-export.har";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 </script>
 
 <div class="flex h-full min-h-0 w-full flex-col gap-3 overflow-hidden p-3">
@@ -115,10 +104,10 @@
         color="light"
         class="h-7"
         size="sm"
-        onclick={handleExport}
-        disabled={$historyStore.length === 0}
+        onclick={() => void historyStore.exportToHarFile($historyStore)}
+        disabled={$historyStore.length === 0 || historyStoreState.exporting}
       >
-        Export HAR
+        {historyStoreState.exporting ? "Exporting..." : "Export HAR"}
       </Button>
       <Button
         color="alternative"

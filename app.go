@@ -632,6 +632,24 @@ func (a *App) SaveCurlFile(content, suggestedName string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
+// SaveHarFile opens a native save dialog and writes the HAR content to the chosen path.
+func (a *App) SaveHarFile(content, suggestedName string) error {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export HAR",
+		DefaultFilename: suggestedName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "HAR files", Pattern: "*.har"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("save dialog error: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled
+	}
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
 // ExportLogsZip creates a ZIP archive with all files in the app logs directory
 // (including rotated/compressed ones) and saves it via native save dialog.
 func (a *App) ExportLogsZip() (bool, error) {

@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { appInfoState } from "$src/lib/stores/appInfo.svelte";
+import { notifications } from "$src/lib/stores/notificationStore";
+import { SaveHarFile } from "$wails/go/main/App";
 import { writable } from "svelte/store";
-import { appInfoState } from "./appInfo.svelte";
 
 export interface HistoryRequest {
   method: string;
@@ -32,10 +34,79 @@ export interface HistoryEntry {
 
 const MAX_ENTRIES = 500;
 
-const version = $derived(appInfoState.info?.productVersion ?? "")
+const version = $derived(appInfoState.info?.productVersion ?? "");
+
+interface HistoryStoreState {
+  exporting: boolean;
+}
+
+const historyStoreState = $state<HistoryStoreState>({
+  exporting: false
+});
 
 function createHistoryStore() {
   const { subscribe, update } = writable<HistoryEntry[]>([]);
+
+  function exportHAR(entries: HistoryEntry[]): string {
+    const harEntries = entries.map((e) => ({
+      startedDateTime: e.timestamp,
+      time: e.response?.time ?? 0,
+      request: {
+        method: e.request.method,
+        url: e.request.url,
+        httpVersion: "HTTP/1.1",
+        headers: Object.entries(e.request.headers).map(([name, value]) => ({ name, value })),
+        queryString: [],
+        cookies: [],
+        headersSize: -1,
+        bodySize: e.request.body?.length ?? 0,
+        postData: e.request.body
+          ? { mimeType: "application/json", text: e.request.body }
+          : undefined
+      },
+      response: e.response
+        ? {
+            status: e.response.status,
+            statusText: String(e.response.status),
+            httpVersion: "HTTP/1.1",
+            headers: Object.entries(e.response.headers).map(([name, value]) => ({ name, value })),
+            cookies: [],
+            content: {
+              size: e.response.body?.length ?? 0,
+              mimeType: e.response.headers["content-type"] ?? "text/plain",
+              text: e.response.body
+            },
+            redirectURL: "",
+            headersSize: -1,
+            bodySize: e.response.body?.length ?? 0
+          }
+        : {
+            status: 0,
+            statusText: e.error ?? "Error",
+            httpVersion: "HTTP/1.1",
+            headers: [],
+            cookies: [],
+            content: { size: 0, mimeType: "text/plain", text: e.error ?? "" },
+            redirectURL: "",
+            headersSize: -1,
+            bodySize: 0
+          },
+      cache: {},
+      timings: { send: 0, wait: e.response?.time ?? 0, receive: 0 }
+    }));
+
+    return JSON.stringify(
+      {
+        log: {
+          version: "1.2",
+          creator: { name: "Solo", version: version },
+          entries: harEntries
+        }
+      },
+      null,
+      2
+    );
+  }
 
   return {
     subscribe,
@@ -56,68 +127,25 @@ function createHistoryStore() {
       update(() => []);
     },
 
-    exportHAR(entries: HistoryEntry[]): string {
-      console.log("history export")
-      const harEntries = entries.map((e) => ({
-        startedDateTime: e.timestamp,
-        time: e.response?.time ?? 0,
-        request: {
-          method: e.request.method,
-          url: e.request.url,
-          httpVersion: "HTTP/1.1",
-          headers: Object.entries(e.request.headers).map(([name, value]) => ({ name, value })),
-          queryString: [],
-          cookies: [],
-          headersSize: -1,
-          bodySize: e.request.body?.length ?? 0,
-          postData: e.request.body
-            ? { mimeType: "application/json", text: e.request.body }
-            : undefined
-        },
-        response: e.response
-          ? {
-              status: e.response.status,
-              statusText: String(e.response.status),
-              httpVersion: "HTTP/1.1",
-              headers: Object.entries(e.response.headers).map(([name, value]) => ({ name, value })),
-              cookies: [],
-              content: {
-                size: e.response.body?.length ?? 0,
-                mimeType: e.response.headers["content-type"] ?? "text/plain",
-                text: e.response.body
-              },
-              redirectURL: "",
-              headersSize: -1,
-              bodySize: e.response.body?.length ?? 0
-            }
-          : {
-              status: 0,
-              statusText: e.error ?? "Error",
-              httpVersion: "HTTP/1.1",
-              headers: [],
-              cookies: [],
-              content: { size: 0, mimeType: "text/plain", text: e.error ?? "" },
-              redirectURL: "",
-              headersSize: -1,
-              bodySize: 0
-            },
-        cache: {},
-        timings: { send: 0, wait: e.response?.time ?? 0, receive: 0 }
-      }));
+    exportHAR,
 
-      return JSON.stringify(
-        {
-          log: {
-            version: "1.2",
-            creator: { name: "Solo", version: version },
-            entries: harEntries
-          }
-        },
-        null,
-        2
-      );
+    async exportToHarFile(entries: HistoryEntry[]) {
+      if (historyStoreState.exporting) {
+        return;
+      }
+
+      historyStoreState.exporting = true;
+
+      try {
+        await SaveHarFile(exportHAR(entries), `solo-history-${new Date().toISOString()}.har`);
+      } catch (err) {
+        notifications.error("Failed to export history", String(err));
+      } finally {
+        historyStoreState.exporting = false;
+      }
     }
   };
 }
 
 export const historyStore = createHistoryStore();
+export { historyStoreState };
