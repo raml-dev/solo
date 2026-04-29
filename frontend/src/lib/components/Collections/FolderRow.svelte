@@ -7,7 +7,6 @@
   import FolderRow from "$src/lib/components/Collections/FolderRow.svelte";
   import RequestRow from "$src/lib/components/Collections/RequestRow.svelte";
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
-  import ContextMenuDivider from "$src/lib/components/common/ContextMenuDivider.svelte";
   import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
   import {
     collectionTreeUI,
@@ -306,7 +305,6 @@
     >
       New subfolder
     </ContextMenuItem>
-    <ContextMenuDivider />
     <ContextMenuItem
       onclick={(event) => {
         void startRename(event);
