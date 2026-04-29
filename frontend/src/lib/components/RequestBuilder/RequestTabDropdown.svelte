@@ -31,23 +31,24 @@
   id="tab-list-dropdown-btn"
   color="light"
   size="xs"
-  class="h-8 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+  class="h-8 shrink-0 border-none disabled:cursor-auto bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
   title="Open tab list"
   aria-label="Open tab list"
+  disabled={tabs.length === 0}
 >
   <ChevronDownOutline
     class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
   />
 </Button>
 
-<Dropdown triggeredBy="#tab-list-dropdown-btn" bind:isOpen class="z-50 w-64 overflow-visible! p-0">
+<Dropdown triggeredBy="#tab-list-dropdown-btn" bind:isOpen class="z-50 w-64 overflow-visible! p-0 dark:bg-neutral-700">
   <div class="max-h-64 overflow-y-auto py-1">
     {#each tabs as tab (tab.id)}
       <DropdownItem
         class={tab.id === activeTabId ? "bg-primary-50 dark:bg-primary-900/40" : ""}
         onclick={() => handleSelect(tab.id)}
       >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 text-neutral-800 dark:text-neutral-100">
           <span class={getMethodBadgeClass(tab.verb)}>{tab.verb}</span>
           <span class="min-w-0 truncate">{tab.label}</span>
           {#if tab.isDirty}
