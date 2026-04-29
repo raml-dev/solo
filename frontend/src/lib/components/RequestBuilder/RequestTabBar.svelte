@@ -12,7 +12,8 @@
   import Button from "flowbite-svelte/Button.svelte";
   import CloseButton from "flowbite-svelte/CloseButton.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import { onDestroy } from "svelte";
+  import { onDestroy, tick } from "svelte";
+  import RequestTabDropdown from "./RequestTabDropdown.svelte";
 
   let tabs = $derived(tabStoreState.tabs);
   let activeTabId = $derived(getActiveTab()?.id ?? null);
@@ -35,6 +36,28 @@
     const ro = new ResizeObserver(updateFades);
     ro.observe(scrollEl);
     return () => ro.disconnect();
+  });
+
+  // Auto-scroll to the active tab whenever it changes
+  $effect(() => {
+    const id = activeTabId;
+    if (!id || !scrollEl) return;
+    // Run after DOM update
+    tick().then(() => {
+      if (!scrollEl) return;
+      const el = scrollEl.querySelector<HTMLElement>(`[data-tab-id="${id}"]`);
+      if (!el) return;
+      const tabEl = el.closest<HTMLElement>('[role="tab"]') ?? el;
+      const containerWidth = scrollEl.clientWidth;
+      const elLeft = tabEl.offsetLeft;
+      const elWidth = tabEl.offsetWidth;
+      const targetScroll = elLeft - containerWidth / 2 + elWidth / 2;
+      const maxScroll = scrollEl.scrollWidth - containerWidth;
+      scrollEl.scrollTo({
+        left: Math.max(0, Math.min(targetScroll, maxScroll)),
+        behavior: "smooth"
+      });
+    });
   });
 
   const confirmCloseModal = modalStack.createModal("tabbar-confirm-close");
@@ -195,20 +218,21 @@
           />
         </div>
       {/each}
-      <Button
-        color="light"
-        size="xs"
-        class="h-8 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
-        onclick={() => tabStore.makeEmptyTab()}
-        title="New request"
-        aria-label="New request"
-      >
-        <PlusOutline
-          class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
-        />
-      </Button>
     </div>
   </div>
+  <Button
+    color="light"
+    size="xs"
+    class="h-8 shrink-0 border-none bg-transparent inset-ring-primary-500 focus-within:inset-ring-1 focus-within:outline-hidden hover:bg-neutral-200 focus:ring-0 focus:outline-hidden dark:border-none dark:bg-transparent"
+    onclick={() => tabStore.makeEmptyTab()}
+    title="New request"
+    aria-label="New request"
+  >
+    <PlusOutline
+      class="h-3 w-3 text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100"
+    />
+  </Button>
+  <RequestTabDropdown {tabs} {activeTabId} onselect={tabStore.setActiveTab} />
 </div>
 
 {#if confirmCloseModal.open}
