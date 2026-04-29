@@ -40,8 +40,8 @@
   } from "$src/lib/utils/variableResolution";
   import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import { collection, main } from "$wails/go/models";
-  import TerminalSolid from "flowbite-svelte-icons/TerminalSolid.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
+  import TerminalSolid from "flowbite-svelte-icons/TerminalSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
@@ -524,11 +524,10 @@
           />
         {:else}
           <span
-            class="cursor-pointer text-sm font-semibold text-neutral-800 hover:underline dark:text-neutral-100"
+            class="cursor-text! text-sm font-semibold text-neutral-800 hover:underline dark:text-neutral-100"
             role="button"
             tabindex="0"
-            title="Double-click to rename"
-            ondblclick={startEditingName}
+            onclick={startEditingName}
             onkeydown={(e: KeyboardEvent) => {
               if (e.key === "Enter") startEditingName();
             }}
