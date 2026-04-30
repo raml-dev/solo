@@ -110,43 +110,6 @@ func (a *App) GetUpdatesFromRepo() (*appinfo.GitHubResponse, error) {
 	return info, nil
 }
 
-// DownloadAssets asks the user where to save the update package and downloads it.
-func (a *App) DownloadAssets(info *appinfo.GitHubResponse, currentVersion string) (string, error) {
-	if info == nil {
-		return "", errors.New("update info not provided")
-	}
-
-	defaultFilename := fmt.Sprintf("%s-update", tools.APP_NAME)
-	if suggestedName := appinfo.SuggestedAssetName(info); suggestedName != "" {
-		defaultFilename = suggestedName
-	}
-
-	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:           "Save update package",
-		DefaultFilename: defaultFilename,
-		Filters: []runtime.FileFilter{
-			{DisplayName: "All files", Pattern: "*"},
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("save dialog error: %w", err)
-	}
-	if path == "" {
-		return "", nil // user cancelled
-	}
-
-	dc := appinfo.InitDiscoveryClient(a.GetAppInfo().GHLink)
-	changelog, downloadErr := dc.DownloadAssetsToPath(info, currentVersion, path)
-	if downloadErr != nil {
-		a.emitEvent("updates:download-error", downloadErr.Error())
-		return "", downloadErr
-	}
-
-	a.emitEvent("updates:downloaded", map[string]string{"path": path})
-
-	return changelog, nil
-}
-
 // RunParallel performs parallel HTTP requests for load testing.
 func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, stopOnError bool) (runner.RunnerStats, error) {
 	if a.runner == nil {

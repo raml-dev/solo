@@ -115,15 +115,15 @@
         <Button
           size="xs"
           color="light"
-          onclick={openReleasePage}
-          disabled={updateStoreState.loading}>Release page</Button
+          onclick={() => {
+            updateStoreState.visible = false;
+          }}>Dismiss</Button
         >
         <Button
           size="xs"
           color="primary"
-          onclick={() => updateStore.downloadLatestRelease()}
-          disabled={updateStoreState.loading}
-          loading={updateStoreState.loading}>Download latest version</Button
+          onclick={openReleasePage}
+          disabled={updateStoreState.loading}>Release page</Button
         >
       </div>
     </div>

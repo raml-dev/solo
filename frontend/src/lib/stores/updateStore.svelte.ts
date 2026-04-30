@@ -5,9 +5,8 @@
 
 import { configurationStoreState } from "$src/lib/stores/configurationStore.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
-import { DownloadAssets, GetAppInfo, GetUpdatesFromRepo } from "$wails/go/main/App";
+import { GetAppInfo, GetUpdatesFromRepo } from "$wails/go/main/App";
 import { appinfo } from "$wails/go/models";
-import { EventsOn } from "$wails/runtime";
 import { BrowserOpenURL } from "$wails/runtime/runtime";
 
 interface UpdateStoreState {
@@ -75,23 +74,6 @@ function applyAvailableUpdate(payload: unknown) {
   updateStoreState.visible = true;
 }
 
-function handleDownloaded(payload?: unknown) {
-  updateStoreState.loading = false;
-  updateStoreState.visible = false;
-  updateStoreState.downloadedPath =
-    typeof payload === "object" &&
-    payload !== null &&
-    "path" in payload &&
-    typeof payload.path === "string"
-      ? payload.path
-      : "";
-  updateStoreState.downloadCompleteOpen = true;
-}
-
-function registerDownloadEvents() {
-  EventsOn("updates:downloaded", handleDownloaded);
-}
-
 function resetUpdateState() {
   updateStoreState.visible = false;
   updateStoreState.loading = false;
@@ -106,7 +88,6 @@ export const updateStore = {
     }
 
     updateStoreState.initialized = true;
-    registerDownloadEvents();
 
     try {
       const info = await GetAppInfo();
@@ -138,26 +119,6 @@ export const updateStore = {
 
     updateStoreState.ignoredVersion = getVersion(updateStoreState.selectedRelease);
     updateStoreState.visible = false;
-  },
-
-  async downloadLatestRelease() {
-    if (!updateStoreState.updateInfo || updateStoreState.loading) {
-      return;
-    }
-
-    updateStoreState.loading = true;
-    try {
-      const result = await DownloadAssets(
-        updateStoreState.updateInfo,
-        updateStoreState.currentVersion
-      );
-      if (!result) {
-        updateStoreState.loading = false;
-      }
-    } catch (err) {
-      updateStoreState.loading = false;
-      notifications.error("Failed to download update", String(err));
-    }
   },
 
   openReleasePage() {

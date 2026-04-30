@@ -4,11 +4,8 @@
 package appinfo
 
 import (
-	"fmt"
 	"net/url"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -200,68 +197,4 @@ func compareParsedVersion(left, right parsedVersion) int {
 	}
 
 	return strings.Compare(left.prerelease, right.prerelease)
-}
-
-func selectAsset(assets []Asset) *Asset {
-	expectedName := expectedAssetName(runtime.GOOS, runtime.GOARCH)
-	if expectedName == "" {
-		return nil
-	}
-
-	for i := range assets {
-		if strings.EqualFold(strings.TrimSpace(assets[i].Name), expectedName) {
-			return &assets[i]
-		}
-	}
-
-	return nil
-}
-
-func expectedAssetName(goos, goarch string) string {
-	switch goos {
-	case "windows":
-		switch goarch {
-		case "amd64":
-			return "solo-windows-amd64.exe"
-		case "arm64":
-			return "solo-windows-arm64.exe"
-		}
-	case "linux":
-		switch goarch {
-		case "amd64":
-			return "solo-linux-amd64"
-		case "arm64":
-			return "solo-linux-arm64"
-		}
-	case "darwin":
-		switch goarch {
-		case "amd64":
-			return "solo-darwin-amd64.dmg"
-		case "arm64":
-			return "solo-darwin-arm64.dmg"
-		}
-	}
-
-	return ""
-}
-
-func parseChecksums(content string) (map[string]string, error) {
-	result := map[string]string{}
-
-	for lineNumber, rawLine := range strings.Split(content, "\n") {
-		line := strings.TrimSpace(rawLine)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			return nil, fmt.Errorf("invalid checksum line %d", lineNumber+1)
-		}
-
-		filename := filepath.Base(strings.TrimPrefix(fields[len(fields)-1], "*"))
-		result[filename] = strings.ToLower(fields[0])
-	}
-
-	return result, nil
 }
