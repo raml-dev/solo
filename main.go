@@ -24,6 +24,18 @@ var assets embed.FS
 var icon []byte
 var programLevel = new(slog.LevelVar) // default info
 
+type AppLogger struct {
+      base *slog.Logger
+  }
+
+func (l *AppLogger) Print(msg string)   { l.base.Info(msg, "source", "frontend") }
+func (l *AppLogger) Trace(msg string)   { l.base.Debug(msg, "source", "frontend") }
+func (l *AppLogger) Debug(msg string)   { l.base.Debug(msg, "source", "frontend") }
+func (l *AppLogger) Info(msg string)    { l.base.Info(msg, "source", "frontend") }
+func (l *AppLogger) Warning(msg string) { l.base.Warn(msg, "source", "frontend") }
+func (l *AppLogger) Error(msg string)   { l.base.Error(msg, "source", "frontend") }
+func (l *AppLogger) Fatal(msg string)   { l.base.Error(msg, "source", "frontend", "fatal", true) }
+
 func getLogPath() string {
 	baseDir, err := tools.GetOrCreateConfigDir()
 	if err != nil {
@@ -73,6 +85,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
+    Logger: &AppLogger{base: logger},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
 		OnBeforeClose:    app.beforeClose,

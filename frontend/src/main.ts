@@ -6,7 +6,10 @@
 import "$src/app.css";
 import App from "$src/App.svelte";
 import "$src/assets/styles/codemirror-theme.css";
+import initLogger from "$src/logger";
 import { mount } from "svelte";
+
+initLogger();
 
 let target = document.getElementById("app");
 

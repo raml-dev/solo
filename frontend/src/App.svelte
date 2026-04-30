@@ -115,6 +115,7 @@
   onMount(() => {
     (async () => {
       await initializeApp();
+      console.log("Application UI started");
     })();
     window.addEventListener("dragover", (e) => {
       e.preventDefault(); // necessary, otherwise drop won't fire
