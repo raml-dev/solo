@@ -1,5 +1,12 @@
 version: 3
 
+paths:
+  exclude:
+    - ./NOTICE.txt
+vendoredDependencies:
+  licenseScanPathFilters:
+    exclude:
+      - "frontend/src/lib/codemirror/themes/**/*"
 targets:
   exclude:
     - type: setuptools
