@@ -45,7 +45,6 @@ jobs:
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
     env:
       MISE_ENV: ci
-      SOLO_RELEASE_TAG: ${{ github.ref_name }}
       SOLO_RELEASE_VERSION: ${{ github.ref_name }}
       SOLO_RELEASE_CHANNEL: ${{ needs.validate.outputs.prerelease == 'true' && 'prerelease' || 'stable' }}
       SOLO_DIST_DIR: ${{ github.workspace }}/dist
@@ -116,7 +115,6 @@ jobs:
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
     env:
       MISE_ENV: ci
-      SOLO_RELEASE_TAG: ${{ github.ref_name }}
       SOLO_RELEASE_VERSION: ${{ github.ref_name }}
       SOLO_RELEASE_CHANNEL: ${{ needs.validate.outputs.prerelease == 'true' && 'prerelease' || 'stable' }}
       SOLO_DIST_DIR: ${{ github.workspace }}/dist
@@ -153,7 +151,6 @@ jobs:
     if: needs.validate.outputs.make_latest == 'true' || needs.validate.outputs.prerelease == 'true'
     env:
       MISE_ENV: ci
-      SOLO_RELEASE_TAG: ${{ github.ref_name }}
       SOLO_RELEASE_VERSION: ${{ github.ref_name }}
       SOLO_RELEASE_CHANNEL: ${{ needs.validate.outputs.prerelease == 'true' && 'prerelease' || 'stable' }}
       SOLO_DIST_DIR: ${{ github.workspace }}/dist
@@ -222,7 +219,6 @@ jobs:
     if: needs.validate.outputs.prerelease != 'true'
     env:
       MISE_ENV: ci
-      SOLO_RELEASE_TAG: ${{ github.ref_name }}
       SOLO_RELEASE_VERSION: ${{ github.ref_name }}
       SOLO_RELEASE_CHANNEL: stable
       RELEASE_PACKAGE_NAME: solo

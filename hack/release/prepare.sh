@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/lib.sh"
 
 validate_context() {
   require_release_context
-  log "validated release context for ${SOLO_RELEASE_TAG} (${SOLO_RELEASE_CHANNEL})"
+  log "validated release context for ${SOLO_RELEASE_VERSION} (${SOLO_RELEASE_CHANNEL})"
 }
 
 prepare_dist() {
