@@ -204,11 +204,10 @@ jobs:
         run: mise run ci:rel:checksums
       - name: Validate publication inputs
         run: mise run ci:rel:validate-publish-inputs
-      # TODO: uncomment when we switch to a public repo
-      # - name: Attest release artifacts provenance
-      #   uses: actions/attest@v4
-      #   with:
-      #     subject-checksums: dist/SHA256SUMS
+      - name: Attest release artifacts provenance
+        uses: actions/attest@v4
+        with:
+          subject-checksums: dist/SHA256SUMS
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
