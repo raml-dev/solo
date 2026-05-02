@@ -144,7 +144,6 @@ main() {
     -clean
     -platform "${platform}"
     -o "${RELEASE_MACOS_EXECUTABLE_NAME}"
-    -nopackage
   )
 
   if [[ -n "${SOLO_BUILD_TAGS:-}" ]]; then
