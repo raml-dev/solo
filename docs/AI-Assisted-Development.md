@@ -3,9 +3,17 @@
  SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# AI-Assisted Development Workflow
+# AI-Assisted Development
 
-We suggest using the [`pi`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) AI coding agent. The project is already set up to install it and wire two MCP documentation servers:
+We are strong supporters of AI-assisted development, but we want to use it the right way.
+
+When contributing to this project, you can use AI coding agents to help you with the development. The important thing to remember is that AI coding agents are not always reliable and they can make mistakes: you should review the changes they make and make sure they are correct. More importantly, you should **always** understand the changes they make and **be able to explain them**.
+
+## Our workflow
+
+The following is a description of how _we_ use AI coding agents to develop this project. It is not a requirement for contributing, but it is a good starting point. You can use whatever coding agent, skill, workflow, or prompt you want.
+
+Our setup uses the [`pi`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) AI coding agent. The project is already set up to install it and wire two MCP documentation servers:
 
 - [Svelte/SvelteKit](https://svelte.dev/docs/cli/mcp)
 - [Flowbite-Svelte](https://flowbite-svelte.com/docs/mcp/overview)
@@ -16,9 +24,7 @@ Everything is managed through [mise](https://mise.jdx.dev/), which handles tool 
 
 This document explains why the setup exists, how to get it running, and how to use it day to day.
 
-## General guidelines
-
-We are very supportive about AI coding agents usage, but we want to use them the right way. Follow these simple rules:
+## General Workflow
 
 - Read the available skills:
 
@@ -27,19 +33,19 @@ We are very supportive about AI coding agents usage, but we want to use them the
 
   They provide useful guidelines even if you don't want to use an AI agent.
 
-- **NEVER** ask AI agents to implement changes right away, especially if you want to make complex changes.
+- We **NEVER** ask AI agents to implement changes right away, especially if for complex changes.
 
-  Always ask for a *plan* first. Make the agent write and update the plan to a markdown file, so you can use it on subsequent prompts and start new sessions without re-planning all over again. Be specific - if your agent has a plan mode use it, otherwise end your prompt with something like "do not implement anything, just write the plan".
+  Always ask for a _plan_ first. Make the agent write and update the plan to a markdown file, so you can use it on subsequent prompts and start new sessions without re-planning all over again. Be specific - if the agent has a plan mode use it, otherwise end the prompt with something like "do not implement anything, just write the plan".
 
-  You can store your plans in the `agents` folder. Contents inside that folder are gitignored.
+  It's recommended to persist plans in the `agents` folder. Contents inside that folder are gitignored.
 
-- Be there with *your* critical thinking: reiterate on the plan multiple times, asking the agent to improve specific sections when needed or to add new parts. Analyze the plan, ask the agent to explain it if there is something you don't fully understand, and make it change the approach if the one it proposes does not follow your intention.
+- We always apply _our_ critical thinking. We ask for specific features and reiterate on the plan multiple times, asking the agent to improve specific sections when needed or to add new parts. We deeply analyze the plan, ask the agent to explain it if there is something we don't fully understand, and make it change the approach if the one it proposes does not follow our intention.
 
-- Create high level plans first. When you have a good overall idea, ask the agent to create sub-plans with deeper details and specific implementation tasks, one at a time, using the same planning and iteration strategies. Also persist those in dedicated markdown files.
+- Create and iterate on high level plans first, then ask the agent to create sub-plans with deeper details and specific implementation tasks, one at a time, using the same planning and iteration strategies. We also persist those in dedicated markdown files.
 
-- When you are satisfied with the planning, ask the agent to start implementing one sub-plan at a time. If your plan involves multiple components, ask it to first show an high level overview of the changes without writing anything on files, so you can check. Make the agent stop at each task, so you can review and adjust every step.
+- Once the planning is done, it's time to ask the agent to start implementing one sub-plan at a time. If the plan involves multiple components, we usually ask the agent to first show an high level overview of the changes without writing anything on files. We ensure that the agent stops at each task to review changes incrementally.
 
-- Be aware of context exhaustion. Your coding agent of choice probably already does automatic compactions, but it's always better to write a specific prompt for them (or start an entirely new session if you already persisted your plans). Models with almost-full contexts can be less effective.
+- Keep track of context utilization. Your coding agent of choice probably already does automatic compactions, but it's always better to write a specific prompt for them (or start an entirely new session if you already persisted your plans). Models with almost-full contexts can be less effective.
 
 ## Why this setup
 
@@ -89,12 +95,12 @@ That's it. There is also a postinstall hook that detects if both `pi-mcp-adapter
 
 ## Project structure (AI-relevant files)
 
-```
+```plaintext
 <project-root>/
 ├── mise.toml                          # tool versions, tasks, pi alias
 ├── .pi/
 │   └── mcp.json                       # MCP server configuration for pi-mcp-adapter
-├── .agents/
+├── .agents/skills
 │   ├── solo-backend-skill/
 │   │   └── SKILL.md   # skill to go development
 │   └── solo-frontend-skill/
@@ -124,53 +130,8 @@ The agent starts with both MCP servers available but not yet connected: they con
 
 ---
 
-## Using the agent for frontend work
-
-The `solo-frontend-skill` is loaded automatically. It instructs the agent to follow this workflow whenever you ask it to build or modify frontend components:
-
-1. **Consult Svelte docs first**: the agent calls `list-sections` on the Svelte MCP to discover relevant documentation, then `get-documentation` to fetch it.
-2. **Find the right Flowbite-Svelte component**: the agent calls `findComponent` with a natural-language query (e.g. `"modal"`, `"data table"`, `"form select"`), then `getComponentDoc` to retrieve the full component reference.
-3. **Write the code**: combining Svelte 5 runes with Flowbite-Svelte components.
-4. **Validate**: the agent calls `svelte-autofixer` on every `.svelte` file it touches and iterates until there are zero issues.
-
-You do not need to explicitly invoke any of these steps. Describing what you want is sufficient:
-
-```plaintext
-Add a confirmation modal to the delete button in UserTable.svelte.
-The modal should show the username and ask for confirmation before
-calling the deleteUser action.
-```
-
-The agent will look up both the Svelte modal patterns and the Flowbite-Svelte `Modal` component docs before writing anything.
-
----
-
-## MCP tools reference
-
-The agent accesses MCP tools through the `mcp()` proxy. You do not call these directly - the agent does - but knowing what exists helps you write better prompts.
-
-### Svelte MCP
-
-| Tool                | What it does                                                                                                         |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `list-sections`     | Returns all available documentation sections with titles and use-case descriptions                                   |
-| `get-documentation` | Fetches full documentation for one or more sections by path                                                          |
-| `svelte-autofixer`  | Analyses Svelte code and returns issues and suggestions; runs in a loop until clean                                  |
-| `playground-link`   | Generates a Svelte Playground URL from code (only for exploratory snippets, never for code already written to files) |
-
-### Flowbite-Svelte MCP
-
-| Tool               | What it does                                                              |
-| ------------------ | ------------------------------------------------------------------------- |
-| `findComponent`    | Searches components by name or category; returns the doc path             |
-| `getComponentDoc`  | Fetches full component documentation including props, slots, and examples |
-| `getComponentList` | Lists all available components with their categories                      |
-| `searchDocs`       | Full-text search across all Flowbite-Svelte documentation                 |
-
----
-
 ## Adding or updating skills
 
-Skills live in `.agents/`. Each skill is a Markdown file the agent loads at session start. To modify the Svelte/Flowbite-Svelte workflow rules, edit `.agents/solo-frontend-skill/SKILL.md` directly and restart pi. Changes take effect immediately on the next session.
+Skills live in `.agents/skills` and follow the [Agent Skills specification](https://agentskills.io/home). The agent loads skills at session start.
 
-To add a new skill, create a new directory under `.agents/` named as the skill you want to add, and add a `SKILL.md` Markdown file. Agents discovers all `SKILL.md` files under `.agents/` automatically.
+To add a new skill, create a new directory under `.agents/` named as the skill you want to add, and add a `SKILL.md` Markdown file and any optional references or scripts. Agents discovers all `SKILL.md` files under `.agents/` automatically.
