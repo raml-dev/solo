@@ -38,13 +38,17 @@
 - **Automated Auth**: Built-in support for **OAuth2** token retrieval and automatic refresh.
 - **Privacy First**: Your data stays local. No cloud account required, no tracking.
 
+## Why Solo
+
+As developers, we created Solo to solve a problem we had: popular API clients are either too slow, too bloated, or too restrictive. We know this is a common problem (just take a look at [AlternativeTo Postman](https://alternativeto.net/software/postman/)) and many alternatives exist, but we wanted to build our own client.
+
+We enjoyed both developing and using Solo so far, so we decided to first distribute it to a small list of colleagues and friends, and now we are ready to share it with the community.
+
+We _don't_ want to monetize this, and we surely _don't want your data_.
+
 ## 🚀 Installation
 
-For detailed guides and full documentation, please visit our documentation site.
-
-### Download
-
-Download the latest version for your platform from the [Releases](https://github.com/raml-dev/solo/releases) page.
+For detailed guides and full documentation, please visit our [website](https://solo.raml.workers.dev/installation/).
 
 ### Build from source
 
@@ -73,5 +77,5 @@ Read the [contribution guidelines](CONTRIBUTING.md) before opening an issue or s
 ---
 
 <div align="center">
-Made by the raml-dev
+Made by the raml-dev team
 </div>
