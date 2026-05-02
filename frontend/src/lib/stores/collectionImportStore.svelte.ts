@@ -127,6 +127,17 @@ const LOCAL_IMPORT_HANDLERS: Record<CollectionLocalImportFormat, LocalImportHand
   }
 };
 
+function setPendingLocalImport(format: CollectionLocalImportFormat, path: string) {
+  if (!path) {
+    return;
+  }
+
+  collectionImportStoreState.selectedLocalFormat = format;
+  collectionImportStoreState.pendingLocalImport = { format, path };
+  collectionImportStoreState.pendingSoloCollectionPath = null;
+  collectionImportStoreState.soloCollectionOverwriteName = null;
+}
+
 export const collectionImportStoreState = $state<CollectionImportState>({ ...initialState });
 
 export const collectionImportStore = {
@@ -146,18 +157,7 @@ export const collectionImportStore = {
       return;
     }
 
-    this.setPendingLocalImport(format, path);
-  },
-
-  setPendingLocalImport(format: CollectionLocalImportFormat, path: string) {
-    if (!path) {
-      return;
-    }
-
-    collectionImportStoreState.selectedLocalFormat = format;
-    collectionImportStoreState.pendingLocalImport = { format, path };
-    collectionImportStoreState.pendingSoloCollectionPath = null;
-    collectionImportStoreState.soloCollectionOverwriteName = null;
+    setPendingLocalImport(format, path);
   },
 
   async setPendingLocalImportFromDrop(format: CollectionLocalImportFormat, path?: string) {
@@ -165,7 +165,7 @@ export const collectionImportStore = {
       return;
     }
 
-    this.setPendingLocalImport(format, path);
+    setPendingLocalImport(format, path);
   },
 
   clearPendingLocalImport() {
