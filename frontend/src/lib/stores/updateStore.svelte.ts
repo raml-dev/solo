@@ -53,7 +53,8 @@ function getReleasePageURL(): string {
 }
 
 function applyAvailableUpdate(payload: unknown) {
-  const releaseInfo = appinfo.GitHubResponse.createFrom(payload);
+  const safePayload = payload && typeof payload === "object" ? payload : {};
+  const releaseInfo = appinfo.GitHubResponse.createFrom(safePayload);
   if (!releaseInfo?.Release) {
     updateStoreState.updateInfo = null;
     updateStoreState.selectedRelease = null;
