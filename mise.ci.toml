@@ -113,8 +113,7 @@ description = "Validate shared release context"
 hide = true
 run = """
 #!/usr/bin/env bash
-ls -la "{{config_root}}"
-bash '{{ config_root }}/hack/release/prepare.sh validate-context'
+bash '{{ config_root }}/hack/release/prepare.sh' validate-context
 """
 
 [tasks."ci:rel:ctx:inject-version"]
@@ -122,7 +121,7 @@ description = "Inject SOLO_RELEASE_VERSION into wails.json"
 hide = true
 run = """
 #!/usr/bin/env bash
-bash '{{ config_root }}/hack/release/prepare.sh inject-version'
+bash '{{ config_root }}/hack/release/prepare.sh' inject-version
 """
 
 [tasks."ci:rel:ctx:prepare-dist"]
@@ -130,7 +129,7 @@ description = "Prepare the release dist directory structure"
 hide = true
 run = """
 #!/usr/bin/env bash
-bash '{{ config_root }}/hack/release/prepare.sh prepare-dist'
+bash '{{ config_root }}/hack/release/prepare.sh' prepare-dist
 """
 
 [tasks."ci:rel:dispatch"]
