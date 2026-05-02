@@ -46,6 +46,7 @@ run = """
 addlicense -check -c "raml-dev" -s -l AGPL-3.0-only \
   -ignore=frontend/node_modules/**/* \
   -ignore=frontend/dist/**/* \
+  -ignore=frontend/wailsjs/**/* \
   -ignore=frontend/src/lib/codemirror/lang-json-vars/parser.js \
   -ignore=frontend/src/lib/codemirror/lang-json-vars/parser.terms.js \
   ./frontend ./internal ./hack go.mod go.sum *.go
