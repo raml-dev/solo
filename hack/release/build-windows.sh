@@ -37,7 +37,6 @@ main() {
     -clean
     -platform "${platform}"
     -o "${artifact_name}"
-    -nopackage
   )
 
   if [[ -n "${SOLO_BUILD_TAGS:-}" ]]; then
