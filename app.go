@@ -29,7 +29,6 @@ import (
 	"solo/internal/tools"
 	"solo/internal/troubleshooting"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -50,8 +49,6 @@ type App struct {
 	authManager        *auth.AuthManager
 	runner             *runner.Runner
 	gitManager         *git.Manager
-	closingMu          sync.Mutex
-	isClosing          bool
 }
 
 func (a *App) emitEvent(eventName string, data ...interface{}) {
@@ -174,8 +171,6 @@ func NewApp() *App {
 		authManager:        am,
 		runner:             runner.NewRunner(service),
 		gitManager:         git.NewManager(),
-		closingMu:          sync.Mutex{},
-		isClosing:          false,
 	}
 }
 
@@ -207,25 +202,7 @@ func (a *App) startup(ctx context.Context) {
 	slog.Info("Application started", "debug_mode", debugMode)
 }
 
-// beforeClose is called when the user tries to close the application.
-// We emit an event to the frontend to check for unsaved changes and veto the close.
-func (a *App) beforeClose(ctx context.Context) bool {
-	a.closingMu.Lock()
-	defer a.closingMu.Unlock()
-
-	if a.isClosing {
-		return false // Already confirmed — let it close
-	}
-
-	runtime.EventsEmit(ctx, "app:request-close")
-	return true // Veto the close
-}
-
 func (a *App) ForceQuit() {
-	a.closingMu.Lock()
-	a.isClosing = true
-	a.closingMu.Unlock()
-
 	if a.ctx != nil {
 		runtime.Quit(a.ctx)
 	}

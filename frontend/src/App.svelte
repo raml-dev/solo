@@ -20,13 +20,9 @@
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
   import { updateStore } from "$src/lib/stores/updateStore.svelte";
-  import {
-    initWindowDimensions,
-    saveWindowState
-  } from "$src/lib/stores/windowDimensionsStore.svelte";
+  import { initWindowDimensions } from "$src/lib/stores/windowDimensionsStore.svelte";
   import { initZoom } from "$src/lib/stores/zoomStore.svelte";
   import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
-  import { ForceQuit } from "$wails/go/main/App";
   import { EventsOn } from "$wails/runtime/runtime";
   import EditOutline from "flowbite-svelte-icons/EditOutline.svelte";
   import GlobeOutline from "flowbite-svelte-icons/GlobeOutline.svelte";
@@ -125,12 +121,6 @@
       e.preventDefault(); // stops WebKitGTK navigation
     });
     window.addEventListener("keydown", handleKeyDown);
-
-    EventsOn("app:request-close", async () => {
-      await saveWindowState();
-
-      ForceQuit();
-    });
 
     // TODO any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

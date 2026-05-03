@@ -25,8 +25,8 @@ var icon []byte
 var programLevel = new(slog.LevelVar) // default info
 
 type AppLogger struct {
-      base *slog.Logger
-  }
+	base *slog.Logger
+}
 
 func (l *AppLogger) Print(msg string)   { l.base.Info(msg, "source", "frontend") }
 func (l *AppLogger) Trace(msg string)   { l.base.Debug(msg, "source", "frontend") }
@@ -85,10 +85,9 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-    Logger: &AppLogger{base: logger},
+		Logger:           &AppLogger{base: logger},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
-		OnBeforeClose:    app.beforeClose,
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop:     true,
 			DisableWebViewDrop: false,
