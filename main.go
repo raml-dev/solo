@@ -78,7 +78,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:       tools.APP_NAME,
+		Title:       tools.APP_NAME_CAPITALIZED,
 		Width:       1024,
 		Height:      768,
 		StartHidden: true,

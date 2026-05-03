@@ -9,4 +9,4 @@ Icon=dev.raml.solo
 Terminal=false
 Categories=Development;Network;
 StartupNotify=false
-StartupWMClass=Solo
+StartupWMClass=solo

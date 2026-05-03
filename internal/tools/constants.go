@@ -5,7 +5,8 @@ package tools
 
 const (
 	APP_NAME              = "solo"
-	MAIN_DIR              = "solo"
+	APP_NAME_CAPITALIZED  = "Solo"
+  MAIN_DIR              = "solo"
 	CONFIG_JSON_FILENAME  = "config.json"
 	CONFIG_COLLECTION_DIR = "collections"
 	CONFIG_HOST_DIR       = "hosts"
