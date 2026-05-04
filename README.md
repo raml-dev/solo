@@ -27,6 +27,11 @@
 
 **Solo** is a high-performance API client built with _Wails_, combining the efficiency of a native desktop application with the modern flexibility. Designed to be fast, reliable, and versatile, Solo acts as a single hub for all your API testing and debugging needs.
 
+<div align="center">
+  <img width="568" height="440" alt="image" src="https://github.com/user-attachments/assets/47db04ce-04b3-418d-a0d4-22094339723b" />
+</div>
+
+
 ## ✨ Features
 
 - **Blazing Fast**: Minimal memory footprint and instant startup.
