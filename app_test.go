@@ -13,6 +13,7 @@ import (
 	"solo/internal/collection"
 	"solo/internal/configuration"
 	"solo/internal/environment"
+	"solo/internal/testutil"
 	"solo/internal/tools"
 	"testing"
 	"time"
@@ -20,15 +21,7 @@ import (
 
 func TestApp_ConfigurationIntegration(t *testing.T) {
 	// 1. Setup Env Isolation
-	tempHome, err := os.MkdirTemp("", "solo_app_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempHome)
-
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", originalHome)
+	testutil.IsolateUserConfigDir(t)
 
 	// 2. Initialize App
 	app := NewApp()
@@ -134,15 +127,7 @@ func TestApp_ConfigurationIntegration(t *testing.T) {
 }
 
 func TestApp_Execute_CollectionVariablesFallbackAndEnvPrecedence(t *testing.T) {
-	tempHome, err := os.MkdirTemp("", "solo_app_collection_vars")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempHome)
-
-	originalHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempHome)
-	defer os.Setenv("HOME", originalHome)
+	testutil.IsolateUserConfigDir(t)
 
 	app := NewApp()
 	app.startup(context.TODO())

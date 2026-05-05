@@ -7,36 +7,20 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"solo/internal/auth"
 	"solo/internal/collection"
 	"solo/internal/configuration"
 	"solo/internal/environment"
 	"solo/internal/host"
 	"solo/internal/script"
+	"solo/internal/testutil"
 	"testing"
 )
-
-func withTempHome(t *testing.T) string {
-	t.Helper()
-
-	tempHome := t.TempDir()
-	originalHome := os.Getenv("HOME")
-	if err := os.Setenv("HOME", tempHome); err != nil {
-		t.Fatalf("failed to set HOME: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Setenv("HOME", originalHome)
-	})
-
-	return tempHome
-}
 
 func newTestService(t *testing.T) (*Service, *configuration.ConfigurationManager, *environment.EnvironmentManager, *script.ScriptManager) {
 	t.Helper()
 
-	tempHome := withTempHome(t)
+	tempHome := testutil.IsolateUserConfigDir(t)
 
 	configManager, err := configuration.NewConfigurationManager()
 	if err != nil {
