@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"solo/internal/configuration"
-	"strings"
+	"solo/internal/testutil"
 	"testing"
 )
 
@@ -44,8 +44,7 @@ func TestCreateEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupExisting {
 				if err := em.CreateEnvironment(tt.environmentName); err != nil {
@@ -114,8 +113,7 @@ func TestLoadEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName); err != nil {
@@ -172,8 +170,7 @@ func TestLoadEnvironments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em); err != nil {
@@ -226,8 +223,7 @@ func TestUpdateEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			env := tt.setup(em)
 			err := em.UpdateEnvironment(env)
@@ -283,8 +279,7 @@ func TestDeleteEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupExisting {
 				if err := em.CreateEnvironment(tt.environmentName); err != nil {
@@ -353,8 +348,7 @@ func TestGetValuesFromManager(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName); err != nil {
@@ -413,8 +407,7 @@ func TestEnvironmentManagerAddValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.environmentName != "" {
 				em.CreateEnvironment(tt.environmentName)
@@ -486,8 +479,7 @@ func TestEnvironmentManagerRemoveValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName, tt.valueName); err != nil {
@@ -570,8 +562,7 @@ func TestEnvironmentManagerUpdateValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupFunc != nil {
 				if err := tt.setupFunc(em, tt.environmentName, tt.valueName); err != nil {
@@ -603,21 +594,8 @@ func TestEnvironmentManagerUpdateValue(t *testing.T) {
 }
 
 // Helper functions
-func setupTestManager(t *testing.T) (*EnvironmentManager, func()) {
-	// t.Name() can contain slashes for subtests, which are not allowed in MkdirTemp pattern
-	safeName := strings.ReplaceAll(t.Name(), "/", "_")
-	tempHome, err := os.MkdirTemp("", "solo_test_env_"+safeName)
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalHome := os.Getenv("HOME")
-	originalXDG := os.Getenv("XDG_CONFIG_HOME")
-	originalLocalAppData := os.Getenv("LOCALAPPDATA")
-
-	os.Setenv("HOME", tempHome)
-	os.Setenv("XDG_CONFIG_HOME", tempHome)
-	os.Setenv("LOCALAPPDATA", tempHome)
+func setupTestManager(t *testing.T) *EnvironmentManager {
+	tempHome := testutil.IsolateUserConfigDir(t)
 
 	cm, err := configuration.NewConfigurationManager()
 	if err != nil {
@@ -632,41 +610,15 @@ func setupTestManager(t *testing.T) (*EnvironmentManager, func()) {
 
 	em := &EnvironmentManager{path: envDir, cm: cm}
 
-	cleanup := func() {
-		os.Setenv("HOME", originalHome)
-		os.Setenv("XDG_CONFIG_HOME", originalXDG)
-		os.Setenv("LOCALAPPDATA", originalLocalAppData)
-		os.RemoveAll(tempHome)
-	}
-
-	return em, cleanup
+	return em
 }
 
-func setupTestEnvironmentConfig(t *testing.T) (string, func()) {
-	tempHome, err := os.MkdirTemp("", "solo_test_env_init")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalHome := os.Getenv("HOME")
-	originalXDG := os.Getenv("XDG_CONFIG_HOME")
-	originalLocalAppData := os.Getenv("LOCALAPPDATA")
-
-	os.Setenv("HOME", tempHome)
-	os.Setenv("XDG_CONFIG_HOME", tempHome)
-	os.Setenv("LOCALAPPDATA", tempHome)
-
-	return tempHome, func() {
-		os.Setenv("HOME", originalHome)
-		os.Setenv("XDG_CONFIG_HOME", originalXDG)
-		os.Setenv("LOCALAPPDATA", originalLocalAppData)
-		os.RemoveAll(tempHome)
-	}
+func setupTestEnvironmentConfig(t *testing.T) string {
+	return testutil.IsolateUserConfigDir(t)
 }
 
 func TestNewEnvironmentManager(t *testing.T) {
-	_, cleanup := setupTestEnvironmentConfig(t)
-	defer cleanup()
+	setupTestEnvironmentConfig(t)
 
 	cm, err := configuration.NewConfigurationManager()
 	if err != nil {
@@ -731,8 +683,7 @@ func TestNewEnvironmentManager(t *testing.T) {
 }
 
 func TestDeleteEnvironment_DefaultProtectionAndFallback(t *testing.T) {
-	_, cleanup := setupTestEnvironmentConfig(t)
-	defer cleanup()
+	setupTestEnvironmentConfig(t)
 
 	cm, err := configuration.NewConfigurationManager()
 	if err != nil {
@@ -843,8 +794,7 @@ func TestRenameEnvironment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			em, cleanup := setupTestManager(t)
-			defer cleanup()
+			em := setupTestManager(t)
 
 			if tt.setupExisting {
 				if tt.oldName != DEFAULT_ENVIRONMENT_NAME {

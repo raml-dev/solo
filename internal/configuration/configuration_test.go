@@ -4,37 +4,14 @@
 package configuration
 
 import (
-	"os"
+	"solo/internal/testutil"
 	"solo/internal/theme"
 	"solo/internal/tools"
 	"testing"
 )
 
-func setupTestEnvironment(t *testing.T) func() {
-	tempHome, err := os.MkdirTemp("", "solo_test_config")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalHome := os.Getenv("HOME")
-	originalXDG := os.Getenv("XDG_CONFIG_HOME")
-	originalLocalAppData := os.Getenv("LOCALAPPDATA")
-
-	os.Setenv("HOME", tempHome)
-	os.Setenv("XDG_CONFIG_HOME", tempHome)
-	os.Setenv("LOCALAPPDATA", tempHome)
-
-	return func() {
-		os.Setenv("HOME", originalHome)
-		os.Setenv("XDG_CONFIG_HOME", originalXDG)
-		os.Setenv("LOCALAPPDATA", originalLocalAppData)
-		os.RemoveAll(tempHome)
-	}
-}
-
 func TestConfigurationManager_Defaults(t *testing.T) {
-	cleanup := setupTestEnvironment(t)
-	defer cleanup()
+	testutil.IsolateUserConfigDir(t)
 
 	cm, err := NewConfigurationManager()
 	if err != nil {
@@ -77,8 +54,7 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 }
 
 func TestConfigurationManager_ThemeManagement(t *testing.T) {
-	cleanup := setupTestEnvironment(t)
-	defer cleanup()
+	testutil.IsolateUserConfigDir(t)
 
 	cm, err := NewConfigurationManager()
 	if err != nil {
