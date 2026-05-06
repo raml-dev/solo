@@ -102,7 +102,7 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 			if op == nil {
 				continue
 			}
-			req := buildRequest(method, path, op, version, doc)
+			req := o.buildRequest(method, path, op, version, doc)
 			addOpenAPIRequest(coll, req, op.Tags)
 		}
 	}
@@ -134,8 +134,12 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 }
 
 // extractExample returns the first non-nil example value following priority:
-// inline example > first named example > schema default.
-func extractExample(example interface{}, examples map[string]openAPIExample, schemaDefault interface{}) interface{} {
+// inline example > first named example > schema example > schema default > recursive properties example.
+func (o *OpenAPIImporter) extractExample(example interface{}, examples map[string]openAPIExample, schema map[string]interface{}, doc unifiedAPIDocument, depth int) interface{} {
+	if depth > 10 { // Prevent infinite recursion
+		return nil
+	}
+
 	if example != nil {
 		return example
 	}
@@ -144,7 +148,75 @@ func extractExample(example interface{}, examples map[string]openAPIExample, sch
 			return ex.Value
 		}
 	}
-	return schemaDefault
+
+	if schema == nil {
+		return nil
+	}
+
+	// Resolve $ref if present
+	if ref, ok := schema["$ref"].(string); ok {
+		resolved := o.resolveRef(ref, doc)
+		if resolved != nil {
+			return o.extractExample(nil, nil, resolved, doc, depth+1)
+		}
+	}
+
+	if ex, ok := schema["example"]; ok && ex != nil {
+		return ex
+	}
+	if def, ok := schema["default"]; ok && def != nil {
+		return def
+	}
+
+	// Recursive: if it's an object with properties, try to build an example from them
+	if props, ok := schema["properties"].(map[string]interface{}); ok {
+		objExample := make(map[string]interface{})
+		for name, prop := range props {
+			if propMap, ok := prop.(map[string]interface{}); ok {
+				if val := o.extractExample(nil, nil, propMap, doc, depth+1); val != nil {
+					objExample[name] = val
+				}
+			}
+		}
+		if len(objExample) > 0 {
+			return objExample
+		}
+	}
+
+	// Recursive: if it's an array, try to build an example from items
+	if items, ok := schema["items"].(map[string]interface{}); ok {
+		if val := o.extractExample(nil, nil, items, doc, depth+1); val != nil {
+			return []interface{}{val}
+		}
+	}
+
+	return nil
+}
+
+func (o *OpenAPIImporter) resolveRef(ref string, doc unifiedAPIDocument) map[string]interface{} {
+	if !strings.HasPrefix(ref, "#/") {
+		return nil
+	}
+	parts := strings.Split(ref, "/")
+	if len(parts) < 3 {
+		return nil
+	}
+
+	// Handle Swagger 2.0 #/definitions/...
+	if parts[1] == "definitions" && doc.Definitions != nil {
+		if schema, ok := doc.Definitions[parts[2]]; ok {
+			return schema
+		}
+	}
+
+	// Handle OpenAPI 3.x #/components/schemas/...
+	if len(parts) >= 4 && parts[1] == "components" && parts[2] == "schemas" && doc.Components.Schemas != nil {
+		if schema, ok := doc.Components.Schemas[parts[3]].(map[string]interface{}); ok {
+			return schema
+		}
+	}
+
+	return nil
 }
 
 // exampleToJSONString serialises a value to a JSON string.
@@ -161,7 +233,7 @@ func exampleToJSONString(v interface{}) string {
 }
 
 // buildRequest constructs a collection.Request from a single OpenAPI operation.
-func buildRequest(method, path string, op *openAPIOperation, version string, doc unifiedAPIDocument) collection.Request {
+func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation, version string, doc unifiedAPIDocument) collection.Request {
 	normalizedPath := normalizeOpenAPIPathPlaceholders(path)
 	req := collection.Request{
 		Id:                  generateUUID(),
@@ -186,7 +258,7 @@ func buildRequest(method, path string, op *openAPIOperation, version string, doc
 	// Header parameters (both formats)
 	for _, p := range op.Parameters {
 		if p.In == "header" {
-			v := extractExample(p.Example, p.Examples, p.Schema["default"])
+			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
 			if v != nil {
 				req.Headers[p.Name] = fmt.Sprintf("%v", v)
 			} else {
@@ -199,7 +271,7 @@ func buildRequest(method, path string, op *openAPIOperation, version string, doc
 	if version == "3.x" {
 		if op.RequestBody != nil {
 			if media, ok := op.RequestBody.Content["application/json"]; ok {
-				req.Body = exampleToJSONString(extractExample(media.Example, media.Examples, media.Schema["default"]))
+				req.Body = exampleToJSONString(o.extractExample(media.Example, media.Examples, media.Schema, doc, 0))
 				req.BodyType = "json"
 			}
 		}
@@ -222,7 +294,7 @@ func buildRequest(method, path string, op *openAPIOperation, version string, doc
 				}
 			}
 			if isJSON {
-				req.Body = exampleToJSONString(extractExample(p.Example, p.Examples, p.Schema["default"]))
+				req.Body = exampleToJSONString(o.extractExample(p.Example, p.Examples, p.Schema, doc, 0))
 				req.BodyType = "json"
 			}
 			break
@@ -263,7 +335,11 @@ type unifiedAPIDocument struct {
 	// OpenAPI 3.x security schemes (under components)
 	Components struct {
 		SecuritySchemes map[string]interface{} `json:"securitySchemes" yaml:"securitySchemes"`
+		Schemas         map[string]interface{} `json:"schemas"         yaml:"schemas"`
 	} `json:"components" yaml:"components"`
+
+	// Swagger 2.x definitions
+	Definitions map[string]map[string]interface{} `json:"definitions" yaml:"definitions"`
 
 	// Swagger 2.x base URL components
 	Host     string   `json:"host"     yaml:"host"`
