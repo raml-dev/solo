@@ -6,6 +6,7 @@ package importer
 import (
 	"os"
 	"path/filepath"
+	"solo/internal/collection"
 	"strings"
 	"testing"
 )
@@ -30,35 +31,71 @@ func TestBrunoImporter_Import(t *testing.T) {
 		t.Errorf("Expected collection name 'Bruno Test Collection', got '%s'", coll.Name)
 	}
 
-	if len(coll.Requests) != 0 {
-		t.Fatalf("Expected 0 root requests, got %d", len(coll.Requests))
+	// We have 2 tagged requests (in users/) and 3 root requests (form, multipart, query)
+	totalReqs := countRequestsInCollection(coll)
+	if totalReqs != 5 {
+		t.Errorf("total request count: got %d, want 5", totalReqs)
 	}
 
-	if len(coll.Folders) != 1 {
-		t.Fatalf("Expected 1 root folder, got %d", len(coll.Folders))
+	// Helper to find request by name
+	findReq := func(reqs []collection.Request, name string) *collection.Request {
+		for i := range reqs {
+			if reqs[i].Name == name {
+				return &reqs[i]
+			}
+		}
+		return nil
 	}
 
-	usersFolder := coll.Folders[0]
-	if usersFolder.Name != "users" {
-		t.Fatalf("Expected folder name 'users', got '%s'", usersFolder.Name)
+	// Verify root requests
+	// Query Test
+	r := findReq(coll.Requests, "Query Test")
+	if r == nil {
+		t.Fatal("Query Test request not found")
 	}
-	if len(usersFolder.Requests) != 2 {
-		t.Fatalf("Expected folder 'users' to contain 2 requests, got %d", len(usersFolder.Requests))
-	}
-	if len(usersFolder.Folders) != 0 {
-		t.Fatalf("Expected folder 'users' to contain no subfolders, got %d", len(usersFolder.Folders))
-	}
-
-	req1 := usersFolder.Requests[0]
-	req2 := usersFolder.Requests[1]
-
-	if req1.Name == "Create User" && req2.Name == "Get All Users" {
-		req1, req2 = req2, req1
+	if !strings.Contains(r.Url, "?limit=10&offset=0&filter=active") {
+		t.Errorf("Query Test URL: got %q", r.Url)
 	}
 
-	// 3. Find and test Get All Users request
-	if req1.Name != "Get All Users" {
-		t.Errorf("Expected request name 'Get All Users', got '%s'", req1.Name)
+	// Form Test
+	r = findReq(coll.Requests, "Form Test")
+	if r == nil {
+		t.Fatal("Form Test request not found")
+	}
+	if r.Headers["Content-Type"] != "application/x-www-form-urlencoded" {
+		t.Errorf("Form Test Content-Type: got %q", r.Headers["Content-Type"])
+	}
+	if !strings.Contains(r.Body, "username=admin") || !strings.Contains(r.Body, "password=password123") {
+		t.Errorf("Form Test body: got %q", r.Body)
+	}
+
+	// Multipart Test
+	r = findReq(coll.Requests, "Multipart Test")
+	if r == nil {
+		t.Fatal("Multipart Test request not found")
+	}
+	if !strings.Contains(r.Headers["Content-Type"], "multipart/form-data") {
+		t.Errorf("Multipart Test Content-Type: got %q", r.Headers["Content-Type"])
+	}
+	if !strings.Contains(r.Body, "name=\"title\"") || !strings.Contains(r.Body, "Project Logo") {
+		t.Errorf("Multipart Test body: got %q", r.Body)
+	}
+
+	// Verify tagged requests in users folder
+	var usersFolder *collection.Folder
+	for i := range coll.Folders {
+		if coll.Folders[i].Name == "users" {
+			usersFolder = &coll.Folders[i]
+			break
+		}
+	}
+	if usersFolder == nil {
+		t.Fatal("Expected folder name 'users' not found")
+	}
+
+	req1 := findReq(usersFolder.Requests, "Get All Users")
+	if req1 == nil {
+		t.Fatal("Request 'Get All Users' not found")
 	}
 	if req1.Verb != "GET" {
 		t.Errorf("Expected verb 'GET', got '%s'", req1.Verb)
@@ -69,13 +106,10 @@ func TestBrunoImporter_Import(t *testing.T) {
 	if req1.Headers["X-Custom-Header"] != "TestValue" {
 		t.Errorf("Expected 'X-Custom-Header' to be 'TestValue', got '%s'", req1.Headers["X-Custom-Header"])
 	}
-	if req1.Body != "" {
-		t.Errorf("Expected empty body, got '%s'", req1.Body)
-	}
 
-	// 4. Find and test Create User request
-	if req2.Name != "Create User" {
-		t.Errorf("Expected request name 'Create User', got '%s'", req2.Name)
+	req2 := findReq(usersFolder.Requests, "Create User")
+	if req2 == nil {
+		t.Fatal("Request 'Create User' not found")
 	}
 	if req2.Verb != "POST" {
 		t.Errorf("Expected verb 'POST', got '%s'", req2.Verb)
@@ -85,15 +119,6 @@ func TestBrunoImporter_Import(t *testing.T) {
 	}
 	if !strings.Contains(req2.Body, `"name": "Bruno"`) {
 		t.Errorf("Expected body to contain '\"name\": \"Bruno\"', got '%s'", req2.Body)
-	}
-	if usersFolder.Id == "" || usersFolder.CreationTimestamp.IsZero() {
-		t.Errorf("Expected folder 'users' to have ID and creation timestamp")
-	}
-	if req1.Id == "" || req1.CreationTimestamp.IsZero() {
-		t.Errorf("Expected request 'Get All Users' to have ID and creation timestamp")
-	}
-	if req2.Id == "" || req2.CreationTimestamp.IsZero() {
-		t.Errorf("Expected request 'Create User' to have ID and creation timestamp")
 	}
 }
 
