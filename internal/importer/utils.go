@@ -5,6 +5,7 @@ package importer
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -16,9 +17,15 @@ func objectToQueryString(v interface{}) string {
 	if !ok {
 		return fmt.Sprintf("%v", v)
 	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	parts := make([]string, 0, len(m))
-	for k, val := range m {
-		parts = append(parts, fmt.Sprintf("%s=%v", k, val))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", k, m[k]))
 	}
 	return strings.Join(parts, "&")
 }
@@ -31,8 +38,15 @@ func objectToMultipartString(v interface{}, boundary string) string {
 	if !ok {
 		return ""
 	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	var b strings.Builder
-	for k, val := range m {
+	for _, k := range keys {
+		val := m[k]
 		b.WriteString("--" + boundary + "\r\n")
 		b.WriteString(fmt.Sprintf("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", k))
 		if val == nil {

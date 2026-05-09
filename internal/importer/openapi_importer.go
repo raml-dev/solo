@@ -135,7 +135,7 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 
 // extractExample returns the first non-nil example value following priority:
 // inline example > first named example > schema example > schema default > recursive properties example.
-func (o *OpenAPIImporter) extractExample(example interface{}, examples map[string]openAPIExample, schema map[string]interface{}, doc unifiedAPIDocument, depth int) interface{} {
+func (o *OpenAPIImporter) extractExample(example interface{}, examples map[string]openAPIExample, schema map[string]interface{}, doc unifiedAPIDocument, depth int, hint string) interface{} {
 	if depth > 10 { // Prevent infinite recursion
 		return nil
 	}
@@ -157,7 +157,7 @@ func (o *OpenAPIImporter) extractExample(example interface{}, examples map[strin
 	if ref, ok := schema["$ref"].(string); ok {
 		resolved := o.resolveRef(ref, doc)
 		if resolved != nil {
-			return o.extractExample(nil, nil, resolved, doc, depth+1)
+			return o.extractExample(nil, nil, resolved, doc, depth+1, hint)
 		}
 	}
 
@@ -173,7 +173,7 @@ func (o *OpenAPIImporter) extractExample(example interface{}, examples map[strin
 		objExample := make(map[string]interface{})
 		for name, prop := range props {
 			if propMap, ok := prop.(map[string]interface{}); ok {
-				if val := o.extractExample(nil, nil, propMap, doc, depth+1); val != nil {
+				if val := o.extractExample(nil, nil, propMap, doc, depth+1, name); val != nil {
 					objExample[name] = val
 				}
 			}
@@ -185,15 +185,23 @@ func (o *OpenAPIImporter) extractExample(example interface{}, examples map[strin
 
 	// Recursive: if it's an array, try to build an example from items
 	if items, ok := schema["items"].(map[string]interface{}); ok {
-		if val := o.extractExample(nil, nil, items, doc, depth+1); val != nil {
+		if val := o.extractExample(nil, nil, items, doc, depth+1, hint); val != nil {
 			return []interface{}{val}
 		}
 	}
 
 	// Fallback for primitive types to ensure something is generated
 	if typeVal, ok := schema["type"].(string); ok {
+		// Check for binary format first
+		if format, ok := schema["format"].(string); ok && (format == "binary" || format == "base64") {
+			return "[BINARY_FILE_CONTENT]"
+		}
+
 		switch typeVal {
 		case "string":
+			if hint != "" {
+				return "{{" + hint + "}}"
+			}
 			return "string"
 		case "integer", "number":
 			return 0
@@ -309,14 +317,14 @@ func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation
 	for _, p := range allParams {
 		switch p.In {
 		case "header":
-			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
+			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0, p.Name)
 			if v != nil {
 				req.Headers[p.Name] = fmt.Sprintf("%v", v)
 			} else {
 				req.Headers[p.Name] = ""
 			}
 		case "query":
-			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
+			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0, p.Name)
 			if v != nil {
 				queryParts = append(queryParts, fmt.Sprintf("%s=%v", p.Name, v))
 			} else {
@@ -340,15 +348,15 @@ func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation
 			}
 
 			if media, ok := rb.Content["application/json"]; ok {
-				req.Body = exampleToJSONString(o.extractExample(media.Example, media.Examples, media.Schema, doc, 0))
+				req.Body = exampleToJSONString(o.extractExample(media.Example, media.Examples, media.Schema, doc, 0, ""))
 				req.BodyType = "json"
 			} else if media, ok := rb.Content["application/x-www-form-urlencoded"]; ok {
-				obj := o.extractExample(media.Example, media.Examples, media.Schema, doc, 0)
+				obj := o.extractExample(media.Example, media.Examples, media.Schema, doc, 0, "")
 				req.Body = objectToQueryString(obj)
 				req.BodyType = "text"
 				req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
 			} else if media, ok := rb.Content["multipart/form-data"]; ok {
-				obj := o.extractExample(media.Example, media.Examples, media.Schema, doc, 0)
+				obj := o.extractExample(media.Example, media.Examples, media.Schema, doc, 0, "")
 				boundary := "solo-boundary"
 				req.Body = objectToMultipartString(obj, boundary)
 				req.BodyType = "text"
@@ -375,13 +383,13 @@ func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation
 					}
 				}
 				if isJSON {
-					req.Body = exampleToJSONString(o.extractExample(p.Example, p.Examples, p.Schema, doc, 0))
+					req.Body = exampleToJSONString(o.extractExample(p.Example, p.Examples, p.Schema, doc, 0, p.Name))
 					req.BodyType = "json"
 				}
 				break
 			} else if p.In == "formData" {
 				hasFormData = true
-				formDataMap[p.Name] = o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
+				formDataMap[p.Name] = o.extractExample(p.Example, p.Examples, p.Schema, doc, 0, p.Name)
 			}
 		}
 

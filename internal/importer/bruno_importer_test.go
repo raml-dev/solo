@@ -53,7 +53,7 @@ func TestBrunoImporter_Import(t *testing.T) {
 	if r == nil {
 		t.Fatal("Query Test request not found")
 	}
-	if !strings.Contains(r.Url, "?limit=10&offset=0&filter=active") {
+	if !strings.Contains(r.Url, "?filter=active&limit=10&offset=0") {
 		t.Errorf("Query Test URL: got %q", r.Url)
 	}
 
