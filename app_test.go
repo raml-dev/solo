@@ -268,8 +268,8 @@ func TestApp_LoadGitBackedCollection_BrunoDirectoryWithFolders(t *testing.T) {
 	if coll.Name != "Bruno Test Collection" {
 		t.Fatalf("Expected collection name 'Bruno Test Collection', got '%s'", coll.Name)
 	}
-	if len(coll.Requests) != 0 {
-		t.Fatalf("Expected 0 root requests, got %d", len(coll.Requests))
+	if len(coll.Requests) != 3 {
+		t.Fatalf("Expected 3 root requests, got %d", len(coll.Requests))
 	}
 	if len(coll.Folders) != 1 {
 		t.Fatalf("Expected 1 root folder, got %d", len(coll.Folders))
