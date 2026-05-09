@@ -117,8 +117,8 @@ func testOpenAPI3(t *testing.T, path string) {
 	if _, ok := r.headers["X-Request-Id"]; !ok {
 		t.Error("GET /users: expected header X-Request-Id")
 	}
-	if r.headers["X-Request-Id"] != "string" {
-		t.Errorf("GET /users: header X-Request-Id should be 'string' fallback, got %q", r.headers["X-Request-Id"])
+	if r.headers["X-Request-Id"] != "{{X-Request-Id}}" {
+		t.Errorf("GET /users: header X-Request-Id should be '{{X-Request-Id}}' fallback, got %q", r.headers["X-Request-Id"])
 	}
 	if r.bodyType != "" {
 		t.Errorf("GET /users: expected no bodyType, got %q", r.bodyType)
@@ -135,8 +135,8 @@ func testOpenAPI3(t *testing.T, path string) {
 	if r.bodyType != "json" {
 		t.Errorf("POST /users bodyType: got %q, want %q", r.bodyType, "json")
 	}
-	if !strings.Contains(r.body, "\"name\": \"string\"") {
-		t.Errorf("POST /users body: got %q, want it to contain '\"name\": \"string\"'", r.body)
+	if !strings.Contains(r.body, "\"name\": \"{{name}}\"") {
+		t.Errorf("POST /users body: got %q, want it to contain '\"name\": \"{{name}}\"'", r.body)
 	}
 
 	// PUT /users/{id} — operationId
@@ -252,8 +252,8 @@ func testSwagger2(t *testing.T, path string) {
 	if r.bodyType != "json" {
 		t.Errorf("POST /users bodyType: got %q, want %q", r.bodyType, "json")
 	}
-	if !strings.Contains(r.body, "\"name\": \"string\"") {
-		t.Errorf("POST /users body: got %q, want it to contain '\"name\": \"string\"'", r.body)
+	if !strings.Contains(r.body, "\"name\": \"{{name}}\"") {
+		t.Errorf("POST /users body: got %q, want it to contain '\"name\": \"{{name}}\"'", r.body)
 	}
 
 	// PUT /users/{id} — operation-level consumes overrides root

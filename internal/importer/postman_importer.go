@@ -85,30 +85,53 @@ func processItems(items []postmanItem) ([]models.Request, []models.Folder) {
 
 			// Parse the Body and determine BodyType
 			if item.Request.Body != nil {
-				req.Body = item.Request.Body.Raw
+				switch item.Request.Body.Mode {
+				case "raw":
+					req.Body = item.Request.Body.Raw
+					bodyLang := item.Request.Body.Options.Raw.Language
+					if bodyLang != "" {
+						req.BodyType = bodyLang
+					} else {
+						// Fallback: check the Content-Type header
+						contentType := ""
+						for k, v := range req.Headers {
+							if strings.ToLower(k) == "content-type" {
+								contentType = strings.ToLower(v)
+								break
+							}
+						}
 
-				bodyLang := item.Request.Body.Options.Raw.Language
-				if bodyLang != "" {
-					req.BodyType = bodyLang
-				} else {
-					// Fallback: check the Content-Type header
-					contentType := ""
-					for k, v := range req.Headers {
-						if strings.ToLower(k) == "content-type" {
-							contentType = strings.ToLower(v)
-							break
+						if strings.Contains(contentType, "json") {
+							req.BodyType = "json"
+						} else if strings.Contains(contentType, "xml") {
+							req.BodyType = "xml"
+						} else if strings.Contains(contentType, "html") {
+							req.BodyType = "html"
+						} else if contentType != "" {
+							req.BodyType = "text"
 						}
 					}
-
-					if strings.Contains(contentType, "json") {
-						req.BodyType = "json"
-					} else if strings.Contains(contentType, "xml") {
-						req.BodyType = "xml"
-					} else if strings.Contains(contentType, "html") {
-						req.BodyType = "html"
-					} else if contentType != "" {
-						req.BodyType = "text"
+				case "urlencoded":
+					req.BodyType = "text"
+					m := make(map[string]interface{})
+					for _, kv := range item.Request.Body.Urlencoded {
+						m[kv.Key] = kv.Value
 					}
+					req.Body = objectToQueryString(m)
+					req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
+				case "formdata":
+					req.BodyType = "text"
+					m := make(map[string]interface{})
+					for _, kv := range item.Request.Body.Formdata {
+						if kv.Type == "file" {
+							m[kv.Key] = "[BINARY_FILE_CONTENT]"
+						} else {
+							m[kv.Key] = kv.Value
+						}
+					}
+					boundary := "solo-boundary"
+					req.Body = objectToMultipartString(m, boundary)
+					req.Headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
 				}
 			}
 
@@ -164,13 +187,26 @@ type postmanHeader struct {
 }
 
 type postmanBody struct {
-	Mode    string `json:"mode"`
-	Raw     string `json:"raw"`
-	Options struct {
+	Mode       string           `json:"mode"`
+	Raw        string           `json:"raw"`
+	Urlencoded []postmanKV      `json:"urlencoded"`
+	Formdata   []postmanFormKV  `json:"formdata"`
+	Options    struct {
 		Raw struct {
 			Language string `json:"language"`
 		} `json:"raw"`
 	} `json:"options"`
+}
+
+type postmanKV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type postmanFormKV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+	Type  string `json:"type"` // "text" or "file"
 }
 
 // postmanURL handles URLs that can be either a string or an object

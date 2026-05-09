@@ -5,7 +5,9 @@ package importer
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
+	"solo/internal/collection"
 	"strings"
 	"testing"
 )
@@ -166,5 +168,91 @@ func TestPostmanURL_UnmarshalJSON(t *testing.T) {
 	}
 	if reqObj.URL.Raw != "http://example.com/obj" {
 		t.Errorf("Expected URL 'http://example.com/obj', got '%s'", reqObj.URL.Raw)
+	}
+}
+
+func TestPostmanImporter_FormBodies(t *testing.T) {
+	content := `{
+		"info": { "name": "Form Test" },
+		"item": [
+			{
+				"name": "Urlencoded",
+				"request": {
+					"method": "POST",
+					"url": "http://example.com/form",
+					"body": {
+						"mode": "urlencoded",
+						"urlencoded": [
+							{ "key": "foo", "value": "bar" },
+							{ "key": "baz", "value": "qux" }
+						]
+					}
+				}
+			},
+			{
+				"name": "Formdata",
+				"request": {
+					"method": "POST",
+					"url": "http://example.com/multipart",
+					"body": {
+						"mode": "formdata",
+						"formdata": [
+							{ "key": "text", "value": "hello", "type": "text" },
+							{ "key": "file", "type": "file" }
+						]
+					}
+				}
+			}
+		]
+	}`
+
+	tmp := t.TempDir() + "/postman_forms.json"
+	_ = os.WriteFile(tmp, []byte(content), 0600)
+
+	imp := NewPostmanImporter()
+	coll, err := imp.Import(tmp)
+	if err != nil {
+		t.Fatalf("Import failed: %v", err)
+	}
+
+	if len(coll.Requests) != 2 {
+		t.Fatalf("Expected 2 requests, got %d", len(coll.Requests))
+	}
+
+	// Verify Urlencoded
+	var req *collection.Request
+	for i := range coll.Requests {
+		if coll.Requests[i].Name == "Urlencoded" {
+			req = &coll.Requests[i]
+		}
+	}
+	if req == nil {
+		t.Fatal("Urlencoded request not found")
+	}
+	if req.Headers["Content-Type"] != "application/x-www-form-urlencoded" {
+		t.Errorf("Urlencoded Content-Type: got %q", req.Headers["Content-Type"])
+	}
+	if !strings.Contains(req.Body, "foo=bar") || !strings.Contains(req.Body, "baz=qux") {
+		t.Errorf("Urlencoded body: got %q", req.Body)
+	}
+
+	// Verify Formdata
+	req = nil
+	for i := range coll.Requests {
+		if coll.Requests[i].Name == "Formdata" {
+			req = &coll.Requests[i]
+		}
+	}
+	if req == nil {
+		t.Fatal("Formdata request not found")
+	}
+	if !strings.Contains(req.Headers["Content-Type"], "multipart/form-data") {
+		t.Errorf("Formdata Content-Type: got %q", req.Headers["Content-Type"])
+	}
+	if !strings.Contains(req.Body, "name=\"text\"") || !strings.Contains(req.Body, "hello") {
+		t.Errorf("Formdata body text: got %q", req.Body)
+	}
+	if !strings.Contains(req.Body, "name=\"file\"") || !strings.Contains(req.Body, "[BINARY_FILE_CONTENT]") {
+		t.Errorf("Formdata body file: got %q", req.Body)
 	}
 }
