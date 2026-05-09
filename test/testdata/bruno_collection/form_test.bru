@@ -1,0 +1,16 @@
+meta {
+  name: Form Test
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host}}/api/v1/form
+  body: form-urlencoded
+  auth: none
+}
+
+body:form-urlencoded {
+  username: admin
+  password: password123
+}

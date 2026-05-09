@@ -115,6 +115,10 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 	var isBodyBlock bool
 	isHTTPRequest := false
 
+	queryMap := make(map[string]interface{})
+	formUrlEncodedMap := make(map[string]interface{})
+	multipartFormMap := make(map[string]interface{})
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -132,10 +136,22 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 			currentSection = "headers"
 			isBodyBlock = false
 			continue
+		} else if strings.HasPrefix(line, "query {") {
+			currentSection = "query"
+			isBodyBlock = false
+			continue
 		} else if strings.HasPrefix(line, "body:json {") {
 			currentSection = "body"
 			req.BodyType = "json"
 			isBodyBlock = true
+			continue
+		} else if strings.HasPrefix(line, "body:form-urlencoded {") {
+			currentSection = "body:form-urlencoded"
+			isBodyBlock = false
+			continue
+		} else if strings.HasPrefix(line, "body:multipart-form {") {
+			currentSection = "body:multipart-form"
+			isBodyBlock = false
 			continue
 		} else if strings.HasPrefix(line, "body {") {
 			currentSection = "body"
@@ -174,11 +190,46 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 				req.Url = value
 			}
 			if key == "body" && value != "none" {
-				req.BodyType = value
+				// Map Bruno body types to Solo body types
+				switch value {
+				case "form-urlencoded":
+					req.BodyType = "text"
+				case "multipart-form":
+					req.BodyType = "text"
+				default:
+					req.BodyType = value
+				}
 			}
 		case "headers":
 			req.Headers[key] = value
+		case "query":
+			queryMap[key] = value
+		case "body:form-urlencoded":
+			formUrlEncodedMap[key] = value
+		case "body:multipart-form":
+			multipartFormMap[key] = value
 		}
+	}
+
+	// Post-processing
+	if len(queryMap) > 0 {
+		qs := objectToQueryString(queryMap)
+		if strings.Contains(req.Url, "?") {
+			req.Url += "&" + qs
+		} else {
+			req.Url += "?" + qs
+		}
+	}
+
+	if len(formUrlEncodedMap) > 0 {
+		req.Body = objectToQueryString(formUrlEncodedMap)
+		req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
+	}
+
+	if len(multipartFormMap) > 0 {
+		boundary := "solo-boundary"
+		req.Body = objectToMultipartString(multipartFormMap, boundary)
+		req.Headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
 	}
 
 	// Clean up body (remove trailing newline)
