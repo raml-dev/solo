@@ -13,6 +13,19 @@ import (
 	"sync"
 )
 
+const (
+	minBaseFontSizePx     = 11
+	maxBaseFontSizePx     = 18
+	defaultBaseFontSizePx = 14
+)
+
+func clampBaseFontSizePx(v int) int {
+	if v < minBaseFontSizePx || v > maxBaseFontSizePx {
+		return defaultBaseFontSizePx
+	}
+	return v
+}
+
 type ConfigurationManager struct {
 	mu        sync.RWMutex
 	configDir string // Base directory where config.json resides
@@ -60,6 +73,9 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			CheckForUpdates:          tools.DEFAULT_CHECK_UPDATES,
 			IncludePrereleaseUpdates: tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES,
 			DebugMode:                false,
+			BaseFontSizePx:           defaultBaseFontSizePx,
+			DefaultFontFamily:        "",
+			MonoFontFamily:           "",
 		},
 		Request: RequestSettings{
 			TimeoutSeconds:   tools.DEFAULT_TIMEOUT_SECONDS,
@@ -109,6 +125,8 @@ func (cm *ConfigurationManager) Get() Configuration {
 }
 
 func (cm *ConfigurationManager) Save(cfg Configuration) error {
+	cfg.General.BaseFontSizePx = clampBaseFontSizePx(cfg.General.BaseFontSizePx)
+
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		slog.Error("Failed to marshal configuration", "error", err)

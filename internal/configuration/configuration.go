@@ -20,6 +20,9 @@ type GeneralSettings struct {
 	IncludePrereleaseUpdates bool   `json:"includePrereleaseUpdates"`
 	DebugMode                bool   `json:"debugMode"`
 	SelectedEnvironment      string `json:"selectedEnvironment,omitempty"`
+	BaseFontSizePx           int    `json:"baseFontSizePx"`
+	DefaultFontFamily        string `json:"defaultFontFamily"`
+	MonoFontFamily           string `json:"monoFontFamily"`
 }
 
 type RequestSettings struct {

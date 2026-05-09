@@ -19,6 +19,7 @@ import (
 	"solo/internal/configuration"
 	"solo/internal/environment"
 	"solo/internal/exporter"
+	"solo/internal/fonts"
 	"solo/internal/git"
 	"solo/internal/host"
 	"solo/internal/importer"
@@ -812,6 +813,11 @@ func (a *App) GetDefaultConfiguration() (configuration.Configuration, error) {
 		return configuration.Configuration{}, fmt.Errorf("configuration manager not initialized")
 	}
 	return a.configManager.GetDefaultConfiguration(), nil
+}
+
+// ListSystemFonts returns installed system font families with monospace metadata.
+func (a *App) ListSystemFonts(refresh bool) ([]fonts.SystemFont, error) {
+	return fonts.ListFamilies(refresh)
 }
 
 // Request Management Methods

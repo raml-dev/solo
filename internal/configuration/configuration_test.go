@@ -4,6 +4,8 @@
 package configuration
 
 import (
+	"os"
+	"path/filepath"
 	"solo/internal/testutil"
 	"solo/internal/theme"
 	"solo/internal/tools"
@@ -32,6 +34,15 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 			cfg.General.IncludePrereleaseUpdates,
 		)
 	}
+	if cfg.General.BaseFontSizePx != defaultBaseFontSizePx {
+		t.Errorf("Expected default base font size %d, got %d", defaultBaseFontSizePx, cfg.General.BaseFontSizePx)
+	}
+	if cfg.General.DefaultFontFamily != "" {
+		t.Errorf("Expected default sans font family to be empty, got %q", cfg.General.DefaultFontFamily)
+	}
+	if cfg.General.MonoFontFamily != "" {
+		t.Errorf("Expected default mono font family to be empty, got %q", cfg.General.MonoFontFamily)
+	}
 
 	newTheme := "nord"
 	cfg.General.ActiveTheme = newTheme
@@ -50,6 +61,79 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	}
 	if !cfg2.General.IncludePrereleaseUpdates {
 		t.Error("Expected prerelease toggle to persist")
+	}
+}
+
+func TestConfigurationManager_LegacyTypographyFieldsRemainUnsetOnLoad(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	configDir, err := tools.GetOrCreateConfigDir()
+	if err != nil {
+		t.Fatalf("GetOrCreateConfigDir failed: %v", err)
+	}
+
+	legacyConfig := []byte(`{
+  "general": {
+    "activeTheme": "ocean",
+    "themeMode": "system",
+    "dayTheme": "ocean",
+    "nightTheme": "nord",
+    "checkForUpdates": true,
+    "includePrereleaseUpdates": false,
+    "debugMode": false
+  },
+  "request": {
+    "timeoutSeconds": 30,
+    "followRedirects": true,
+    "maxRedirects": 10,
+    "validateSSL": true,
+    "defaultUserAgent": "Solo/1.0"
+  },
+  "customThemes": []
+}`)
+	if err := os.WriteFile(filepath.Join(configDir, tools.CONFIG_JSON_FILENAME), legacyConfig, 0o600); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	cm, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("NewConfigurationManager failed: %v", err)
+	}
+
+	cfg := cm.Get()
+	if cfg.General.BaseFontSizePx != 0 {
+		t.Errorf("Expected legacy base font size to remain unset (0), got %d", cfg.General.BaseFontSizePx)
+	}
+	if cfg.General.DefaultFontFamily != "" {
+		t.Errorf("Expected legacy sans font family to remain empty, got %q", cfg.General.DefaultFontFamily)
+	}
+	if cfg.General.MonoFontFamily != "" {
+		t.Errorf("Expected legacy mono font family to remain empty, got %q", cfg.General.MonoFontFamily)
+	}
+}
+
+func TestConfigurationManager_ClampsInvalidBaseFontSize(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	cm, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("NewConfigurationManager failed: %v", err)
+	}
+
+	cfg := cm.Get()
+	cfg.General.BaseFontSizePx = 99
+	if err := cm.Save(cfg); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	cm2, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("Second NewConfigurationManager failed: %v", err)
+	}
+
+	cfg2 := cm2.Get()
+	if cfg2.General.BaseFontSizePx != defaultBaseFontSizePx {
+		t.Errorf("Expected clamped base font size %d, got %d", defaultBaseFontSizePx, cfg2.General.BaseFontSizePx)
 	}
 }
 
