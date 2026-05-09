@@ -782,6 +782,53 @@ func TestOpenAPIImporter_Petstore_Refs(t *testing.T) {
 			t.Errorf("X-Fallback-Header (fallback): got %q, want %q", req.Headers["X-Fallback-Header"], "0")
 		}
 	})
+
+	// Verify form-urlencoded
+	var updatePet *collection.Request
+	for _, f := range result.Collection.Folders {
+		if f.Name == "pets" {
+			for i, r := range f.Requests {
+				if r.Verb == "POST" && strings.HasSuffix(r.Url, "/update") {
+					updatePet = &f.Requests[i]
+					break
+				}
+			}
+		}
+	}
+	if updatePet == nil {
+		t.Fatal("POST /update (urlencoded) not found")
+	}
+	if updatePet.Headers["Content-Type"] != "application/x-www-form-urlencoded" {
+		t.Errorf("POST /update Content-Type: got %q", updatePet.Headers["Content-Type"])
+	}
+	if !strings.Contains(updatePet.Body, "name=Doggie") || !strings.Contains(updatePet.Body, "status=updated") {
+		t.Errorf("POST /update body: got %q", updatePet.Body)
+	}
+
+	// Verify multipart/form-data
+	var uploadImage *collection.Request
+	for _, f := range result.Collection.Folders {
+		if f.Name == "pets" {
+			for i, r := range f.Requests {
+				if r.Verb == "POST" && strings.HasSuffix(r.Url, "/uploadImage") {
+					uploadImage = &f.Requests[i]
+					break
+				}
+			}
+		}
+	}
+	if uploadImage == nil {
+		t.Fatal("POST /uploadImage (multipart) not found")
+	}
+	if !strings.Contains(uploadImage.Headers["Content-Type"], "multipart/form-data") {
+		t.Errorf("POST /uploadImage Content-Type: got %q", uploadImage.Headers["Content-Type"])
+	}
+	if !strings.Contains(uploadImage.Body, "name=\"additionalMetadata\"") || !strings.Contains(uploadImage.Body, "test info") {
+		t.Errorf("POST /uploadImage body: got %q", uploadImage.Body)
+	}
+	if !strings.Contains(uploadImage.Body, "name=\"file\"") {
+		t.Errorf("POST /uploadImage body missing 'file' part, got: %q", uploadImage.Body)
+	}
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

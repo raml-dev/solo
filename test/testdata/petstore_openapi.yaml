@@ -86,14 +86,7 @@
         "operationId": "createPets",
         "tags": ["pets"],
         "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Pet"
-              }
-            }
-          },
-          "required": true
+          "$ref": "#/components/requestBodies/PetBody"
         },
         "responses": {
           "201": {
@@ -109,6 +102,68 @@
               }
             }
           }
+        }
+      }
+    },
+    "/pets/{petId}/update": {
+      "post": {
+        "summary": "Update a pet in the store with form data",
+        "operationId": "updatePetWithForm",
+        "tags": ["pets"],
+        "parameters": [
+          {
+            "name": "petId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Doggie" },
+                  "status": { "type": "string", "example": "updated" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Pet updated" }
+        }
+      }
+    },
+    "/pets/{petId}/uploadImage": {
+      "post": {
+        "summary": "Uploads an image",
+        "operationId": "uploadFile",
+        "tags": ["pets"],
+        "parameters": [
+          {
+            "name": "petId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "additionalMetadata": { "type": "string", "example": "test info" },
+                  "file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Image uploaded" }
         }
       }
     },
@@ -154,6 +209,19 @@
     }
   },
   "components": {
+    "requestBodies": {
+      "PetBody": {
+        "description": "Pet object that needs to be added to the store",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Pet"
+            }
+          }
+        },
+        "required": true
+      }
+    },
     "schemas": {
       "Pet": {
         "type": "object",
@@ -194,4 +262,3 @@
     }
   }
 }
-

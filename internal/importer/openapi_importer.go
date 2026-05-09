@@ -205,6 +205,25 @@ func (o *OpenAPIImporter) extractExample(example interface{}, examples map[strin
 	return nil
 }
 
+func (o *OpenAPIImporter) resolveRequestBodyRef(ref string, doc unifiedAPIDocument) *openAPIRequestBody {
+	if !strings.HasPrefix(ref, "#/") {
+		return nil
+	}
+	parts := strings.Split(ref, "/")
+	if len(parts) >= 4 && parts[1] == "components" && parts[2] == "requestBodies" && doc.Components.RequestBodies != nil {
+		if raw, ok := doc.Components.RequestBodies[parts[3]]; ok {
+			// Since it's interface{}, we need to handle potential map conversion
+			// Or we can just unmarshal it again into the struct for safety
+			b, _ := json.Marshal(raw)
+			var rb openAPIRequestBody
+			if err := json.Unmarshal(b, &rb); err == nil {
+				return &rb
+			}
+		}
+	}
+	return nil
+}
+
 func (o *OpenAPIImporter) resolveRef(ref string, doc unifiedAPIDocument) map[string]interface{} {
 	if !strings.HasPrefix(ref, "#/") {
 		return nil
@@ -313,38 +332,119 @@ func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation
 	// Body — format-specific
 	if version == "3.x" {
 		if op.RequestBody != nil {
-			if media, ok := op.RequestBody.Content["application/json"]; ok {
+			rb := op.RequestBody
+			if rb.Ref != "" {
+				if resolved := o.resolveRequestBodyRef(rb.Ref, doc); resolved != nil {
+					rb = resolved
+				}
+			}
+
+			if media, ok := rb.Content["application/json"]; ok {
 				req.Body = exampleToJSONString(o.extractExample(media.Example, media.Examples, media.Schema, doc, 0))
 				req.BodyType = "json"
+			} else if media, ok := rb.Content["application/x-www-form-urlencoded"]; ok {
+				obj := o.extractExample(media.Example, media.Examples, media.Schema, doc, 0)
+				req.Body = objectToQueryString(obj)
+				req.BodyType = "text"
+				req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
+			} else if media, ok := rb.Content["multipart/form-data"]; ok {
+				obj := o.extractExample(media.Example, media.Examples, media.Schema, doc, 0)
+				boundary := "solo-boundary"
+				req.Body = objectToMultipartString(obj, boundary)
+				req.BodyType = "text"
+				req.Headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
 			}
 		}
 	} else {
-		// Swagger 2.x: body is a parameter with in=="body"
-		for _, p := range op.Parameters {
-			if p.In != "body" {
-				continue
+		// Swagger 2.x: body is a parameter with in=="body" or in=="formData"
+		effectiveConsumes := op.Consumes
+		if len(effectiveConsumes) == 0 {
+			effectiveConsumes = doc.Consumes
+		}
+
+		formDataMap := make(map[string]interface{})
+		hasFormData := false
+
+		for _, p := range allParams {
+			if p.In == "body" {
+				isJSON := len(effectiveConsumes) == 0
+				for _, ct := range effectiveConsumes {
+					if strings.Contains(ct, "application/json") {
+						isJSON = true
+						break
+					}
+				}
+				if isJSON {
+					req.Body = exampleToJSONString(o.extractExample(p.Example, p.Examples, p.Schema, doc, 0))
+					req.BodyType = "json"
+				}
+				break
+			} else if p.In == "formData" {
+				hasFormData = true
+				formDataMap[p.Name] = o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
 			}
-			// consumes priority: operation-level > root-level > default JSON
-			effectiveConsumes := op.Consumes
-			if len(effectiveConsumes) == 0 {
-				effectiveConsumes = doc.Consumes
-			}
-			isJSON := len(effectiveConsumes) == 0
+		}
+
+		if hasFormData {
+			isMultipart := false
 			for _, ct := range effectiveConsumes {
-				if strings.Contains(ct, "application/json") {
-					isJSON = true
+				if strings.Contains(ct, "multipart/form-data") {
+					isMultipart = true
 					break
 				}
 			}
-			if isJSON {
-				req.Body = exampleToJSONString(o.extractExample(p.Example, p.Examples, p.Schema, doc, 0))
-				req.BodyType = "json"
+
+			if isMultipart {
+				boundary := "solo-boundary"
+				req.Body = objectToMultipartString(formDataMap, boundary)
+				req.BodyType = "text"
+				req.Headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
+			} else {
+				req.Body = objectToQueryString(formDataMap)
+				req.BodyType = "text"
+				req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
 			}
-			break
 		}
 	}
 
 	return req
+}
+
+func objectToQueryString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return fmt.Sprintf("%v", v)
+	}
+	parts := make([]string, 0, len(m))
+	for k, val := range m {
+		parts = append(parts, fmt.Sprintf("%s=%v", k, val))
+	}
+	return strings.Join(parts, "&")
+}
+
+func objectToMultipartString(v interface{}, boundary string) string {
+	if v == nil {
+		return ""
+	}
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	var b strings.Builder
+	for k, val := range m {
+		b.WriteString("--" + boundary + "\r\n")
+		b.WriteString(fmt.Sprintf("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", k))
+		if val == nil {
+			b.WriteString("\r\n")
+		} else {
+			b.WriteString(fmt.Sprintf("%v\r\n", val))
+		}
+	}
+	b.WriteString("--" + boundary + "--\r\n")
+	return b.String()
 }
 
 // collectSecuritySchemeNames returns the names of all declared security schemes.
@@ -379,6 +479,7 @@ type unifiedAPIDocument struct {
 	Components struct {
 		SecuritySchemes map[string]interface{} `json:"securitySchemes" yaml:"securitySchemes"`
 		Schemas         map[string]interface{} `json:"schemas"         yaml:"schemas"`
+		RequestBodies   map[string]interface{} `json:"requestBodies"   yaml:"requestBodies"`
 	} `json:"components" yaml:"components"`
 
 	// Swagger 2.x definitions
@@ -439,6 +540,7 @@ type openAPIExample struct {
 }
 
 type openAPIRequestBody struct {
+	Ref     string                      `json:"$ref"    yaml:"$ref"`
 	Content map[string]openAPIMediaType `json:"content" yaml:"content"`
 }
 
