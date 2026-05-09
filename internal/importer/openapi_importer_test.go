@@ -117,8 +117,8 @@ func testOpenAPI3(t *testing.T, path string) {
 	if _, ok := r.headers["X-Request-Id"]; !ok {
 		t.Error("GET /users: expected header X-Request-Id")
 	}
-	if r.headers["X-Request-Id"] != "" {
-		t.Errorf("GET /users: header X-Request-Id should be empty placeholder, got %q", r.headers["X-Request-Id"])
+	if r.headers["X-Request-Id"] != "string" {
+		t.Errorf("GET /users: header X-Request-Id should be 'string' fallback, got %q", r.headers["X-Request-Id"])
 	}
 	if r.bodyType != "" {
 		t.Errorf("GET /users: expected no bodyType, got %q", r.bodyType)
@@ -135,8 +135,8 @@ func testOpenAPI3(t *testing.T, path string) {
 	if r.bodyType != "json" {
 		t.Errorf("POST /users bodyType: got %q, want %q", r.bodyType, "json")
 	}
-	if r.body != "{}" {
-		t.Errorf("POST /users body: got %q, want %q", r.body, "{}")
+	if !strings.Contains(r.body, "\"name\": \"string\"") {
+		t.Errorf("POST /users body: got %q, want it to contain '\"name\": \"string\"'", r.body)
 	}
 
 	// PUT /users/{id} — operationId
@@ -252,8 +252,8 @@ func testSwagger2(t *testing.T, path string) {
 	if r.bodyType != "json" {
 		t.Errorf("POST /users bodyType: got %q, want %q", r.bodyType, "json")
 	}
-	if r.body != "{}" {
-		t.Errorf("POST /users body: got %q, want %q", r.body, "{}")
+	if !strings.Contains(r.body, "\"name\": \"string\"") {
+		t.Errorf("POST /users body: got %q, want it to contain '\"name\": \"string\"'", r.body)
 	}
 
 	// PUT /users/{id} — operation-level consumes overrides root
@@ -632,6 +632,156 @@ func TestOpenAPIImporter_RequestMetadata(t *testing.T) {
 		}
 		seen[req.Id] = true
 	}
+}
+
+func TestOpenAPIImporter_ParamsAndOverrides(t *testing.T) {
+	content := `{
+		"openapi": "3.0.0",
+		"info": { "title": "Params Test", "version": "1.0" },
+		"paths": {
+			"/test": {
+				"parameters": [
+					{ "name": "global-q", "in": "query", "schema": { "type": "string", "default": "global-val" } },
+					{ "name": "override-q", "in": "query", "schema": { "type": "string", "default": "should-be-overridden" } },
+					{ "name": "X-Global-H", "in": "header", "schema": { "type": "string", "default": "global-h-val" } }
+				],
+				"get": {
+					"operationId": "getTest",
+					"parameters": [
+						{ "name": "override-q", "in": "query", "schema": { "type": "string", "default": "local-val" } },
+						{ "name": "local-q", "in": "query", "schema": { "type": "string", "default": "local-val" } }
+					]
+				}
+			}
+		}
+	}`
+
+	tmp := t.TempDir() + "/params.json"
+	_ = writeTemp(tmp, content)
+
+	imp := NewOpenAPIImporter()
+	result, err := imp.Import(tmp)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Collection.Requests) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(result.Collection.Requests))
+	}
+
+	req := result.Collection.Requests[0]
+
+	// Verify Query Parameters in URL
+	// Order should be global-q, override-q (overridden), X-Global-H (skipped because in:header), then local-q
+	// Actually allParams logic: path params first, then op params. override-q is in both, op wins but keeps its position or appended?
+	// In my implementation: path params added first, op params override if exists.
+	// Expected query order: global-q=global-val, override-q=local-val, local-q=local-val
+	expectedUrlSuffix := "/test?global-q=global-val&override-q=local-val&local-q=local-val"
+	if !strings.HasSuffix(req.Url, expectedUrlSuffix) {
+		t.Errorf("URL mismatch:\n got: %s\nwant suffix: %s", req.Url, expectedUrlSuffix)
+	}
+
+	// Verify Headers
+	if req.Headers["X-Global-H"] != "global-h-val" {
+		t.Errorf("Header X-Global-H: got %q, want %q", req.Headers["X-Global-H"], "global-h-val")
+	}
+}
+
+func TestOpenAPIImporter_Petstore_Refs(t *testing.T) {
+	path := filepath.Join(testdataDir, "petstore_openapi.yaml")
+	imp := NewOpenAPIImporter()
+	result, err := imp.Import(path)
+	if err != nil {
+		t.Fatalf("Import(%q) unexpected error: %v", path, err)
+	}
+
+	// Find POST /pets which uses $ref in requestBody
+	var postPet *collection.Request
+	for _, f := range result.Collection.Folders {
+		if f.Name == "pets" {
+			for i, r := range f.Requests {
+				if r.Verb == "POST" && strings.HasSuffix(r.Url, "/pets") {
+					postPet = &f.Requests[i]
+					break
+				}
+			}
+		}
+	}
+
+	if postPet == nil {
+		t.Fatal("POST /pets request not found in imported collection")
+	}
+
+	// Verify Body is not empty and contains properties from the resolved Pet schema
+	if postPet.Body == "" || postPet.Body == "{}" {
+		t.Errorf("POST /pets body should not be empty, got: %q", postPet.Body)
+	}
+
+	// Check for expected properties in the generated JSON body example
+	if !strings.Contains(postPet.Body, "\"id\"") {
+		t.Error("POST /pets body missing 'id' property")
+	}
+	if !strings.Contains(postPet.Body, "\"name\"") {
+		t.Error("POST /pets body missing 'name' property")
+	}
+
+	// Verify Headers in POST /pets
+	// The Petstore YAML doesn't have headers in POST /pets, but it might have them in other requests.
+	// For testing purposes, let's verify a request that SHOULD have headers or add a specific test case for it.
+	// Since the user asked to test headers specifically in this context, let's verify GET /pets headers if any.
+
+	var listPets *collection.Request
+	for _, f := range result.Collection.Folders {
+		if f.Name == "pets" {
+			for i, r := range f.Requests {
+				if r.Verb == "GET" && strings.HasSuffix(r.Url, "/pets?limit=0") { // query param limit=0 due to fallback
+					listPets = &f.Requests[i]
+					break
+				}
+			}
+		}
+	}
+
+	if listPets == nil {
+		t.Fatal("GET /pets request not found")
+	}
+
+	// Verify Headers from the YAML file
+	if listPets.Headers["X-Request-ID"] != "req-123" {
+		t.Errorf("X-Request-ID: got %q, want %q", listPets.Headers["X-Request-ID"], "req-123")
+	}
+	if listPets.Headers["X-Client-Version"] != "1.0.0" {
+		t.Errorf("X-Client-Version: got %q, want %q", listPets.Headers["X-Client-Version"], "1.0.0")
+	}
+
+	// Let's add a more explicit header test using a dedicated mock document to be sure
+	t.Run("Headers_Detailed", func(t *testing.T) {
+		content := `{
+			"openapi": "3.0.0",
+			"info": { "title": "Header Test", "version": "1.0" },
+			"paths": {
+				"/header-test": {
+					"get": {
+						"parameters": [
+							{ "name": "X-Custom-Header", "in": "header", "schema": { "type": "string", "example": "header-val" } },
+							{ "name": "X-Fallback-Header", "in": "header", "schema": { "type": "integer" } }
+						]
+					}
+				}
+			}
+		}`
+		tmp := t.TempDir() + "/headers.json"
+		_ = writeTemp(tmp, content)
+		res, _ := imp.Import(tmp)
+		req := res.Collection.Requests[0]
+
+		if req.Headers["X-Custom-Header"] != "header-val" {
+			t.Errorf("X-Custom-Header: got %q, want %q", req.Headers["X-Custom-Header"], "header-val")
+		}
+		if req.Headers["X-Fallback-Header"] != "0" {
+			t.Errorf("X-Fallback-Header (fallback): got %q, want %q", req.Headers["X-Fallback-Header"], "0")
+		}
+	})
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -102,7 +102,7 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 			if op == nil {
 				continue
 			}
-			req := o.buildRequest(method, path, op, version, doc)
+			req := o.buildRequest(method, path, op, item.Parameters, version, doc)
 			addOpenAPIRequest(coll, req, op.Tags)
 		}
 	}
@@ -190,6 +190,18 @@ func (o *OpenAPIImporter) extractExample(example interface{}, examples map[strin
 		}
 	}
 
+	// Fallback for primitive types to ensure something is generated
+	if typeVal, ok := schema["type"].(string); ok {
+		switch typeVal {
+		case "string":
+			return "string"
+		case "integer", "number":
+			return 0
+		case "boolean":
+			return false
+		}
+	}
+
 	return nil
 }
 
@@ -233,7 +245,7 @@ func exampleToJSONString(v interface{}) string {
 }
 
 // buildRequest constructs a collection.Request from a single OpenAPI operation.
-func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation, version string, doc unifiedAPIDocument) collection.Request {
+func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation, pathParams []openAPIParameter, version string, doc unifiedAPIDocument) collection.Request {
 	normalizedPath := normalizeOpenAPIPathPlaceholders(path)
 	req := collection.Request{
 		Id:                  generateUUID(),
@@ -255,16 +267,47 @@ func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation
 		req.Name = strings.ToUpper(method) + " " + path
 	}
 
-	// Header parameters (both formats)
+	// Merge parameters: operation params override path params
+	allParams := make([]openAPIParameter, 0, len(pathParams)+len(op.Parameters))
+	paramMap := make(map[string]int) // key: "in:name", value: index in allParams
+
+	for _, p := range pathParams {
+		key := p.In + ":" + p.Name
+		paramMap[key] = len(allParams)
+		allParams = append(allParams, p)
+	}
 	for _, p := range op.Parameters {
-		if p.In == "header" {
+		key := p.In + ":" + p.Name
+		if idx, ok := paramMap[key]; ok {
+			allParams[idx] = p
+		} else {
+			allParams = append(allParams, p)
+		}
+	}
+
+	var queryParts []string
+
+	for _, p := range allParams {
+		switch p.In {
+		case "header":
 			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
 			if v != nil {
 				req.Headers[p.Name] = fmt.Sprintf("%v", v)
 			} else {
 				req.Headers[p.Name] = ""
 			}
+		case "query":
+			v := o.extractExample(p.Example, p.Examples, p.Schema, doc, 0)
+			if v != nil {
+				queryParts = append(queryParts, fmt.Sprintf("%s=%v", p.Name, v))
+			} else {
+				queryParts = append(queryParts, p.Name+"=")
+			}
 		}
+	}
+
+	if len(queryParts) > 0 {
+		req.Url += "?" + strings.Join(queryParts, "&")
 	}
 
 	// Body — format-specific
@@ -364,13 +407,14 @@ type openAPIServer struct {
 }
 
 type openAPIPathItem struct {
-	Get     *openAPIOperation `json:"get"     yaml:"get"`
-	Post    *openAPIOperation `json:"post"    yaml:"post"`
-	Put     *openAPIOperation `json:"put"     yaml:"put"`
-	Patch   *openAPIOperation `json:"patch"   yaml:"patch"`
-	Delete  *openAPIOperation `json:"delete"  yaml:"delete"`
-	Head    *openAPIOperation `json:"head"    yaml:"head"`
-	Options *openAPIOperation `json:"options" yaml:"options"`
+	Get        *openAPIOperation  `json:"get"        yaml:"get"`
+	Post       *openAPIOperation  `json:"post"       yaml:"post"`
+	Put        *openAPIOperation  `json:"put"        yaml:"put"`
+	Patch      *openAPIOperation  `json:"patch"      yaml:"patch"`
+	Delete     *openAPIOperation  `json:"delete"     yaml:"delete"`
+	Head       *openAPIOperation  `json:"head"       yaml:"head"`
+	Options    *openAPIOperation  `json:"options"    yaml:"options"`
+	Parameters []openAPIParameter `json:"parameters" yaml:"parameters"`
 }
 
 type openAPIOperation struct {
