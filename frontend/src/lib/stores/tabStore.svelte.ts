@@ -374,6 +374,45 @@ export function removeTabsForRequest(requestId: string) {
   storeTabsInLocalStorage();
 }
 
+/** Remove all tabs belonging to a specific collection */
+export function removeTabsByCollection(collectionName: string) {
+  const activeTab = tabStoreState.tabs[tabStoreState.activeTabIndex];
+  const wasActiveTabBelongingToCollection = activeTab?.collectionName === collectionName;
+
+  filterInPlace(tabStoreState.tabs, (t: TabState) => t.collectionName !== collectionName);
+
+  if (wasActiveTabBelongingToCollection) {
+    tabStoreState.activeTabIndex =
+      tabStoreState.tabs.length > 0 ? tabStoreState.tabs.length - 1 : -1;
+  } else if (activeTab) {
+    // Recalculate active index if tabs were removed before it
+    tabStoreState.activeTabIndex = tabStoreState.tabs.findIndex((t) => t.id === activeTab.id);
+  }
+
+  storeTabsInLocalStorage();
+}
+
+/** Remove all tabs referencing any of the provided request IDs */
+export function removeTabsByRequests(requestIds: string[]) {
+  const activeTab = tabStoreState.tabs[tabStoreState.activeTabIndex];
+  const requestIdSet = new Set(requestIds);
+  const wasActiveTabRemoved = activeTab?.requestId && requestIdSet.has(activeTab.requestId);
+
+  filterInPlace(
+    tabStoreState.tabs,
+    (t: TabState) => !t.requestId || !requestIdSet.has(t.requestId)
+  );
+
+  if (wasActiveTabRemoved) {
+    tabStoreState.activeTabIndex =
+      tabStoreState.tabs.length > 0 ? tabStoreState.tabs.length - 1 : -1;
+  } else if (activeTab) {
+    tabStoreState.activeTabIndex = tabStoreState.tabs.findIndex((t) => t.id === activeTab.id);
+  }
+
+  storeTabsInLocalStorage();
+}
+
 export function storeTabsInLocalStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tabStoreState));
 }
@@ -407,5 +446,7 @@ export const tabStore = {
   updateTabResponse,
   renameTabsByRequestId,
   removeTabsForRequest,
+  removeTabsByCollection,
+  removeTabsByRequests,
   storeTabsInLocalStorage
 };
