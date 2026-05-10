@@ -9,7 +9,7 @@ import { notifications } from "$src/lib/stores/notificationStore";
 import { filterInPlace } from "$src/lib/utils/helpers";
 import type { configuration as conf } from "$wails/go/models";
 import { collection } from "$wails/go/models";
-import { SvelteDate } from "svelte/reactivity";
+import { SvelteDate, SvelteSet } from "svelte/reactivity";
 
 export interface TabHeader {
   id: string;
