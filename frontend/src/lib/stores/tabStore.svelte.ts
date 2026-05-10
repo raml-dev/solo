@@ -363,17 +363,6 @@ export function renameTabsByRequestId(requestId: string, label: string) {
   storeTabsInLocalStorage();
 }
 
-/** Remove all tabs referencing a deleted request */
-export function removeTabsForRequest(requestId: string) {
-  const wasActiveTab = tabStoreState.tabs[tabStoreState.activeTabIndex]?.requestId === requestId;
-  filterInPlace(tabStoreState.tabs, (t: TabState) => t.requestId !== requestId);
-  if (wasActiveTab) {
-    tabStoreState.activeTabIndex =
-      tabStoreState.tabs.length > 0 ? tabStoreState.tabs.length - 1 : -1;
-  }
-  storeTabsInLocalStorage();
-}
-
 /** Remove all tabs belonging to a specific collection */
 export function removeTabsByCollection(collectionName: string) {
   const activeTab = tabStoreState.tabs[tabStoreState.activeTabIndex];
@@ -445,7 +434,6 @@ export const tabStore = {
   saveTab,
   updateTabResponse,
   renameTabsByRequestId,
-  removeTabsForRequest,
   removeTabsByCollection,
   removeTabsByRequests,
   storeTabsInLocalStorage
