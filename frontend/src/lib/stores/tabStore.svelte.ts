@@ -395,7 +395,7 @@ export function removeTabsByCollection(collectionName: string) {
 /** Remove all tabs referencing any of the provided request IDs */
 export function removeTabsByRequests(requestIds: string[]) {
   const activeTab = tabStoreState.tabs[tabStoreState.activeTabIndex];
-  const requestIdSet = new Set(requestIds);
+  const requestIdSet = new SvelteSet(requestIds);
   const wasActiveTabRemoved = activeTab?.requestId && requestIdSet.has(activeTab.requestId);
 
   filterInPlace(
