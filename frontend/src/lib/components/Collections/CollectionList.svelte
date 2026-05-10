@@ -527,7 +527,7 @@
 
     try {
       await collectionStore.removeRequest(deleteRequestCollectionName, deleteRequestTarget);
-      tabStore.removeTabsForRequest(deleteRequestTarget);
+      tabStore.removeTabsByRequests([deleteRequestTarget]);
       closeDeleteRequestConfirmDialog();
     } catch {
       // error already shown by store
