@@ -120,9 +120,7 @@ func TestConfigurationManager_ClampsInvalidBaseFontSize(t *testing.T) {
 		t.Fatalf("NewConfigurationManager failed: %v", err)
 	}
 
-	cfg := cm.Get()
-	cfg.General.BaseFontSizePx = 99
-	if err := cm.Save(cfg); err != nil {
+	if err := cm.SetBaseFontSizePx(99); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
@@ -134,6 +132,46 @@ func TestConfigurationManager_ClampsInvalidBaseFontSize(t *testing.T) {
 	cfg2 := cm2.Get()
 	if cfg2.General.BaseFontSizePx != tools.DEFAULT_BASE_FONT_SIZE_PX {
 		t.Errorf("Expected clamped base font size %d, got %d", tools.DEFAULT_BASE_FONT_SIZE_PX, cfg2.General.BaseFontSizePx)
+	}
+}
+
+func TestConfigurationManager_AllowsEmptyFontFamilies(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	cm, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("NewConfigurationManager failed: %v", err)
+	}
+
+	if err := cm.SetDefaultFontFamily(""); err != nil {
+		t.Fatalf("SetDefaultFontFamily empty failed: %v", err)
+	}
+	if err := cm.SetMonoFontFamily(""); err != nil {
+		t.Fatalf("SetMonoFontFamily empty failed: %v", err)
+	}
+
+	cfg := cm.Get()
+	if cfg.General.DefaultFontFamily != "" {
+		t.Errorf("Expected empty sans font family, got %q", cfg.General.DefaultFontFamily)
+	}
+	if cfg.General.MonoFontFamily != "" {
+		t.Errorf("Expected empty mono font family, got %q", cfg.General.MonoFontFamily)
+	}
+}
+
+func TestConfigurationManager_RejectsInvalidFontFamilies(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	cm, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("NewConfigurationManager failed: %v", err)
+	}
+
+	if err := cm.SetDefaultFontFamily("definitely-not-a-real-font"); err == nil {
+		t.Fatal("SetDefaultFontFamily should reject invalid non-empty font family")
+	}
+	if err := cm.SetMonoFontFamily("definitely-not-a-real-font"); err == nil {
+		t.Fatal("SetMonoFontFamily should reject invalid non-empty font family")
 	}
 }
 

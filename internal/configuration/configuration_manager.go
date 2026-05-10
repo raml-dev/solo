@@ -8,17 +8,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"solo/internal/fonts"
 	"solo/internal/theme"
 	"solo/internal/tools"
 	"sync"
 )
-
-func clampBaseFontSizePx(v int) int {
-	if v < tools.MIN_BASE_FONT_SIZE_PX || v > tools.MAX_BASE_FONT_SIZE_PX {
-		return tools.DEFAULT_BASE_FONT_SIZE_PX
-	}
-	return v
-}
 
 type ConfigurationManager struct {
 	mu        sync.RWMutex
@@ -119,8 +113,6 @@ func (cm *ConfigurationManager) Get() Configuration {
 }
 
 func (cm *ConfigurationManager) Save(cfg Configuration) error {
-	cfg.General.BaseFontSizePx = clampBaseFontSizePx(cfg.General.BaseFontSizePx)
-
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		slog.Error("Failed to marshal configuration", "error", err)
@@ -234,4 +226,40 @@ func (cm *ConfigurationManager) DeleteCustomTheme(themeName string) error {
 	cm.mu.Unlock()
 
 	return cm.Save(configToSave)
+}
+
+func (cm *ConfigurationManager) SetBaseFontSizePx(fontSize int) error {
+	cm.mu.Lock()
+	cm.config.General.BaseFontSizePx = fonts.ClampBaseFontSizePx(fontSize)
+	configToSave := *cm.config
+	cm.mu.Unlock()
+	return cm.Save(configToSave) // Save immediately to persist
+}
+
+func (cm *ConfigurationManager) SetDefaultFontFamily(fontFamily string) error {
+	if fontFamily == "" || fonts.IsValidFontFamily(fontFamily) {
+		cm.mu.Lock()
+		cm.config.General.DefaultFontFamily = fontFamily
+		configToSave := *cm.config
+		cm.mu.Unlock()
+		return cm.Save(configToSave) // Save immediately to persist
+	}
+	return fmt.Errorf("invalid font family: %s", fontFamily)
+}
+
+func (cm *ConfigurationManager) GetMonoFontFamily() string {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.config.General.MonoFontFamily
+}
+
+func (cm *ConfigurationManager) SetMonoFontFamily(fontFamily string) error {
+	if fontFamily == "" || fonts.IsValidMonoFontFamily(fontFamily) {
+		cm.mu.Lock()
+		cm.config.General.MonoFontFamily = fontFamily
+		configToSave := *cm.config
+		cm.mu.Unlock()
+		return cm.Save(configToSave) // Save immediately to persist
+	}
+	return fmt.Errorf("invalid font family: %s", fontFamily)
 }
