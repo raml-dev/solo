@@ -19,6 +19,9 @@ const (
 	DEFAULT_THEME                      = "ocean"
 	DEFAULT_THEME_LIGHT                = "ocean"
 	DEFAULT_THEME_DARK                 = "nord"
+  MIN_BASE_FONT_SIZE_PX              = 11
+	MAX_BASE_FONT_SIZE_PX              = 18
+	DEFAULT_BASE_FONT_SIZE_PX          = 14
 	DEFAULT_CHECK_UPDATES              = true
 	DEFAULT_INCLUDE_PRERELEASE_UPDATES = false
 	DEFAULT_TIMEOUT_SECONDS            = 30

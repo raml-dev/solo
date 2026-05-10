@@ -34,8 +34,8 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 			cfg.General.IncludePrereleaseUpdates,
 		)
 	}
-	if cfg.General.BaseFontSizePx != defaultBaseFontSizePx {
-		t.Errorf("Expected default base font size %d, got %d", defaultBaseFontSizePx, cfg.General.BaseFontSizePx)
+	if cfg.General.BaseFontSizePx != tools.DEFAULT_BASE_FONT_SIZE_PX {
+		t.Errorf("Expected default base font size %d, got %d", tools.DEFAULT_BASE_FONT_SIZE_PX, cfg.General.BaseFontSizePx)
 	}
 	if cfg.General.DefaultFontFamily != "" {
 		t.Errorf("Expected default sans font family to be empty, got %q", cfg.General.DefaultFontFamily)
@@ -132,8 +132,8 @@ func TestConfigurationManager_ClampsInvalidBaseFontSize(t *testing.T) {
 	}
 
 	cfg2 := cm2.Get()
-	if cfg2.General.BaseFontSizePx != defaultBaseFontSizePx {
-		t.Errorf("Expected clamped base font size %d, got %d", defaultBaseFontSizePx, cfg2.General.BaseFontSizePx)
+	if cfg2.General.BaseFontSizePx != tools.DEFAULT_BASE_FONT_SIZE_PX {
+		t.Errorf("Expected clamped base font size %d, got %d", tools.DEFAULT_BASE_FONT_SIZE_PX, cfg2.General.BaseFontSizePx)
 	}
 }
 

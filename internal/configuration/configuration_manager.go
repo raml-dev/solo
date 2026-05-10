@@ -13,15 +13,9 @@ import (
 	"sync"
 )
 
-const (
-	minBaseFontSizePx     = 11
-	maxBaseFontSizePx     = 18
-	defaultBaseFontSizePx = 14
-)
-
 func clampBaseFontSizePx(v int) int {
-	if v < minBaseFontSizePx || v > maxBaseFontSizePx {
-		return defaultBaseFontSizePx
+	if v < tools.MIN_BASE_FONT_SIZE_PX || v > tools.MAX_BASE_FONT_SIZE_PX {
+		return tools.DEFAULT_BASE_FONT_SIZE_PX
 	}
 	return v
 }
@@ -73,7 +67,7 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			CheckForUpdates:          tools.DEFAULT_CHECK_UPDATES,
 			IncludePrereleaseUpdates: tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES,
 			DebugMode:                false,
-			BaseFontSizePx:           defaultBaseFontSizePx,
+			BaseFontSizePx:           tools.DEFAULT_BASE_FONT_SIZE_PX,
 			DefaultFontFamily:        "",
 			MonoFontFamily:           "",
 		},
