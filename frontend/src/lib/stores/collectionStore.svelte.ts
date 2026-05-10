@@ -10,6 +10,7 @@ import {
   AddRequestToFolder,
   CreateCollection,
   DeleteCollection,
+  GetRequests,
   LoadCollection,
   LoadCollections,
   RemoveFolder,
@@ -344,6 +345,18 @@ export const collectionStore = {
       await this.loadCollections();
     } catch (err) {
       notifications.error("Failed to create collection", String(err));
+      collectionStoreState.loading = false;
+      throw err;
+    }
+  },
+
+  //Get Request of a collection
+  async getRequestsFromCollection(name: string) {
+    collectionStoreState.loading = true;
+    try {
+      return await GetRequests(name);
+    } catch (err) {
+      notifications.error("Failed to get request from collection", String(err));
       collectionStoreState.loading = false;
       throw err;
     }

@@ -414,7 +414,9 @@
 
     try {
       await collectionStore.deleteCollection(deleteTarget);
+      tabStore.removeTabsByCollection(deleteTarget);
       expandedCollections.delete(deleteTarget);
+
       closeDeleteConfirmDialog();
     } catch (err) {
       console.error("Error deleting collection:", err);
@@ -428,10 +430,41 @@
     deleteFolderTarget = null;
   }
 
+  function getRequestIdsFromFolderRecursive(folder: collection.Folder): string[] {
+    let ids: string[] = (folder.requests || []).map((r) => r.id);
+    if (folder.folders) {
+      for (const subfolder of folder.folders) {
+        ids = [...ids, ...getRequestIdsFromFolderRecursive(subfolder)];
+      }
+    }
+    return ids;
+  }
+
   async function confirmDeleteFolder() {
     if (!deleteFolderCollectionName || !deleteFolderTarget) return;
 
     try {
+      const collection = collectionStoreState.collections.find(
+        (c) => c.name === deleteFolderCollectionName
+      );
+      if (collection) {
+        const findFolder = (folders: collection.Folder[]): collection.Folder | undefined => {
+          for (const f of folders) {
+            if (f.id === deleteFolderTarget) return f;
+            if (f.folders) {
+              const found = findFolder(f.folders);
+              if (found) return found;
+            }
+          }
+        };
+
+        const folder = findFolder(collection.folders || []);
+        if (folder) {
+          const requestIds = getRequestIdsFromFolderRecursive(folder);
+          tabStore.removeTabsByRequests(requestIds);
+        }
+      }
+
       await collectionStore.removeFolder(deleteFolderCollectionName, deleteFolderTarget);
       expandedFolders.delete(deleteFolderTarget);
       closeDeleteFolderConfirmDialog();
