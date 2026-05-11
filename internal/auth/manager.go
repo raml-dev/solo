@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"solo/internal/collection"
@@ -51,7 +52,7 @@ func (m *AuthManager) SetContext(ctx context.Context) {
 
 // GetOrRefreshToken returns a valid token, refreshing it if necessary.
 // Returns (token, refreshed, error)
-func (m *AuthManager) GetOrRefreshToken(config collection.AuthConfiguration) (string, bool, error) {
+func (m *AuthManager) GetOrRefreshToken(ctx context.Context, config collection.AuthConfiguration) (string, bool, error) {
 	if !config.Enabled {
 		return "", false, nil
 	}
@@ -66,7 +67,7 @@ func (m *AuthManager) GetOrRefreshToken(config collection.AuthConfiguration) (st
 	}
 
 	// Fetch new token
-	newToken, err := m.fetchToken(config)
+	newToken, err := m.fetchToken(ctx, config)
 	if err != nil {
 		return "", false, err
 	}
@@ -83,7 +84,7 @@ func (m *AuthManager) GetOrRefreshToken(config collection.AuthConfiguration) (st
 	return newToken.AccessToken, true, nil
 }
 
-func (m *AuthManager) fetchToken(config collection.AuthConfiguration) (*Token, error) {
+func (m *AuthManager) fetchToken(ctx context.Context, config collection.AuthConfiguration) (*Token, error) {
 	data := url.Values{}
 	for k, v := range config.Template {
 		data.Set(k, v)
@@ -93,7 +94,14 @@ func (m *AuthManager) fetchToken(config collection.AuthConfiguration) (*Token, e
 		"url", config.TokenURL,
 		"params_count", len(config.Template))
 
-	resp, err := http.PostForm(config.TokenURL, data)
+	req, err := http.NewRequestWithContext(ctx, "POST", config.TokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		slog.Error("OAuth2 request network error", "url", config.TokenURL, "error", err)
 		return nil, err

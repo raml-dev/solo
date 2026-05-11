@@ -189,6 +189,58 @@ export function getMethodBadgeClass(method: string): string {
   return `${base} ${colorClass}`;
 }
 
+export function prettifyXml(xmlStr: string): string {
+  const INDENT = "  ";
+  let formatted = "",
+    depth = 0;
+  const parts = xmlStr.replace(/>\s*</g, "><").split(/(<[^>]+>)/);
+  for (const part of parts) {
+    if (!part.trim()) continue;
+    if (part.startsWith("</")) {
+      depth = Math.max(0, depth - 1);
+      formatted += INDENT.repeat(depth) + part + "\n";
+    } else if (part.startsWith("<?") || part.startsWith("<!")) {
+      formatted += INDENT.repeat(depth) + part + "\n";
+    } else if (part.startsWith("<") && part.endsWith("/>")) {
+      formatted += INDENT.repeat(depth) + part + "\n";
+    } else if (part.startsWith("<")) {
+      formatted += INDENT.repeat(depth) + part + "\n";
+      depth++;
+    } else {
+      const lines = formatted.trimEnd().split("\n");
+      const last = lines[lines.length - 1];
+      if (last?.trimEnd().endsWith(">")) {
+        lines[lines.length - 1] = last + part;
+        formatted = lines.join("\n") + "\n";
+      } else {
+        formatted += INDENT.repeat(depth) + part + "\n";
+      }
+    }
+  }
+  return formatted.trim();
+}
+
+export function prettyPrint(body: string, fmt: "json" | "xml" | "text"): string {
+  if (!body?.trim()) return body;
+  if (fmt === "json") {
+    try {
+      return JSON.stringify(JSON.parse(body), null, 2);
+    } catch {
+      // do nothing
+    }
+  }
+  if (fmt === "xml") return prettifyXml(body);
+  return body;
+}
+
+export function detectResponseFormat(hdrs: Record<string, string>): "json" | "xml" | "text" {
+  const ct =
+    Object.entries(hdrs ?? {}).find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "";
+  if (ct.includes("json")) return "json";
+  if (ct.includes("xml") || ct.includes("html")) return "xml";
+  return "text";
+}
+
 /**
  * Legacy Method Badge Colors (Flowbite native colors)
  * Kept for backward compatibility if needed, but getMethodBadgeClass is preferred for consistency.

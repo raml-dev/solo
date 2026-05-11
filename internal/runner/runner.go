@@ -43,7 +43,7 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 					defer wg.Done()
 					defer func() { <-sem }()
 
-					res, err := r.service.ExecuteRequest(opts.Request)
+					res, err := r.service.ExecuteRequest(ctx, opts.Request)
 
 					var runnerRes RunnerResult
 					runnerRes.Index = idx

@@ -4,6 +4,7 @@
 package requester
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -104,7 +105,7 @@ func TestService_Execute_ContentTypeHandling(goTest *testing.T) {
 
 	for _, tt := range tests {
 		goTest.Run(tt.name, func(t *testing.T) {
-			result, err := s.Execute(tt.opts)
+			result, err := s.Execute(context.TODO(), tt.opts)
 			if err != nil && result == nil {
 				t.Fatalf("expected request to be prepared even on transport error: %v", err)
 			}
@@ -145,7 +146,7 @@ func TestService_Execute_ResolvesRequestAgainAfterPreScript(t *testing.T) {
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	resp, err := service.ExecuteRequest(ExecutionOptions{
+	resp, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method: "POST",
 		URL:    "{{base_url}}/{{resource_path}}",
 		Body:   "{{payload}}",
@@ -190,7 +191,7 @@ func TestService_Execute_UsesSelectedEnvironmentInsideLua(t *testing.T) {
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	_, err := service.ExecuteRequest(ExecutionOptions{
+	_, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method:           "GET",
 		URL:              "{{base_url}}/placeholder",
 		Headers:          map[string]any{},
@@ -217,7 +218,7 @@ func TestService_Execute_UsesCollectionVariablesWhenEnvironmentLacksKey(t *testi
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	_, err := service.ExecuteRequest(ExecutionOptions{
+	_, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method:  "GET",
 		URL:     "{{base_url}}/from-collection",
 		Headers: map[string]any{},
@@ -253,7 +254,7 @@ func TestService_Execute_EnvironmentWinsOverCollectionWhenValued(t *testing.T) {
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	_, err := service.ExecuteRequest(ExecutionOptions{
+	_, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method:  "GET",
 		URL:     "{{base_url}}/from-env",
 		Headers: map[string]any{},
@@ -284,7 +285,7 @@ func TestService_Execute_UsesCollectionVariablesInsideLuaFallback(t *testing.T) 
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	_, err := service.ExecuteRequest(ExecutionOptions{
+	_, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method:           "GET",
 		URL:              "http://placeholder.invalid",
 		Headers:          map[string]any{},
@@ -330,7 +331,7 @@ func TestService_Execute_ResolvesAuthAfterPreScript(t *testing.T) {
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	_, err := service.ExecuteRequest(ExecutionOptions{
+	_, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method:  "GET",
 		URL:     "{{base_url}}/secure",
 		Headers: map[string]any{},
@@ -373,7 +374,7 @@ func TestService_Execute_PreRequestAuthorizationWinsOverOAuth(t *testing.T) {
 		t.Fatalf("failed to select environment: %v", err)
 	}
 
-	_, err := service.ExecuteRequest(ExecutionOptions{
+	_, err := service.ExecuteRequest(context.TODO(), ExecutionOptions{
 		Method:  "GET",
 		URL:     "{{base_url}}/manual-auth",
 		Headers: map[string]any{},
@@ -395,7 +396,7 @@ func TestService_Execute_PreRequestAuthorizationWinsOverOAuth(t *testing.T) {
 func TestService_Execute_LeavesUnresolvedPlaceholdersUntouched(t *testing.T) {
 	service, _, _, _ := newTestService(t)
 
-	result, err := service.Execute(ExecutionOptions{
+	result, err := service.Execute(context.TODO(), ExecutionOptions{
 		Method:  "GET",
 		URL:     "http://example.com/{{missing}}",
 		Headers: map[string]any{},
