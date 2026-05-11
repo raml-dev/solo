@@ -3,10 +3,7 @@
 
 [tools]
 go = "1.26.1"
-# "go:github.com/raml-dev/addlicense" = "1.0.0"
-"go:mvdan.cc/garble" = "0.15.0"
 "go:github.com/wailsapp/wails/v2/cmd/wails" = "2.12.0"
 node = "24.15.0"
 "go:github.com/raml-dev/addlicense" = "1.0.0"
 python = "3.12"
-
