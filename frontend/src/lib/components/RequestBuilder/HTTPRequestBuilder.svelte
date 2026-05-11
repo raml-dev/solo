@@ -30,16 +30,16 @@
   } from "$src/lib/stores/tabStore.svelte";
   import {
     buildResolvedRequestPayload,
-    getHttpStatusString,
-    getStatusBadgeColor
+    detectResponseFormat,
+    getStatusBadgeColor,
+    prettifyXml
   } from "$src/lib/utils/http";
   import {
     resolveVariableEntries,
     resolveVariableTokens,
     type ResolvedVariableEntry
   } from "$src/lib/utils/variableResolution";
-  import { Execute, GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
-  import { collection, main } from "$wails/go/models";
+  import { GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import TerminalSolid from "flowbite-svelte-icons/TerminalSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
@@ -58,7 +58,6 @@
   let requestPaneTab = $state("Body");
   let response = $derived(getActiveTab()?.response ?? null);
   let requestError = $derived(getActiveTab()?.requestError ?? null);
-  let loading = $state(false);
   let responseTab = $state("body");
   let responseHeaderView = $state("received");
   let showSaveDialog = modalStack.createModal("save-request");
@@ -275,37 +274,6 @@
     onFieldChange();
   }
 
-  function prettifyXml(xmlStr: string): string {
-    const INDENT = "  ";
-    let formatted = "",
-      depth = 0;
-    const parts = xmlStr.replace(/>\s*</g, "><").split(/(<[^>]+>)/);
-    for (const part of parts) {
-      if (!part.trim()) continue;
-      if (part.startsWith("</")) {
-        depth = Math.max(0, depth - 1);
-        formatted += INDENT.repeat(depth) + part + "\n";
-      } else if (part.startsWith("<?") || part.startsWith("<!")) {
-        formatted += INDENT.repeat(depth) + part + "\n";
-      } else if (part.startsWith("<") && part.endsWith("/>")) {
-        formatted += INDENT.repeat(depth) + part + "\n";
-      } else if (part.startsWith("<")) {
-        formatted += INDENT.repeat(depth) + part + "\n";
-        depth++;
-      } else {
-        const lines = formatted.trimEnd().split("\n");
-        const last = lines[lines.length - 1];
-        if (last?.trimEnd().endsWith(">")) {
-          lines[lines.length - 1] = last + part;
-          formatted = lines.join("\n") + "\n";
-        } else {
-          formatted += INDENT.repeat(depth) + part + "\n";
-        }
-      }
-    }
-    return formatted.trim();
-  }
-
   function getResolvedVariableEntries(
     sessionValues: Record<string, string> = $sessionVarsStore
   ): ResolvedVariableEntry[] {
@@ -337,55 +305,15 @@
 
   // --- Send request ---
   async function sendRequest() {
-    loading = true;
-
     const tab = getActiveTab();
-    if (!tab) {
-      loading = false;
+    if (!tab) return;
+
+    if (tab.loading) {
+      await tabStore.cancelActiveTab();
       return;
     }
 
-    const requestHeaders = tab.headers
-      .filter((h) => h.enabled)
-      .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
-
-    const authConfig = collection.AuthConfiguration.createFrom({
-      ...tab.auth,
-      template: { ...(tab.auth.template || {}) }
-    });
-
-    const requestOptions = new main.RequestOptions({
-      body: tab.body,
-      headers: requestHeaders,
-      method: tab.verb,
-      url: tab.url,
-      collectionName: tab.collectionName || "",
-      auth: authConfig,
-      settings: tab.settings,
-      preRequestScript: tab.preRequestScript || "",
-      postResponseScript: tab.postResponseScript || ""
-    });
-
-    try {
-      const responseData = await Execute(requestOptions);
-      sessionVarsStore.refresh();
-      const rawBody = responseData.body ?? "";
-      const fmt = detectResponseFormat(responseData.headers ?? {});
-      const newResponse: TabResponse = {
-        status: responseData.statusCode,
-        statusText: getHttpStatusString(responseData.statusCode),
-        time: responseData.duration,
-        headers: responseData.headers,
-        requestHeaders: responseData.requestHeaders,
-        body: prettyPrint(rawBody, fmt)
-      };
-      tabStore.updateTabResponse(tab.id, newResponse, null);
-    } catch (error) {
-      const errorMsg = String(error);
-      tabStore.updateTabResponse(tab.id, null, errorMsg);
-    } finally {
-      loading = false;
-    }
+    await tabStore.executeActiveTab();
   }
 
   async function handleExportCurl() {
@@ -428,27 +356,6 @@
     } catch (err) {
       notifications.error("Failed to generate cURL", String(err));
     }
-  }
-
-  function prettyPrint(body: string, fmt: "json" | "xml" | "text"): string {
-    if (!body?.trim()) return body;
-    if (fmt === "json") {
-      try {
-        return JSON.stringify(JSON.parse(body), null, 2);
-      } catch {
-        // do nothing
-      }
-    }
-    if (fmt === "xml") return prettifyXml(body);
-    return body;
-  }
-
-  function detectResponseFormat(hdrs: Record<string, string>): "json" | "xml" | "text" {
-    const ct =
-      Object.entries(hdrs ?? {}).find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "";
-    if (ct.includes("json")) return "json";
-    if (ct.includes("xml") || ct.includes("html")) return "xml";
-    return "text";
   }
 
   function getResponseFormat(currentResponse: TabResponse | null): "json" | "xml" | "text" {
@@ -582,13 +489,12 @@
           onEnter={sendRequest}
         />
         <Button
-          color="primary"
+          color={tab.loading ? "red" : "primary"}
           class="w-24 px-6"
           size="sm"
           onclick={sendRequest}
-          disabled={loading}
         >
-          {loading ? "Sending..." : "Send"}
+          {tab.loading ? "Stop" : "Send"}
         </Button>
       </ButtonGroup>
     </div>
@@ -791,15 +697,19 @@
       </div>
 
       {#if !responseCollapsed}
-        {#if loading}
+        {#if tab.loading}
           <div class="flex h-full w-full items-center justify-center">
             <Spinner type="bars" color="primary" />
           </div>
         {:else if requestError}
-          <Alert color="red" class="m-3">
+          <Alert color={requestError === "Request cancelled" ? "yellow" : "red"} class="m-3">
             <div class="flex flex-col gap-1">
-              <span class="font-medium">Request failed</span>
-              <span class="text-sm">{requestError}</span>
+              <span class="font-medium">
+                {requestError === "Request cancelled" ? "Request cancelled" : "Request failed"}
+              </span>
+              {#if requestError !== "Request cancelled"}
+                <span class="text-sm">{requestError}</span>
+              {/if}
             </div>
           </Alert>
         {:else if response}

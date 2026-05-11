@@ -5,6 +5,7 @@ package requester
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -137,8 +138,8 @@ func (opts ExecutionOptions) resolve(ctx resolutionContext) ExecutionOptions {
 }
 
 // buildRequestFromOptions creates an http.Request from already-resolved options.
-func buildRequestFromOptions(opts ExecutionOptions) (*http.Request, error) {
-	request, err := http.NewRequest(opts.Method, opts.URL, bytes.NewReader([]byte(opts.Body)))
+func buildRequestFromOptions(ctx context.Context, opts ExecutionOptions) (*http.Request, error) {
+	request, err := http.NewRequestWithContext(ctx, opts.Method, opts.URL, bytes.NewReader([]byte(opts.Body)))
 	if err != nil {
 		return nil, err
 	}

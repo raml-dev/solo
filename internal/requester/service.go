@@ -225,7 +225,7 @@ func (s *Service) applyHostCookies(request *http.Request) {
 
 // injectAuthorization fetches and injects an OAuth2 bearer token when auth is enabled.
 // If Authorization is already set, it is left untouched.
-func (s *Service) injectAuthorization(request *http.Request, authCfg *collection.AuthConfiguration) error {
+func (s *Service) injectAuthorization(ctx context.Context, request *http.Request, authCfg *collection.AuthConfiguration) error {
 	if request == nil || authCfg == nil || !authCfg.Enabled || s.authManager == nil {
 		return nil
 	}
@@ -235,7 +235,7 @@ func (s *Service) injectAuthorization(request *http.Request, authCfg *collection
 		return nil
 	}
 
-	token, refreshed, err := s.authManager.GetOrRefreshToken(*authCfg)
+	token, refreshed, err := s.authManager.GetOrRefreshToken(ctx, *authCfg)
 	if err != nil {
 		slog.Error("Failed to get/refresh OAuth2 token", "error", err)
 		return fmt.Errorf("authentication failed: %w", err)
@@ -251,7 +251,7 @@ func (s *Service) injectAuthorization(request *http.Request, authCfg *collection
 
 // Execute prepares and sends the HTTP request using backend-owned resolution logic.
 // It resolves placeholders, runs pre-request scripts, and returns execution metadata.
-func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
+func (s *Service) Execute(ctx context.Context, opts ExecutionOptions) (*executeResult, error) {
 	slog.Debug("Preparing HTTP request",
 		"method", opts.Method,
 		"url", opts.URL,
@@ -275,7 +275,7 @@ func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
 	}
 	resolvedOpts := opts.resolve(resolutionCtx)
 
-	request, err := buildRequestFromOptions(resolvedOpts)
+	request, err := buildRequestFromOptions(ctx, resolvedOpts)
 	if err != nil {
 		slog.Error("Failed to create HTTP request", "method", resolvedOpts.Method, "url", resolvedOpts.URL, "error", err)
 		return nil, err
@@ -312,7 +312,7 @@ func (s *Service) Execute(opts ExecutionOptions) (*executeResult, error) {
 		envVars:        envVars,
 		collectionVars: collectionVars,
 	})
-	if err := s.injectAuthorization(request, finalAuthConfig); err != nil {
+	if err := s.injectAuthorization(ctx, request, finalAuthConfig); err != nil {
 		return nil, err
 	}
 
@@ -344,9 +344,9 @@ type ResponseData struct {
 
 // ExecuteRequest wraps Execute and produces the response payload sent to the frontend.
 // It also runs post-response scripts and emits request history events.
-func (s *Service) ExecuteRequest(opts ExecutionOptions) (*ResponseData, error) {
+func (s *Service) ExecuteRequest(ctx context.Context, opts ExecutionOptions) (*ResponseData, error) {
 	start := time.Now()
-	execResult, err := s.Execute(opts)
+	execResult, err := s.Execute(ctx, opts)
 	duration := time.Since(start).Milliseconds()
 
 	var resp *http.Response

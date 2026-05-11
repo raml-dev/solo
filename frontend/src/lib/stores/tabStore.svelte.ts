@@ -6,9 +6,12 @@
 import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
 import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
+import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
 import { filterInPlace } from "$src/lib/utils/helpers";
+import { detectResponseFormat, getHttpStatusString, prettyPrint } from "$src/lib/utils/http";
 import type { configuration as conf } from "$wails/go/models";
-import { collection } from "$wails/go/models";
+import { collection, main } from "$wails/go/models";
+import { CancelExecute, Execute } from "$wails/go/main/App";
 import { SvelteDate, SvelteSet } from "svelte/reactivity";
 
 export interface TabHeader {
@@ -53,6 +56,7 @@ export interface TabState {
   // --- response state preserved across tab switches ---
   response: TabResponse | null;
   requestError: string | null;
+  loading: boolean;
 }
 
 interface TabStoreState {
@@ -69,7 +73,10 @@ export const tabStoreState: TabStoreState = $state(initState());
 function initState() {
   const localStorageData = localStorage.getItem(STORAGE_KEY);
   if (localStorageData) {
-    return JSON.parse(localStorageData) as TabStoreState;
+    const state = JSON.parse(localStorageData) as TabStoreState;
+    // Ensure loading is always false on startup
+    state.tabs.forEach((t) => (t.loading = false));
+    return state;
   }
   return {
     tabs: [],
@@ -130,7 +137,8 @@ export function makeEmptyTab(): TabState {
     preRequestScript: "",
     postResponseScript: "",
     response: null,
-    requestError: null
+    requestError: null,
+    loading: false
   };
   tabStoreState.tabs.push(newTab);
   tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
@@ -192,6 +200,7 @@ export function openTab(
     tab.postResponseScript = meta.postResponseScript ?? "";
     tab.response = null;
     tab.requestError = null;
+    tab.loading = false;
     tabStoreState.activeTabIndex = tabIndexToReplace;
     storeTabsInLocalStorage();
     return;
@@ -220,7 +229,8 @@ export function openTab(
     preRequestScript: meta.preRequestScript ?? "",
     postResponseScript: meta.postResponseScript ?? "",
     response: null,
-    requestError: null
+    requestError: null,
+    loading: false
   };
   tabStoreState.tabs.push(newTab);
   tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
@@ -423,6 +433,71 @@ export function closeNonDirtyTabs(): void {
   storeTabsInLocalStorage();
 }
 
+export async function executeActiveTab() {
+  const tab = getActiveTab();
+  if (!tab || tab.loading) return;
+
+  tab.loading = true;
+
+  const requestHeaders = tab.headers
+    .filter((h) => h.enabled)
+    .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
+
+  const authConfig = collection.AuthConfiguration.createFrom({
+    ...tab.auth,
+    template: { ...(tab.auth.template || {}) }
+  });
+
+  const requestOptions = new main.RequestOptions({
+    requestId: tab.id,
+    body: tab.body,
+    headers: requestHeaders,
+    method: tab.verb,
+    url: tab.url,
+    collectionName: tab.collectionName || "",
+    auth: authConfig,
+    settings: tab.settings,
+    preRequestScript: tab.preRequestScript || "",
+    postResponseScript: tab.postResponseScript || ""
+  });
+
+  try {
+    const responseData = await Execute(requestOptions);
+    sessionVarsStore.refresh();
+    const rawBody = responseData.body ?? "";
+    const fmt = detectResponseFormat(responseData.headers ?? {});
+    const newResponse: TabResponse = {
+      status: responseData.statusCode,
+      statusText: getHttpStatusString(responseData.statusCode),
+      time: responseData.duration,
+      headers: responseData.headers,
+      requestHeaders: responseData.requestHeaders,
+      body: prettyPrint(rawBody, fmt)
+    };
+    updateTabResponse(tab.id, newResponse, null);
+  } catch (error) {
+    const errorMsg = String(error);
+    if (errorMsg.includes("context canceled")) {
+      updateTabResponse(tab.id, null, "Request cancelled");
+    } else {
+      updateTabResponse(tab.id, null, errorMsg);
+    }
+  } finally {
+    tab.loading = false;
+  }
+}
+
+export async function cancelActiveTab() {
+  const tab = getActiveTab();
+  if (!tab || !tab.loading) return;
+
+  try {
+    await CancelExecute(tab.id);
+  } catch (error) {
+    notifications.error("Failed to cancel request", String(error));
+  }
+}
+
 export const tabStore = {
   makeEmptyTab,
   openTab,
@@ -436,5 +511,7 @@ export const tabStore = {
   renameTabsByRequestId,
   removeTabsByCollection,
   removeTabsByRequests,
-  storeTabsInLocalStorage
+  storeTabsInLocalStorage,
+  executeActiveTab,
+  cancelActiveTab
 };

@@ -29,6 +29,7 @@ import (
 	"solo/internal/tools"
 	"solo/internal/troubleshooting"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -49,6 +50,9 @@ type App struct {
 	authManager        *auth.AuthManager
 	runner             *runner.Runner
 	gitManager         *git.Manager
+
+	cancelFuncs map[string]context.CancelFunc
+	cancelMu    sync.Mutex
 }
 
 func (a *App) emitEvent(eventName string, data ...interface{}) {
@@ -66,6 +70,7 @@ func (a *App) emitEvent(eventName string, data ...interface{}) {
 }
 
 type RequestOptions struct {
+	RequestID          string                                 `json:"requestId"`
 	Method             string                                 `json:"method"`
 	URL                string                                 `json:"url"`
 	Headers            map[string]any                         `json:"headers"`
@@ -171,6 +176,7 @@ func NewApp() *App {
 		authManager:        am,
 		runner:             runner.NewRunner(service),
 		gitManager:         git.NewManager(),
+		cancelFuncs:        make(map[string]context.CancelFunc),
 	}
 }
 
@@ -210,6 +216,25 @@ func (a *App) ForceQuit() {
 
 // Execute performs the HTTP request with the given options.
 func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if options.RequestID != "" {
+		a.cancelMu.Lock()
+		// If there is already a cancel func for this ID, cancel it
+		if oldCancel, exists := a.cancelFuncs[options.RequestID]; exists {
+			oldCancel()
+		}
+		a.cancelFuncs[options.RequestID] = cancel
+		a.cancelMu.Unlock()
+
+		defer func() {
+			a.cancelMu.Lock()
+			delete(a.cancelFuncs, options.RequestID)
+			a.cancelMu.Unlock()
+		}()
+	}
+
 	execOpts := requester.ExecutionOptions{
 		Method:              options.Method,
 		URL:                 options.URL,
@@ -222,7 +247,23 @@ func (a *App) Execute(options RequestOptions) (*requester.ResponseData, error) {
 		PreRequestScript:    options.PreRequestScript,
 		PostResponseScript:  options.PostResponseScript,
 	}
-	return a.service.ExecuteRequest(execOpts)
+	resp, err := a.service.ExecuteRequest(ctx, execOpts)
+	if err != nil && errors.Is(err, context.Canceled) {
+		slog.Info("Request cancelled by user", "requestId", options.RequestID)
+	}
+	return resp, err
+}
+
+// CancelExecute cancels an ongoing request execution.
+func (a *App) CancelExecute(requestID string) {
+	a.cancelMu.Lock()
+	defer a.cancelMu.Unlock()
+
+	if cancel, exists := a.cancelFuncs[requestID]; exists {
+		cancel()
+		delete(a.cancelFuncs, requestID)
+		slog.Info("Sent cancel signal to request", "requestId", requestID)
+	}
 }
 
 // GetSessionVars returns the current in-memory session variables set by scripts.
