@@ -19,7 +19,7 @@ type Folder struct {
 	Requests            []Request `json:"requests"`
 	Name                string    `json:"name"`
 	Id                  string    `json:"id"`
-	Folders          []Folder  `json:"folders"`
+	Folders             []Folder  `json:"folders"`
 }
 
 func NewFolder(name string) Folder {

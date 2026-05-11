@@ -25,7 +25,7 @@ func IsValidMonoFontFamily(family string) bool {
 	}
 	for _, f := range families {
 		if f.Family == family {
-      // found the requested family, return true only if it is monospace
+			// found the requested family, return true only if it is monospace
 			return f.IsMonospace
 		}
 	}

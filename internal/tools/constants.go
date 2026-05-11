@@ -6,7 +6,7 @@ package tools
 const (
 	APP_NAME              = "solo"
 	APP_NAME_CAPITALIZED  = "Solo"
-  MAIN_DIR              = "solo"
+	MAIN_DIR              = "solo"
 	CONFIG_JSON_FILENAME  = "config.json"
 	CONFIG_COLLECTION_DIR = "collections"
 	CONFIG_HOST_DIR       = "hosts"
@@ -19,7 +19,7 @@ const (
 	DEFAULT_THEME                      = "ocean"
 	DEFAULT_THEME_LIGHT                = "ocean"
 	DEFAULT_THEME_DARK                 = "nord"
-  MIN_BASE_FONT_SIZE_PX              = 11
+	MIN_BASE_FONT_SIZE_PX              = 11
 	MAX_BASE_FONT_SIZE_PX              = 18
 	DEFAULT_BASE_FONT_SIZE_PX          = 14
 	DEFAULT_CHECK_UPDATES              = true
