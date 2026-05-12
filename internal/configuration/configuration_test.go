@@ -34,9 +34,6 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 			cfg.General.IncludePrereleaseUpdates,
 		)
 	}
-	if cfg.General.BaseFontSizePx != tools.DEFAULT_BASE_FONT_SIZE_PX {
-		t.Errorf("Expected default base font size %d, got %d", tools.DEFAULT_BASE_FONT_SIZE_PX, cfg.General.BaseFontSizePx)
-	}
 	if cfg.General.DefaultFontFamily != "" {
 		t.Errorf("Expected default sans font family to be empty, got %q", cfg.General.DefaultFontFamily)
 	}
@@ -101,37 +98,11 @@ func TestConfigurationManager_LegacyTypographyFieldsRemainUnsetOnLoad(t *testing
 	}
 
 	cfg := cm.Get()
-	if cfg.General.BaseFontSizePx != 0 {
-		t.Errorf("Expected legacy base font size to remain unset (0), got %d", cfg.General.BaseFontSizePx)
-	}
 	if cfg.General.DefaultFontFamily != "" {
 		t.Errorf("Expected legacy sans font family to remain empty, got %q", cfg.General.DefaultFontFamily)
 	}
 	if cfg.General.MonoFontFamily != "" {
 		t.Errorf("Expected legacy mono font family to remain empty, got %q", cfg.General.MonoFontFamily)
-	}
-}
-
-func TestConfigurationManager_ClampsInvalidBaseFontSize(t *testing.T) {
-	testutil.IsolateUserConfigDir(t)
-
-	cm, err := NewConfigurationManager()
-	if err != nil {
-		t.Fatalf("NewConfigurationManager failed: %v", err)
-	}
-
-	if err := cm.SetBaseFontSizePx(99); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	cm2, err := NewConfigurationManager()
-	if err != nil {
-		t.Fatalf("Second NewConfigurationManager failed: %v", err)
-	}
-
-	cfg2 := cm2.Get()
-	if cfg2.General.BaseFontSizePx != tools.DEFAULT_BASE_FONT_SIZE_PX {
-		t.Errorf("Expected clamped base font size %d, got %d", tools.DEFAULT_BASE_FONT_SIZE_PX, cfg2.General.BaseFontSizePx)
 	}
 }
 

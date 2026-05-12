@@ -3,8 +3,6 @@
 
 package fonts
 
-import "solo/internal/tools"
-
 func IsValidFontFamily(family string) bool {
 	families, err := ListFamilies(false)
 	if err != nil {
@@ -32,9 +30,3 @@ func IsValidMonoFontFamily(family string) bool {
 	return false
 }
 
-func ClampBaseFontSizePx(v int) int {
-	if v < tools.MIN_BASE_FONT_SIZE_PX || v > tools.MAX_BASE_FONT_SIZE_PX {
-		return tools.DEFAULT_BASE_FONT_SIZE_PX
-	}
-	return v
-}

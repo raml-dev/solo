@@ -378,14 +378,6 @@ func (a *App) GetThemeByName(themeName string) (*theme.Theme, error) {
 
 // Font Management Methods
 
-// SetBaseFontSizePx sets the base font size and persists the change.
-func (a *App) SetBaseFontSizePx(fontSize int) error {
-	if a.configManager == nil {
-		return fmt.Errorf("configuration manager not initialized")
-	}
-	return a.configManager.SetBaseFontSizePx(fontSize)
-}
-
 // SetDefaultFontFamily sets the default font family and persists the change.
 func (a *App) SetDefaultFontFamily(fontFamily string) error {
 	if a.configManager == nil {

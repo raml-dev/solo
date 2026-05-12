@@ -61,7 +61,6 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			CheckForUpdates:          tools.DEFAULT_CHECK_UPDATES,
 			IncludePrereleaseUpdates: tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES,
 			DebugMode:                false,
-			BaseFontSizePx:           tools.DEFAULT_BASE_FONT_SIZE_PX,
 			DefaultFontFamily:        "",
 			MonoFontFamily:           "",
 		},
@@ -226,14 +225,6 @@ func (cm *ConfigurationManager) DeleteCustomTheme(themeName string) error {
 	cm.mu.Unlock()
 
 	return cm.Save(configToSave)
-}
-
-func (cm *ConfigurationManager) SetBaseFontSizePx(fontSize int) error {
-	cm.mu.Lock()
-	cm.config.General.BaseFontSizePx = fonts.ClampBaseFontSizePx(fontSize)
-	configToSave := *cm.config
-	cm.mu.Unlock()
-	return cm.Save(configToSave) // Save immediately to persist
 }
 
 func (cm *ConfigurationManager) SetDefaultFontFamily(fontFamily string) error {
