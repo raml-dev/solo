@@ -9,9 +9,9 @@ import { notifications } from "$src/lib/stores/notificationStore";
 import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
 import { filterInPlace } from "$src/lib/utils/helpers";
 import { detectResponseFormat, getHttpStatusString, prettyPrint } from "$src/lib/utils/http";
+import { CancelExecute, Execute } from "$wails/go/main/App";
 import type { configuration as conf } from "$wails/go/models";
 import { collection, main } from "$wails/go/models";
-import { CancelExecute, Execute } from "$wails/go/main/App";
 import { SvelteDate, SvelteSet } from "svelte/reactivity";
 
 export interface TabHeader {

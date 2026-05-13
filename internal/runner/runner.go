@@ -33,10 +33,11 @@ func (r *Runner) Run(ctx context.Context, opts RunnerOptions, onResult func(Runn
 
 	// Dispatcher
 	go func() {
+	loop:
 		for i := 0; i < opts.Iterations; i++ {
 			select {
 			case <-ctx.Done():
-				return
+				break loop
 			case sem <- struct{}{}:
 				wg.Add(1)
 				go func(idx int) {
