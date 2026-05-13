@@ -53,6 +53,9 @@ type App struct {
 
 	cancelFuncs map[string]context.CancelFunc
 	cancelMu    sync.Mutex
+
+	runnerCancel context.CancelFunc
+	runnerMu     sync.Mutex
 }
 
 func (a *App) emitEvent(eventName string, data ...interface{}) {
@@ -118,6 +121,22 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 		return runner.RunnerStats{}, fmt.Errorf("runner not initialized")
 	}
 
+	ctx, cancel := context.WithCancel(a.ctx)
+
+	a.runnerMu.Lock()
+	if a.runnerCancel != nil {
+		a.runnerCancel()
+	}
+	a.runnerCancel = cancel
+	a.runnerMu.Unlock()
+
+	defer func() {
+		a.runnerMu.Lock()
+		a.runnerCancel = nil
+		a.runnerMu.Unlock()
+		cancel()
+	}()
+
 	execOpts := requester.ExecutionOptions{
 		Method:              options.Method,
 		URL:                 options.URL,
@@ -142,7 +161,17 @@ func (a *App) RunParallel(options RequestOptions, concurrency, iterations int, s
 		a.emitEvent("runner:result", res)
 	}
 
-	return a.runner.Run(a.ctx, opts, onResult), nil
+	return a.runner.Run(ctx, opts, onResult), nil
+}
+
+// CancelRunner stops an in-progress RunParallel execution.
+func (a *App) CancelRunner() {
+	a.runnerMu.Lock()
+	defer a.runnerMu.Unlock()
+
+	if a.runnerCancel != nil {
+		a.runnerCancel()
+	}
 }
 
 // dummy function to emit RunnerResult

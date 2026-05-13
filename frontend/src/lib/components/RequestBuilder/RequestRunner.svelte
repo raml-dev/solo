@@ -13,14 +13,12 @@
   import TableBody from "flowbite-svelte/TableBody.svelte";
   import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
   import TableBodyRow from "flowbite-svelte/TableBodyRow.svelte";
-  import TableHead from "flowbite-svelte/TableHead.svelte";
+  import TableHead from "flowbite-svelte/Table.svelte";
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import { RunParallel } from "$wails/go/main/App";
+  import StopOutline from "flowbite-svelte-icons/StopOutline.svelte";
   import type { configuration as conf } from "$wails/go/models";
-  import { main, runner } from "$wails/go/models";
-  import { EventsOff, EventsOn } from "$wails/runtime";
-  import { onMount } from "svelte";
+  import { runnerStore, runnerStoreState } from "$src/lib/stores/runnerStore.svelte";
   import { getHttpStatusString, getStatusBadgeColor } from "$src/lib/utils/http";
 
   interface Header {
@@ -55,56 +53,26 @@
   let concurrency = $state(5);
   let iterations = $state(20);
   let stopOnError = $state(false);
-  let running = $state(false);
-  let progress = $state(0);
 
-  let stats: runner.RunnerStats | null = $state(null);
-  let lastResults: runner.RunnerResult[] = $state([]);
-  const MAX_VISIBLE_RESULTS = 50;
-
-  async function startRun() {
-    if (running) return;
-
-    running = true;
-    progress = 0;
-    stats = null;
-    lastResults = [];
-
+  function startRun() {
     const requestHeaders = headers
       .filter((h) => h.enabled)
       .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
 
-    const requestOptions = new main.RequestOptions({
-      body,
-      headers: requestHeaders,
+    runnerStore.startRun({
       method,
       url,
-      collectionName: collectionName,
-      settings: settings,
+      body,
+      headers: requestHeaders,
+      collectionName,
+      settings,
       preRequestScript: preRequestScript || "",
-      postResponseScript: postResponseScript || ""
+      postResponseScript: postResponseScript || "",
+      concurrency,
+      iterations,
+      stopOnError
     });
-
-    try {
-      EventsOn("runner:result", (res: runner.RunnerResult) => {
-        lastResults = [res, ...lastResults].slice(0, MAX_VISIBLE_RESULTS);
-        progress = Math.min(100, (lastResults.length / iterations) * 100);
-      });
-
-      stats = await RunParallel(requestOptions, concurrency, iterations, stopOnError);
-    } catch (err) {
-      console.error("Runner failed", err);
-    } finally {
-      running = false;
-      EventsOff("runner:result");
-    }
   }
-
-  onMount(() => {
-    return () => {
-      EventsOff("runner:result");
-    };
-  });
 </script>
 
 <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
@@ -121,7 +89,7 @@
           min="1"
           max="100"
           size="sm"
-          disabled={running}
+          disabled={runnerStoreState.running}
           aria-label="Number of parallel workers"
         />
       </div>
@@ -134,41 +102,55 @@
           bind:value={iterations}
           min="1"
           size="sm"
-          disabled={running}
+          disabled={runnerStoreState.running}
           aria-label="Total number of requests to perform"
         />
       </div>
 
       <div class="flex flex-col gap-1 md:pt-6">
-        <Toggle bind:checked={stopOnError} size="small" disabled={running}>Stop on error</Toggle>
+        <Toggle bind:checked={stopOnError} size="small" disabled={runnerStoreState.running}
+          >Stop on error</Toggle
+        >
       </div>
 
-      <Button
-        color="primary"
-        class="ml-auto"
-        onclick={startRun}
-        disabled={running}
-        loading={running}
-      >
-        {running ? "Running..." : "Start Run"}
-      </Button>
+      <div class="ml-auto flex gap-2">
+        <Button
+          color="primary"
+          onclick={startRun}
+          disabled={runnerStoreState.running}
+          loading={runnerStoreState.running}
+        >
+          {runnerStoreState.running ? "Running..." : "Start Run"}
+        </Button>
+        {#if runnerStoreState.running}
+          <Button color="red" onclick={runnerStore.stopRun}>
+            <StopOutline class="me-2 h-4 w-4" />
+            Stop
+          </Button>
+        {/if}
+      </div>
     </div>
   </div>
 
-  {#if running || stats || lastResults.length > 0}
+  {#if runnerStoreState.running || runnerStoreState.stats || runnerStoreState.lastResults.length > 0}
     <div class="space-y-3">
-      {#if running}
-        <Progressbar {progress} size="h-2" color="blue" labelInside={false} />
+      {#if runnerStoreState.running}
+        <Progressbar
+          progress={runnerStoreState.progress}
+          size="h-2"
+          color="blue"
+          labelInside={false}
+        />
       {/if}
 
-      {#if stats}
+      {#if runnerStoreState.stats}
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div
             class="flex flex-col gap-0.5 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
           >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">Requests</span>
             <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
-              >{stats.successCount} / {stats.totalRequests}</span
+              >{runnerStoreState.stats.successCount} / {runnerStoreState.stats.totalRequests}</span
             >
           </div>
           <div
@@ -176,7 +158,7 @@
           >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">Avg Latency</span>
             <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
-              >{stats.avgLatency}ms</span
+              >{runnerStoreState.stats.avgLatency}ms</span
             >
           </div>
           <div
@@ -184,7 +166,7 @@
           >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">P95</span>
             <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
-              >{stats.p95Latency}ms</span
+              >{runnerStoreState.stats.p95Latency}ms</span
             >
           </div>
           <div
@@ -192,7 +174,7 @@
           >
             <span class="text-xs text-neutral-500 dark:text-neutral-400">Throughput</span>
             <span class="text-base font-semibold text-neutral-900 dark:text-neutral-100"
-              >{stats.requestsPerSec.toFixed(2)} req/s</span
+              >{runnerStoreState.stats.requestsPerSec.toFixed(2)} req/s</span
             >
           </div>
         </div>
@@ -207,7 +189,7 @@
             <TableHeadCell>Result</TableHeadCell>
           </TableHead>
           <TableBody>
-            {#each lastResults as res (res.index)}
+            {#each runnerStoreState.lastResults as res (res.index)}
               <TableBodyRow>
                 <TableBodyCell>{res.index + 1}</TableBodyCell>
                 <TableBodyCell>
