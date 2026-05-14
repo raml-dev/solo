@@ -13,10 +13,11 @@
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Progressbar from "flowbite-svelte/Progressbar.svelte";
-  import { default as Table, default as TableHead } from "flowbite-svelte/Table.svelte";
+  import Table from "flowbite-svelte/Table.svelte";
   import TableBody from "flowbite-svelte/TableBody.svelte";
   import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
   import TableBodyRow from "flowbite-svelte/TableBodyRow.svelte";
+  import TableHead from "flowbite-svelte/TableHead.svelte";
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
 
