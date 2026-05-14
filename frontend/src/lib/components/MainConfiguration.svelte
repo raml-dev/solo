@@ -7,15 +7,25 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import About from "$src/lib/components/Settings/About.svelte";
+  import FontFamilySelect from "$src/lib/components/Settings/FontFamilySelect.svelte";
   import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
   import {
     configurationStore,
     configurationStoreState,
     saveConfig
   } from "$src/lib/stores/configurationStore.svelte";
+  import { fontListsStoreState } from "$src/lib/stores/fontListsStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { updateStore } from "$src/lib/stores/updateStore.svelte";
+  import {
+    DEFAULT_ZOOM_LEVEL,
+    ZOOM_LEVEL_OPTIONS,
+    getZoomPercent,
+    resetZoom,
+    setZoomLevel,
+    zoomState
+  } from "$src/lib/stores/zoomStore.svelte";
   import type { ThemeMode } from "$src/lib/theme/themeModel";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
@@ -37,6 +47,7 @@
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import Radio from "flowbite-svelte/Radio.svelte";
+  import Select from "flowbite-svelte/Select.svelte";
   import Table from "flowbite-svelte/Table.svelte";
   import TableBody from "flowbite-svelte/TableBody.svelte";
   import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
@@ -81,6 +92,12 @@
   // 4) $derived vars
   const themesState = $derived(configurationStoreState.allThemes);
   const configSaveStatus = $derived(configurationStoreState.saveStatus);
+  const fontLists = $derived(fontListsStoreState.lists);
+  const fontsLoading = $derived(fontListsStoreState.loading);
+  const fontsReady = $derived(fontListsStoreState.ready);
+  const fontsError = $derived(fontListsStoreState.error);
+  const zoomLevel = $derived(zoomState.level);
+  const selectedZoomLevel = $derived(String(zoomLevel.toFixed(2)));
 
   // 5) helper functions
   function findTheme(id: string) {
@@ -91,9 +108,16 @@
     return label || "Untitled Theme";
   }
 
+  function ensureTypographyDefaults(settings?: configuration.GeneralSettings | null) {
+    if (!settings) return;
+    settings.defaultFontFamily ??= "";
+    settings.monoFontFamily ??= "";
+  }
+
   function createEmptyConfig() {
     const cfg = new configuration.Configuration();
     cfg.general = new configuration.GeneralSettings({ debugMode: true });
+    ensureTypographyDefaults(cfg.general);
     cfg.request = new configuration.RequestSettings();
     cfg.customThemes = [] as theme.Theme[];
     return cfg;
@@ -126,6 +150,44 @@
       (configurationStoreState.config.general.themeMode as ThemeMode) || "system"
     );
     saveConfig();
+  }
+
+  async function handleZoomLevelChange(event: Event) {
+    const target = event.currentTarget as HTMLSelectElement | null;
+    if (!target) return;
+
+    await setZoomLevel(Number(target.value));
+  }
+
+  async function handleSansFontChange() {
+    ensureTypographyDefaults(configurationStoreState.config.general);
+    try {
+      await configurationStore.changeDefaultFontFamily(
+        configurationStoreState.config.general.defaultFontFamily
+      );
+    } catch {
+      /* shown by store */
+    }
+  }
+
+  async function handleMonoFontChange() {
+    ensureTypographyDefaults(configurationStoreState.config.general);
+    try {
+      await configurationStore.changeMonoFontFamily(
+        configurationStoreState.config.general.monoFontFamily
+      );
+    } catch {
+      /* shown by store */
+    }
+  }
+
+  async function resetAppearanceSettings() {
+    await resetZoom();
+    try {
+      await configurationStore.resetTypography();
+    } catch {
+      /* shown by store */
+    }
   }
 
   async function handleLogsExport() {
@@ -286,6 +348,7 @@
         if (disposed) return;
         defaultConfig = new configuration.Configuration(loaded);
         if (!defaultConfig.general) defaultConfig.general = new configuration.GeneralSettings();
+        ensureTypographyDefaults(defaultConfig.general);
         if (!defaultConfig.request) defaultConfig.request = new configuration.RequestSettings();
       } catch (err) {
         if (disposed) return;
@@ -298,9 +361,6 @@
       modalStack.destroyModal(deleteHostModal.id);
     };
   });
-
-  // 7) $effects
-  // none
 </script>
 
 <div class="flex h-full gap-6">
@@ -364,6 +424,70 @@
               {/if}
             </Button>
           {/each}
+        </div>
+
+        <div
+          class="flex flex-col gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+        >
+          <div>
+            <h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Typography</h3>
+            <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+              Adjust the interface zoom and choose custom sans and monospace fonts.
+            </p>
+          </div>
+
+          <div class="flex max-w-xs flex-col gap-1">
+            <Label for="zoom-level">Zoom level</Label>
+            <Select id="zoom-level" value={selectedZoomLevel} onchange={handleZoomLevelChange}>
+              {#each ZOOM_LEVEL_OPTIONS as level (level)}
+                <option value={level.toFixed(2)}>{getZoomPercent(level)}%</option>
+              {/each}
+            </Select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-1">
+              <Label for="sans-font-family">Interface font</Label>
+              <FontFamilySelect
+                id="sans-font-family"
+                bind:value={configurationStoreState.config.general.defaultFontFamily}
+                families={fontLists.allDefault}
+                placeholder="Default interface font"
+                searchPlaceholder="Search interface fonts"
+                previewKind="sans"
+                disabled={!fontsReady}
+                onchange={handleSansFontChange}
+              />
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <Label for="mono-font-family">Monospace font</Label>
+              <FontFamilySelect
+                id="mono-font-family"
+                bind:value={configurationStoreState.config.general.monoFontFamily}
+                families={fontLists.allMono}
+                placeholder="Default monospace font"
+                searchPlaceholder="Search monospace fonts"
+                previewKind="mono"
+                disabled={!fontsReady}
+                onchange={handleMonoFontChange}
+              />
+            </div>
+          </div>
+
+          {#if fontsLoading}
+            <Helper color="gray">Loading system fonts...</Helper>
+          {:else if fontsError}
+            <Helper color="red">Could not load system fonts.</Helper>
+          {:else}
+            <Helper color="gray">Changes apply immediately and save automatically.</Helper>
+          {/if}
+
+          <div class="flex justify-end">
+            <Button color="light" onclick={resetAppearanceSettings}
+              >Reset fonts and zoom ({getZoomPercent(DEFAULT_ZOOM_LEVEL)}%)</Button
+            >
+          </div>
         </div>
       </div>
     {:else if activeSection === "general"}

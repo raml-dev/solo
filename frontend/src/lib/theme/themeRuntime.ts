@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { sanitizeFontFamily } from "$src/lib/fonts";
 import { THEME_PRESETS, type ThemeMode, type ThemeSeeds } from "$src/lib/theme/themeModel";
 import type { theme } from "$wails/go/models";
 
@@ -102,6 +103,25 @@ export function applyTheme(themeDef: theme.Theme) {
     root.style.setProperty("--color-surface", seeds.surface);
   } else {
     root.style.removeProperty("--color-surface");
+  }
+}
+
+export function applyTypography(opts: { defaultFontFamily?: string; monoFontFamily?: string }) {
+  const root = document.documentElement.style;
+
+  const defaultFontFamily = sanitizeFontFamily(opts.defaultFontFamily);
+  const monoFontFamily = sanitizeFontFamily(opts.monoFontFamily);
+
+  if (defaultFontFamily) {
+    root.setProperty("--font-sans", `"${defaultFontFamily}", sans-serif`);
+  } else {
+    root.removeProperty("--font-sans");
+  }
+
+  if (monoFontFamily) {
+    root.setProperty("--font-mono", `"${monoFontFamily}", monospace`);
+  } else {
+    root.removeProperty("--font-mono");
   }
 }
 

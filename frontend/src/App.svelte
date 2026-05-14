@@ -13,20 +13,24 @@
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
   import RequestTabBar from "$src/lib/components/RequestBuilder/RequestTabBar.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
-  import { configurationStore } from "$src/lib/stores/configurationStore.svelte";
+  import {
+    configurationStore,
+    configurationStoreState
+  } from "$src/lib/stores/configurationStore.svelte";
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import { fontListsStore } from "$src/lib/stores/fontListsStore.svelte";
   import { historyStore } from "$src/lib/stores/historyStore.svelte";
   import { hasOpenModals, modalStack } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
   import { updateStore } from "$src/lib/stores/updateStore.svelte";
   import { initWindowDimensions } from "$src/lib/stores/windowDimensionsStore.svelte";
-  import { initZoom } from "$src/lib/stores/zoomStore.svelte";
+  import { initZoom, registerZoomShortcuts } from "$src/lib/stores/zoomStore.svelte";
   import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
   import { EventsOn } from "$wails/runtime/runtime";
+  import ClockArrowOutline from "flowbite-svelte-icons/ClockArrowOutline.svelte";
   import EditOutline from "flowbite-svelte-icons/EditOutline.svelte";
   import GlobeOutline from "flowbite-svelte-icons/GlobeOutline.svelte";
-  import ClockArrowOutline from "flowbite-svelte-icons/ClockArrowOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
@@ -40,7 +44,7 @@
   const environmentManagerModal = modalStack.createModal("app-environments");
 
   let historyOpen = $state(false);
-  let consoleHeight = $state(260);
+  let historyPaneHeight = $state(260);
   const MIN_HEIGHT = 120;
   const MAX_HEIGHT = 700;
   let isResizing = $state(false);
@@ -49,6 +53,8 @@
 
   async function initializeApp() {
     await configurationStore.init();
+    initZoom(configurationStoreState.config.general.zoomLevel);
+    void fontListsStore.init();
     await Promise.all([
       updateStore.init(),
       collectionStore.loadCollections(),
@@ -73,7 +79,7 @@
   function startResize(e: MouseEvent) {
     isResizing = true;
     resizeStartY = e.clientY;
-    resizeStartH = consoleHeight;
+    resizeStartH = historyPaneHeight;
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", stopResize);
   }
@@ -81,7 +87,7 @@
   function onMouseMove(e: MouseEvent) {
     const delta = resizeStartY - e.clientY;
 
-    consoleHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartH + delta));
+    historyPaneHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartH + delta));
   }
 
   function stopResize() {
@@ -187,7 +193,7 @@
       });
     });
 
-    const zoomCleanup = initZoom();
+    const zoomCleanup = registerZoomShortcuts();
     const windowDimensionsCleanup = initWindowDimensions();
 
     return () => {
@@ -260,14 +266,14 @@
       {#if historyOpen}
         <div
           class="flex flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
-          style="height: {consoleHeight}px"
+          style="height: {historyPaneHeight}px"
         >
           <button
             type="button"
             class="h-1 shrink-0 cursor-row-resize bg-neutral-200 p-0 transition-colors hover:bg-primary-400 dark:bg-neutral-700"
             class:bg-primary-500={isResizing}
             onmousedown={startResize}
-            aria-label="Resize console"
+            aria-label="Resize history"
           ></button>
           <div class="min-h-0 flex-1 overflow-hidden">
             <History />
