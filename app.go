@@ -394,6 +394,14 @@ func (a *App) SetMonoFontFamily(fontFamily string) error {
 	return a.configManager.SetMonoFontFamily(fontFamily)
 }
 
+// SetZoomLevel updates and persists the UI zoom level.
+func (a *App) SetZoomLevel(level float64) error {
+	if a.configManager == nil {
+		return fmt.Errorf("configuration manager not initialized")
+	}
+	return a.configManager.SetZoomLevel(level)
+}
+
 // Host Management Methods
 
 // GetAllHosts returns a list of all configured hosts.

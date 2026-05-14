@@ -20,6 +20,13 @@ type ConfigurationManager struct {
 	config    *Configuration
 }
 
+func clampZoomLevel(level float64) float64 {
+	if level < tools.MIN_ZOOM_LEVEL || level > tools.MAX_ZOOM_LEVEL {
+		return tools.DEFAULT_ZOOM_LEVEL
+	}
+	return level
+}
+
 func NewConfigurationManager() (*ConfigurationManager, error) {
 	// Setup paths
 	baseDir, err := tools.GetOrCreateConfigDir()
@@ -63,6 +70,7 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			DebugMode:                false,
 			DefaultFontFamily:        "",
 			MonoFontFamily:           "",
+			ZoomLevel:                tools.DEFAULT_ZOOM_LEVEL,
 		},
 		Request: RequestSettings{
 			TimeoutSeconds:   tools.DEFAULT_TIMEOUT_SECONDS,
@@ -87,6 +95,7 @@ func (cm *ConfigurationManager) load() error {
 		slog.Error("Failed to parse configuration file", "error", err)
 		return err
 	}
+	cfg.General.ZoomLevel = clampZoomLevel(cfg.General.ZoomLevel)
 
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -112,6 +121,8 @@ func (cm *ConfigurationManager) Get() Configuration {
 }
 
 func (cm *ConfigurationManager) Save(cfg Configuration) error {
+	cfg.General.ZoomLevel = clampZoomLevel(cfg.General.ZoomLevel)
+
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		slog.Error("Failed to marshal configuration", "error", err)
@@ -253,4 +264,12 @@ func (cm *ConfigurationManager) SetMonoFontFamily(fontFamily string) error {
 		return cm.Save(configToSave) // Save immediately to persist
 	}
 	return fmt.Errorf("invalid font family: %s", fontFamily)
+}
+
+func (cm *ConfigurationManager) SetZoomLevel(level float64) error {
+	cm.mu.Lock()
+	cm.config.General.ZoomLevel = clampZoomLevel(level)
+	configToSave := *cm.config
+	cm.mu.Unlock()
+	return cm.Save(configToSave)
 }

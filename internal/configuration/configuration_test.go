@@ -40,10 +40,14 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	if cfg.General.MonoFontFamily != "" {
 		t.Errorf("Expected default mono font family to be empty, got %q", cfg.General.MonoFontFamily)
 	}
+	if cfg.General.ZoomLevel != tools.DEFAULT_ZOOM_LEVEL {
+		t.Errorf("Expected default zoom level %v, got %v", tools.DEFAULT_ZOOM_LEVEL, cfg.General.ZoomLevel)
+	}
 
 	newTheme := "nord"
 	cfg.General.ActiveTheme = newTheme
 	cfg.General.IncludePrereleaseUpdates = true
+	cfg.General.ZoomLevel = 1.2
 	if err := cm.Save(cfg); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
@@ -58,6 +62,9 @@ func TestConfigurationManager_Defaults(t *testing.T) {
 	}
 	if !cfg2.General.IncludePrereleaseUpdates {
 		t.Error("Expected prerelease toggle to persist")
+	}
+	if cfg2.General.ZoomLevel != 1.2 {
+		t.Errorf("Expected zoom level 1.2 to persist, got %v", cfg2.General.ZoomLevel)
 	}
 }
 
@@ -104,6 +111,9 @@ func TestConfigurationManager_LegacyTypographyFieldsRemainUnsetOnLoad(t *testing
 	if cfg.General.MonoFontFamily != "" {
 		t.Errorf("Expected legacy mono font family to remain empty, got %q", cfg.General.MonoFontFamily)
 	}
+	if cfg.General.ZoomLevel != tools.DEFAULT_ZOOM_LEVEL {
+		t.Errorf("Expected legacy zoom level to default to %v, got %v", tools.DEFAULT_ZOOM_LEVEL, cfg.General.ZoomLevel)
+	}
 }
 
 func TestConfigurationManager_AllowsEmptyFontFamilies(t *testing.T) {
@@ -143,6 +153,100 @@ func TestConfigurationManager_RejectsInvalidFontFamilies(t *testing.T) {
 	}
 	if err := cm.SetMonoFontFamily("definitely-not-a-real-font"); err == nil {
 		t.Fatal("SetMonoFontFamily should reject invalid non-empty font family")
+	}
+}
+
+func TestConfigurationManager_SetZoomLevelPersistsValidValue(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	cm, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("NewConfigurationManager failed: %v", err)
+	}
+
+	if err := cm.SetZoomLevel(1.2); err != nil {
+		t.Fatalf("SetZoomLevel failed: %v", err)
+	}
+
+	cfg := cm.Get()
+	if cfg.General.ZoomLevel != 1.2 {
+		t.Fatalf("Expected in-memory zoom level 1.2, got %v", cfg.General.ZoomLevel)
+	}
+
+	cm2, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("Second NewConfigurationManager failed: %v", err)
+	}
+
+	if cm2.Get().General.ZoomLevel != 1.2 {
+		t.Fatalf("Expected persisted zoom level 1.2, got %v", cm2.Get().General.ZoomLevel)
+	}
+}
+
+func TestConfigurationManager_SetZoomLevelClampsInvalidValues(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	testCases := []struct {
+		name  string
+		level float64
+	}{
+		{name: "zero", level: 0},
+		{name: "negative", level: -1},
+		{name: "too large", level: 9},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cm, err := NewConfigurationManager()
+			if err != nil {
+				t.Fatalf("NewConfigurationManager failed: %v", err)
+			}
+
+			if err := cm.SetZoomLevel(tc.level); err != nil {
+				t.Fatalf("SetZoomLevel failed: %v", err)
+			}
+
+			if got := cm.Get().General.ZoomLevel; got != tools.DEFAULT_ZOOM_LEVEL {
+				t.Fatalf("Expected clamped in-memory zoom level %v, got %v", tools.DEFAULT_ZOOM_LEVEL, got)
+			}
+
+			cm2, err := NewConfigurationManager()
+			if err != nil {
+				t.Fatalf("Second NewConfigurationManager failed: %v", err)
+			}
+
+			if got := cm2.Get().General.ZoomLevel; got != tools.DEFAULT_ZOOM_LEVEL {
+				t.Fatalf("Expected clamped persisted zoom level %v, got %v", tools.DEFAULT_ZOOM_LEVEL, got)
+			}
+		})
+	}
+}
+
+func TestConfigurationManager_SaveClampsInvalidZoomLevel(t *testing.T) {
+	testutil.IsolateUserConfigDir(t)
+
+	cm, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("NewConfigurationManager failed: %v", err)
+	}
+
+	cfg := cm.Get()
+	cfg.General.ZoomLevel = 99
+	if err := cm.Save(cfg); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	if got := cm.Get().General.ZoomLevel; got != tools.DEFAULT_ZOOM_LEVEL {
+		t.Fatalf("Expected clamped in-memory zoom level %v, got %v", tools.DEFAULT_ZOOM_LEVEL, got)
+	}
+
+	cm2, err := NewConfigurationManager()
+	if err != nil {
+		t.Fatalf("Second NewConfigurationManager failed: %v", err)
+	}
+
+	if got := cm2.Get().General.ZoomLevel; got != tools.DEFAULT_ZOOM_LEVEL {
+		t.Fatalf("Expected clamped persisted zoom level %v, got %v", tools.DEFAULT_ZOOM_LEVEL, got)
 	}
 }
 
