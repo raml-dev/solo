@@ -41,6 +41,7 @@
   } from "$src/lib/utils/variableResolution";
   import { GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
+  import StopSolid from "flowbite-svelte-icons/StopSolid.svelte";
   import TerminalSolid from "flowbite-svelte-icons/TerminalSolid.svelte";
   import Alert from "flowbite-svelte/Alert.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
@@ -494,7 +495,11 @@
           size="sm"
           onclick={sendRequest}
         >
-          {tab.loading ? "Stop" : "Send"}
+          {#if tab.loading}
+            <StopSolid class="me-2 h-4 w-4" /> Stop
+          {:else}
+            Send
+          {/if}
         </Button>
       </ButtonGroup>
     </div>

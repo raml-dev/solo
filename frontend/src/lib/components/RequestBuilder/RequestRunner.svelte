@@ -4,22 +4,21 @@
 -->
 
 <script lang="ts">
+  import { runnerStore, runnerStoreState } from "$src/lib/stores/runnerStore.svelte";
+  import { getHttpStatusString, getStatusBadgeColor } from "$src/lib/utils/http";
+  import type { configuration as conf } from "$wails/go/models";
+  import StopSolid from "flowbite-svelte-icons/StopSolid.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Progressbar from "flowbite-svelte/Progressbar.svelte";
-  import Table from "flowbite-svelte/Table.svelte";
+  import { default as Table, default as TableHead } from "flowbite-svelte/Table.svelte";
   import TableBody from "flowbite-svelte/TableBody.svelte";
   import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
   import TableBodyRow from "flowbite-svelte/TableBodyRow.svelte";
-  import TableHead from "flowbite-svelte/Table.svelte";
   import TableHeadCell from "flowbite-svelte/TableHeadCell.svelte";
   import Toggle from "flowbite-svelte/Toggle.svelte";
-  import StopOutline from "flowbite-svelte-icons/StopOutline.svelte";
-  import type { configuration as conf } from "$wails/go/models";
-  import { runnerStore, runnerStoreState } from "$src/lib/stores/runnerStore.svelte";
-  import { getHttpStatusString, getStatusBadgeColor } from "$src/lib/utils/http";
 
   interface Header {
     id: string;
@@ -124,7 +123,7 @@
         </Button>
         {#if runnerStoreState.running}
           <Button color="red" onclick={runnerStore.stopRun}>
-            <StopOutline class="me-2 h-4 w-4" />
+            <StopSolid class="me-2 h-4 w-4" />
             Stop
           </Button>
         {/if}
