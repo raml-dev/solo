@@ -616,16 +616,7 @@
           onChange={onFieldChange}
         />
       {:else if requestPaneTab === "Runner"}
-        <RequestRunner
-          method={tab.verb}
-          url={tab.url}
-          body={tab.body}
-          collectionName={tab.collectionName || ""}
-          bind:headers={tab.headers}
-          bind:settings={tab.settings}
-          preRequestScript={tab.preRequestScript}
-          postResponseScript={tab.postResponseScript}
-        />
+        <RequestRunner />
       {/if}
     </div>
 
