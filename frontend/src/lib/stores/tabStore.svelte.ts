@@ -9,9 +9,10 @@ import { notifications } from "$src/lib/stores/notificationStore";
 import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
 import { filterInPlace } from "$src/lib/utils/helpers";
 import { detectResponseFormat, getHttpStatusString, prettyPrint } from "$src/lib/utils/http";
-import { CancelExecute, Execute } from "$wails/go/main/App";
+import { CancelExecute, CancelRunner, Execute, RunParallel } from "$wails/go/main/App";
 import type { configuration as conf } from "$wails/go/models";
-import { collection, main } from "$wails/go/models";
+import { collection, main, runner } from "$wails/go/models";
+import { EventsOff, EventsOn } from "$wails/runtime";
 import { SvelteDate, SvelteSet } from "svelte/reactivity";
 
 export interface TabHeader {
@@ -53,10 +54,21 @@ export interface TabState {
   settings: conf.RequestSettingsOverride;
   preRequestScript: string;
   postResponseScript: string;
+  runnerConfig: {
+    concurrency: number;
+    iterations: number;
+    stopOnError: boolean;
+  };
   // --- response state preserved across tab switches ---
   response: TabResponse | null;
   requestError: string | null;
   loading: boolean;
+  runnerState: {
+    running: boolean;
+    progress: number;
+    stats: runner.RunnerStats | null;
+    lastResults: runner.RunnerResult[];
+  };
 }
 
 interface TabStoreState {
@@ -67,6 +79,7 @@ interface TabStoreState {
 const EMPTY_TAB_LABEL = "New Request";
 const MAX_OPEN_TABS = 15;
 const STORAGE_KEY = "tabs";
+const MAX_VISIBLE_RESULTS = 50;
 
 export const tabStoreState: TabStoreState = $state(initState());
 
@@ -75,7 +88,22 @@ function initState() {
   if (localStorageData) {
     const state = JSON.parse(localStorageData) as TabStoreState;
     // Ensure loading is always false on startup
-    state.tabs.forEach((t) => (t.loading = false));
+    state.tabs.forEach((t) => {
+      t.loading = false;
+      t.runnerState = {
+        running: false,
+        progress: 0,
+        stats: null,
+        lastResults: []
+      };
+      if (!t.runnerConfig) {
+        t.runnerConfig = {
+          concurrency: 1,
+          iterations: 1,
+          stopOnError: false
+        };
+      }
+    });
     return state;
   }
   return {
@@ -136,9 +164,20 @@ export function makeEmptyTab(): TabState {
     settings: normalizeRequestSettings(),
     preRequestScript: "",
     postResponseScript: "",
+    runnerConfig: {
+      concurrency: 1,
+      iterations: 1,
+      stopOnError: false
+    },
     response: null,
     requestError: null,
-    loading: false
+    loading: false,
+    runnerState: {
+      running: false,
+      progress: 0,
+      stats: null,
+      lastResults: []
+    }
   };
   tabStoreState.tabs.push(newTab);
   tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
@@ -198,9 +237,20 @@ export function openTab(
     tab.settings = normalizeRequestSettings(meta.settings);
     tab.preRequestScript = meta.preRequestScript ?? "";
     tab.postResponseScript = meta.postResponseScript ?? "";
+    tab.runnerConfig = {
+      concurrency: 1,
+      iterations: 1,
+      stopOnError: false
+    };
     tab.response = null;
     tab.requestError = null;
     tab.loading = false;
+    tab.runnerState = {
+      running: false,
+      progress: 0,
+      stats: null,
+      lastResults: []
+    };
     tabStoreState.activeTabIndex = tabIndexToReplace;
     storeTabsInLocalStorage();
     return;
@@ -228,9 +278,20 @@ export function openTab(
     settings: normalizeRequestSettings(meta.settings),
     preRequestScript: meta.preRequestScript ?? "",
     postResponseScript: meta.postResponseScript ?? "",
+    runnerConfig: {
+      concurrency: 1,
+      iterations: 1,
+      stopOnError: false
+    },
     response: null,
     requestError: null,
-    loading: false
+    loading: false,
+    runnerState: {
+      running: false,
+      progress: 0,
+      stats: null,
+      lastResults: []
+    }
   };
   tabStoreState.tabs.push(newTab);
   tabStoreState.activeTabIndex = tabStoreState.tabs.length - 1;
@@ -274,6 +335,7 @@ export function updateTabFormState(
       | "isDirty"
       | "preRequestScript"
       | "postResponseScript"
+      | "runnerConfig"
     >
   >
 ) {
@@ -413,7 +475,16 @@ export function removeTabsByRequests(requestIds: string[]) {
 }
 
 export function storeTabsInLocalStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tabStoreState));
+  const stateToSave = {
+    ...tabStoreState,
+    tabs: tabStoreState.tabs.map((t) => {
+      const tabCopy = { ...t };
+      // @ts-expect-error - we want to remove this property before serialization
+      delete tabCopy.runnerState;
+      return tabCopy;
+    })
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
 }
 
 /**
@@ -498,6 +569,64 @@ export async function cancelActiveTab() {
   }
 }
 
+export async function startRunnerActiveTab() {
+  const tab = getActiveTab();
+  if (!tab || tab.runnerState.running) return;
+
+  tab.runnerState.running = true;
+  tab.runnerState.progress = 0;
+  tab.runnerState.stats = null;
+  tab.runnerState.lastResults = [];
+
+  const requestHeaders = tab.headers
+    .filter((h) => h.enabled)
+    .reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {} as Record<string, string>);
+
+  const requestOptions = new main.RequestOptions({
+    body: tab.body,
+    headers: requestHeaders,
+    method: tab.verb,
+    url: tab.url,
+    collectionName: tab.collectionName || "",
+    settings: tab.settings,
+    preRequestScript: tab.preRequestScript || "",
+    postResponseScript: tab.postResponseScript || ""
+  });
+
+  try {
+    EventsOn("runner:result", (res: runner.RunnerResult) => {
+      tab.runnerState.lastResults = [res, ...tab.runnerState.lastResults].slice(
+        0,
+        MAX_VISIBLE_RESULTS
+      );
+      tab.runnerState.progress = Math.min(
+        100,
+        (tab.runnerState.lastResults.length / tab.runnerConfig.iterations) * 100
+      );
+    });
+
+    tab.runnerState.stats = await RunParallel(
+      requestOptions,
+      tab.runnerConfig.concurrency,
+      tab.runnerConfig.iterations,
+      tab.runnerConfig.stopOnError
+    );
+  } catch (err) {
+    console.error("Runner failed", err);
+  } finally {
+    tab.runnerState.running = false;
+    EventsOff("runner:result");
+  }
+}
+
+export async function cancelRunnerActiveTab() {
+  try {
+    await CancelRunner();
+  } catch (err) {
+    console.error("Failed to stop runner", err);
+  }
+}
+
 export const tabStore = {
   makeEmptyTab,
   openTab,
@@ -513,5 +642,7 @@ export const tabStore = {
   removeTabsByRequests,
   storeTabsInLocalStorage,
   executeActiveTab,
-  cancelActiveTab
+  cancelActiveTab,
+  startRunnerActiveTab,
+  cancelRunnerActiveTab
 };
