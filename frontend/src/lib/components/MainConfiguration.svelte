@@ -377,7 +377,7 @@
   </nav>
 
   <!-- Content -->
-  <div class="min-w-0 flex-1 overflow-y-auto">
+  <div class="min-w-0 flex-1 overflow-y-auto pr-3 pl-1">
     {#if activeSection === "appearance"}
       <div class="flex flex-col gap-4">
         <div>
@@ -402,27 +402,30 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-3">
-          {#each themesState || [] as t (t.id)}
-            <Button
-              color="light"
-              class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {configurationStoreState
-                .config.general.activeTheme === t.id
-                ? 'border-primary-500 ring-2 ring-primary-500'
-                : 'border-neutral-200 dark:border-neutral-700'}"
-              onclick={() => handleThemeSelect(t.id)}
-            >
-              <div class="mb-2 w-full overflow-hidden rounded">
-                <ThemePreview seeds={t.config?.seeds} />
-              </div>
-              <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                {formatThemeName(t.label)}
-              </p>
-              {#if configurationStoreState.config.general.activeTheme === t.id}
-                <Badge color="primary" class="mt-1">Active</Badge>
-              {/if}
-            </Button>
-          {/each}
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Color scheme</p>
+          <div class="grid grid-cols-3 gap-3">
+            {#each themesState || [] as t (t.id)}
+              <Button
+                color="light"
+                class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {configurationStoreState
+                  .config.general.activeTheme === t.id
+                  ? 'border-primary-500 ring-0 inset-ring-2 inset-ring-primary-500 focus:ring-0'
+                  : 'border-neutral-200 dark:border-neutral-700'}"
+                onclick={() => handleThemeSelect(t.id)}
+              >
+                <div class="mb-2 w-full overflow-hidden rounded">
+                  <ThemePreview seeds={t.config?.seeds} />
+                </div>
+                <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                  {formatThemeName(t.label)}
+                </p>
+                {#if configurationStoreState.config.general.activeTheme === t.id}
+                  <Badge color="primary" class="mt-1">Active</Badge>
+                {/if}
+              </Button>
+            {/each}
+          </div>
         </div>
 
         <div
