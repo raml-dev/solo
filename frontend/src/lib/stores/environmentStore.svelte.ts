@@ -4,6 +4,7 @@
  */
 
 import { notifications } from "$src/lib/stores/notificationStore";
+import { DEFAULT_ENV_NAME } from "$src/lib/utils/constants";
 import {
   CreateEnvironment,
   DeleteEnvironment,
@@ -33,8 +34,6 @@ const initialState: EnvironmentState = {
   loading: false,
   renameEnvironmentName: null
 };
-
-export const DEFAULT_ENV_NAME = "default";
 
 export const environmentStoreState = $state<EnvironmentState>({ ...initialState });
 

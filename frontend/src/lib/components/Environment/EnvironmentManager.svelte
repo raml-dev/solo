@@ -16,13 +16,10 @@
   import ImportModal from "$src/lib/components/imports/ImportModal.svelte";
   import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import LocalImportPane from "$src/lib/components/imports/LocalImportPane.svelte";
-  import {
-    DEFAULT_ENV_NAME,
-    environmentStore,
-    environmentStoreState
-  } from "$src/lib/stores/environmentStore.svelte";
+  import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
+  import { DEFAULT_ENV_NAME } from "$src/lib/utils/constants";
   import {
     ExportEnvironment,
     GetGitEnvironmentStatus,

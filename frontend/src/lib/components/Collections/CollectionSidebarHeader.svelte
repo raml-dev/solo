@@ -6,6 +6,7 @@
 <script lang="ts">
   import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
   import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
+  import { COLLECTION_OUTLINE_BUTTON_CLASSES } from "$src/lib/utils/constants";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
   import CloseSidebarSolid from "flowbite-svelte-icons/CloseSidebarSolid.svelte";
   import OpenSidebarSolid from "flowbite-svelte-icons/OpenSidebarSolid.svelte";
@@ -13,9 +14,6 @@
   import Button from "flowbite-svelte/Button.svelte";
   import ButtonGroup from "flowbite-svelte/ButtonGroup.svelte";
   import Input from "flowbite-svelte/Input.svelte";
-
-  const OUTLINE_BUTTON_CLASSES =
-    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   interface CollectionSidebarHeaderProps {
     collapsed: boolean;
@@ -49,9 +47,9 @@
         aria-label="Toggle collection list sidebar"
       >
         {#if collapsed}
-          <OpenSidebarSolid class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`} />
+          <OpenSidebarSolid class={`h-6 w-6 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
         {:else}
-          <CloseSidebarSolid class={`h-6 w-6 ${OUTLINE_BUTTON_CLASSES}`} />
+          <CloseSidebarSolid class={`h-6 w-6 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
         {/if}
       </button>
       {#if !collapsed}

@@ -4,6 +4,11 @@
  */
 
 import {
+  WINDOW_DEFAULT_HEIGHT,
+  WINDOW_DEFAULT_WIDTH,
+  WINDOW_STATE_STORAGE_KEY
+} from "$src/lib/utils/constants";
+import {
   WindowFullscreen,
   WindowGetSize,
   WindowIsFullscreen,
@@ -18,10 +23,6 @@ interface WindowState {
   maximised: boolean;
   fullscreen: boolean;
 }
-
-const WINDOW_STATE_KEY = "windowState";
-const DEFAULT_WIDTH = 1024;
-const DEFAULT_HEIGHT = 768;
 
 /**
  *  windowState holds the window status:
@@ -56,21 +57,21 @@ async function trackWindowState(): Promise<void> {
 
 function loadWindowState(): WindowState {
   try {
-    const saved = localStorage.getItem(WINDOW_STATE_KEY);
+    const saved = localStorage.getItem(WINDOW_STATE_STORAGE_KEY);
     if (saved) return JSON.parse(saved) as WindowState;
   } catch {
     // ignore malformed data
   }
   return {
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
+    width: WINDOW_DEFAULT_WIDTH,
+    height: WINDOW_DEFAULT_HEIGHT,
     maximised: false,
     fullscreen: false
   };
 }
 
 export function saveWindowState() {
-  localStorage.setItem(WINDOW_STATE_KEY, JSON.stringify(windowState));
+  localStorage.setItem(WINDOW_STATE_STORAGE_KEY, JSON.stringify(windowState));
 }
 
 export function initWindowDimensions() {

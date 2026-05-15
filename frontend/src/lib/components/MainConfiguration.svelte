@@ -19,14 +19,13 @@
   import { notifications } from "$src/lib/stores/notificationStore";
   import { updateStore } from "$src/lib/stores/updateStore.svelte";
   import {
-    DEFAULT_ZOOM_LEVEL,
-    ZOOM_LEVEL_OPTIONS,
     getZoomPercent,
     resetZoom,
     setZoomLevel,
     zoomState
   } from "$src/lib/stores/zoomStore.svelte";
   import type { ThemeMode } from "$src/lib/theme/themeModel";
+  import { DEFAULT_ZOOM_LEVEL, ZOOM_LEVEL_OPTIONS } from "$src/lib/utils/constants";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
     DeleteHost,

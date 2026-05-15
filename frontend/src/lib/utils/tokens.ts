@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { ENV_TOKEN_REGEX } from "$src/lib/utils/constants";
 import { Decoration, EditorView, ViewPlugin, type DecorationSet } from "@codemirror/view";
 
 export interface TextSegment {
@@ -76,8 +77,6 @@ interface EnvTokenDecorationPluginOptions {
 interface TokenizedEditorThemeOptions {
   singleLine?: boolean;
 }
-
-const ENV_TOKEN_REGEX = /\{\{([^{}\r\n]+?)\}\}/g;
 
 export function createEnvTokenSnippet(key: string): string {
   return `{{${key}}}`;

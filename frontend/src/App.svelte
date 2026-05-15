@@ -27,6 +27,10 @@
   import { initWindowDimensions } from "$src/lib/stores/windowDimensionsStore.svelte";
   import { initZoom, registerZoomShortcuts } from "$src/lib/stores/zoomStore.svelte";
   import { flowbiteTheme } from "$src/lib/theme/flowbiteCustomTheme";
+  import {
+    APP_HISTORY_PANE_MAX_HEIGHT,
+    APP_HISTORY_PANE_MIN_HEIGHT
+  } from "$src/lib/utils/constants";
   import { EventsOn } from "$wails/runtime/runtime";
   import ClockArrowOutline from "flowbite-svelte-icons/ClockArrowOutline.svelte";
   import EditOutline from "flowbite-svelte-icons/EditOutline.svelte";
@@ -45,8 +49,6 @@
 
   let historyOpen = $state(false);
   let historyPaneHeight = $state(260);
-  const MIN_HEIGHT = 120;
-  const MAX_HEIGHT = 700;
   let isResizing = $state(false);
   let resizeStartY = 0;
   let resizeStartH = 0;
@@ -87,7 +89,10 @@
   function onMouseMove(e: MouseEvent) {
     const delta = resizeStartY - e.clientY;
 
-    historyPaneHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, resizeStartH + delta));
+    historyPaneHeight = Math.min(
+      APP_HISTORY_PANE_MAX_HEIGHT,
+      Math.max(APP_HISTORY_PANE_MIN_HEIGHT, resizeStartH + delta)
+    );
   }
 
   function stopResize() {

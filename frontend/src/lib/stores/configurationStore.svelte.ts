@@ -13,6 +13,13 @@ import {
   ensureSystemThemeModeListener,
   setActiveThemeMode
 } from "$src/lib/theme/themeRuntime";
+import {
+  DEFAULT_ZOOM_LEVEL,
+  MAX_ZOOM_LEVEL,
+  MIN_ZOOM_LEVEL,
+  SAVE_DEBOUNCE_MS,
+  SAVED_STATUS_TIMEOUT_MS
+} from "$src/lib/utils/constants";
 import { debounce } from "$src/lib/utils/debounce";
 import {
   GetAllThemes,
@@ -23,12 +30,6 @@ import {
   UpdateConfiguration
 } from "$wails/go/main/App";
 import { configuration, theme } from "$wails/go/models";
-
-const SAVE_DEBOUNCE_MS = 800;
-const SAVED_STATUS_TIMEOUT_MS = 1500;
-const DEFAULT_ZOOM_LEVEL = 1;
-const MIN_ZOOM_LEVEL = 0.5;
-const MAX_ZOOM_LEVEL = 2.0;
 
 type TypographySettingsSnapshot = {
   defaultFontFamily: string;

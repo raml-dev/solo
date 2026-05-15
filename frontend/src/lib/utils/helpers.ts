@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { MAX_REQUESTS_BEFORE_TRIM } from "$src/lib/utils/constants";
 import type { collection } from "$wails/go/models";
-
-const MAX_REQUESTS_BEFORE_TRIM = 99;
 
 /**
  * Filters the array _in place_ to only retain elements matching the given predicate.

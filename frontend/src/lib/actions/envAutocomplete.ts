@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import {
+  ENV_AUTOCOMPLETE_DEFAULT_INSERT_MODE,
+  ENV_AUTOCOMPLETE_DEFAULT_MAX_ITEMS,
+  ENV_AUTOCOMPLETE_DEFAULT_TRIGGER
+} from "$src/lib/utils/constants";
+
 export interface EnvAutocompleteEntry {
   key: string;
   value: string;
@@ -38,10 +44,6 @@ interface MatchContext {
   end: number;
   query: string;
 }
-
-const DEFAULT_TRIGGER = "{{";
-const DEFAULT_MAX_ITEMS = 8;
-const DEFAULT_INSERT_MODE = "value";
 
 function getCaretCoordinates(
   node: TextFieldElement,
@@ -131,7 +133,7 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
     const caret = node.selectionStart;
     if (caret === null) return null;
 
-    const trigger = currentOptions.trigger ?? DEFAULT_TRIGGER;
+    const trigger = currentOptions.trigger ?? ENV_AUTOCOMPLETE_DEFAULT_TRIGGER;
     const beforeCaret = node.value.slice(0, caret);
     const openIndex = beforeCaret.lastIndexOf(trigger);
 
@@ -157,7 +159,7 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
     filtered = entries
       .filter((entry) => !query || entry.key.toLowerCase().includes(query))
       .sort((a, b) => a.key.localeCompare(b.key))
-      .slice(0, currentOptions.maxItems ?? DEFAULT_MAX_ITEMS);
+      .slice(0, currentOptions.maxItems ?? ENV_AUTOCOMPLETE_DEFAULT_MAX_ITEMS);
   }
 
   function setMenuPosition() {
@@ -185,7 +187,7 @@ export function envAutocomplete(node: TextFieldElement, options: EnvAutocomplete
   function applySelection(entry: EnvAutocompleteEntry) {
     if (!matchContext) return;
 
-    const insertMode = currentOptions.insertMode ?? DEFAULT_INSERT_MODE;
+    const insertMode = currentOptions.insertMode ?? ENV_AUTOCOMPLETE_DEFAULT_INSERT_MODE;
     const replacement = insertMode === "token" ? `{{${entry.key}}}` : entry.value;
 
     node.setRangeText(replacement, matchContext.start, matchContext.end, "end");

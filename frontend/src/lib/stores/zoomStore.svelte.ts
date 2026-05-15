@@ -5,17 +5,13 @@
 
 import { setConfigZoomLevel } from "$src/lib/stores/configurationStore.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
+import {
+  DEFAULT_ZOOM_LEVEL,
+  MAX_ZOOM_LEVEL,
+  MIN_ZOOM_LEVEL,
+  ZOOM_STEP
+} from "$src/lib/utils/constants";
 import { SetZoomLevel as persistZoomLevel } from "$wails/go/main/App";
-
-const ZOOM_STEP = 0.1;
-export const DEFAULT_ZOOM_LEVEL = 1;
-export const MIN_ZOOM_LEVEL = 0.5;
-export const MAX_ZOOM_LEVEL = 2.0;
-
-export const ZOOM_LEVEL_OPTIONS = Array.from(
-  { length: Math.round((MAX_ZOOM_LEVEL - MIN_ZOOM_LEVEL) / ZOOM_STEP) + 1 },
-  (_, index) => Number((MIN_ZOOM_LEVEL + index * ZOOM_STEP).toFixed(2))
-);
 
 export const zoomState = $state({
   level: DEFAULT_ZOOM_LEVEL,

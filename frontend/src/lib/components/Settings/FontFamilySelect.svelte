@@ -4,6 +4,12 @@
 -->
 
 <script lang="ts">
+  import {
+    FONT_FAMILY_SELECT_LIST_OVERSCAN,
+    FONT_FAMILY_SELECT_LIST_ROW_HEIGHT,
+    FONT_FAMILY_SELECT_PANEL_GAP,
+    FONT_FAMILY_SELECT_PREFERRED_PANEL_HEIGHT
+  } from "$src/lib/utils/constants";
   import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
   import ChevronDownOutline from "flowbite-svelte-icons/ChevronDownOutline.svelte";
   import Button from "flowbite-svelte/Button.svelte";
@@ -20,11 +26,6 @@
     disabled?: boolean;
     onchange?: () => void;
   }
-
-  const LIST_ROW_HEIGHT = 36;
-  const LIST_OVERSCAN = 5;
-  const PANEL_GAP = 8;
-  const PREFERRED_PANEL_HEIGHT = 360;
 
   let {
     id,
@@ -57,28 +58,49 @@
   });
 
   const selectedLabel = $derived(value || "Default");
-  const availableSpaceAbove = $derived(Math.max(0, rootTop - PANEL_GAP));
-  const availableSpaceBelow = $derived(Math.max(0, viewportHeight - rootBottom - PANEL_GAP));
+  const availableSpaceAbove = $derived(Math.max(0, rootTop - FONT_FAMILY_SELECT_PANEL_GAP));
+  const availableSpaceBelow = $derived(
+    Math.max(0, viewportHeight - rootBottom - FONT_FAMILY_SELECT_PANEL_GAP)
+  );
   const opensUpward = $derived(
-    availableSpaceBelow < PREFERRED_PANEL_HEIGHT && availableSpaceAbove > availableSpaceBelow
+    availableSpaceBelow < FONT_FAMILY_SELECT_PREFERRED_PANEL_HEIGHT &&
+      availableSpaceAbove > availableSpaceBelow
   );
   const panelMaxHeight = $derived(
     Math.max(
       180,
-      Math.min(PREFERRED_PANEL_HEIGHT, opensUpward ? availableSpaceAbove : availableSpaceBelow)
+      Math.min(
+        FONT_FAMILY_SELECT_PREFERRED_PANEL_HEIGHT,
+        opensUpward ? availableSpaceAbove : availableSpaceBelow
+      )
     )
   );
   const visibleRowCount = $derived(
-    Math.max(1, Math.ceil(Math.max(listViewportHeight, LIST_ROW_HEIGHT) / LIST_ROW_HEIGHT))
+    Math.max(
+      1,
+      Math.ceil(
+        Math.max(listViewportHeight, FONT_FAMILY_SELECT_LIST_ROW_HEIGHT) /
+          FONT_FAMILY_SELECT_LIST_ROW_HEIGHT
+      )
+    )
   );
-  const visibleStartIndex = $derived(Math.floor(listScrollTop / LIST_ROW_HEIGHT));
-  const renderStartIndex = $derived(Math.max(0, visibleStartIndex - LIST_OVERSCAN));
+  const visibleStartIndex = $derived(
+    Math.floor(listScrollTop / FONT_FAMILY_SELECT_LIST_ROW_HEIGHT)
+  );
+  const renderStartIndex = $derived(
+    Math.max(0, visibleStartIndex - FONT_FAMILY_SELECT_LIST_OVERSCAN)
+  );
   const renderEndIndex = $derived(
-    Math.min(visibleFamilies.length, visibleStartIndex + visibleRowCount + LIST_OVERSCAN)
+    Math.min(
+      visibleFamilies.length,
+      visibleStartIndex + visibleRowCount + FONT_FAMILY_SELECT_LIST_OVERSCAN
+    )
   );
   const renderedFamilies = $derived(visibleFamilies.slice(renderStartIndex, renderEndIndex));
-  const topSpacerPx = $derived(renderStartIndex * LIST_ROW_HEIGHT);
-  const bottomSpacerPx = $derived((visibleFamilies.length - renderEndIndex) * LIST_ROW_HEIGHT);
+  const topSpacerPx = $derived(renderStartIndex * FONT_FAMILY_SELECT_LIST_ROW_HEIGHT);
+  const bottomSpacerPx = $derived(
+    (visibleFamilies.length - renderEndIndex) * FONT_FAMILY_SELECT_LIST_ROW_HEIGHT
+  );
 
   function quoteCssFontFamily(family: string) {
     return `"${family.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
@@ -133,8 +155,8 @@
       return;
     }
 
-    const optionTop = (activeIndex - 1) * LIST_ROW_HEIGHT;
-    const optionBottom = optionTop + LIST_ROW_HEIGHT;
+    const optionTop = (activeIndex - 1) * FONT_FAMILY_SELECT_LIST_ROW_HEIGHT;
+    const optionBottom = optionTop + FONT_FAMILY_SELECT_LIST_ROW_HEIGHT;
     const viewportTop = listElement.scrollTop;
     const viewportBottom = viewportTop + listViewportHeight;
 
