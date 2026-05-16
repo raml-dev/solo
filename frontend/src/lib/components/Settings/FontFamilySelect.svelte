@@ -28,6 +28,8 @@
     searchPlaceholder: string;
     previewKind: "sans" | "mono";
     disabled?: boolean;
+    class?: string;
+    triggerClass?: string;
     onchange?: (value: string) => void;
   }
 
@@ -39,6 +41,8 @@
     searchPlaceholder,
     previewKind,
     disabled = false,
+    class: className = "",
+    triggerClass = "w-full justify-between px-3 py-2 text-left",
     onchange = () => {}
   }: Props = $props();
 
@@ -227,9 +231,11 @@
   bind:open={isOpen}
   {disabled}
   triggerText={selectedLabel}
+  {triggerClass}
   panelClass="max-h-65 p-3"
   onopen={handleOpen}
   onclose={handleClose}
+  class={className}
 >
   <div class="flex min-h-0 flex-1 flex-col gap-3">
     <Input

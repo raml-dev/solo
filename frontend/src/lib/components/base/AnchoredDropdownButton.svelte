@@ -15,6 +15,7 @@
     id: string;
     open?: boolean;
     disabled?: boolean;
+    class?: string;
     triggerText?: string;
     triggerTextClass?: string;
     triggerClass?: string;
@@ -31,6 +32,7 @@
     id,
     open = $bindable(false),
     disabled = false,
+    class: className = "",
     triggerText = "",
     triggerTextClass = "truncate text-sm",
     triggerClass = "w-full justify-between px-3 py-2 text-left",
@@ -188,7 +190,7 @@
   }}
 />
 
-<div class="relative w-full" bind:this={rootElement} bind:offsetWidth={triggerWidth}>
+<div class={["relative w-full", className]} bind:this={rootElement} bind:offsetWidth={triggerWidth}>
   <Button
     {id}
     color="light"

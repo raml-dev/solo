@@ -4,19 +4,28 @@
 -->
 
 <script lang="ts">
+  import AnchoredDropdownButton from "$src/lib/components/base/AnchoredDropdownButton.svelte";
   import { getZoomPercent } from "$src/lib/stores/zoomStore.svelte";
   import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
-  import AnchoredDropdownButton from "$src/lib/components/base/AnchoredDropdownButton.svelte";
   import { tick } from "svelte";
 
   interface Props {
     id: string;
     value: number;
     options: number[];
+    class?: string;
+    triggerClass?: string;
     onchange?: (value: number) => void | Promise<void>;
   }
 
-  let { id, value, options, onchange = async () => {} }: Props = $props();
+  let {
+    id,
+    value,
+    options,
+    class: className = "",
+    triggerClass = "w-full justify-between px-3 py-2 text-left",
+    onchange = async () => {}
+  }: Props = $props();
 
   let isOpen = $state(false);
   let optionElements: Array<HTMLButtonElement | undefined> = $state([]);
@@ -49,7 +58,9 @@
 <AnchoredDropdownButton
   {id}
   bind:open={isOpen}
+  class={className}
   triggerText={selectedLabel}
+  {triggerClass}
   panelClass="h-40 overflow-y-auto"
   onopen={handleOpen}
 >

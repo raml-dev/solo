@@ -14,10 +14,17 @@
     id: string;
     value: string;
     themes: theme.Theme[];
+    triggerClass?: string;
     onchange?: (themeId: string) => void;
   }
 
-  let { id, value, themes, onchange = () => {} }: Props = $props();
+  let {
+    id,
+    value,
+    themes,
+    triggerClass = "w-full justify-between px-3 py-2 text-left",
+    onchange = () => {}
+  }: Props = $props();
 
   let isOpen = $state(false);
   let themeButtonElements: Array<HTMLButtonElement | undefined> = $state([]);
@@ -47,6 +54,7 @@
 <AnchoredDropdownButton
   {id}
   bind:open={isOpen}
+  {triggerClass}
   triggerText={formatThemeName(selectedLabel)}
   ariaHaspopup="grid"
   matchTriggerWidth={true}

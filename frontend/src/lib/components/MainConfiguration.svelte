@@ -13,7 +13,7 @@
     configurationStoreState,
     saveConfig
   } from "$src/lib/stores/configurationStore.svelte";
-  import { fontListsStoreState } from "$src/lib/stores/fontListsStore.svelte";
+  import { fontListsStore, fontListsStoreState } from "$src/lib/stores/fontListsStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { updateStore } from "$src/lib/stores/updateStore.svelte";
@@ -153,13 +153,24 @@
     }
   }
 
-  async function resetAppearanceSettings() {
-    await resetZoom();
+  async function handleRefreshFonts() {
     try {
-      await configurationStore.resetTypography();
+      await fontListsStore.refresh();
     } catch {
       /* shown by store */
     }
+  }
+
+  async function handleSansFontReset() {
+    await handleSansFontChange("");
+  }
+
+  async function handleMonoFontReset() {
+    await handleMonoFontChange("");
+  }
+
+  async function handleZoomLevelReset() {
+    await resetZoom();
   }
 
   async function handleLogsExport() {
@@ -368,7 +379,10 @@
         onSansFontChange={(fontFamily) => void handleSansFontChange(fontFamily)}
         onMonoFontChange={(fontFamily) => void handleMonoFontChange(fontFamily)}
         onZoomLevelChange={(level) => void handleZoomLevelChange(level)}
-        onReset={() => void resetAppearanceSettings()}
+        onRefreshFonts={() => void handleRefreshFonts()}
+        onResetSansFont={() => void handleSansFontReset()}
+        onResetMonoFont={() => void handleMonoFontReset()}
+        onResetZoomLevel={() => void handleZoomLevelReset()}
       />
     {:else if activeSection === "general"}
       <div class="flex flex-col gap-5">

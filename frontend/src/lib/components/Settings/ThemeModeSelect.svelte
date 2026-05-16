@@ -4,13 +4,14 @@
 -->
 
 <script lang="ts">
+  import AnchoredDropdownButton from "$src/lib/components/base/AnchoredDropdownButton.svelte";
   import type { ThemeMode } from "$src/lib/theme/themeModel";
   import CheckOutline from "flowbite-svelte-icons/CheckOutline.svelte";
-  import AnchoredDropdownButton from "$src/lib/components/base/AnchoredDropdownButton.svelte";
 
   interface Props {
     id: string;
     value: ThemeMode;
+    triggerClass?: string;
     onchange?: (value: ThemeMode) => void;
   }
 
@@ -20,7 +21,12 @@
     { value: "system", label: "System" }
   ];
 
-  let { id, value, onchange = () => {} }: Props = $props();
+  let {
+    id,
+    value,
+    triggerClass = "w-full justify-between px-3 py-2 text-left",
+    onchange = () => {}
+  }: Props = $props();
 
   let isOpen = $state(false);
 
@@ -43,7 +49,7 @@
   }
 </script>
 
-<AnchoredDropdownButton {id} bind:open={isOpen} triggerText={selectedLabel}>
+<AnchoredDropdownButton {id} bind:open={isOpen} {triggerClass} triggerText={selectedLabel}>
   <div class="flex w-full min-w-48 flex-col gap-1">
     {#each OPTIONS as option (option.value)}
       <button
