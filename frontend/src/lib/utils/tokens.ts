@@ -171,7 +171,11 @@ export function createTokenizedEditorTheme(options: TokenizedEditorThemeOptions 
   // src/assets/styles/codemirror-theme.css.
   return EditorView.theme({
     ".cm-scroller": {
+      fontFamily: "var(--font-mono)",
       overflowY: singleLine ? "hidden" : "auto"
+    },
+    ".cm-content": {
+      fontFamily: "inherit"
     }
   });
 }

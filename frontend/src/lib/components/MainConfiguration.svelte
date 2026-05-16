@@ -7,8 +7,7 @@
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import FeedbackEmptyState from "$src/lib/components/common/FeedbackEmptyState.svelte";
   import About from "$src/lib/components/Settings/About.svelte";
-  import FontFamilySelect from "$src/lib/components/Settings/FontFamilySelect.svelte";
-  import ThemePreview from "$src/lib/components/Settings/ThemePreview.svelte";
+  import AppearancePane from "$src/lib/components/Settings/AppearancePane.svelte";
   import {
     configurationStore,
     configurationStoreState,
@@ -18,14 +17,8 @@
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { updateStore } from "$src/lib/stores/updateStore.svelte";
-  import {
-    getZoomPercent,
-    resetZoom,
-    setZoomLevel,
-    zoomState
-  } from "$src/lib/stores/zoomStore.svelte";
+  import { resetZoom, setZoomLevel, zoomState } from "$src/lib/stores/zoomStore.svelte";
   import type { ThemeMode } from "$src/lib/theme/themeModel";
-  import { DEFAULT_ZOOM_LEVEL, ZOOM_LEVEL_OPTIONS } from "$src/lib/utils/constants";
   import { createStableId, mapRecordToRowsWithStableIds } from "$src/lib/utils/stableKeyValueRows";
   import {
     DeleteHost,
@@ -45,8 +38,6 @@
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
-  import Radio from "flowbite-svelte/Radio.svelte";
-  import Select from "flowbite-svelte/Select.svelte";
   import Table from "flowbite-svelte/Table.svelte";
   import TableBody from "flowbite-svelte/TableBody.svelte";
   import TableBodyCell from "flowbite-svelte/TableBodyCell.svelte";
@@ -71,7 +62,6 @@
     { id: "troubleshooting", label: "Troubleshooting" },
     { id: "about", label: "About" }
   ];
-
   const deleteHostModal = modalStack.createModal("settings-delete-host");
 
   // 3) $state vars
@@ -96,15 +86,10 @@
   const fontsReady = $derived(fontListsStoreState.ready);
   const fontsError = $derived(fontListsStoreState.error);
   const zoomLevel = $derived(zoomState.level);
-  const selectedZoomLevel = $derived(String(zoomLevel.toFixed(2)));
 
   // 5) helper functions
   function findTheme(id: string) {
     return (themesState || []).find((t) => t.id === id) || null;
-  }
-
-  function formatThemeName(label: string): string {
-    return label || "Untitled Theme";
   }
 
   function ensureTypographyDefaults(settings?: configuration.GeneralSettings | null) {
@@ -144,37 +129,25 @@
     void updateStore.syncWithConfiguration();
   }
 
-  function handleThemeModeChange() {
-    configurationStore.applyThemeMode(
-      (configurationStoreState.config.general.themeMode as ThemeMode) || "system"
-    );
-    saveConfig();
+  function handleThemeModeChange(mode: ThemeMode) {
+    configurationStore.changeTheme(mode);
   }
 
-  async function handleZoomLevelChange(event: Event) {
-    const target = event.currentTarget as HTMLSelectElement | null;
-    if (!target) return;
-
-    await setZoomLevel(Number(target.value));
+  async function handleZoomLevelChange(level: number) {
+    await setZoomLevel(level);
   }
 
-  async function handleSansFontChange() {
-    ensureTypographyDefaults(configurationStoreState.config.general);
+  async function handleSansFontChange(fontFamily: string) {
     try {
-      await configurationStore.changeDefaultFontFamily(
-        configurationStoreState.config.general.defaultFontFamily
-      );
+      await configurationStore.changeDefaultFontFamily(fontFamily);
     } catch {
       /* shown by store */
     }
   }
 
-  async function handleMonoFontChange() {
-    ensureTypographyDefaults(configurationStoreState.config.general);
+  async function handleMonoFontChange(fontFamily: string) {
     try {
-      await configurationStore.changeMonoFontFamily(
-        configurationStoreState.config.general.monoFontFamily
-      );
+      await configurationStore.changeMonoFontFamily(fontFamily);
     } catch {
       /* shown by store */
     }
@@ -364,7 +337,7 @@
 
 <div class="flex h-full gap-6">
   <!-- Sidebar nav -->
-  <nav class="flex w-36 shrink-0 flex-col gap-1">
+  <nav class="flex shrink-0 flex-col gap-1">
     {#each NAV_ITEMS as item (item.id)}
       <Button
         color={activeSection === item.id ? "primary" : "light"}
@@ -379,119 +352,24 @@
   <!-- Content -->
   <div class="min-w-0 flex-1 overflow-y-auto pr-3 pl-1">
     {#if activeSection === "appearance"}
-      <div class="flex flex-col gap-4">
-        <div>
-          <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">Themes</h2>
-          <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Personalize your experience with themes that match your style.
-          </p>
-        </div>
-
-        <!-- Display mode selector -->
-        <div class="flex flex-col gap-2">
-          <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Display mode</p>
-          <div class="flex gap-4">
-            {#each [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }] as mode (mode.value)}
-              <Radio
-                name="themeMode"
-                bind:group={configurationStoreState.config.general.themeMode}
-                value={mode.value}
-                onchange={handleThemeModeChange}>{mode.label}</Radio
-              >
-            {/each}
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Color scheme</p>
-          <div class="grid grid-cols-3 gap-3">
-            {#each themesState || [] as t (t.id)}
-              <Button
-                color="light"
-                class="flex w-full cursor-pointer flex-col items-center rounded-lg border p-3 text-left transition-all hover:border-primary-400 {configurationStoreState
-                  .config.general.activeTheme === t.id
-                  ? 'border-primary-500 ring-0 inset-ring-2 inset-ring-primary-500 focus:ring-0'
-                  : 'border-neutral-200 dark:border-neutral-700'}"
-                onclick={() => handleThemeSelect(t.id)}
-              >
-                <div class="mb-2 w-full overflow-hidden rounded">
-                  <ThemePreview seeds={t.config?.seeds} />
-                </div>
-                <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                  {formatThemeName(t.label)}
-                </p>
-                {#if configurationStoreState.config.general.activeTheme === t.id}
-                  <Badge color="primary" class="mt-1">Active</Badge>
-                {/if}
-              </Button>
-            {/each}
-          </div>
-        </div>
-
-        <div
-          class="flex flex-col gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
-        >
-          <div>
-            <h3 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Typography</h3>
-            <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              Adjust the interface zoom and choose custom sans and monospace fonts.
-            </p>
-          </div>
-
-          <div class="flex max-w-xs flex-col gap-1">
-            <Label for="zoom-level">Zoom level</Label>
-            <Select id="zoom-level" value={selectedZoomLevel} onchange={handleZoomLevelChange}>
-              {#each ZOOM_LEVEL_OPTIONS as level (level)}
-                <option value={level.toFixed(2)}>{getZoomPercent(level)}%</option>
-              {/each}
-            </Select>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="flex flex-col gap-1">
-              <Label for="sans-font-family">Interface font</Label>
-              <FontFamilySelect
-                id="sans-font-family"
-                bind:value={configurationStoreState.config.general.defaultFontFamily}
-                families={fontLists.allDefault}
-                placeholder="Default interface font"
-                searchPlaceholder="Search interface fonts"
-                previewKind="sans"
-                disabled={!fontsReady}
-                onchange={handleSansFontChange}
-              />
-            </div>
-
-            <div class="flex flex-col gap-1">
-              <Label for="mono-font-family">Monospace font</Label>
-              <FontFamilySelect
-                id="mono-font-family"
-                bind:value={configurationStoreState.config.general.monoFontFamily}
-                families={fontLists.allMono}
-                placeholder="Default monospace font"
-                searchPlaceholder="Search monospace fonts"
-                previewKind="mono"
-                disabled={!fontsReady}
-                onchange={handleMonoFontChange}
-              />
-            </div>
-          </div>
-
-          {#if fontsLoading}
-            <Helper color="gray">Loading system fonts...</Helper>
-          {:else if fontsError}
-            <Helper color="red">Could not load system fonts.</Helper>
-          {:else}
-            <Helper color="gray">Changes apply immediately and save automatically.</Helper>
-          {/if}
-
-          <div class="flex justify-end">
-            <Button color="light" onclick={resetAppearanceSettings}
-              >Reset fonts and zoom ({getZoomPercent(DEFAULT_ZOOM_LEVEL)}%)</Button
-            >
-          </div>
-        </div>
-      </div>
+      <AppearancePane
+        themeMode={(configurationStoreState.config.general.themeMode as ThemeMode) || "system"}
+        activeTheme={configurationStoreState.config.general.activeTheme}
+        defaultFontFamily={configurationStoreState.config.general.defaultFontFamily}
+        monoFontFamily={configurationStoreState.config.general.monoFontFamily}
+        themes={themesState || []}
+        {fontLists}
+        {fontsLoading}
+        {fontsReady}
+        {fontsError}
+        {zoomLevel}
+        onThemeModeChange={handleThemeModeChange}
+        onThemeSelect={(themeId) => void handleThemeSelect(themeId)}
+        onSansFontChange={(fontFamily) => void handleSansFontChange(fontFamily)}
+        onMonoFontChange={(fontFamily) => void handleMonoFontChange(fontFamily)}
+        onZoomLevelChange={(level) => void handleZoomLevelChange(level)}
+        onReset={() => void resetAppearanceSettings()}
+      />
     {:else if activeSection === "general"}
       <div class="flex flex-col gap-5">
         <div>

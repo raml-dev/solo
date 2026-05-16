@@ -11,7 +11,7 @@ import {
   MIN_ZOOM_LEVEL,
   ZOOM_STEP
 } from "$src/lib/utils/constants";
-import { SetZoomLevel as persistZoomLevel } from "$wails/go/main/App";
+import { SetZoomLevel } from "$wails/go/main/App";
 
 export const zoomState = $state({
   level: DEFAULT_ZOOM_LEVEL,
@@ -58,7 +58,7 @@ function applyZoomLevel(level: number, notify: boolean = false) {
 
 async function persistAndSyncZoom(nextLevel: number, previousLevel: number) {
   try {
-    await persistZoomLevel(nextLevel);
+    await SetZoomLevel(nextLevel);
     setConfigZoomLevel(nextLevel);
   } catch (error) {
     applyZoomLevel(previousLevel, false);
@@ -111,7 +111,6 @@ export async function setZoomLevel(level: number, notify: boolean = false) {
   }
 
   applyZoomLevel(nextLevel, notify);
-  setConfigZoomLevel(nextLevel);
 
   if (!zoomState.initialized) {
     zoomState.initialized = true;
