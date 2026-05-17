@@ -182,7 +182,7 @@
         <ZoomLevelSelect
           id="zoom-level-select"
           class="min-w-0 flex-1"
-          triggerClass="{selectTriggerClass} rounded-e-none border-r-0{selectTriggerClass}"
+          triggerClass="{selectTriggerClass} rounded-e-none border-r-0"
           value={zoomLevel}
           options={ZOOM_LEVEL_OPTIONS}
           onchange={onZoomLevelChange}
