@@ -4,7 +4,6 @@
 package fonts
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -12,16 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"golang.org/x/image/font/sfnt"
 )
-
-type SystemFont struct {
-	Family      string `json:"family"`
-	IsMonospace bool   `json:"isMonospace"`
-}
-
-var errNoUsableFontMetadata = errors.New("fonts: no usable font metadata")
 
 var getFontDirs = fontDirs
 
@@ -97,77 +87,6 @@ func scanFamilies() ([]SystemFont, error) {
 		return families[i].Family < families[j].Family
 	})
 	return families, nil
-}
-
-func parseFontFile(path string) ([]SystemFont, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".ttc" {
-		collection, err := sfnt.ParseCollection(data)
-		if err != nil {
-			return nil, err
-		}
-
-		fonts := make([]SystemFont, 0, collection.NumFonts())
-		for i := 0; i < collection.NumFonts(); i++ {
-			font, err := collection.Font(i)
-			if err != nil {
-				continue
-			}
-			parsed, err := parseSFNTFont(font)
-			if err != nil {
-				continue
-			}
-			fonts = append(fonts, parsed)
-		}
-		if len(fonts) == 0 {
-			return nil, errNoUsableFontMetadata
-		}
-		return fonts, nil
-	}
-
-	font, err := sfnt.Parse(data)
-	if err != nil {
-		return nil, err
-	}
-
-	parsed, err := parseSFNTFont(font)
-	if err != nil {
-		return nil, err
-	}
-	return []SystemFont{parsed}, nil
-}
-
-func parseSFNTFont(font *sfnt.Font) (SystemFont, error) {
-	family, err := fontFamilyName(font)
-	if err != nil {
-		return SystemFont{}, err
-	}
-
-	post := font.PostTable()
-	return SystemFont{
-		Family:      family,
-		IsMonospace: post != nil && post.IsFixedPitch,
-	}, nil
-}
-
-func fontFamilyName(font *sfnt.Font) (string, error) {
-	for _, id := range []sfnt.NameID{sfnt.NameIDTypographicFamily, sfnt.NameIDFamily} {
-		name, err := font.Name(nil, id)
-		if err != nil {
-			continue
-		}
-		name = strings.TrimSpace(name)
-		if name != "" {
-			return name, nil
-		}
-	}
-
-	return "", errNoUsableFontMetadata
 }
 
 func isSupportedFontExtension(ext string) bool {
