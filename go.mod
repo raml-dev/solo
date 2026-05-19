@@ -55,3 +55,5 @@ require (
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
+
+replace golang.org/x/image => github.com/matstech/image v0.0.0-20260519125732-ad443cf087e0

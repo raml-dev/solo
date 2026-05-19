@@ -100,47 +100,44 @@ func scanFamilies() ([]SystemFont, error) {
 }
 
 func parseFontFile(path string) ([]SystemFont, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".ttc" {
-		collection, err := sfnt.ParseCollection(data)
-		if err != nil {
-			return nil, err
-		}
-
-		fonts := make([]SystemFont, 0, collection.NumFonts())
-		for i := 0; i < collection.NumFonts(); i++ {
-			font, err := collection.Font(i)
-			if err != nil {
-				continue
-			}
-			parsed, err := parseSFNTFont(font)
-			if err != nil {
-				continue
-			}
-			fonts = append(fonts, parsed)
-		}
-		if len(fonts) == 0 {
-			return nil, errNoUsableFontMetadata
-		}
-		return fonts, nil
-	}
-
-	font, err := sfnt.Parse(data)
-	if err != nil {
-		return nil, err
-	}
-
-	parsed, err := parseSFNTFont(font)
-	if err != nil {
-		return nil, err
-	}
-	return []SystemFont{parsed}, nil
-}
+     file, err := os.Open(path)
+     if err != nil {
+         return nil, err
+     }
+     defer file.Close()
+     ext := strings.ToLower(filepath.Ext(path))
+     if ext == ".ttc" {
+         collection, err := sfnt.ParseCollectionReaderAt(file)
+         if err != nil {
+             return nil, err
+         }
+         fonts := make([]SystemFont, 0, collection.NumFonts())
+         for i := 0; i < collection.NumFonts(); i++ {
+             font, err := collection.Font(i)
+             if err != nil {
+                 continue
+             }
+             parsed, err := parseSFNTFont(font)
+             if err != nil {
+                 continue
+             }
+             fonts = append(fonts, parsed)
+         }
+         if len(fonts) == 0 {
+             return nil, errNoUsableFontMetadata
+         }
+         return fonts, nil
+     }
+     font, err := sfnt.ParseReaderAt(file)
+     if err != nil {
+         return nil, err
+     }
+     parsed, err := parseSFNTFont(font)
+     if err != nil {
+         return nil, err
+     }
+     return []SystemFont{parsed}, nil
+ }
 
 func parseSFNTFont(font *sfnt.Font) (SystemFont, error) {
 	family, err := fontFamilyName(font)
