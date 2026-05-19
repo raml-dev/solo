@@ -13,14 +13,12 @@
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
   import { tabStore } from "$src/lib/stores/tabStore.svelte";
+  import { COLLECTION_OUTLINE_BUTTON_CLASSES } from "$src/lib/utils/constants";
   import { getMethodBadgeClass } from "$src/lib/utils/http";
   import { collection } from "$wails/go/models";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import { tick } from "svelte";
-
-  const OUTLINE_BUTTON_CLASSES =
-    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   interface Props {
     request: collection.Request;
@@ -458,7 +456,7 @@
       title="Request actions"
       aria-label="Request actions"
     >
-      <DotsHorizontalOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+      <DotsHorizontalOutline class={`h-3 w-3 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
     </button>
     {@render actionsDropdown(`#${getMenuTriggerId()}`, undefined, closeContextMenu)}
   </div>

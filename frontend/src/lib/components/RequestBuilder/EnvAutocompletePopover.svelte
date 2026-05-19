@@ -161,7 +161,7 @@
                 </span>
               </span>
               {#if entry.hasConflicts}
-                <span class="flex gap-1 truncate text-[11px] opacity-80"
+                <span class="flex gap-1 truncate text-xs opacity-80"
                   ><ExclamationCircleSolid class="h-4 w-4 shrink-0 fill-warning-500" /><span
                     >{getConflictMessage(entry)}</span
                   ></span

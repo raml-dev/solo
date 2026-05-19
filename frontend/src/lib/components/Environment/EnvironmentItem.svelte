@@ -5,13 +5,11 @@
 
 <script lang="ts">
   import { environmentStore, environmentStoreState } from "$src/lib/stores/environmentStore.svelte";
+  import { COLLECTION_OUTLINE_BUTTON_CLASSES } from "$src/lib/utils/constants";
   import type { environment } from "$wails/go/models";
   import DotsHorizontalOutline from "flowbite-svelte-icons/DotsHorizontalOutline.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import { tick } from "svelte";
-
-  const OUTLINE_BUTTON_CLASSES =
-    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   interface Props {
     env: environment.Environment;
@@ -181,7 +179,7 @@
 
     <button
       type="button"
-      class="visible ml-1 h-6 {OUTLINE_BUTTON_CLASSES}"
+      class="visible ml-1 h-6 {COLLECTION_OUTLINE_BUTTON_CLASSES}"
       onclick={openMenu}
       title="More actions"
       aria-label="More actions"

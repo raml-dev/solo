@@ -80,11 +80,14 @@
   --color-neutral-900: #18181b;
 
   /* typography */
-  --font-sans:
+  --font-sans-default:
     "Inter", "Nunito", "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, sans-serif;
-  --font-mono:
+  --font-mono-default:
     "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
+
+  --font-sans: var(--font-sans-default);
+  --font-mono: var(--font-mono-default);
 
   /* app shell sizing */
   --spacing-sidebar: 280px;
@@ -162,7 +165,7 @@
 
   body {
     @apply bg-neutral-50 font-sans text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
-    font-size: 0.875rem; /* 14px global base text */
+    font-size: 1rem;
     margin: 0;
     overflow: hidden;
   }

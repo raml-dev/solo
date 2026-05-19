@@ -187,10 +187,10 @@ type postmanHeader struct {
 }
 
 type postmanBody struct {
-	Mode       string           `json:"mode"`
-	Raw        string           `json:"raw"`
-	Urlencoded []postmanKV      `json:"urlencoded"`
-	Formdata   []postmanFormKV  `json:"formdata"`
+	Mode       string          `json:"mode"`
+	Raw        string          `json:"raw"`
+	Urlencoded []postmanKV     `json:"urlencoded"`
+	Formdata   []postmanFormKV `json:"formdata"`
 	Options    struct {
 		Raw struct {
 			Language string `json:"language"`

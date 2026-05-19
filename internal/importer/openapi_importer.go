@@ -499,11 +499,11 @@ type openAPIOperation struct {
 }
 
 type openAPIParameter struct {
-	Name     string                      `json:"name"     yaml:"name"`
-	In       string                      `json:"in"       yaml:"in"`
-	Schema   map[string]interface{}      `json:"schema"   yaml:"schema"`
-	Example  interface{}                 `json:"example"  yaml:"example"`
-	Examples map[string]openAPIExample   `json:"examples" yaml:"examples"`
+	Name     string                    `json:"name"     yaml:"name"`
+	In       string                    `json:"in"       yaml:"in"`
+	Schema   map[string]interface{}    `json:"schema"   yaml:"schema"`
+	Example  interface{}               `json:"example"  yaml:"example"`
+	Examples map[string]openAPIExample `json:"examples" yaml:"examples"`
 }
 
 type openAPIExample struct {
@@ -583,10 +583,10 @@ func resolveOpenAPIDefaultBaseURL(doc unifiedAPIDocument, version string) string
 	} else {
 		host := strings.TrimSpace(doc.Host)
 
-    if host != "" {
+		if host != "" {
 			scheme := "https"
 
-      if len(doc.Schemes) > 0 && strings.TrimSpace(doc.Schemes[0]) != "" {
+			if len(doc.Schemes) > 0 && strings.TrimSpace(doc.Schemes[0]) != "" {
 				scheme = strings.TrimSpace(doc.Schemes[0])
 			}
 

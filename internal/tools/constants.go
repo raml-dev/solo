@@ -6,7 +6,7 @@ package tools
 const (
 	APP_NAME              = "solo"
 	APP_NAME_CAPITALIZED  = "Solo"
-  MAIN_DIR              = "solo"
+	MAIN_DIR              = "solo"
 	CONFIG_JSON_FILENAME  = "config.json"
 	CONFIG_COLLECTION_DIR = "collections"
 	CONFIG_HOST_DIR       = "hosts"
@@ -25,6 +25,9 @@ const (
 	DEFAULT_MAX_REDIRECTS              = 10
 	DEFAULT_VALIDATE_SSL               = true
 	DEFAULT_USER_AGENT                 = "Solo/1.0"
+	MIN_ZOOM_LEVEL                     = 0.5
+	MAX_ZOOM_LEVEL                     = 2.0
+	DEFAULT_ZOOM_LEVEL                 = 1.0
 )
 
 const (

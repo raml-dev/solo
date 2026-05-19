@@ -135,7 +135,10 @@
     {#if $topModalId === releaseNotesModal.id}
       <ToastContainer />
     {/if}
-    <article class="release-notes max-h-[65vh] overflow-y-auto" aria-label="Release notes content">
+    <article
+      class="release-notes m-2 max-h-[65vh] overflow-y-auto"
+      aria-label="Release notes content"
+    >
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       {@html releaseNotesHtml}
     </article>
@@ -160,43 +163,46 @@
 <style>
   .release-notes :global(h1) {
     margin: 0 0 0.75rem;
-    font-size: 1.25rem;
+    font-size: var(--text-2xl);
     font-weight: 700;
     line-height: 1.4;
   }
 
   .release-notes :global(h2) {
     margin: 1rem 0 0.5rem;
-    font-size: 1.05rem;
+    font-size: var(--text-xl);
     font-weight: 650;
     line-height: 1.4;
   }
 
   .release-notes :global(h3) {
     margin: 0.875rem 0 0.5rem;
-    font-size: 0.95rem;
+    font-size: var(--text-md);
     font-weight: 650;
   }
 
   .release-notes :global(p) {
     margin: 0.5rem 0;
     line-height: 1.55;
+    font-size: var(--text-base);
   }
 
   .release-notes :global(ul),
   .release-notes :global(ol) {
     margin: 0.5rem 0 0.75rem 1.25rem;
+    font-size: var(--text-base);
   }
 
   .release-notes :global(li) {
     margin: 0.25rem 0;
+    list-style-type: disc;
   }
 
   .release-notes :global(code) {
     border-radius: 0.25rem;
     background: rgba(115, 115, 115, 0.12);
     padding: 0.05rem 0.3rem;
-    font-size: 0.85em;
+    font-size: var(--text-base);
   }
 
   .release-notes :global(pre) {

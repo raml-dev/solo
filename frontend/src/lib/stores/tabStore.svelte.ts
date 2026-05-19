@@ -7,6 +7,12 @@ import type { InputFormat } from "$src/lib/components/RequestBuilder/types";
 import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
 import { sessionVarsStore } from "$src/lib/stores/sessionVarsStore";
+import {
+  EMPTY_TAB_LABEL,
+  MAX_OPEN_TABS,
+  REQUEST_RUNNER_MAX_VISIBLE_RESULTS,
+  TAB_STORAGE_KEY
+} from "$src/lib/utils/constants";
 import { filterInPlace } from "$src/lib/utils/helpers";
 import { detectResponseFormat, getHttpStatusString, prettyPrint } from "$src/lib/utils/http";
 import { CancelExecute, CancelRunner, Execute, RunParallel } from "$wails/go/main/App";
@@ -76,15 +82,10 @@ interface TabStoreState {
   activeTabIndex: number; // -1 when no active tab
 }
 
-const EMPTY_TAB_LABEL = "New Request";
-const MAX_OPEN_TABS = 15;
-const STORAGE_KEY = "tabs";
-const MAX_VISIBLE_RESULTS = 50;
-
 export const tabStoreState: TabStoreState = $state(initState());
 
 function initState() {
-  const localStorageData = localStorage.getItem(STORAGE_KEY);
+  const localStorageData = localStorage.getItem(TAB_STORAGE_KEY);
   if (localStorageData) {
     const state = JSON.parse(localStorageData) as TabStoreState;
     // Ensure loading is always false on startup
@@ -484,7 +485,7 @@ export function storeTabsInLocalStorage() {
       return tabCopy;
     })
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+  localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(stateToSave));
 }
 
 /**
@@ -597,7 +598,7 @@ export async function startRunnerActiveTab() {
     EventsOn("runner:result", (res: runner.RunnerResult) => {
       tab.runnerState.lastResults = [res, ...tab.runnerState.lastResults].slice(
         0,
-        MAX_VISIBLE_RESULTS
+        REQUEST_RUNNER_MAX_VISIBLE_RESULTS
       );
       tab.runnerState.progress = Math.min(
         100,

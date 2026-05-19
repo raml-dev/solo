@@ -13,6 +13,7 @@
     collectionTreeUIState
   } from "$src/lib/features/collections/collectionTreeUI.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
+  import { COLLECTION_OUTLINE_BUTTON_CLASSES } from "$src/lib/utils/constants";
   import { clampNumberToMax, getTotalRequestCount } from "$src/lib/utils/helpers";
   import { collection } from "$wails/go/models";
   import AdjustmentsVerticalOutline from "flowbite-svelte-icons/AdjustmentsVerticalOutline.svelte";
@@ -22,9 +23,6 @@
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
-
-  const OUTLINE_BUTTON_CLASSES =
-    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   interface Props {
     collection: collection.Collection;
@@ -291,9 +289,9 @@
       aria-label="Toggle collection"
     >
       {#if expanded}
-        <AngleDownOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+        <AngleDownOutline class={`h-3 w-3 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
       {:else}
-        <AngleRightOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+        <AngleRightOutline class={`h-3 w-3 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
       {/if}
     </button>
 
@@ -331,7 +329,7 @@
         type="button"
         class="h-6 shrink-0 {hasCollectionVariables
           ? 'text-warning-500 hover:text-warning-600 dark:text-warning-400 dark:hover:text-warning-300'
-          : OUTLINE_BUTTON_CLASSES}"
+          : COLLECTION_OUTLINE_BUTTON_CLASSES}"
         title="Collection variables"
         aria-label={`Open variables for ${currentCollection.name}`}
         onclick={(event: MouseEvent) => {
@@ -343,7 +341,7 @@
       </button>
       <button
         data-no-drag="true"
-        class="{OUTLINE_BUTTON_CLASSES} h-6"
+        class="{COLLECTION_OUTLINE_BUTTON_CLASSES} h-6"
         onclick={(event: MouseEvent) => {
           event.stopPropagation();
           onAddRequest(currentCollection.name);
@@ -356,7 +354,7 @@
       <button
         data-no-drag="true"
         id={getMenuTriggerId()}
-        class="{OUTLINE_BUTTON_CLASSES} ml-1 h-6"
+        class="{COLLECTION_OUTLINE_BUTTON_CLASSES} ml-1 h-6"
         title="More actions"
         aria-label="More actions"
         onclick={(event: MouseEvent) => {

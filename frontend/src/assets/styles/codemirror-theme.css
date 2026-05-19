@@ -11,15 +11,9 @@
   font-family: var(--font-mono);
 }
 
-.cm-scroller,
-.cm-content {
-  font-family: inherit;
-}
-
 .cm-scroller {
   line-height: inherit;
   overflow-x: auto;
-  overflow-y: auto;
 }
 
 .cm-content,

@@ -5,6 +5,7 @@
 
 import { appInfoState } from "$src/lib/stores/appInfo.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
+import { HISTORY_MAX_ENTRIES } from "$src/lib/utils/constants";
 import { SaveHarFile } from "$wails/go/main/App";
 import { writable } from "svelte/store";
 
@@ -31,8 +32,6 @@ export interface HistoryEntry {
   response: HistoryResponse | null;
   error: string | null;
 }
-
-const MAX_ENTRIES = 500;
 
 const version = $derived(appInfoState.info?.productVersion ?? "");
 
@@ -119,7 +118,7 @@ function createHistoryStore() {
       };
       update((list) => {
         const next = [newEntry, ...list];
-        return next.length > MAX_ENTRIES ? next.slice(0, MAX_ENTRIES) : next;
+        return next.length > HISTORY_MAX_ENTRIES ? next.slice(0, HISTORY_MAX_ENTRIES) : next;
       });
     },
 

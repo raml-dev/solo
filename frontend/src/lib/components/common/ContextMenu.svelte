@@ -4,10 +4,9 @@
 -->
 
 <script lang="ts">
+  import { CONTEXT_MENU_OPEN_EVENT } from "$src/lib/utils/constants";
   import Dropdown from "flowbite-svelte/Dropdown.svelte";
   import { onMount } from "svelte";
-
-  const CONTEXT_MENU_OPEN_EVENT = "solo:context-menu-open";
 
   interface Props {
     triggeredBy: string;

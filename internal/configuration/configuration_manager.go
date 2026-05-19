@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"solo/internal/fonts"
 	"solo/internal/theme"
 	"solo/internal/tools"
 	"sync"
@@ -17,6 +18,13 @@ type ConfigurationManager struct {
 	mu        sync.RWMutex
 	configDir string // Base directory where config.json resides
 	config    *Configuration
+}
+
+func clampZoomLevel(level float64) float64 {
+	if level < tools.MIN_ZOOM_LEVEL || level > tools.MAX_ZOOM_LEVEL {
+		return tools.DEFAULT_ZOOM_LEVEL
+	}
+	return level
 }
 
 func NewConfigurationManager() (*ConfigurationManager, error) {
@@ -60,6 +68,9 @@ func (cm *ConfigurationManager) createDefault() Configuration {
 			CheckForUpdates:          tools.DEFAULT_CHECK_UPDATES,
 			IncludePrereleaseUpdates: tools.DEFAULT_INCLUDE_PRERELEASE_UPDATES,
 			DebugMode:                false,
+			DefaultFontFamily:        "",
+			MonoFontFamily:           "",
+			ZoomLevel:                tools.DEFAULT_ZOOM_LEVEL,
 		},
 		Request: RequestSettings{
 			TimeoutSeconds:   tools.DEFAULT_TIMEOUT_SECONDS,
@@ -84,6 +95,7 @@ func (cm *ConfigurationManager) load() error {
 		slog.Error("Failed to parse configuration file", "error", err)
 		return err
 	}
+	cfg.General.ZoomLevel = clampZoomLevel(cfg.General.ZoomLevel)
 
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -109,6 +121,8 @@ func (cm *ConfigurationManager) Get() Configuration {
 }
 
 func (cm *ConfigurationManager) Save(cfg Configuration) error {
+	cfg.General.ZoomLevel = clampZoomLevel(cfg.General.ZoomLevel)
+
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		slog.Error("Failed to marshal configuration", "error", err)
@@ -221,5 +235,41 @@ func (cm *ConfigurationManager) DeleteCustomTheme(themeName string) error {
 	configToSave := *cm.config
 	cm.mu.Unlock()
 
+	return cm.Save(configToSave)
+}
+
+func (cm *ConfigurationManager) SetDefaultFontFamily(fontFamily string) error {
+	if fontFamily == "" || fonts.IsValidFontFamily(fontFamily) {
+		cm.mu.Lock()
+		cm.config.General.DefaultFontFamily = fontFamily
+		configToSave := *cm.config
+		cm.mu.Unlock()
+		return cm.Save(configToSave) // Save immediately to persist
+	}
+	return fmt.Errorf("invalid font family: %s", fontFamily)
+}
+
+func (cm *ConfigurationManager) GetMonoFontFamily() string {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.config.General.MonoFontFamily
+}
+
+func (cm *ConfigurationManager) SetMonoFontFamily(fontFamily string) error {
+	if fontFamily == "" || fonts.IsValidMonoFontFamily(fontFamily) {
+		cm.mu.Lock()
+		cm.config.General.MonoFontFamily = fontFamily
+		configToSave := *cm.config
+		cm.mu.Unlock()
+		return cm.Save(configToSave) // Save immediately to persist
+	}
+	return fmt.Errorf("invalid font family: %s", fontFamily)
+}
+
+func (cm *ConfigurationManager) SetZoomLevel(level float64) error {
+	cm.mu.Lock()
+	cm.config.General.ZoomLevel = clampZoomLevel(level)
+	configToSave := *cm.config
+	cm.mu.Unlock()
 	return cm.Save(configToSave)
 }

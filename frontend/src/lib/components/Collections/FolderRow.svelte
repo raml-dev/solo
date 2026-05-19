@@ -13,6 +13,7 @@
     collectionTreeUIState
   } from "$src/lib/features/collections/collectionTreeUI.svelte";
   import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
+  import { COLLECTION_OUTLINE_BUTTON_CLASSES } from "$src/lib/utils/constants";
   import { clampNumberToMax, getTotalRequestCount } from "$src/lib/utils/helpers";
   import { collection } from "$wails/go/models";
   import AngleDownOutline from "flowbite-svelte-icons/AngleDownOutline.svelte";
@@ -24,9 +25,6 @@
   import Input from "flowbite-svelte/Input.svelte";
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
-
-  const OUTLINE_BUTTON_CLASSES =
-    "text-neutral-800/70 hover:text-neutral-800 dark:text-neutral-100/70 dark:hover:text-neutral-100";
 
   interface Props {
     folder: collection.Folder;
@@ -348,16 +346,16 @@
       aria-label="Toggle folder"
     >
       {#if isExpanded()}
-        <AngleDownOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+        <AngleDownOutline class={`h-3 w-3 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
       {:else}
-        <AngleRightOutline class={`h-3 w-3 ${OUTLINE_BUTTON_CLASSES}`} />
+        <AngleRightOutline class={`h-3 w-3 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
       {/if}
     </button>
 
     {#if isExpanded()}
-      <FolderOpenOutline class={`h-4 w-4 shrink-0 ${OUTLINE_BUTTON_CLASSES}`} />
+      <FolderOpenOutline class={`h-4 w-4 shrink-0 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
     {:else}
-      <FolderOutline class={`h-4 w-4 shrink-0 ${OUTLINE_BUTTON_CLASSES}`} />
+      <FolderOutline class={`h-4 w-4 shrink-0 ${COLLECTION_OUTLINE_BUTTON_CLASSES}`} />
     {/if}
 
     <span
@@ -402,7 +400,7 @@
 
     <button
       data-no-drag="true"
-      class="invisible h-6 group-hover:visible {OUTLINE_BUTTON_CLASSES}"
+      class="invisible h-6 group-hover:visible {COLLECTION_OUTLINE_BUTTON_CLASSES}"
       onclick={(event: MouseEvent) => {
         event.stopPropagation();
         onAddRequestToFolder(collectionName, folder.id);
@@ -415,7 +413,7 @@
     <button
       data-no-drag="true"
       id={getMenuTriggerId()}
-      class="invisible h-6 group-hover:visible {OUTLINE_BUTTON_CLASSES}"
+      class="invisible h-6 group-hover:visible {COLLECTION_OUTLINE_BUTTON_CLASSES}"
       title="Folder actions"
       aria-label="Folder actions"
       onclick={(event: MouseEvent) => {
