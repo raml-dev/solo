@@ -51,3 +51,6 @@ internal/appinfo/update_config.json
 
 *.asc
 dist/
+.gocache
+.gemini
+.antigravitycli

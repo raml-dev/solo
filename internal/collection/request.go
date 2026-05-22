@@ -22,6 +22,7 @@ type Request struct {
 	BodyType            string                                 `json:"bodyType"`
 	Headers             map[string]string                      `json:"headers"`
 	Cookies             map[string]string                      `json:"cookies"`
+	Params              map[string]string                      `json:"params,omitempty"`
 	Auth                *AuthConfiguration                     `json:"auth,omitempty"`
 	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	PreRequestScript    string                                 `json:"preRequestScript,omitempty"`
@@ -69,6 +70,9 @@ func (req Request) GetPlaceholders() []string {
 		add(v)
 	}
 	for _, v := range req.Cookies {
+		add(v)
+	}
+	for _, v := range req.Params {
 		add(v)
 	}
 

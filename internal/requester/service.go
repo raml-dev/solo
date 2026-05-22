@@ -30,6 +30,7 @@ type ExecutionOptions struct {
 	Body                string                                 `json:"body"`
 	Headers             map[string]any                         `json:"headers"`
 	Cookies             map[string]any                         `json:"cookies"`
+	Params              map[string]string                      `json:"params,omitempty"`
 	CollectionVariables map[string]string                      `json:"collectionVariables,omitempty"`
 	Settings            *configuration.RequestSettingsOverride `json:"settings,omitempty"`
 	Auth                *collection.AuthConfiguration          `json:"auth,omitempty"`
@@ -256,6 +257,7 @@ func (s *Service) Execute(ctx context.Context, opts ExecutionOptions) (*executeR
 		"method", opts.Method,
 		"url", opts.URL,
 		"headers_count", len(opts.Headers),
+		"params_count", len(opts.Params),
 		"body_length", len(opts.Body))
 
 	envVars := s.loadSelectedEnvironmentValues()
@@ -442,6 +444,7 @@ func (s *Service) ExecuteRequest(ctx context.Context, opts ExecutionOptions) (*R
 				"url":     opts.URL,
 				"body":    opts.Body,
 				"headers": finalReqHeaders,
+				"params":  opts.Params,
 				"auth":    opts.Auth,
 			},
 			"response": responseData,

@@ -106,6 +106,23 @@ func resolveCookies(cookies map[string]any, ctx resolutionContext) map[string]an
 	return resolved
 }
 
+// resolveParams resolves placeholders in both param keys and values.
+// Unlike resolveHeaders/resolveCookies, params are typed as map[string]string
+// because query parameter keys and values are always plain strings.
+func resolveParams(params map[string]string, ctx resolutionContext) map[string]string {
+	if len(params) == 0 {
+		return map[string]string{}
+	}
+
+	resolved := make(map[string]string, len(params))
+	for key, value := range params {
+		resolvedKey := resolveTemplateString(key, ctx)
+		resolved[resolvedKey] = resolveTemplateString(value, ctx)
+	}
+
+	return resolved
+}
+
 // resolveAuthConfig resolves placeholders in the OAuth configuration fields.
 func resolveAuthConfig(authCfg *collection.AuthConfiguration, ctx resolutionContext) *collection.AuthConfiguration {
 	if authCfg == nil {
@@ -133,6 +150,7 @@ func (opts ExecutionOptions) resolve(ctx resolutionContext) ExecutionOptions {
 	resolved.Body = resolveTemplateString(opts.Body, ctx)
 	resolved.Headers = resolveHeaders(opts.Headers, ctx)
 	resolved.Cookies = resolveCookies(opts.Cookies, ctx)
+	resolved.Params = resolveParams(opts.Params, ctx)
 	resolved.Auth = resolveAuthConfig(opts.Auth, ctx)
 	return resolved
 }
@@ -156,6 +174,17 @@ func buildRequestFromOptions(ctx context.Context, opts ExecutionOptions) (*http.
 		if ok {
 			request.AddCookie(&http.Cookie{Name: key, Value: vStr})
 		}
+	}
+
+	// Append query params to the URL. We preserve any query string already
+	// present in the URL string and add params on top via url.Values.Set.
+	// Params with an empty value are included as "?key=" (standard net/url behaviour).
+	if len(opts.Params) > 0 {
+		q := request.URL.Query()
+		for key, value := range opts.Params {
+			q.Set(key, value)
+		}
+		request.URL.RawQuery = q.Encode()
 	}
 
 	return request, nil
