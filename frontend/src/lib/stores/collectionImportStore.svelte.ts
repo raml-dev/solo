@@ -6,19 +6,20 @@
 import { collectionStore } from "$src/lib/stores/collectionStore.svelte";
 import { notifications } from "$src/lib/stores/notificationStore";
 import {
-  ImportBrunoCollection,
-  ImportOpenAPICollection,
-  ImportPostmanCollection,
-  ImportSoloCollection,
+  ImportBrunoCollections,
+  ImportOpenAPICollections,
+  ImportPostmanCollections,
+  ImportSoloCollections,
   SelectDirectory,
-  SelectFile
+  SelectFiles
 } from "$wails/go/main/App";
+import type { collection } from "$wails/go/models";
 
 export type CollectionLocalImportFormat = "postman" | "bruno" | "openapi" | "solo";
 
 export interface PendingLocalImport {
   format: CollectionLocalImportFormat;
-  path: string;
+  paths: string[];
 }
 
 interface CollectionImportState {
@@ -32,10 +33,13 @@ interface CollectionImportState {
 type LocalImportRunResult = "completed" | "awaiting_overwrite";
 
 interface LocalImportHandler {
-  pick: () => Promise<string>;
-  run: (path: string) => Promise<LocalImportRunResult>;
+  pick: () => Promise<string[]>;
+  run: (paths: string[]) => Promise<LocalImportRunResult>;
   errorTitle: string;
 }
+
+const maxFailureDetailToasts = 3;
+const maxWarningDetailToasts = 3;
 
 const initialState: CollectionImportState = {
   selectedLocalFormat: "postman",
@@ -45,75 +49,116 @@ const initialState: CollectionImportState = {
   soloCollectionOverwriteName: null
 };
 
-function parseCollectionNameFromError(message: string): string | null {
-  const match = message.match(/collection\s+(\S+)\s+already exists/i);
-  return match ? match[1] : null;
-}
-
-async function executePostmanImport(path: string): Promise<LocalImportRunResult> {
-  await ImportPostmanCollection(path);
-  await collectionStore.loadCollections();
-  notifications.success("Postman collection imported");
-  return "completed";
-}
-
-async function executeBrunoImport(path: string): Promise<LocalImportRunResult> {
-  await ImportBrunoCollection(path);
-  await collectionStore.loadCollections();
-  notifications.success("Bruno collection imported");
-  return "completed";
-}
-
-async function executeOpenAPIImport(path: string): Promise<LocalImportRunResult> {
-  const { warnings } = await ImportOpenAPICollection(path);
-  await collectionStore.loadCollections();
-
-  for (const warning of warnings ?? []) {
-    notifications.warning(warning);
+function getImportSummaryLabel(format: CollectionLocalImportFormat): string {
+  switch (format) {
+    case "postman":
+      return "Postman collection import";
+    case "bruno":
+      return "Bruno collection import";
+    case "openapi":
+      return "OpenAPI collection import";
+    case "solo":
+      return "Solo collection import";
   }
-
-  notifications.success("OpenAPI collection imported");
-  return "completed";
 }
 
-async function executeSoloCollectionImport(
-  path: string,
-  overwrite: boolean
+function getItemLabel(item: collection.BatchImportItemResult): string {
+  return item.name || item.path || "Unknown source";
+}
+
+async function finishBatchImport(
+  format: CollectionLocalImportFormat,
+  result: collection.BatchImportResult
 ): Promise<LocalImportRunResult> {
-  try {
-    await ImportSoloCollection(path, overwrite);
+  const items = result.results ?? [];
+  const successes = items.filter((item) => item.success);
+  const failures = items.filter((item) => !item.success);
+  const warnings = items.flatMap((item) =>
+    (item.warnings ?? []).map((warning) => ({
+      source: getItemLabel(item),
+      warning
+    }))
+  );
+  const total = items.length;
+
+  if (successes.length > 0) {
     await collectionStore.loadCollections();
-    notifications.success("Collection imported successfully");
-    return "completed";
-  } catch (err) {
-    const message = String(err ?? "Failed to import collection");
-    const existingName = parseCollectionNameFromError(message);
-
-    if (!overwrite && existingName) {
-      collectionImportStoreState.pendingSoloCollectionPath = path;
-      collectionImportStoreState.soloCollectionOverwriteName = existingName;
-      return "awaiting_overwrite";
-    }
-
-    throw new Error(message);
   }
+
+  const summaryLabel = getImportSummaryLabel(format);
+  const detailParts = [
+    `${successes.length}/${total} imported`,
+    failures.length > 0 ? `${failures.length} failed` : null,
+    warnings.length > 0 ? `${warnings.length} warning${warnings.length === 1 ? "" : "s"}` : null
+  ].filter(Boolean);
+
+  if (failures.length === 0) {
+    notifications.success(summaryLabel, detailParts.join(", "));
+  } else if (successes.length > 0) {
+    notifications.warning(`${summaryLabel} finished with issues`, detailParts.join(", "));
+  } else {
+    notifications.error(`${summaryLabel} failed`, detailParts.join(", "));
+  }
+
+  for (const item of failures.slice(0, maxFailureDetailToasts)) {
+    notifications.error(`Failed to import ${getItemLabel(item)}`, item.error || "Unknown error");
+  }
+
+  if (failures.length > maxFailureDetailToasts) {
+    notifications.error(
+      `${failures.length - maxFailureDetailToasts} more import failures`,
+      "Review the source files and try again."
+    );
+  }
+
+  for (const { source, warning } of warnings.slice(0, maxWarningDetailToasts)) {
+    notifications.warning(`${source}: ${warning}`);
+  }
+
+  if (warnings.length > maxWarningDetailToasts) {
+    notifications.warning(
+      `${warnings.length - maxWarningDetailToasts} more import warnings`,
+      "Additional warnings were omitted from notifications."
+    );
+  }
+
+  return "completed";
+}
+
+async function executePostmanImport(paths: string[]): Promise<LocalImportRunResult> {
+  return finishBatchImport("postman", await ImportPostmanCollections(paths));
+}
+
+async function executeBrunoImport(paths: string[]): Promise<LocalImportRunResult> {
+  return finishBatchImport("bruno", await ImportBrunoCollections(paths));
+}
+
+async function executeOpenAPIImport(paths: string[]): Promise<LocalImportRunResult> {
+  return finishBatchImport("openapi", await ImportOpenAPICollections(paths));
+}
+
+async function executeSoloCollectionImport(paths: string[]): Promise<LocalImportRunResult> {
+  return finishBatchImport("solo", await ImportSoloCollections(paths));
 }
 
 const LOCAL_IMPORT_HANDLERS: Record<CollectionLocalImportFormat, LocalImportHandler> = {
   postman: {
-    pick: () => SelectFile("Select Postman Collection", "*.json", "JSON Files"),
+    pick: () => SelectFiles("Select Postman Collections", "*.json", "JSON Files"),
     run: executePostmanImport,
     errorTitle: "Failed to import Postman collection"
   },
   bruno: {
-    pick: () => SelectDirectory("Select Bruno Collection Folder"),
+    pick: async () => {
+      const path = await SelectDirectory("Select Bruno Collection Folder");
+      return path ? [path] : [];
+    },
     run: executeBrunoImport,
     errorTitle: "Failed to import Bruno collection"
   },
   openapi: {
     pick: () =>
-      SelectFile(
-        "Select OpenAPI / Swagger Document",
+      SelectFiles(
+        "Select OpenAPI / Swagger Documents",
         "*.json;*.yaml;*.yml",
         "OpenAPI / Swagger Files"
       ),
@@ -121,19 +166,27 @@ const LOCAL_IMPORT_HANDLERS: Record<CollectionLocalImportFormat, LocalImportHand
     errorTitle: "Failed to import OpenAPI collection"
   },
   solo: {
-    pick: () => SelectFile("Select Solo Collection", "*.json", "JSON Files"),
-    run: (path) => executeSoloCollectionImport(path, false),
+    pick: () => SelectFiles("Select Solo Collections", "*.json", "JSON Files"),
+    run: executeSoloCollectionImport,
     errorTitle: "Failed to import collection"
   }
 };
 
-function setPendingLocalImport(format: CollectionLocalImportFormat, path: string) {
-  if (!path) {
+function normalizeImportPaths(paths?: string | string[]): string[] {
+  if (!paths) {
+    return [];
+  }
+
+  return (Array.isArray(paths) ? paths : [paths]).filter((path) => path.length > 0);
+}
+
+function setPendingLocalImport(format: CollectionLocalImportFormat, paths: string[]) {
+  if (paths.length === 0) {
     return;
   }
 
   collectionImportStoreState.selectedLocalFormat = format;
-  collectionImportStoreState.pendingLocalImport = { format, path };
+  collectionImportStoreState.pendingLocalImport = { format, paths };
   collectionImportStoreState.pendingSoloCollectionPath = null;
   collectionImportStoreState.soloCollectionOverwriteName = null;
 }
@@ -151,21 +204,25 @@ export const collectionImportStore = {
 
   async pickLocalImportPath() {
     const format = collectionImportStoreState.selectedLocalFormat;
-    const path = await LOCAL_IMPORT_HANDLERS[format].pick();
+    const paths = await LOCAL_IMPORT_HANDLERS[format].pick();
 
-    if (!path) {
+    if (paths.length === 0) {
       return;
     }
 
-    setPendingLocalImport(format, path);
+    setPendingLocalImport(format, paths);
   },
 
-  async setPendingLocalImportFromDrop(format: CollectionLocalImportFormat, path?: string) {
-    if (!path) {
+  async setPendingLocalImportFromDrop(
+    format: CollectionLocalImportFormat,
+    pathOrPaths?: string | string[]
+  ) {
+    const paths = normalizeImportPaths(pathOrPaths);
+    if (paths.length === 0) {
       return;
     }
 
-    setPendingLocalImport(format, path);
+    setPendingLocalImport(format, paths);
   },
 
   clearPendingLocalImport() {
@@ -188,7 +245,7 @@ export const collectionImportStore = {
     collectionImportStoreState.soloCollectionOverwriteName = null;
 
     try {
-      const result = await handler.run(pendingImport.path);
+      const result = await handler.run(pendingImport.paths);
       if (result === "completed") {
         collectionImportStoreState.pendingLocalImport = null;
         shouldKeepLoadingUntilReset = true;
@@ -208,8 +265,8 @@ export const collectionImportStore = {
   },
 
   async confirmSoloCollectionOverwrite() {
-    const path = collectionImportStoreState.pendingSoloCollectionPath;
-    if (!path) {
+    const paths = collectionImportStoreState.pendingLocalImport?.paths;
+    if (!paths || paths.length === 0) {
       return;
     }
 
@@ -219,7 +276,7 @@ export const collectionImportStore = {
     collectionImportStoreState.soloCollectionOverwriteName = null;
 
     try {
-      const result = await executeSoloCollectionImport(path, true);
+      const result = await executeSoloCollectionImport(paths);
       if (result === "completed") {
         collectionImportStoreState.pendingLocalImport = null;
         shouldKeepLoadingUntilReset = true;

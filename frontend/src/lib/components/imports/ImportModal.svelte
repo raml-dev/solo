@@ -77,7 +77,9 @@
 <Modal
   bind:open
   {title}
-  classes={{ body: "h-[450px] overflow-hidden p-4" }}
+  class="max-h-[calc(100vh-2rem)]"
+  classes={{ body: "h-[min(450px,calc(100vh-12rem))] overflow-hidden p-4" }}
+  placement="center"
   size="xl"
   onclose={(event) => {
     selectedSection = "local";

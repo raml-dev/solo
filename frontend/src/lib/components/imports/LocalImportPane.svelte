@@ -8,8 +8,7 @@
   import type { LocalImportFormatOption } from "$src/lib/components/imports/importTypes";
   import {
     collectionImportStore,
-    collectionImportStoreState,
-    type CollectionLocalImportFormat
+    collectionImportStoreState
   } from "$src/lib/stores/collectionImportStore.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
@@ -19,7 +18,7 @@
   interface Props {
     formats: LocalImportFormatOption<TFormat>[];
     selectedFormat: TFormat;
-    onImport: (format: TFormat, droppedPath?: string) => Promise<void>;
+    onImport: (format: TFormat, droppedPaths?: string[]) => Promise<void>;
   }
 
   let { formats, selectedFormat = $bindable(), onImport }: Props = $props();
@@ -30,6 +29,14 @@
       ? collectionImportStoreState.pendingLocalImport
       : null
   );
+  const selectedSourceLabel = $derived.by(() => {
+    const paths = activePendingLocalImport?.paths ?? [];
+
+    if (paths.length === 0) return "";
+    if (paths.length === 1) return paths[0];
+
+    return `${paths.length} sources selected`;
+  });
 
   function getChangeButtonLabel() {
     if (!selectedOption) return "Change selection...";
@@ -40,15 +47,16 @@
     if (!selectedOption) return;
 
     if (paths.length > 0) {
-      await onImport(selectedOption.key, paths[0]);
+      await onImport(selectedOption.key, paths);
     } else {
       await onImport(selectedOption.key);
     }
   }
 
   async function handlePickPath() {
-    collectionImportStoreState.selectedLocalFormat = selectedFormat as CollectionLocalImportFormat;
-    await collectionImportStore.pickLocalImportPath();
+    if (!selectedOption) return;
+
+    await onImport(selectedOption.key);
   }
 </script>
 
@@ -67,7 +75,7 @@
     <div class="flex gap-2">
       <Input
         id="selected-import-path"
-        value={activePendingLocalImport?.path || ""}
+        value={selectedSourceLabel}
         placeholder="No file or folder selected yet"
         class="flex-1"
         readonly

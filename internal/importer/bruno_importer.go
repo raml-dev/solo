@@ -116,6 +116,7 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 	isHTTPRequest := false
 
 	queryMap := make(map[string]interface{})
+	pathParamMap := make(map[string]string)
 	formUrlEncodedMap := make(map[string]interface{})
 	multipartFormMap := make(map[string]interface{})
 
@@ -136,8 +137,12 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 			currentSection = "headers"
 			isBodyBlock = false
 			continue
-		} else if strings.HasPrefix(line, "query {") {
+		} else if strings.HasPrefix(line, "query {") || strings.HasPrefix(line, "params:query {") {
 			currentSection = "query"
+			isBodyBlock = false
+			continue
+		} else if strings.HasPrefix(line, "params:path {") {
+			currentSection = "params:path"
 			isBodyBlock = false
 			continue
 		} else if strings.HasPrefix(line, "body:json {") {
@@ -204,6 +209,8 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 			req.Headers[key] = value
 		case "query":
 			queryMap[key] = value
+		case "params:path":
+			pathParamMap[key] = value
 		case "body:form-urlencoded":
 			formUrlEncodedMap[key] = value
 		case "body:multipart-form":
@@ -212,13 +219,12 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 	}
 
 	// Post-processing
+	for key, value := range pathParamMap {
+		req.Url = strings.ReplaceAll(req.Url, ":"+key, value)
+	}
+
 	if len(queryMap) > 0 {
-		qs := objectToQueryString(queryMap)
-		if strings.Contains(req.Url, "?") {
-			req.Url += "&" + qs
-		} else {
-			req.Url += "?" + qs
-		}
+		req.Url = appendMissingQueryParams(req.Url, queryMap)
 	}
 
 	if len(formUrlEncodedMap) > 0 {
@@ -279,6 +285,46 @@ func indexFolderByName(folders []collection.Folder, name string) int {
 	}
 
 	return -1
+}
+
+func appendMissingQueryParams(rawURL string, queryMap map[string]interface{}) string {
+	missing := make(map[string]interface{}, len(queryMap))
+	for key, value := range queryMap {
+		if !urlHasQueryParam(rawURL, key) {
+			missing[key] = value
+		}
+	}
+	if len(missing) == 0 {
+		return rawURL
+	}
+
+	qs := objectToQueryString(missing)
+	if strings.Contains(rawURL, "?") {
+		return rawURL + "&" + qs
+	}
+
+	return rawURL + "?" + qs
+}
+
+func urlHasQueryParam(rawURL, key string) bool {
+	queryStart := strings.Index(rawURL, "?")
+	if queryStart == -1 {
+		return false
+	}
+
+	query := rawURL[queryStart+1:]
+	if fragmentStart := strings.Index(query, "#"); fragmentStart != -1 {
+		query = query[:fragmentStart]
+	}
+
+	for part := range strings.SplitSeq(query, "&") {
+		paramKey, _, _ := strings.Cut(part, "=")
+		if paramKey == key {
+			return true
+		}
+	}
+
+	return false
 }
 
 func findFolderByPath(folders *[]collection.Folder, folderNames []string) *collection.Folder {

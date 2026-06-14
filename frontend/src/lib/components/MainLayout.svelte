@@ -13,6 +13,7 @@
   import CogSolid from "flowbite-svelte-icons/CogSolid.svelte";
   import GlobeSolid from "flowbite-svelte-icons/GlobeSolid.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import { CloseButton } from "flowbite-svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
   import { onDestroy } from "svelte";
 
@@ -81,10 +82,14 @@
 {#if environmentManagerModal.open}
   <Modal
     bind:open={environmentManagerModal.open}
-    classes={{ body: "h-full overflow-y-auto" }}
-    fullscreen
-    size="none"
+    size="xl"
+    classes={{ body: "h-[600px] overflow-hidden p-0" }}
   >
+    {#snippet header()}
+      <div class="flex w-full justify-end">
+        <CloseButton onclick={() => (environmentManagerModal.open = false)} />
+      </div>
+    {/snippet}
     {#if $topModalId === environmentManagerModal.id}
       <ToastContainer />
     {/if}
