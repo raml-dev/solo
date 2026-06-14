@@ -86,12 +86,6 @@ type RequestOptions struct {
 	PostResponseScript string                                 `json:"postResponseScript,omitempty"`
 }
 
-type OpenAPIImportCollectionResult struct {
-	Warnings []string `json:"warnings"`
-	BasePath string   `json:"basePath"`
-	Servers  []string `json:"servers"`
-}
-
 func (a *App) GetAppInfo() appinfo.AppInfo {
 	return appinfo.GetAppInfo(wailsJSON)
 }
@@ -446,44 +440,33 @@ func (a *App) SetSelectedEnvironment(name string) error {
 
 // Collection Management Methods
 
-// ImportPostmanCollection imports a Postman v2.1 collection file into Solo.
-func (a *App) ImportPostmanCollection(path string) error {
+// ImportPostmanCollections imports Postman v2.1 collection files into Solo.
+func (a *App) ImportPostmanCollections(paths []string) (collection.BatchImportResult, error) {
+	if a.collectionManager == nil {
+		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
+	}
+
 	imp := importer.NewPostmanImporter()
-
-	coll, err := imp.Import(path)
-	if err != nil {
-		return fmt.Errorf("failed to import collection: %w", err)
-	}
-
-	// Save the imported collection using the existing manager.
-	// UpdateCollection will write the entire JSON object to disk using its Name.
-	if err := a.collectionManager.UpdateCollection(*coll); err != nil {
-		return fmt.Errorf("failed to save imported collection: %w", err)
-	}
-
-	return nil
+	return a.collectionManager.ImportBatch(paths, func(path string) (*collection.Collection, []string, error) {
+		coll, err := imp.Import(path)
+		return coll, nil, err
+	})
 }
 
-// ImportOpenAPICollection imports an OpenAPI 3.x or Swagger 2.x collection
-// (JSON or YAML) into Solo.
-// Returns warning messages and source metadata used by the frontend to build baseUrl.
-func (a *App) ImportOpenAPICollection(path string) (OpenAPIImportCollectionResult, error) {
+// ImportOpenAPICollections imports OpenAPI 3.x or Swagger 2.x collection files into Solo.
+func (a *App) ImportOpenAPICollections(paths []string) (collection.BatchImportResult, error) {
+	if a.collectionManager == nil {
+		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
+	}
+
 	imp := importer.NewOpenAPIImporter()
-
-	result, err := imp.Import(path)
-	if err != nil {
-		return OpenAPIImportCollectionResult{}, fmt.Errorf("failed to import OpenAPI collection: %w", err)
-	}
-
-	if err := a.collectionManager.UpdateCollection(*result.Collection); err != nil {
-		return OpenAPIImportCollectionResult{}, fmt.Errorf("failed to save imported OpenAPI collection: %w", err)
-	}
-
-	return OpenAPIImportCollectionResult{
-		Warnings: result.Warnings,
-		BasePath: result.BasePath,
-		Servers:  result.Servers,
-	}, nil
+	return a.collectionManager.ImportBatch(paths, func(path string) (*collection.Collection, []string, error) {
+		result, err := imp.Import(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		return result.Collection, result.Warnings, nil
+	})
 }
 
 // ImportCurlRequest parses a cURL command string and adds the resulting request
@@ -586,34 +569,41 @@ func (a *App) ExportEnvironment(environmentName string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// ImportSoloCollection imports a Solo-native collection JSON file.
-// If overwrite is false and a collection with the same name already exists,
-// returns an error of the form "collection <name> already exists".
-func (a *App) ImportSoloCollection(path string, overwrite bool) error {
+func (a *App) loadSoloCollectionForImport(path string, overwrite bool) (*collection.Collection, []string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	var coll collection.Collection
 	if err := json.Unmarshal(data, &coll); err != nil {
-		return fmt.Errorf("invalid %s collection file: %w", tools.APP_NAME, err)
+		return nil, nil, fmt.Errorf("invalid %s collection file: %w", tools.APP_NAME, err)
 	}
 	if coll.Name == "" {
-		return fmt.Errorf("collection file has no name field")
+		return nil, nil, fmt.Errorf("collection file has no name field")
 	}
 
 	if !overwrite {
 		existing, _ := a.collectionManager.LoadCollection(coll.Name)
 		if existing != nil {
-			return fmt.Errorf("collection %s already exists", coll.Name)
+			return nil, nil, fmt.Errorf("collection %s already exists", coll.Name)
 		}
 	}
 
-	if err := a.collectionManager.UpdateCollection(coll); err != nil {
-		return fmt.Errorf("failed to save collection: %w", err)
+	return &coll, nil, nil
+}
+
+// ImportSoloCollections imports Solo-native collection JSON files into Solo.
+func (a *App) ImportSoloCollections(paths []string) (collection.BatchImportResult, error) {
+	if a.collectionManager == nil {
+		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
 	}
-	return nil
+
+	importOne := func(path string) (*collection.Collection, []string, error) {
+		return a.loadSoloCollectionForImport(path, true)
+	}
+
+	return a.collectionManager.ImportBatch(paths, importOne)
 }
 
 // ImportSoloEnvironment imports a Solo-native environment JSON file.
@@ -727,20 +717,17 @@ func (a *App) ExportLogsZip() (bool, error) {
 	return true, nil
 }
 
-// ImportBrunoCollection imports a Bruno collection from a directory.
-func (a *App) ImportBrunoCollection(path string) error {
+// ImportBrunoCollections imports Bruno collection directories into Solo.
+func (a *App) ImportBrunoCollections(paths []string) (collection.BatchImportResult, error) {
+	if a.collectionManager == nil {
+		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
+	}
+
 	imp := importer.NewBrunoImporter()
-
-	coll, err := imp.Import(path)
-	if err != nil {
-		return fmt.Errorf("failed to import Bruno collection: %w", err)
-	}
-
-	if err := a.collectionManager.UpdateCollection(*coll); err != nil {
-		return fmt.Errorf("failed to save imported Bruno collection: %w", err)
-	}
-
-	return nil
+	return a.collectionManager.ImportBatch(paths, func(path string) (*collection.Collection, []string, error) {
+		coll, err := imp.Import(path)
+		return coll, nil, err
+	})
 }
 
 // ImportPostmanEnvironment imports a Postman environment JSON file.
@@ -1282,6 +1269,21 @@ func (a *App) SelectDirectory(title string) (string, error) {
 func (a *App) SelectFile(title, patterns, displayName string) (string, error) {
 	slog.Debug("Opening file dialog", "title", title, "patterns", patterns)
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName: displayName,
+				Pattern:     patterns, // e.g., "*.pem;*.crt;*.key"
+			},
+		},
+	})
+}
+
+// SelectFiles opens a native file dialog to select multiple files.
+// It takes a title for the dialog and a pattern for file filtering (e.g., "*.pem;*.crt").
+func (a *App) SelectFiles(title, patterns, displayName string) ([]string, error) {
+	slog.Debug("Opening multiple files dialog", "title", title, "patterns", patterns)
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: title,
 		Filters: []runtime.FileFilter{
 			{
