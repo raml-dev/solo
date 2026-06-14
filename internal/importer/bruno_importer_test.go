@@ -185,3 +185,118 @@ get {
 		t.Fatalf("Expected request 'Repository Info', got '%s'", coll.Folders[0].Requests[0].Name)
 	}
 }
+
+func TestBrunoImporter_Import_ParsesBrunoParamsSections(t *testing.T) {
+	importer := NewBrunoImporter()
+	testDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(testDir, "bruno.json"), []byte(`{"name":"Bruno Params","type":"collection","version":"1"}`), 0644); err != nil {
+		t.Fatalf("Failed to write bruno.json: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Join(testDir, "MusicBrainz"), 0755); err != nil {
+		t.Fatalf("Failed to create MusicBrainz directory: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(testDir, "MusicBrainz", "Artist Finder.bru"), []byte(`meta {
+  name: Artist Finder
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://musicbrainz.org/ws/2/artist?query=Green&limit=5
+  body: none
+  auth: none
+}
+
+params:query {
+  query: Green
+  limit: 5
+}
+`), 0644); err != nil {
+		t.Fatalf("Failed to write Artist Finder.bru: %v", err)
+	}
+
+	if err := os.MkdirAll(filepath.Join(testDir, "TestDirParams"), 0755); err != nil {
+		t.Fatalf("Failed to create TestDirParams directory: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(testDir, "TestDirParams", "TestParams.bru"), []byte(`meta {
+  name: TestParams
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://musicbrainz.org/ws/2/artist/:artistId?fmt=json
+  body: none
+  auth: none
+}
+
+params:query {
+  fmt: json
+}
+
+params:path {
+  artistId: 084308bd-1654-436f-ba03-df6697104e19
+}
+`), 0644); err != nil {
+		t.Fatalf("Failed to write TestParams.bru: %v", err)
+	}
+
+	coll, err := importer.Import(testDir)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	testDirParams := findFolderByName(coll.Folders, "TestDirParams")
+	if testDirParams == nil {
+		t.Fatal("Expected folder 'TestDirParams' not found")
+	}
+
+	req := findRequestByName(testDirParams.Requests, "TestParams")
+	if req == nil {
+		t.Fatal("Request 'TestParams' not found")
+	}
+
+	expectedURL := "https://musicbrainz.org/ws/2/artist/084308bd-1654-436f-ba03-df6697104e19?fmt=json"
+	if req.Url != expectedURL {
+		t.Fatalf("Expected URL %q, got %q", expectedURL, req.Url)
+	}
+
+	musicBrainzFolder := findFolderByName(coll.Folders, "MusicBrainz")
+	if musicBrainzFolder == nil {
+		t.Fatal("Expected folder 'MusicBrainz' not found")
+	}
+
+	artistFinder := findRequestByName(musicBrainzFolder.Requests, "Artist Finder")
+	if artistFinder == nil {
+		t.Fatal("Request 'Artist Finder' not found")
+	}
+
+	expectedArtistURL := "https://musicbrainz.org/ws/2/artist?query=Green&limit=5"
+	if artistFinder.Url != expectedArtistURL {
+		t.Fatalf("Expected URL %q, got %q", expectedArtistURL, artistFinder.Url)
+	}
+}
+
+func findFolderByName(folders []collection.Folder, name string) *collection.Folder {
+	for i := range folders {
+		if folders[i].Name == name {
+			return &folders[i]
+		}
+	}
+
+	return nil
+}
+
+func findRequestByName(requests []collection.Request, name string) *collection.Request {
+	for i := range requests {
+		if requests[i].Name == name {
+			return &requests[i]
+		}
+	}
+
+	return nil
+}

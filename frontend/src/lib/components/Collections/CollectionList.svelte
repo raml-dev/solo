@@ -101,7 +101,6 @@
   const deleteRequestModal = modalStack.createModal("collections-delete-request");
   const importCollectionModal = modalStack.createModal("collections-import");
   const collectionVariablesModal = modalStack.createModal("collections-variables");
-  const soloCollectionOverwriteModal = modalStack.createModal("collections-solo-overwrite");
   const exportCollectionModal = modalStack.createModal("collections-export");
   let exportCollectionTargetName = $state<string | null>(null);
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
@@ -136,10 +135,6 @@
     if (importCollectionModal.open && collectionStoreState.selectedCollectionName) {
       curlTargetCollection = collectionStoreState.selectedCollectionName;
     }
-  });
-
-  $effect(() => {
-    soloCollectionOverwriteModal.open = !!collectionImportStoreState.soloCollectionOverwriteName;
   });
 
   $effect(() => {
@@ -667,23 +662,22 @@
   async function runPendingLocalImport() {
     await collectionImportStore.runPendingLocalImport();
 
-    if (
-      !collectionImportStoreState.pendingLocalImport &&
-      !collectionImportStoreState.soloCollectionOverwriteName
-    ) {
+    if (!collectionImportStoreState.pendingLocalImport) {
       importCollectionModal.open = false;
     }
   }
 
-  async function confirmSoloCollectionOverwrite() {
-    await collectionImportStore.confirmSoloCollectionOverwrite();
-
-    if (
-      !collectionImportStoreState.pendingLocalImport &&
-      !collectionImportStoreState.soloCollectionOverwriteName
-    ) {
-      importCollectionModal.open = false;
+  async function handleLocalImportSelection(
+    format: CollectionLocalImportFormat,
+    droppedPaths?: string[]
+  ) {
+    if (!droppedPaths) {
+      collectionImportStoreState.selectedLocalFormat = format;
+      await collectionImportStore.pickLocalImportPath();
+      return;
     }
+
+    await collectionImportStore.setPendingLocalImportFromDrop(format, droppedPaths);
   }
 
   function isContextMenuOpen(): boolean {
@@ -745,7 +739,6 @@
     modalStack.destroyModal(deleteRequestModal.id);
     modalStack.destroyModal(importCollectionModal.id);
     modalStack.destroyModal(collectionVariablesModal.id);
-    modalStack.destroyModal(soloCollectionOverwriteModal.id);
     modalStack.destroyModal(exportCollectionModal.id);
     collectionTreeUI.closeCollectionContextMenu();
     collectionTreeUI.closeRequestContextMenu();
@@ -767,6 +760,11 @@
       collectionImportStoreState.selectedLocalFormat
       ? collectionImportStoreState.pendingLocalImport
       : null
+  );
+  let localActionDisabled = $derived(
+    !activePendingLocalImport ||
+      activePendingLocalImport.paths.length === 0 ||
+      collectionImportStoreState.localImportLoading
   );
   let collectionVariablesTarget = $derived(
     collectionVariablesTargetName
@@ -1278,7 +1276,7 @@
     onClose={closeImportModal}
     showCurlSection
     localActionLabel={collectionImportStoreState.localImportLoading ? "Importing..." : "Import"}
-    localActionDisabled={!activePendingLocalImport || collectionImportStoreState.localImportLoading}
+    {localActionDisabled}
     onLocalAction={runPendingLocalImport}
     curlActionLabel="Import Request"
     curlActionDisabled={!curlInput.trim() || (!curlTargetCollection && !curlCreatingNew)}
@@ -1297,7 +1295,7 @@
         <LocalImportPane
           formats={COLLECTION_LOCAL_IMPORT_FORMATS}
           bind:selectedFormat={collectionImportStoreState.selectedLocalFormat}
-          onImport={collectionImportStore.setPendingLocalImportFromDrop}
+          onImport={handleLocalImportSelection}
         />
       {/if}
     {/snippet}
@@ -1383,29 +1381,6 @@
         onUpdate={handleUpdateCollectionVariables}
       />
     {/key}
-  </Modal>
-{/if}
-
-{#if soloCollectionOverwriteModal.open}
-  <Modal
-    title="Overwrite collection?"
-    bind:open={soloCollectionOverwriteModal.open}
-    onclose={() => {
-      collectionImportStore.cancelSoloCollectionOverwrite();
-      soloCollectionOverwriteModal.open = false;
-    }}
-    size="xl"
-  >
-    {#if $topModalId === soloCollectionOverwriteModal.id}
-      <ToastContainer />
-    {/if}
-    <p>Collection "{collectionImportStoreState.soloCollectionOverwriteName}" already exists.</p>
-    <p class="text-sm text-neutral-600 dark:text-neutral-400">Do you want to overwrite it?</p>
-    {#snippet footer()}
-      <div class="flex w-full justify-end gap-2">
-        <Button color="red" onclick={confirmSoloCollectionOverwrite}>Overwrite</Button>
-      </div>
-    {/snippet}
   </Modal>
 {/if}
 

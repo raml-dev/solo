@@ -446,7 +446,7 @@
 </script>
 
 {#snippet importDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
-  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-50" {onClose}>
+  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-56" {onClose}>
     <ContextMenuItem
       onclick={() => {
         openImportModal();
@@ -616,7 +616,7 @@
       <LocalImportPane
         formats={ENVIRONMENT_LOCAL_IMPORT_FORMATS}
         bind:selectedFormat={localImportFormat}
-        onImport={handleLocalEnvironmentImport}
+        onImport={(format, paths) => handleLocalEnvironmentImport(format, paths?.[0])}
       />
     {/snippet}
 
