@@ -4,7 +4,9 @@
 package collection
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"sync"
 )
 
@@ -18,6 +20,7 @@ type BatchImportItemResult struct {
 	Path     string   `json:"path"`
 	Name     string   `json:"name,omitempty"`
 	Success  bool     `json:"success"`
+	Conflict bool     `json:"conflict,omitempty"`
 	Error    string   `json:"error,omitempty"`
 	Warnings []string `json:"warnings,omitempty"`
 }
@@ -30,6 +33,7 @@ type batchImportParsedResult struct {
 
 func (cm *CollectionManager) ImportBatch(
 	paths []string,
+	overwriteExisting bool,
 	importOne func(path string) (*Collection, []string, error),
 ) (BatchImportResult, error) {
 	if cm == nil {
@@ -63,6 +67,25 @@ func (cm *CollectionManager) ImportBatch(
 
 		result.Results[index].Name = item.collection.Name
 		result.Results[index].Warnings = item.warnings
+
+		if item.collection.Name != "" {
+			exists, err := cm.collectionExists(item.collection.Name)
+			if err != nil {
+				var pathErr *os.PathError
+				if errors.As(err, &pathErr) {
+					err = nil
+				}
+			}
+			if err != nil {
+				result.Results[index].Error = err.Error()
+				continue
+			}
+			if exists && !overwriteExisting {
+				result.Results[index].Conflict = true
+				result.Results[index].Error = fmt.Sprintf("collection %s already exists", item.collection.Name)
+				continue
+			}
+		}
 
 		if err := cm.UpdateCollection(*item.collection); err != nil {
 			result.Results[index].Error = err.Error()

@@ -441,26 +441,26 @@ func (a *App) SetSelectedEnvironment(name string) error {
 // Collection Management Methods
 
 // ImportPostmanCollections imports Postman v2.1 collection files into Solo.
-func (a *App) ImportPostmanCollections(paths []string) (collection.BatchImportResult, error) {
+func (a *App) ImportPostmanCollections(paths []string, overwriteExisting bool) (collection.BatchImportResult, error) {
 	if a.collectionManager == nil {
 		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
 	}
 
 	imp := importer.NewPostmanImporter()
-	return a.collectionManager.ImportBatch(paths, func(path string) (*collection.Collection, []string, error) {
+	return a.collectionManager.ImportBatch(paths, overwriteExisting, func(path string) (*collection.Collection, []string, error) {
 		coll, err := imp.Import(path)
 		return coll, nil, err
 	})
 }
 
 // ImportOpenAPICollections imports OpenAPI 3.x or Swagger 2.x collection files into Solo.
-func (a *App) ImportOpenAPICollections(paths []string) (collection.BatchImportResult, error) {
+func (a *App) ImportOpenAPICollections(paths []string, overwriteExisting bool) (collection.BatchImportResult, error) {
 	if a.collectionManager == nil {
 		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
 	}
 
 	imp := importer.NewOpenAPIImporter()
-	return a.collectionManager.ImportBatch(paths, func(path string) (*collection.Collection, []string, error) {
+	return a.collectionManager.ImportBatch(paths, overwriteExisting, func(path string) (*collection.Collection, []string, error) {
 		result, err := imp.Import(path)
 		if err != nil {
 			return nil, nil, err
@@ -569,7 +569,7 @@ func (a *App) ExportEnvironment(environmentName string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (a *App) loadSoloCollectionForImport(path string, overwrite bool) (*collection.Collection, []string, error) {
+func (a *App) loadSoloCollectionForImport(path string) (*collection.Collection, []string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read file: %w", err)
@@ -583,27 +583,20 @@ func (a *App) loadSoloCollectionForImport(path string, overwrite bool) (*collect
 		return nil, nil, fmt.Errorf("collection file has no name field")
 	}
 
-	if !overwrite {
-		existing, _ := a.collectionManager.LoadCollection(coll.Name)
-		if existing != nil {
-			return nil, nil, fmt.Errorf("collection %s already exists", coll.Name)
-		}
-	}
-
 	return &coll, nil, nil
 }
 
 // ImportSoloCollections imports Solo-native collection JSON files into Solo.
-func (a *App) ImportSoloCollections(paths []string) (collection.BatchImportResult, error) {
+func (a *App) ImportSoloCollections(paths []string, overwriteExisting bool) (collection.BatchImportResult, error) {
 	if a.collectionManager == nil {
 		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
 	}
 
 	importOne := func(path string) (*collection.Collection, []string, error) {
-		return a.loadSoloCollectionForImport(path, true)
+		return a.loadSoloCollectionForImport(path)
 	}
 
-	return a.collectionManager.ImportBatch(paths, importOne)
+	return a.collectionManager.ImportBatch(paths, overwriteExisting, importOne)
 }
 
 // ImportSoloEnvironment imports a Solo-native environment JSON file.
@@ -718,13 +711,13 @@ func (a *App) ExportLogsZip() (bool, error) {
 }
 
 // ImportBrunoCollections imports Bruno collection directories into Solo.
-func (a *App) ImportBrunoCollections(paths []string) (collection.BatchImportResult, error) {
+func (a *App) ImportBrunoCollections(paths []string, overwriteExisting bool) (collection.BatchImportResult, error) {
 	if a.collectionManager == nil {
 		return collection.BatchImportResult{}, fmt.Errorf("collection manager not initialized")
 	}
 
 	imp := importer.NewBrunoImporter()
-	return a.collectionManager.ImportBatch(paths, func(path string) (*collection.Collection, []string, error) {
+	return a.collectionManager.ImportBatch(paths, overwriteExisting, func(path string) (*collection.Collection, []string, error) {
 		coll, err := imp.Import(path)
 		return coll, nil, err
 	})
