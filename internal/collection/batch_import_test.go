@@ -52,7 +52,7 @@ func TestImportBatchGlobalErrors(t *testing.T) {
 				defer cleanupTestDir(tt.manager.config)
 			}
 
-			result, err := tt.manager.ImportBatch(tt.paths, tt.importOne)
+			result, err := tt.manager.ImportBatch(tt.paths, false, tt.importOne)
 			if err == nil {
 				t.Fatalf("expected global error containing %q, got nil", tt.wantError)
 			}
@@ -95,7 +95,7 @@ func TestImportBatchPerItemResults(t *testing.T) {
 	}
 
 	paths := []string{"first", "", "bad", "nil-collection", "save-error", "last"}
-	result, err := cm.ImportBatch(paths, importOne)
+	result, err := cm.ImportBatch(paths, false, importOne)
 	if err != nil {
 		t.Fatalf("expected no global error, got %v", err)
 	}
@@ -176,5 +176,93 @@ func TestImportBatchPerItemResults(t *testing.T) {
 		if _, err := cm.LoadCollection(name); err == nil {
 			t.Fatalf("expected failed import %q not to be saved", name)
 		}
+	}
+}
+
+func TestImportBatchExistingCollectionConflict(t *testing.T) {
+	cm := setupTestManager(t)
+	defer cleanupTestDir(cm.config)
+
+	existing := NewCollection("existing")
+	existing.Requests = []Request{{Name: "original-request"}}
+	if err := cm.UpdateCollection(existing); err != nil {
+		t.Fatalf("failed to seed existing collection: %v", err)
+	}
+
+	importOne := func(path string) (*Collection, []string, error) {
+		coll := NewCollection("existing")
+		coll.Requests = []Request{{Name: "imported-request"}}
+		return &coll, nil, nil
+	}
+
+	result, err := cm.ImportBatch([]string{"conflicting-path"}, false, importOne)
+	if err != nil {
+		t.Fatalf("expected no global error, got %v", err)
+	}
+	if len(result.Results) != 1 {
+		t.Fatalf("expected one result, got %+v", result.Results)
+	}
+
+	item := result.Results[0]
+	if item.Success {
+		t.Fatalf("expected conflicting import not to succeed")
+	}
+	if !item.Conflict {
+		t.Fatalf("expected conflicting import to be marked as conflict")
+	}
+	if item.Name != "existing" {
+		t.Fatalf("item name = %q, want existing", item.Name)
+	}
+	if !strings.Contains(item.Error, "collection existing already exists") {
+		t.Fatalf("item error = %q, want existing collection error", item.Error)
+	}
+
+	loaded, err := cm.LoadCollection("existing")
+	if err != nil {
+		t.Fatalf("failed to load existing collection: %v", err)
+	}
+	if len(loaded.Requests) != 1 || loaded.Requests[0].Name != "original-request" {
+		t.Fatalf("expected original collection to remain unchanged, got %+v", loaded.Requests)
+	}
+}
+
+func TestImportBatchOverwriteExistingCollection(t *testing.T) {
+	cm := setupTestManager(t)
+	defer cleanupTestDir(cm.config)
+
+	existing := NewCollection("existing")
+	existing.Requests = []Request{{Name: "original-request"}}
+	if err := cm.UpdateCollection(existing); err != nil {
+		t.Fatalf("failed to seed existing collection: %v", err)
+	}
+
+	importOne := func(path string) (*Collection, []string, error) {
+		coll := NewCollection("existing")
+		coll.Requests = []Request{{Name: "imported-request"}}
+		return &coll, nil, nil
+	}
+
+	result, err := cm.ImportBatch([]string{"conflicting-path"}, true, importOne)
+	if err != nil {
+		t.Fatalf("expected no global error, got %v", err)
+	}
+	if len(result.Results) != 1 {
+		t.Fatalf("expected one result, got %+v", result.Results)
+	}
+
+	item := result.Results[0]
+	if !item.Success {
+		t.Fatalf("expected overwrite import to succeed, got error %q", item.Error)
+	}
+	if item.Conflict {
+		t.Fatalf("expected overwrite import not to be marked as conflict")
+	}
+
+	loaded, err := cm.LoadCollection("existing")
+	if err != nil {
+		t.Fatalf("failed to load overwritten collection: %v", err)
+	}
+	if len(loaded.Requests) != 1 || loaded.Requests[0].Name != "imported-request" {
+		t.Fatalf("expected collection to be overwritten, got %+v", loaded.Requests)
 	}
 }

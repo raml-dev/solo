@@ -44,7 +44,11 @@
     SyncGitCollection
   } from "$wails/go/main/App";
   import { collection } from "$wails/go/models";
+  import Alert from "flowbite-svelte/Alert.svelte";
+  import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import Card from "flowbite-svelte/Card.svelte";
+  import Checkbox from "flowbite-svelte/Checkbox.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
   import Modal from "flowbite-svelte/Modal.svelte";
@@ -100,11 +104,13 @@
   const deleteFolderModal = modalStack.createModal("collections-delete-folder");
   const deleteRequestModal = modalStack.createModal("collections-delete-request");
   const importCollectionModal = modalStack.createModal("collections-import");
+  const importReviewModal = modalStack.createModal("collections-import-review");
   const collectionVariablesModal = modalStack.createModal("collections-variables");
   const exportCollectionModal = modalStack.createModal("collections-export");
   let exportCollectionTargetName = $state<string | null>(null);
   let gitImportActionState: { loading: boolean; disabled: boolean; submit: () => void } | null =
     $state(null);
+  let importReviewDismissed = $state(false);
 
   let newCollectionName = $state("");
   let renameCollectionName = $state("");
@@ -646,6 +652,7 @@
   }
 
   function closeImportModal() {
+    importReviewModal.open = false;
     importCollectionModal.open = false;
     collectionImportStore.resetLocalImport();
     curlInput = "";
@@ -656,13 +663,29 @@
   function openImportModal() {
     collectionImportStore.resetLocalImport();
     gitImportActionState = null;
+    importReviewDismissed = false;
     importCollectionModal.open = true;
   }
 
   async function runPendingLocalImport() {
+    importReviewDismissed = false;
     await collectionImportStore.runPendingLocalImport();
 
     if (!collectionImportStoreState.pendingLocalImport) {
+      importCollectionModal.open = false;
+    }
+  }
+
+  function closeImportReviewModal() {
+    importReviewDismissed = true;
+    importReviewModal.open = false;
+  }
+
+  async function runSelectedConflictOverwrites() {
+    await collectionImportStore.runSelectedConflictOverwrites();
+
+    if (!collectionImportStoreState.pendingLocalImport) {
+      importReviewModal.open = false;
       importCollectionModal.open = false;
     }
   }
@@ -678,6 +701,31 @@
     }
 
     await collectionImportStore.setPendingLocalImportFromDrop(format, droppedPaths);
+  }
+
+  function getImportIssueLabel(item: collection.BatchImportItemResult): string {
+    if (item.name) return item.name;
+    if (item.path) return item.path;
+    return "Unknown source";
+  }
+
+  function getImportIssueStatus(item: collection.BatchImportItemResult): string {
+    if (item.conflict) return "Conflict";
+    if (!item.success) return "Failed";
+    return "Warning";
+  }
+
+  function getImportIssueBadgeColor(item: collection.BatchImportItemResult): "red" | "yellow" {
+    return item.conflict || (item.warnings ?? []).length > 0 ? "yellow" : "red";
+  }
+
+  function getImportIssueDetails(item: collection.BatchImportItemResult): string {
+    if (item.error) return item.error;
+    return (item.warnings ?? []).join("; ");
+  }
+
+  function isConflictSelected(path: string): boolean {
+    return collectionImportStoreState.selectedOverwriteConflictPaths.includes(path);
   }
 
   function isContextMenuOpen(): boolean {
@@ -738,6 +786,7 @@
     modalStack.destroyModal(deleteFolderModal.id);
     modalStack.destroyModal(deleteRequestModal.id);
     modalStack.destroyModal(importCollectionModal.id);
+    modalStack.destroyModal(importReviewModal.id);
     modalStack.destroyModal(collectionVariablesModal.id);
     modalStack.destroyModal(exportCollectionModal.id);
     collectionTreeUI.closeCollectionContextMenu();
@@ -761,6 +810,31 @@
       ? collectionImportStoreState.pendingLocalImport
       : null
   );
+  let localImportResultItems = $derived(
+    collectionImportStoreState.lastLocalImportResult?.results ?? []
+  );
+  let localImportConflictItems = $derived(
+    localImportResultItems.filter((item) => !item.success && item.conflict)
+  );
+  let localImportIssueItems = $derived(
+    localImportResultItems.filter((item) => !item.success || (item.warnings ?? []).length > 0)
+  );
+  let localImportSuccessCount = $derived(
+    localImportResultItems.filter((item) => item.success).length
+  );
+  let localImportFailureCount = $derived(
+    localImportResultItems.filter((item) => !item.success && !item.conflict).length
+  );
+  let localImportWarningCount = $derived(
+    localImportResultItems.reduce((count, item) => count + (item.warnings ?? []).length, 0)
+  );
+  let hasPendingConflictResolution = $derived(
+    activePendingLocalImport !== null && localImportConflictItems.length > 0
+  );
+  let localImportActionLabel = $derived.by(() => {
+    if (collectionImportStoreState.localImportLoading) return "Importing...";
+    return "Import";
+  });
   let localActionDisabled = $derived(
     !activePendingLocalImport ||
       activePendingLocalImport.paths.length === 0 ||
@@ -779,6 +853,17 @@
   let collectionContextTarget = $derived(collectionContextMenuState.collection);
   let requestContextTarget = $derived(requestContextMenuState.request);
   let folderContextTarget = $derived(folderContextMenuState.folder);
+
+  $effect(() => {
+    if (
+      importCollectionModal.open &&
+      !importReviewDismissed &&
+      !collectionImportStoreState.localImportLoading &&
+      localImportIssueItems.length > 0
+    ) {
+      importReviewModal.open = true;
+    }
+  });
 
   function getCollectionContextMenuTriggerId(): string {
     return `collection-context-menu-trigger-${collectionContextMenuState.openKey}`;
@@ -1275,7 +1360,7 @@
     bind:open={importCollectionModal.open}
     onClose={closeImportModal}
     showCurlSection
-    localActionLabel={collectionImportStoreState.localImportLoading ? "Importing..." : "Import"}
+    localActionLabel={localImportActionLabel}
     {localActionDisabled}
     onLocalAction={runPendingLocalImport}
     curlActionLabel="Import Request"
@@ -1362,6 +1447,141 @@
       />
     {/snippet}
   </ImportModal>
+{/if}
+
+{#if importCollectionModal.open && localImportIssueItems.length > 0}
+  <Modal
+    bind:open={importReviewModal.open}
+    title="Review import"
+    placement="center"
+    size="md"
+    class="max-h-[calc(100vh-2rem)]"
+    classes={{ body: "max-h-[min(520px,calc(100vh-12rem))] overflow-hidden p-4" }}
+    onclose={closeImportReviewModal}
+  >
+    {#if $topModalId === importReviewModal.id}
+      <ToastContainer />
+    {/if}
+
+    <div class="flex h-full min-h-0 flex-col gap-3">
+      <div class="flex flex-col gap-2">
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">
+          Review the import result. You can close this dialog to go back to the import form.
+        </p>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-2">
+            <Badge color="green">{localImportSuccessCount} imported</Badge>
+            {#if localImportConflictItems.length > 0}
+              <Badge color="yellow">
+                {localImportConflictItems.length}
+                conflict{localImportConflictItems.length === 1 ? "" : "s"}
+              </Badge>
+            {/if}
+            {#if localImportFailureCount > 0}
+              <Badge color="red">{localImportFailureCount} failed</Badge>
+            {/if}
+            {#if localImportWarningCount > 0}
+              <Badge color="yellow">
+                {localImportWarningCount} warning{localImportWarningCount === 1 ? "" : "s"}
+              </Badge>
+            {/if}
+          </div>
+
+          {#if hasPendingConflictResolution}
+            <div class="flex gap-2">
+              <Button
+                size="xs"
+                color="alternative"
+                onclick={collectionImportStore.selectAllConflictOverwrites}
+              >
+                Select all
+              </Button>
+              <Button
+                size="xs"
+                color="alternative"
+                onclick={collectionImportStore.clearConflictOverwriteSelection}
+              >
+                Clear
+              </Button>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      {#if !hasPendingConflictResolution}
+        <Alert color="blue">No overwrite decision is needed for these results.</Alert>
+      {/if}
+
+      <div class="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+        {#each localImportIssueItems as item (item.path)}
+          <Card class="p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0 flex-1">
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                  <Badge color={getImportIssueBadgeColor(item)}>
+                    {getImportIssueStatus(item)}
+                  </Badge>
+                  <span class="truncate text-sm font-semibold text-neutral-900 dark:text-white">
+                    {getImportIssueLabel(item)}
+                  </span>
+                </div>
+
+                {#if item.path}
+                  <p class="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                    {item.path}
+                  </p>
+                {/if}
+
+                {#if getImportIssueDetails(item)}
+                  <p class="mt-2 text-sm text-neutral-700 dark:text-neutral-300">
+                    {getImportIssueDetails(item)}
+                  </p>
+                {/if}
+              </div>
+
+              {#if item.conflict}
+                <div class="flex shrink-0 items-center gap-2">
+                  <Checkbox
+                    checked={isConflictSelected(item.path)}
+                    aria-label={`Overwrite ${getImportIssueLabel(item)}`}
+                    onchange={() => {
+                      collectionImportStore.setConflictOverwriteSelection(
+                        item.path,
+                        !isConflictSelected(item.path)
+                      );
+                    }}
+                  />
+                  <span class="text-sm text-neutral-700 dark:text-neutral-300">Overwrite</span>
+                </div>
+              {/if}
+            </div>
+          </Card>
+        {/each}
+      </div>
+    </div>
+
+    {#snippet footer()}
+      <div class="flex w-full justify-end gap-2">
+        <Button color="alternative" onclick={closeImportReviewModal}>
+          {hasPendingConflictResolution ? "Back to import" : "Close"}
+        </Button>
+        {#if hasPendingConflictResolution}
+          <Button
+            color="primary"
+            disabled={collectionImportStoreState.selectedOverwriteConflictPaths.length === 0 ||
+              collectionImportStoreState.localImportLoading}
+            loading={collectionImportStoreState.localImportLoading}
+            onclick={runSelectedConflictOverwrites}
+          >
+            {collectionImportStoreState.selectedOverwriteConflictPaths.length === 1
+              ? "Overwrite 1 collection"
+              : `Overwrite ${collectionImportStoreState.selectedOverwriteConflictPaths.length} collections`}
+          </Button>
+        {/if}
+      </div>
+    {/snippet}
+  </Modal>
 {/if}
 
 {#if collectionVariablesModal.open && collectionVariablesTarget}
