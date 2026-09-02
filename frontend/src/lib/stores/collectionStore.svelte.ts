@@ -682,7 +682,7 @@ export const collectionStore = {
 
     const previousCollections = collectionStoreState.collections;
 
-    let extractedRequest: collection.Request | null = null;
+    let extractedRequest: collection.Request;
     let nextRootRequests = [...(targetCollection.requests || [])];
     let nextFolders = [...(targetCollection.folders || [])];
 
@@ -711,10 +711,6 @@ export const collectionStore = {
 
       extractedRequest = extraction.extractedRequest;
       nextFolders = extraction.folders;
-    }
-
-    if (!extractedRequest) {
-      return;
     }
 
     if (!targetParentFolderId) {
