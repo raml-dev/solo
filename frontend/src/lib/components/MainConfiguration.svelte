@@ -130,7 +130,8 @@
   }
 
   function handleThemeModeChange(mode: ThemeMode) {
-    configurationStore.changeTheme(mode);
+    configurationStore.applyThemeMode(mode);
+    saveConfig();
   }
 
   async function handleZoomLevelChange(level: number) {
