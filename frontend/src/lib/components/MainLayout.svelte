@@ -41,7 +41,9 @@
   });
 </script>
 
-<div class="flex h-screen flex-col overflow-hidden">
+<div
+  class="grid h-full max-h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden"
+>
   <!-- Top Navbar -->
   <nav
     class="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-800"
@@ -66,15 +68,17 @@
     </div>
   </nav>
 
-  <UpdateBanner />
+  <div class="min-h-0">
+    <UpdateBanner />
+  </div>
 
   <!-- Main Content Area -->
-  <div class="flex min-h-0 flex-1 overflow-hidden">
+  <div class="flex min-h-0 overflow-hidden">
     {@render children?.()}
   </div>
 
   <!-- Bottom Bar (always visible) -->
-  <div class="w-full shrink-0">
+  <div class="relative z-20 w-full shrink-0">
     {@render bottom_bar?.()}
   </div>
 </div>

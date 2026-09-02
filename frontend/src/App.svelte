@@ -260,7 +260,7 @@
     <!-- Main area: sidebar + builder -->
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <CollectionList />
-      <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div class="grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
         <RequestTabBar />
         <HTTPRequestBuilder />
       </div>
@@ -288,7 +288,8 @@
 
       <!-- Status bar -->
       <div
-        class="flex h-[--spacing-statusbar] shrink-0 items-center justify-between border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
+        class="relative z-20 flex shrink-0 items-center justify-between border-t border-neutral-200 bg-neutral-50 px-2 dark:border-neutral-700 dark:bg-neutral-900"
+        style="height: var(--spacing-statusbar); min-height: var(--spacing-statusbar)"
       >
         <Button
           color="alternative"
