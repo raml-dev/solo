@@ -40,6 +40,7 @@
     type ResolvedVariableEntry
   } from "$src/lib/utils/variableResolution";
   import { GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
+  import ChevronDownOutline from "flowbite-svelte-icons/ChevronDownOutline.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import StopSolid from "flowbite-svelte-icons/StopSolid.svelte";
   import TerminalSolid from "flowbite-svelte-icons/TerminalSolid.svelte";
@@ -401,7 +402,10 @@
 
 {#if tabStoreState.tabs[tabStoreState.activeTabIndex]}
   {@const tab = tabStoreState.tabs[tabStoreState.activeTabIndex]}
-  <div class="flex h-full flex-col overflow-hidden" bind:this={builderElement}>
+  <div
+    class="grid h-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] overflow-hidden"
+    bind:this={builderElement}
+  >
     <TokenTooltip />
 
     <!-- Request Header -->
@@ -623,7 +627,7 @@
     <!-- Response Section -->
     <div
       class="flex shrink-0 flex-col overflow-hidden border-t border-neutral-200 dark:border-neutral-700"
-      style={responseCollapsed ? undefined : `height: ${responseHeight}px`}
+      style:height={`${responseCollapsed ? 36 : responseHeight}px`}
     >
       {#if !responseCollapsed}
         <Button
@@ -677,17 +681,9 @@
             }}
             aria-label={responseCollapsed ? "Expand response" : "Collapse response"}
           >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              class="transition-transform {responseCollapsed ? 'rotate-180' : ''}"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <ChevronDownOutline
+              class="h-3 w-3 transition-transform {responseCollapsed ? 'rotate-180' : ''}"
+            />
           </Button>
         </div>
       </div>

@@ -112,6 +112,14 @@
 }
 
 @layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   /* Reset per i bullet nei Dropdown e liste UI */
   ul,
   ol,
@@ -167,6 +175,5 @@
     @apply bg-neutral-50 font-sans text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
     font-size: 1rem;
     margin: 0;
-    overflow: hidden;
   }
 }
