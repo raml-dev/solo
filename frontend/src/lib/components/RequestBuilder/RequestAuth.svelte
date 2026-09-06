@@ -201,10 +201,11 @@
     </div>
 
     <div class="space-y-2">
-      <div
-        class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+      <Button
+        onclick={() => selectAuthMode("none")}
+        class="focus:ring-0 flex w-full justify-between rounded-lg border border-neutral-200 bg-white p-3 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
       >
-        <div class="min-w-0">
+        <div class="flex min-w-0 flex-col items-start justify-between gap-1">
           <Label for="auth-none-radio" class="font-medium">No Auth</Label>
           <div class="text-xs text-neutral-500 dark:text-neutral-400">
             Do not use native authentication for this request.
@@ -218,12 +219,13 @@
           onchange={() => selectAuthMode("none")}
           aria-label="No Auth"
         />
-      </div>
+      </Button>
 
-      <div
-        class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+      <Button
+        onclick={() => selectAuthMode("bearer")}
+        class="focus:ring-0 flex w-full justify-between rounded-lg border border-neutral-200 bg-white p-3 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
       >
-        <div class="min-w-0">
+        <div class="flex min-w-0 flex-col items-start justify-between gap-1">
           <Label for="auth-bearer-radio" class="font-medium">Bearer Token</Label>
           <div class="text-xs text-neutral-500 dark:text-neutral-400">
             Send a static token in the Authorization header.
@@ -237,12 +239,13 @@
           onchange={() => selectAuthMode("bearer")}
           aria-label="Bearer Token"
         />
-      </div>
+      </Button>
 
-      <div
-        class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+      <Button
+        onclick={() => selectAuthMode("oauth2")}
+        class="focus:ring-0 flex w-full justify-between rounded-lg border border-neutral-200 bg-white p-3 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
       >
-        <div class="min-w-0">
+        <div class="flex min-w-0 flex-col items-start justify-between gap-1">
           <Label for="auth-oauth2-radio" class="font-medium">OAuth 2.0</Label>
           <div class="text-xs text-neutral-500 dark:text-neutral-400">
             Fetch and refresh a token automatically.
@@ -256,7 +259,7 @@
           onchange={() => selectAuthMode("oauth2")}
           aria-label="OAuth 2.0"
         />
-      </div>
+      </Button>
     </div>
   </div>
 
