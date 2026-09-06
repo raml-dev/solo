@@ -5,18 +5,25 @@
 
 <script lang="ts">
   import EnvTokenInput from "$src/lib/components/RequestBuilder/EnvTokenInput.svelte";
+  import { notifications } from "$src/lib/stores/notificationStore";
+  import { tabStore } from "$src/lib/stores/tabStore.svelte";
+  import { extractEnvTokenMatches } from "$src/lib/utils/tokens";
   import type { ResolvedVariableEntry } from "$src/lib/utils/variableResolution";
   import { collection } from "$wails/go/models";
+  import EyeOutline from "flowbite-svelte-icons/EyeOutline.svelte";
+  import EyeSlashOutline from "flowbite-svelte-icons/EyeSlashOutline.svelte";
   import PlusOutline from "flowbite-svelte-icons/PlusOutline.svelte";
   import TrashBinOutline from "flowbite-svelte-icons/TrashBinOutline.svelte";
+  import Alert from "flowbite-svelte/Alert.svelte";
   import Button from "flowbite-svelte/Button.svelte";
   import Input from "flowbite-svelte/Input.svelte";
   import Label from "flowbite-svelte/Label.svelte";
-  import Toggle from "flowbite-svelte/Toggle.svelte";
+  import Radio from "flowbite-svelte/Radio.svelte";
 
   interface Props {
     auth: collection.AuthConfiguration;
     variableEntries?: ResolvedVariableEntry[];
+    hasAuthorizationHeader?: boolean;
     onChange?: () => void;
   }
 
@@ -26,10 +33,81 @@
     value: string;
   };
 
-  let { auth = $bindable(), variableEntries = [], onChange }: Props = $props();
+  let {
+    auth = $bindable(),
+    variableEntries = [],
+    hasAuthorizationHeader = false,
+    onChange
+  }: Props = $props();
+
+  let tokenVisible = $state(false);
+  let revealingToken = $state(false);
+  let bearerVariableEntries = $derived(
+    variableEntries.map((entry) => ({
+      ...entry,
+      computedValue: entry.computedValue ? "••••••••" : ""
+    }))
+  );
+  let bearerTokenIsPlaceholder = $derived(isBearerPlaceholder(auth.bearerToken));
+  let bearerTokenVisibilityAvailable = $derived(
+    !bearerTokenIsPlaceholder && Boolean(auth.bearerToken || auth.bearerTokenId)
+  );
+
+  function isBearerPlaceholder(value?: string): boolean {
+    const trimmedValue = (value ?? "").trim();
+    const matches = extractEnvTokenMatches(trimmedValue);
+    return matches.length === 1 && matches[0].full === trimmedValue;
+  }
 
   function handleChange() {
     onChange?.();
+  }
+
+  function selectAuthMode(mode: "none" | "bearer" | "oauth2") {
+    auth.mode = mode;
+    auth.enabled = auth.mode === "oauth2";
+    tokenVisible = false;
+    handleChange();
+  }
+
+  function handleBearerTokenChange() {
+    if (auth.bearerTokenId) {
+      auth.bearerTokenId = "";
+    }
+    if (isBearerPlaceholder(auth.bearerToken)) {
+      tokenVisible = false;
+    }
+    handleChange();
+  }
+
+  async function toggleTokenVisibility() {
+    if (tokenVisible) {
+      tokenVisible = false;
+      return;
+    }
+    if (!auth.bearerToken && auth.bearerTokenId) {
+      revealingToken = true;
+      try {
+        auth.bearerToken = await tabStore.revealBearerToken(auth.bearerTokenId);
+      } catch (error) {
+        notifications.error("Failed to reveal bearer token", String(error));
+        return;
+      } finally {
+        revealingToken = false;
+      }
+    }
+    if (isBearerPlaceholder(auth.bearerToken)) {
+      tokenVisible = false;
+      return;
+    }
+    tokenVisible = true;
+  }
+
+  function clearBearerToken() {
+    auth.bearerToken = "";
+    auth.bearerTokenId = "";
+    tokenVisible = false;
+    handleChange();
   }
 
   function handleTokenUrlChange(value: string) {
@@ -96,20 +174,126 @@
   }
 </script>
 
-<div class="flex-1 space-y-6 overflow-y-auto p-4">
-  <div
-    class="flex items-center justify-between border-b border-neutral-100 pb-4 dark:border-neutral-800"
+{#snippet bearerTokenVisibilityControl()}
+  <button
+    type="button"
+    class="inline-flex rounded p-0.5 text-neutral-500 hover:text-neutral-800 focus:ring-2 focus:ring-primary-500 focus:outline-hidden disabled:cursor-wait disabled:opacity-50 dark:text-neutral-400 dark:hover:text-white"
+    onclick={toggleTokenVisibility}
+    disabled={revealingToken}
+    aria-label={tokenVisible ? "Hide bearer token" : "Show bearer token"}
+    title={tokenVisible ? "Hide bearer token" : "Show bearer token"}
   >
+    {#if tokenVisible}
+      <EyeSlashOutline class="h-4 w-4" />
+    {:else}
+      <EyeOutline class="h-4 w-4" />
+    {/if}
+  </button>
+{/snippet}
+
+<div class="flex-1 space-y-6 overflow-y-auto p-4">
+  <div class="space-y-3 border-b border-neutral-100 pb-4 dark:border-neutral-800">
     <div class="space-y-0.5">
-      <Label class="text-base font-semibold">Enable Integrated OAuth2</Label>
+      <Label class="text-base font-semibold">Authentication</Label>
       <div class="text-sm text-neutral-500 dark:text-neutral-400">
-        Automatically fetch and inject Bearer tokens into your requests.
+        Select an authentication method for this request.
       </div>
     </div>
-    <Toggle bind:checked={auth.enabled} onchange={handleChange} size="default" />
+
+    <div class="space-y-2">
+      <div
+        class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+      >
+        <div class="min-w-0">
+          <Label for="auth-none-radio" class="font-medium">No Auth</Label>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">
+            Do not use native authentication for this request.
+          </div>
+        </div>
+        <Radio
+          id="auth-none-radio"
+          name="auth-mode"
+          value="none"
+          group={auth.mode}
+          onchange={() => selectAuthMode("none")}
+          aria-label="No Auth"
+        />
+      </div>
+
+      <div
+        class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+      >
+        <div class="min-w-0">
+          <Label for="auth-bearer-radio" class="font-medium">Bearer Token</Label>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">
+            Send a static token in the Authorization header.
+          </div>
+        </div>
+        <Radio
+          id="auth-bearer-radio"
+          name="auth-mode"
+          value="bearer"
+          group={auth.mode}
+          onchange={() => selectAuthMode("bearer")}
+          aria-label="Bearer Token"
+        />
+      </div>
+
+      <div
+        class="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+      >
+        <div class="min-w-0">
+          <Label for="auth-oauth2-radio" class="font-medium">OAuth 2.0</Label>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">
+            Fetch and refresh a token automatically.
+          </div>
+        </div>
+        <Radio
+          id="auth-oauth2-radio"
+          name="auth-mode"
+          value="oauth2"
+          group={auth.mode}
+          onchange={() => selectAuthMode("oauth2")}
+          aria-label="OAuth 2.0"
+        />
+      </div>
+    </div>
   </div>
 
-  {#if auth.enabled}
+  {#if auth.mode !== "none" && hasAuthorizationHeader}
+    <Alert color="yellow">
+      The enabled Authorization header takes precedence over native authentication.
+    </Alert>
+  {/if}
+
+  {#if auth.mode === "bearer"}
+    <div class="animate-in fade-in slide-in-from-top-1 space-y-3 duration-200">
+      <div class="space-y-2">
+        <Label>Token</Label>
+        <div class="flex items-center gap-2">
+          <EnvTokenInput
+            bind:value={auth.bearerToken}
+            placeholder={auth.bearerTokenId ? "Stored token" : "Enter bearer token"}
+            class="bearer-token-input {tokenVisible ? '' : 'bearer-token-masked'}"
+            variableEntries={bearerVariableEntries}
+            right={bearerTokenVisibilityControl}
+            rightVisible={bearerTokenVisibilityAvailable}
+            onChange={handleBearerTokenChange}
+          />
+          <Button
+            color="light"
+            size="sm"
+            onclick={clearBearerToken}
+            disabled={!auth.bearerToken && !auth.bearerTokenId}>Clear</Button
+          >
+        </div>
+        <div class="text-xs text-neutral-500">
+          Enter the token or use <code>{"{{variable}}"}</code> from session, environment, or
+          collection variables. Solo adds the <code>Bearer</code> prefix automatically.
+        </div>
+      </div>
+    </div>
+  {:else if auth.mode === "oauth2"}
     <div class="animate-in fade-in slide-in-from-top-1 space-y-4 duration-200">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div class="space-y-2">
@@ -117,7 +301,7 @@
           <EnvTokenInput
             bind:value={auth.tokenUrl}
             placeholder="https://auth.example.com/oauth2/token"
-            onChange={() => handleTokenUrlChange(auth.tokenUrl)}
+            onChange={() => handleTokenUrlChange(auth.tokenUrl ?? "")}
             size="sm"
             {variableEntries}
           />
@@ -204,3 +388,14 @@
     </div>
   {/if}
 </div>
+
+<style>
+  :global(.bearer-token-masked .cm-content) {
+    -webkit-text-security: disc;
+  }
+
+  :global(.bearer-token-input .cm-env-token) {
+    -webkit-text-security: none;
+    pointer-events: none;
+  }
+</style>

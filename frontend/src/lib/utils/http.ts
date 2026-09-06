@@ -246,15 +246,7 @@ export function detectResponseFormat(hdrs: Record<string, string>): "json" | "xm
  * Kept for backward compatibility if needed, but getMethodBadgeClass is preferred for consistency.
  */
 export type MethodBadgeColor =
-  | "green"
-  | "blue"
-  | "yellow"
-  | "red"
-  | "dark"
-  | "none"
-  | "purple"
-  | "indigo"
-  | "pink";
+  "green" | "blue" | "yellow" | "red" | "dark" | "none" | "purple" | "indigo" | "pink";
 
 export function getMethodBadgeColor(verb: string): MethodBadgeColor {
   const family = HTTP_METHOD_COLOR_MAP[(verb || "GET").toUpperCase() as HttpMethod] || "neutral";

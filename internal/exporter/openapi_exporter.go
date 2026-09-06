@@ -51,6 +51,16 @@ func buildOpenAPIDocument(coll *collection.Collection) map[string]interface{} {
 	if len(tags) > 0 {
 		doc["tags"] = tags
 	}
+	if collectionUsesBearerAuth(coll) {
+		doc["components"] = map[string]interface{}{
+			"securitySchemes": map[string]interface{}{
+				"bearerAuth": map[string]interface{}{
+					"type":   "http",
+					"scheme": "bearer",
+				},
+			},
+		}
+	}
 	return doc
 }
 
@@ -79,6 +89,9 @@ func addOpenAPIPath(paths map[string]interface{}, req collection.Request, tag st
 	}
 	if tag != "" {
 		operation["tags"] = []string{tag}
+	}
+	if req.Auth != nil && req.Auth.EffectiveMode() == collection.AuthModeBearer {
+		operation["security"] = []interface{}{map[string]interface{}{"bearerAuth": []string{}}}
 	}
 
 	var params []interface{}
@@ -111,6 +124,34 @@ func addOpenAPIPath(paths map[string]interface{}, req collection.Request, tag st
 	}
 
 	pathItem[method] = operation
+}
+
+func collectionUsesBearerAuth(coll *collection.Collection) bool {
+	for i := range coll.Requests {
+		if coll.Requests[i].Auth != nil && coll.Requests[i].Auth.EffectiveMode() == collection.AuthModeBearer {
+			return true
+		}
+	}
+	for i := range coll.Folders {
+		if folderUsesBearerAuth(&coll.Folders[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func folderUsesBearerAuth(folder *collection.Folder) bool {
+	for i := range folder.Requests {
+		if folder.Requests[i].Auth != nil && folder.Requests[i].Auth.EffectiveMode() == collection.AuthModeBearer {
+			return true
+		}
+	}
+	for i := range folder.Folders {
+		if folderUsesBearerAuth(&folder.Folders[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 // toOpenAPIPath strips the baseURL prefix and converts {{var}} placeholders to {var}.

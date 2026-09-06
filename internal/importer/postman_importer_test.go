@@ -145,6 +145,42 @@ func TestPostmanImporter_Import_FileNotFound(t *testing.T) {
 	}
 }
 
+func TestPostmanImporter_ImportsAndInheritsAuth(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "auth.postman_collection.json")
+	content := `{
+  "info": {"name": "Auth collection"},
+  "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "collection-token"}]},
+  "item": [
+    {"name": "Inherited", "request": {"method": "GET", "url": "https://example.com/inherited"}},
+    {"name": "No auth", "request": {"method": "GET", "url": "https://example.com/none", "auth": {"type": "noauth"}}},
+    {"name": "Folder", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "folder-token"}]}, "item": [
+      {"name": "Folder inherited", "request": {"method": "GET", "url": "https://example.com/folder"}},
+      {"name": "OAuth access token", "request": {"method": "GET", "url": "https://example.com/oauth", "auth": {"type": "oauth2", "oauth2": [{"key": "accessToken", "value": "oauth-token"}]}}}
+    ]}
+  ]
+}`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	coll, err := NewPostmanImporter().Import(path)
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+	if got := coll.Requests[0].Auth.BearerToken; got != "collection-token" {
+		t.Fatalf("collection inherited token = %q", got)
+	}
+	if coll.Requests[1].Auth != nil {
+		t.Fatalf("noauth request auth = %+v, want nil", coll.Requests[1].Auth)
+	}
+	if got := coll.Folders[0].Requests[0].Auth.BearerToken; got != "folder-token" {
+		t.Fatalf("folder inherited token = %q", got)
+	}
+	if got := coll.Folders[0].Requests[1].Auth.BearerToken; got != "oauth-token" {
+		t.Fatalf("OAuth access token = %q", got)
+	}
+}
+
 func TestPostmanURL_UnmarshalJSON(t *testing.T) {
 	importer := NewPostmanImporter() // Used to force syntax check of postmanURL
 

@@ -5,6 +5,7 @@ package importer
 
 import (
 	"encoding/base64"
+	"solo/internal/collection"
 	"strings"
 	"testing"
 )
@@ -20,6 +21,7 @@ func TestCurlImporter_HappyPath(t *testing.T) {
 		wantBody    string
 		wantBT      string // bodyType
 		wantName    string
+		wantBearer  string
 		wantHeaders map[string]string
 		wantCookies map[string]string
 	}{
@@ -77,11 +79,9 @@ func TestCurlImporter_HappyPath(t *testing.T) {
 			},
 		},
 		{
-			name:  "basic_auth_overridden_by_header",
-			input: `curl -u alice:secret -H 'Authorization: Bearer tok' https://api.example.com/me`,
-			wantHeaders: map[string]string{
-				"Authorization": "Bearer tok",
-			},
+			name:       "basic_auth_overridden_by_header",
+			input:      `curl -u alice:secret -H 'Authorization: Bearer tok' https://api.example.com/me`,
+			wantBearer: "tok",
 		},
 		{
 			name:        "cookies",
@@ -117,11 +117,14 @@ func TestCurlImporter_HappyPath(t *testing.T) {
 			wantName: "GET /users/42",
 		},
 		{
-			name:  "quoted_header_double",
-			input: `curl -H "Authorization: Bearer tok" https://api.example.com/x`,
-			wantHeaders: map[string]string{
-				"Authorization": "Bearer tok",
-			},
+			name:       "quoted_header_double",
+			input:      `curl -H "Authorization: Bearer tok" https://api.example.com/x`,
+			wantBearer: "tok",
+		},
+		{
+			name:       "oauth2_bearer_flag",
+			input:      `curl --oauth2-bearer flag-token https://api.example.com/x`,
+			wantBearer: "flag-token",
 		},
 		{
 			name:     "ignored_flags",
@@ -167,6 +170,20 @@ func TestCurlImporter_HappyPath(t *testing.T) {
 			}
 			if tt.wantName != "" && req.Name != tt.wantName {
 				t.Errorf("name: got %q, want %q", req.Name, tt.wantName)
+			}
+			if tt.wantBearer != "" {
+				if req.Auth == nil {
+					t.Fatal("expected native bearer auth, got nil")
+				}
+				if got := req.Auth.EffectiveMode(); got != collection.AuthModeBearer {
+					t.Errorf("auth mode: got %q, want %q", got, collection.AuthModeBearer)
+				}
+				if got := req.Auth.BearerToken; got != tt.wantBearer {
+					t.Errorf("bearer token: got %q, want %q", got, tt.wantBearer)
+				}
+				if _, ok := req.Headers["Authorization"]; ok {
+					t.Error("bearer Authorization header should be converted to native auth")
+				}
 			}
 			for k, v := range tt.wantHeaders {
 				if got, ok := req.Headers[k]; !ok {

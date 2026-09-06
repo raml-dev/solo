@@ -106,17 +106,20 @@ func resolveCookies(cookies map[string]any, ctx resolutionContext) map[string]an
 	return resolved
 }
 
-// resolveAuthConfig resolves placeholders in the OAuth configuration fields.
+// resolveAuthConfig resolves placeholders in the native authentication fields.
 func resolveAuthConfig(authCfg *collection.AuthConfiguration, ctx resolutionContext) *collection.AuthConfiguration {
 	if authCfg == nil {
 		return nil
 	}
 
 	resolved := &collection.AuthConfiguration{
-		Enabled:   authCfg.Enabled,
-		TokenURL:  resolveTemplateString(authCfg.TokenURL, ctx),
-		TokenPath: authCfg.TokenPath,
-		Template:  make(map[string]string, len(authCfg.Template)),
+		Enabled:       authCfg.Enabled,
+		Mode:          authCfg.EffectiveMode(),
+		BearerToken:   resolveTemplateString(authCfg.BearerToken, ctx),
+		BearerTokenID: authCfg.BearerTokenID,
+		TokenURL:      resolveTemplateString(authCfg.TokenURL, ctx),
+		TokenPath:     authCfg.TokenPath,
+		Template:      make(map[string]string, len(authCfg.Template)),
 	}
 
 	for key, value := range authCfg.Template {

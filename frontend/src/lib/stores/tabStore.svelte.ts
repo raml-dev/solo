@@ -15,7 +15,13 @@ import {
 } from "$src/lib/utils/constants";
 import { filterInPlace } from "$src/lib/utils/helpers";
 import { detectResponseFormat, getHttpStatusString, prettyPrint } from "$src/lib/utils/http";
-import { CancelExecute, CancelRunner, Execute, RunParallel } from "$wails/go/main/App";
+import {
+  CancelExecute,
+  CancelRunner,
+  Execute,
+  RevealBearerToken,
+  RunParallel
+} from "$wails/go/main/App";
 import type { configuration as conf } from "$wails/go/models";
 import { collection, main, runner } from "$wails/go/models";
 import { EventsOff, EventsOn } from "$wails/runtime";
@@ -84,12 +90,31 @@ interface TabStoreState {
 
 export const tabStoreState: TabStoreState = $state(initState());
 
+function stateWithoutTransientSecrets(state: TabStoreState) {
+  return {
+    ...state,
+    tabs: state.tabs.map((t) => {
+      const tabCopy = {
+        ...t,
+        auth: {
+          ...t.auth,
+          bearerToken: undefined
+        }
+      };
+      // @ts-expect-error - runner results are intentionally not persisted
+      delete tabCopy.runnerState;
+      return tabCopy;
+    })
+  };
+}
+
 function initState() {
   const localStorageData = localStorage.getItem(TAB_STORAGE_KEY);
   if (localStorageData) {
     const state = JSON.parse(localStorageData) as TabStoreState;
     // Ensure loading is always false on startup
     state.tabs.forEach((t) => {
+      t.auth = normalizeAuthConfiguration(t.auth);
       t.loading = false;
       t.runnerState = {
         running: false,
@@ -105,6 +130,8 @@ function initState() {
         };
       }
     });
+    // Migrate any bearer token persisted by a previous or development build.
+    localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(stateWithoutTransientSecrets(state)));
     return state;
   }
   return {
@@ -140,8 +167,12 @@ function normalizeRequestSettings(
 function normalizeAuthConfiguration(
   auth?: collection.AuthConfiguration | null
 ): collection.AuthConfiguration {
+  const mode = auth?.mode || (auth?.enabled ? "oauth2" : "none");
   return {
-    enabled: auth?.enabled ?? false,
+    enabled: mode === "oauth2",
+    mode,
+    bearerToken: auth?.bearerToken ?? "",
+    bearerTokenId: auth?.bearerTokenId ?? "",
     tokenUrl: auth?.tokenUrl ?? "",
     template: { ...(auth?.template ?? {}) },
     tokenPath: auth?.tokenPath ?? "access_token"
@@ -476,16 +507,17 @@ export function removeTabsByRequests(requestIds: string[]) {
 }
 
 export function storeTabsInLocalStorage() {
-  const stateToSave = {
-    ...tabStoreState,
-    tabs: tabStoreState.tabs.map((t) => {
-      const tabCopy = { ...t };
-      // @ts-expect-error - we want to remove this property before serialization
-      delete tabCopy.runnerState;
-      return tabCopy;
-    })
-  };
-  localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(stateToSave));
+  localStorage.setItem(
+    TAB_STORAGE_KEY,
+    JSON.stringify(stateWithoutTransientSecrets(tabStoreState))
+  );
+}
+
+export async function revealBearerToken(tokenId: string): Promise<string> {
+  if (!tokenId) {
+    throw new Error("Bearer token is not stored yet");
+  }
+  return RevealBearerToken(tokenId);
 }
 
 /**
@@ -589,6 +621,10 @@ export async function startRunnerActiveTab() {
     method: tab.verb,
     url: tab.url,
     collectionName: tab.collectionName || "",
+    auth: collection.AuthConfiguration.createFrom({
+      ...tab.auth,
+      template: { ...(tab.auth.template || {}) }
+    }),
     settings: tab.settings,
     preRequestScript: tab.preRequestScript || "",
     postResponseScript: tab.postResponseScript || ""
@@ -642,6 +678,7 @@ export const tabStore = {
   removeTabsByCollection,
   removeTabsByRequests,
   storeTabsInLocalStorage,
+  revealBearerToken,
   executeActiveTab,
   cancelActiveTab,
   startRunnerActiveTab,

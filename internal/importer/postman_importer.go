@@ -46,21 +46,25 @@ func (p *PostmanImporter) Import(path string) (*models.Collection, error) {
 		LastUpdateTimestamp: now,
 	}
 
-	coll.Requests, coll.Folders = processItems(pc.Item)
+	coll.Requests, coll.Folders = processItems(pc.Item, pc.Auth)
 
 	slog.Info("Postman import completed", "requests_found", len(coll.Requests))
 	return coll, nil
 }
 
 // processItems converts Postman items into root requests and nested folders.
-func processItems(items []postmanItem) ([]models.Request, []models.Folder) {
+func processItems(items []postmanItem, inheritedAuth *postmanAuth) ([]models.Request, []models.Folder) {
 	requests := make([]models.Request, 0)
 	folders := make([]models.Folder, 0)
 
 	for _, item := range items {
+		effectiveItemAuth := inheritedAuth
+		if item.Auth != nil {
+			effectiveItemAuth = item.Auth
+		}
 		if len(item.Item) > 0 {
 			folder := models.NewFolder(item.Name)
-			folder.Requests, folder.Folders = processItems(item.Item)
+			folder.Requests, folder.Folders = processItems(item.Item, effectiveItemAuth)
 			folders = append(folders, folder)
 		}
 
@@ -77,6 +81,11 @@ func processItems(items []postmanItem) ([]models.Request, []models.Folder) {
 				CreationTimestamp:   time.Now(),
 				LastUpdateTimestamp: time.Now(),
 			}
+			effectiveRequestAuth := effectiveItemAuth
+			if item.Request.Auth != nil {
+				effectiveRequestAuth = item.Request.Auth
+			}
+			req.Auth = convertPostmanAuth(effectiveRequestAuth)
 
 			// Convert Headers from an array of structs to a map
 			for _, h := range item.Request.Header {
@@ -162,6 +171,7 @@ func generateUUID() string {
 type postmanCollection struct {
 	Info postmanInfo   `json:"info"`
 	Item []postmanItem `json:"item"`
+	Auth *postmanAuth  `json:"auth"`
 }
 
 type postmanInfo struct {
@@ -172,6 +182,7 @@ type postmanItem struct {
 	Name    string          `json:"name"`
 	Item    []postmanItem   `json:"item"` // For nested folders
 	Request *postmanRequest `json:"request"`
+	Auth    *postmanAuth    `json:"auth"`
 }
 
 type postmanRequest struct {
@@ -179,6 +190,95 @@ type postmanRequest struct {
 	URL    postmanURL      `json:"url"`
 	Header []postmanHeader `json:"header"`
 	Body   *postmanBody    `json:"body"`
+	Auth   *postmanAuth    `json:"auth"`
+}
+
+type postmanAuth struct {
+	Type   string                 `json:"type"`
+	Bearer []postmanAuthAttribute `json:"bearer"`
+	OAuth2 []postmanAuthAttribute `json:"oauth2"`
+}
+
+type postmanAuthAttribute struct {
+	Key      string `json:"key"`
+	Value    any    `json:"value"`
+	Disabled bool   `json:"disabled"`
+}
+
+func convertPostmanAuth(source *postmanAuth) *models.AuthConfiguration {
+	if source == nil || strings.EqualFold(source.Type, "noauth") {
+		return nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(source.Type)) {
+	case "bearer":
+		values := postmanAuthValues(source.Bearer)
+		return &models.AuthConfiguration{
+			Mode:        models.AuthModeBearer,
+			BearerToken: firstPostmanAuthValue(values, "token", "accessToken"),
+		}
+
+	case "oauth2":
+		values := postmanAuthValues(source.OAuth2)
+		if accessToken := firstPostmanAuthValue(values, "accessToken", "token"); accessToken != "" {
+			return &models.AuthConfiguration{Mode: models.AuthModeBearer, BearerToken: accessToken}
+		}
+
+		tokenURL := firstPostmanAuthValue(values, "accessTokenUrl", "tokenUrl")
+		template := make(map[string]string)
+		for _, mapping := range []struct {
+			postmanKeys []string
+			soloKey     string
+		}{
+			{[]string{"grantType"}, "grant_type"},
+			{[]string{"clientId"}, "client_id"},
+			{[]string{"clientSecret"}, "client_secret"},
+			{[]string{"scope"}, "scope"},
+			{[]string{"username"}, "username"},
+			{[]string{"password"}, "password"},
+		} {
+			if value := firstPostmanAuthValue(values, mapping.postmanKeys...); value != "" {
+				template[mapping.soloKey] = value
+			}
+		}
+		if tokenURL == "" {
+			return nil
+		}
+		return &models.AuthConfiguration{
+			Enabled:   true,
+			Mode:      models.AuthModeOAuth2,
+			TokenURL:  tokenURL,
+			Template:  template,
+			TokenPath: "access_token",
+		}
+	}
+
+	return nil
+}
+
+func postmanAuthValues(attributes []postmanAuthAttribute) map[string]string {
+	values := make(map[string]string)
+	for _, attribute := range attributes {
+		if attribute.Disabled || strings.TrimSpace(attribute.Key) == "" || attribute.Value == nil {
+			continue
+		}
+		values[normalizePostmanAuthKey(attribute.Key)] = fmt.Sprint(attribute.Value)
+	}
+	return values
+}
+
+func firstPostmanAuthValue(values map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := values[normalizePostmanAuthKey(key)]; value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func normalizePostmanAuthKey(key string) string {
+	key = strings.ToLower(key)
+	return strings.NewReplacer("_", "", "-", "", ".", "").Replace(key)
 }
 
 type postmanHeader struct {

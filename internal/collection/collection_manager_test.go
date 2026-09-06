@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -387,6 +388,106 @@ func TestCollectionManagerAddRequestToFolder(t *testing.T) {
 
 	if len(coll.Folders) != 1 || len(coll.Folders[0].Requests) != 1 {
 		t.Fatalf("expected 1 folder request, got %+v", coll.Folders)
+	}
+}
+
+type fakeAuthSecretStore struct {
+	tokens  map[string]string
+	deleted map[string]bool
+	nextID  int
+}
+
+func newFakeAuthSecretStore() *fakeAuthSecretStore {
+	return &fakeAuthSecretStore{tokens: map[string]string{}, deleted: map[string]bool{}}
+}
+
+func (s *fakeAuthSecretStore) StoreBearerToken(tokenID, token string) (string, error) {
+	if tokenID == "" {
+		s.nextID++
+		tokenID = fmt.Sprintf("token-%d", s.nextID)
+	}
+	s.tokens[tokenID] = token
+	return tokenID, nil
+}
+
+func (s *fakeAuthSecretStore) GetBearerToken(tokenID string) (string, error) {
+	token, ok := s.tokens[tokenID]
+	if !ok {
+		return "", fmt.Errorf("token %q not found", tokenID)
+	}
+	return token, nil
+}
+
+func (s *fakeAuthSecretStore) DeleteBearerToken(tokenID string) error {
+	delete(s.tokens, tokenID)
+	s.deleted[tokenID] = true
+	return nil
+}
+
+func TestCollectionManager_BearerTokenPersistenceAndDuplication(t *testing.T) {
+	cm := setupTestManager(t)
+	defer cleanupTestDir(cm.config)
+	secretStore := newFakeAuthSecretStore()
+	cm.secretStore = secretStore
+
+	const collectionName = "bearer-auth-test"
+	if err := cm.CreateCollection(collectionName); err != nil {
+		t.Fatalf("CreateCollection() error = %v", err)
+	}
+
+	added, err := cm.AddRequest(collectionName, Request{
+		Name: "secured",
+		Auth: &AuthConfiguration{Mode: AuthModeBearer, BearerToken: "plaintext-secret"},
+	})
+	if err != nil {
+		t.Fatalf("AddRequest() error = %v", err)
+	}
+	if added.Auth == nil || added.Auth.BearerTokenID == "" || added.Auth.BearerToken != "" {
+		t.Fatalf("persisted auth = %+v, want token identifier without plaintext", added.Auth)
+	}
+	originalTokenID := added.Auth.BearerTokenID
+
+	rawCollection, err := os.ReadFile(buildCollectionFileName(cm.config, collectionName))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(rawCollection), "plaintext-secret") {
+		t.Fatal("collection JSON contains the plaintext bearer token")
+	}
+
+	placeholderRequest, err := cm.AddRequest(collectionName, Request{
+		Name: "environment secured",
+		Auth: &AuthConfiguration{Mode: AuthModeBearer, BearerToken: "{{apiToken}}"},
+	})
+	if err != nil {
+		t.Fatalf("AddRequest() with placeholder error = %v", err)
+	}
+	if placeholderRequest.Auth == nil || placeholderRequest.Auth.BearerToken != "{{apiToken}}" {
+		t.Fatalf("placeholder auth = %+v, want readable placeholder", placeholderRequest.Auth)
+	}
+	if placeholderRequest.Auth.BearerTokenID != "" {
+		t.Fatalf("placeholder token identifier = %q, want empty", placeholderRequest.Auth.BearerTokenID)
+	}
+
+	duplicate := *added
+	duplicate.Id = ""
+	duplicate.Name = "secured copy"
+	duplicated, err := cm.AddRequest(collectionName, duplicate)
+	if err != nil {
+		t.Fatalf("duplicating bearer request: %v", err)
+	}
+	if duplicated.Auth.BearerTokenID == originalTokenID {
+		t.Fatal("duplicated request shares the original bearer token identifier")
+	}
+	if got := secretStore.tokens[duplicated.Auth.BearerTokenID]; got != "plaintext-secret" {
+		t.Fatalf("duplicated secret = %q, want plaintext-secret", got)
+	}
+
+	if err := cm.RemoveRequest(collectionName, added.Id); err != nil {
+		t.Fatalf("RemoveRequest() error = %v", err)
+	}
+	if !secretStore.deleted[originalTokenID] {
+		t.Fatal("removing a request did not remove its bearer credential")
 	}
 }
 

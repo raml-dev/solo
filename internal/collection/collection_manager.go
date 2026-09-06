@@ -10,23 +10,38 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"solo/internal/tools"
 	fs "solo/internal/tools"
 	"strings"
 )
 
 type CollectionManager struct {
-	config string
+	config      string
+	secretStore AuthSecretStore
 }
 
-func NewCollectionManager() *CollectionManager {
+var bearerTokenPlaceholderPattern = regexp.MustCompile(tools.PLACEHOLDER_REGEXP)
+
+func isBearerTokenPlaceholder(value string) bool {
+	trimmedValue := strings.TrimSpace(value)
+	matches := bearerTokenPlaceholderPattern.FindAllString(trimmedValue, -1)
+	return len(matches) == 1 && matches[0] == trimmedValue
+}
+
+func NewCollectionManager(secretStores ...AuthSecretStore) *CollectionManager {
 
 	config, err := fs.GetMainConfig(fs.CONFIG_COLLECTION_DIR)
 	if err != nil {
 		return nil
 	}
 
-	return &CollectionManager{config}
+	var secretStore AuthSecretStore
+	if len(secretStores) > 0 {
+		secretStore = secretStores[0]
+	}
+
+	return &CollectionManager{config: config, secretStore: secretStore}
 }
 
 func (cm *CollectionManager) GetConfigPath() (string, error) {
@@ -158,6 +173,10 @@ func (cm *CollectionManager) UpdateCollection(updated Collection) error {
 	if updated.Name == "" {
 		return errors.New("collection name is not specified")
 	}
+	previous, _ := cm.LoadCollection(updated.Name)
+	if err := cm.prepareCollectionAuthForStorage(&updated); err != nil {
+		return err
+	}
 
 	bytes, err := json.MarshalIndent(updated, "", "  ")
 	if err != nil {
@@ -169,13 +188,19 @@ func (cm *CollectionManager) UpdateCollection(updated Collection) error {
 		fileName += ".json"
 	}
 
-	return fs.UpdateConfigFile(cm.config, fileName, bytes)
+	if err := fs.UpdateConfigFile(cm.config, fileName, bytes); err != nil {
+		return err
+	}
+	cm.deleteUnreferencedBearerTokens(previous, &updated)
+	return nil
 }
 
 func (cm *CollectionManager) DeleteCollection(collectionName string) error {
 	if collectionName == "" {
 		return errors.New("no collection name specified")
 	}
+
+	coll, loadErr := cm.LoadCollection(collectionName)
 
 	fileName := collectionName
 	if !strings.HasSuffix(fileName, ".json") {
@@ -185,6 +210,9 @@ func (cm *CollectionManager) DeleteCollection(collectionName string) error {
 	if err := tools.RemoveConfigFile(cm.config, fileName); err != nil {
 		slog.Error("Failed to delete collection", "name", collectionName, "error", err)
 		return err
+	}
+	if loadErr == nil {
+		cm.deleteCollectionBearerTokens(coll)
 	}
 
 	slog.Info("Collection deleted", "name", collectionName)
@@ -224,6 +252,10 @@ func (cm *CollectionManager) AddRequest(collectionName string, request Request) 
 		return nil, err
 	}
 
+	if err := cm.cloneBearerTokenForNewRequest(&request); err != nil {
+		return nil, err
+	}
+
 	newRequest, err := coll.AddRequest(request)
 	if err != nil {
 		return nil, err
@@ -246,6 +278,10 @@ func (cm *CollectionManager) AddRequestToFolder(collectionName, folderId string,
 	}
 	coll, err := cm.LoadCollection(collectionName)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := cm.cloneBearerTokenForNewRequest(&request); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +317,6 @@ func (cm *CollectionManager) RemoveRequest(collectionName string, requestId stri
 	if err := cm.UpdateCollection(*coll); err != nil {
 		return err
 	}
-
 	slog.Debug("Request removed", "collection", collectionName, "request_id", requestId)
 	return nil
 }
@@ -302,9 +337,140 @@ func (cm *CollectionManager) UpdateRequest(collectionName string, updated Reques
 	if err := cm.UpdateCollection(*coll); err != nil {
 		return err
 	}
-
 	slog.Debug("Request updated", "collection", collectionName, "request_id", updated.Id)
 	return nil
+}
+
+func (cm *CollectionManager) cloneBearerTokenForNewRequest(request *Request) error {
+	if request == nil || request.Auth == nil || request.Auth.BearerTokenID == "" || request.Auth.BearerToken != "" {
+		return nil
+	}
+	if cm.secretStore == nil {
+		return errors.New("auth secret store not configured")
+	}
+
+	token, err := cm.secretStore.GetBearerToken(request.Auth.BearerTokenID)
+	if err != nil {
+		return err
+	}
+	request.Auth.BearerTokenID = ""
+	request.Auth.BearerToken = token
+	return nil
+}
+
+func (cm *CollectionManager) prepareCollectionAuthForStorage(coll *Collection) error {
+	if coll == nil {
+		return nil
+	}
+	if err := cm.prepareAuthForStorage(&coll.Auth); err != nil {
+		return err
+	}
+	for i := range coll.Requests {
+		if err := cm.prepareAuthForStorage(coll.Requests[i].Auth); err != nil {
+			return fmt.Errorf("request %q: %w", coll.Requests[i].Name, err)
+		}
+	}
+	for i := range coll.Folders {
+		if err := cm.prepareFolderAuthForStorage(&coll.Folders[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cm *CollectionManager) prepareFolderAuthForStorage(folder *Folder) error {
+	for i := range folder.Requests {
+		if err := cm.prepareAuthForStorage(folder.Requests[i].Auth); err != nil {
+			return fmt.Errorf("request %q: %w", folder.Requests[i].Name, err)
+		}
+	}
+	for i := range folder.Folders {
+		if err := cm.prepareFolderAuthForStorage(&folder.Folders[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cm *CollectionManager) prepareAuthForStorage(authConfig *AuthConfiguration) error {
+	if authConfig == nil {
+		return nil
+	}
+	authConfig.Normalize()
+	if authConfig.BearerToken == "" {
+		return nil
+	}
+	if isBearerTokenPlaceholder(authConfig.BearerToken) {
+		authConfig.BearerTokenID = ""
+		return nil
+	}
+	if cm.secretStore == nil {
+		return errors.New("auth secret store not configured")
+	}
+
+	tokenID, err := cm.secretStore.StoreBearerToken(authConfig.BearerTokenID, authConfig.BearerToken)
+	if err != nil {
+		return err
+	}
+	authConfig.BearerTokenID = tokenID
+	authConfig.BearerToken = ""
+	return nil
+}
+
+func (cm *CollectionManager) deleteCollectionBearerTokens(coll *Collection) {
+	if coll == nil || cm.secretStore == nil {
+		return
+	}
+	seen := make(map[string]struct{})
+	collectBearerTokenIDs(coll, seen)
+	for tokenID := range seen {
+		if err := cm.secretStore.DeleteBearerToken(tokenID); err != nil {
+			slog.Warn("Failed to remove bearer token for deleted collection", "token_id", tokenID, "error", err)
+		}
+	}
+}
+
+func (cm *CollectionManager) deleteUnreferencedBearerTokens(previous, current *Collection) {
+	if previous == nil || cm.secretStore == nil {
+		return
+	}
+	previousIDs := make(map[string]struct{})
+	currentIDs := make(map[string]struct{})
+	collectBearerTokenIDs(previous, previousIDs)
+	collectBearerTokenIDs(current, currentIDs)
+	for tokenID := range previousIDs {
+		if _, stillReferenced := currentIDs[tokenID]; stillReferenced {
+			continue
+		}
+		if err := cm.secretStore.DeleteBearerToken(tokenID); err != nil {
+			slog.Warn("Failed to remove unreferenced bearer token", "token_id", tokenID, "error", err)
+		}
+	}
+}
+
+func collectBearerTokenIDs(coll *Collection, tokenIDs map[string]struct{}) {
+	if coll.Auth.BearerTokenID != "" {
+		tokenIDs[coll.Auth.BearerTokenID] = struct{}{}
+	}
+	for i := range coll.Requests {
+		if coll.Requests[i].Auth != nil && coll.Requests[i].Auth.BearerTokenID != "" {
+			tokenIDs[coll.Requests[i].Auth.BearerTokenID] = struct{}{}
+		}
+	}
+	for i := range coll.Folders {
+		collectFolderBearerTokenIDs(&coll.Folders[i], tokenIDs)
+	}
+}
+
+func collectFolderBearerTokenIDs(folder *Folder, tokenIDs map[string]struct{}) {
+	for i := range folder.Requests {
+		if folder.Requests[i].Auth != nil && folder.Requests[i].Auth.BearerTokenID != "" {
+			tokenIDs[folder.Requests[i].Auth.BearerTokenID] = struct{}{}
+		}
+	}
+	for i := range folder.Folders {
+		collectFolderBearerTokenIDs(&folder.Folders[i], tokenIDs)
+	}
 }
 
 // folders

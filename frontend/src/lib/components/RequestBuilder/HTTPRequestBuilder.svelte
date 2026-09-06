@@ -40,6 +40,7 @@
     type ResolvedVariableEntry
   } from "$src/lib/utils/variableResolution";
   import { GenerateCurl, GetSessionVars, SaveCurlFile } from "$wails/go/main/App";
+  import { collection } from "$wails/go/models";
   import ChevronDownOutline from "flowbite-svelte-icons/ChevronDownOutline.svelte";
   import FloppyDiskSolid from "flowbite-svelte-icons/FloppyDiskSolid.svelte";
   import StopSolid from "flowbite-svelte-icons/StopSolid.svelte";
@@ -331,6 +332,13 @@
       resolveTokens: (value) => resolveRequestTokens(value, sessionVars)
     });
 
+    const hasAuthorizationHeader = Object.keys(resolvedHeaders).some(
+      (key) => key.toLowerCase() === "authorization"
+    );
+    if (tab.auth.mode === "bearer" && !hasAuthorizationHeader) {
+      resolvedHeaders.Authorization = "Bearer <redacted>";
+    }
+
     // Add cookies from the saved request as Cookie header if present
     if (tab.collectionName && tab.requestId) {
       const colls = collectionStoreState.collections;
@@ -381,6 +389,12 @@
         auth: tab.auth,
         settings: tab.settings
       });
+      if (newReq.auth) {
+        tab.auth = collection.AuthConfiguration.createFrom({
+          ...newReq.auth,
+          bearerToken: tab.auth.bearerToken || ""
+        });
+      }
       tabStore.bindTabToRequest(tab.id, newReq.id, data.collection, data.name);
       showSaveDialog.open = false;
     } catch {
@@ -516,8 +530,8 @@
         <TabItem key="Auth">
           {#snippet titleSlot()}
             <span class="inline-flex items-center gap-1">
-              <span>OAuth</span>
-              {#if tab.auth.enabled}
+              <span>Auth</span>
+              {#if tab.auth.mode && tab.auth.mode !== "none"}
                 <span class="h-1.5 w-1.5 rounded-full bg-primary-500" aria-hidden="true"></span>
               {/if}
             </span>
@@ -596,6 +610,9 @@
           <RequestAuth
             bind:auth={tab.auth}
             variableEntries={resolvedVariableEntries}
+            hasAuthorizationHeader={tab.headers.some(
+              (header) => header.enabled && header.key.trim().toLowerCase() === "authorization"
+            )}
             onChange={onFieldChange}
           />
         {/key}
