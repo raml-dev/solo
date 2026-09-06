@@ -7,6 +7,10 @@ export const flowbiteTheme = {
   input: {
     input: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
   },
+  radio: {
+    input:
+      "appearance-auto! shrink-0 bg-transparent! accent-primary-600 before:hidden after:hidden focus:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+  },
   textarea: {
     base: "placeholder:text-neutral-400 dark:placeholder:text-neutral-400"
   },

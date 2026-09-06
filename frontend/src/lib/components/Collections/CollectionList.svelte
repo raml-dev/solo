@@ -30,7 +30,7 @@
   import { collectionStore, collectionStoreState } from "$src/lib/stores/collectionStore.svelte";
   import { modalStack, topModalId } from "$src/lib/stores/modalStackStore.svelte";
   import { notifications } from "$src/lib/stores/notificationStore";
-  import { getActiveTab, tabStore, tabStoreState } from "$src/lib/stores/tabStore.svelte";
+  import { getActiveTab, tabStore } from "$src/lib/stores/tabStore.svelte";
   import {
     ExportCollection,
     ExportOpenAPICollection,
@@ -795,9 +795,7 @@
   });
   let collections = $derived(collectionStoreState.collections);
   // Highlight in sidebar is driven by the active tab, not the collectionStore selection
-  let selectedRequestId = $derived(
-    tabStoreState.tabs.find((t) => t.id === getActiveTab()?.id)?.id ?? null
-  );
+  let selectedRequestId = $derived(getActiveTab()?.requestId ?? null);
 
   let normalizedQuery = $derived(searchQuery.trim().toLowerCase());
   let isSearching = $derived(normalizedQuery.length > 0);

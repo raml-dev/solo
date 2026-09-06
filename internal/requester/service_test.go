@@ -15,6 +15,7 @@ import (
 	"solo/internal/host"
 	"solo/internal/script"
 	"solo/internal/testutil"
+	"strings"
 	"testing"
 )
 
@@ -48,6 +49,91 @@ func saveEnvironment(t *testing.T, envManager *environment.EnvironmentManager, n
 	if err := envManager.UpdateEnvironment(&env); err != nil {
 		t.Fatalf("failed to save environment: %v", err)
 	}
+}
+
+func TestService_Execute_BearerAuthentication(t *testing.T) {
+	service, _, _, _ := newTestService(t)
+
+	t.Run("resolves and injects a transient token", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+		authConfig := &collection.AuthConfiguration{
+			Mode:        collection.AuthModeBearer,
+			BearerToken: "{{apiToken}}",
+		}
+		err := service.injectAuthorization(context.Background(), request, authConfig, resolutionContext{
+			collectionVars: map[string]string{"apiToken": "resolved-token"},
+		})
+		if err != nil {
+			t.Fatalf("injectAuthorization() error = %v", err)
+		}
+		if got := request.Header.Get("Authorization"); got != "Bearer resolved-token" {
+			t.Fatalf("Authorization = %q, want %q", got, "Bearer resolved-token")
+		}
+	})
+
+	t.Run("resolves an encrypted stored token from the selected environment scope", func(t *testing.T) {
+		tokenID, err := service.authManager.StoreBearerToken("", "{{apiToken}}")
+		if err != nil {
+			t.Fatalf("StoreBearerToken() error = %v", err)
+		}
+		request := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+		err = service.injectAuthorization(context.Background(), request, &collection.AuthConfiguration{
+			Mode:          collection.AuthModeBearer,
+			BearerTokenID: tokenID,
+		}, resolutionContext{
+			envVars: map[string]string{"apiToken": "environment-token"},
+		})
+		if err != nil {
+			t.Fatalf("injectAuthorization() error = %v", err)
+		}
+		if got := request.Header.Get("Authorization"); got != "Bearer environment-token" {
+			t.Fatalf("Authorization = %q, want %q", got, "Bearer environment-token")
+		}
+	})
+
+	t.Run("uses the standard variable scope precedence", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+		err := service.injectAuthorization(context.Background(), request, &collection.AuthConfiguration{
+			Mode:        collection.AuthModeBearer,
+			BearerToken: "{{apiToken}}",
+		}, resolutionContext{
+			sessionVars:    map[string]string{"apiToken": "session-token"},
+			envVars:        map[string]string{"apiToken": "environment-token"},
+			collectionVars: map[string]string{"apiToken": "collection-token"},
+		})
+		if err != nil {
+			t.Fatalf("injectAuthorization() error = %v", err)
+		}
+		if got := request.Header.Get("Authorization"); got != "Bearer session-token" {
+			t.Fatalf("Authorization = %q, want %q", got, "Bearer session-token")
+		}
+	})
+
+	t.Run("manual Authorization header wins", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+		request.Header.Set("Authorization", "Custom credentials")
+		err := service.injectAuthorization(context.Background(), request, &collection.AuthConfiguration{
+			Mode:          collection.AuthModeBearer,
+			BearerTokenID: "missing-token",
+		}, resolutionContext{})
+		if err != nil {
+			t.Fatalf("injectAuthorization() error = %v", err)
+		}
+		if got := request.Header.Get("Authorization"); got != "Custom credentials" {
+			t.Fatalf("Authorization = %q, want manual value", got)
+		}
+	})
+
+	t.Run("rejects unresolved tokens", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "https://example.com", nil)
+		err := service.injectAuthorization(context.Background(), request, &collection.AuthConfiguration{
+			Mode:        collection.AuthModeBearer,
+			BearerToken: "{{missing}}",
+		}, resolutionContext{})
+		if err == nil || !strings.Contains(err.Error(), "unresolved variables") {
+			t.Fatalf("injectAuthorization() error = %v, want unresolved variables error", err)
+		}
+	})
 }
 
 func TestService_Execute_ContentTypeHandling(goTest *testing.T) {

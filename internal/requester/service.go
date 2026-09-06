@@ -17,6 +17,7 @@ import (
 	"solo/internal/environment"
 	"solo/internal/host"
 	"solo/internal/script"
+	"solo/internal/tools"
 	"strings"
 	"time"
 
@@ -223,27 +224,59 @@ func (s *Service) applyHostCookies(request *http.Request) {
 	}
 }
 
-// injectAuthorization fetches and injects an OAuth2 bearer token when auth is enabled.
+// injectAuthorization applies the selected native authentication mode.
 // If Authorization is already set, it is left untouched.
-func (s *Service) injectAuthorization(ctx context.Context, request *http.Request, authCfg *collection.AuthConfiguration) error {
-	if request == nil || authCfg == nil || !authCfg.Enabled || s.authManager == nil {
+func (s *Service) injectAuthorization(ctx context.Context, request *http.Request, authCfg *collection.AuthConfiguration, resolutionCtx resolutionContext) error {
+	if request == nil || authCfg == nil || authCfg.EffectiveMode() == collection.AuthModeNone {
 		return nil
 	}
 
 	if strings.TrimSpace(request.Header.Get("Authorization")) != "" {
-		slog.Debug("Skipping OAuth2 Authorization injection because request already defines Authorization")
+		slog.Debug("Skipping native auth because request already defines Authorization")
 		return nil
 	}
 
-	token, refreshed, err := s.authManager.GetOrRefreshToken(ctx, *authCfg)
-	if err != nil {
-		slog.Error("Failed to get/refresh OAuth2 token", "error", err)
-		return fmt.Errorf("authentication failed: %w", err)
-	}
-
-	if token != "" {
+	switch authCfg.EffectiveMode() {
+	case collection.AuthModeBearer:
+		token := authCfg.BearerToken
+		if token == "" && authCfg.BearerTokenID != "" {
+			if s.authManager == nil {
+				return fmt.Errorf("authentication failed: auth manager not initialized")
+			}
+			storedToken, err := s.authManager.GetBearerToken(authCfg.BearerTokenID)
+			if err != nil {
+				return fmt.Errorf("authentication failed: %w", err)
+			}
+			token = storedToken
+		}
+		token = strings.TrimSpace(resolveTemplateString(token, resolutionCtx))
+		if token == "" {
+			return fmt.Errorf("authentication failed: bearer token is not configured")
+		}
+		if len(tools.ExtractPlaceholders(token)) > 0 {
+			return fmt.Errorf("authentication failed: bearer token contains unresolved variables")
+		}
+		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+			return fmt.Errorf("authentication failed: enter the bearer token without the Bearer prefix")
+		}
 		request.Header.Set("Authorization", "Bearer "+token)
-		slog.Debug("Injected OAuth2 Bearer token", "refreshed", refreshed)
+		slog.Debug("Injected static Bearer token")
+		return nil
+
+	case collection.AuthModeOAuth2:
+		if s.authManager == nil {
+			return fmt.Errorf("authentication failed: auth manager not initialized")
+		}
+		token, refreshed, err := s.authManager.GetOrRefreshToken(ctx, *authCfg)
+		if err != nil {
+			slog.Error("Failed to get/refresh OAuth2 token", "error", err)
+			return fmt.Errorf("authentication failed: %w", err)
+		}
+
+		if token != "" {
+			request.Header.Set("Authorization", "Bearer "+token)
+			slog.Debug("Injected OAuth2 Bearer token", "refreshed", refreshed)
+		}
 	}
 
 	return nil
@@ -307,12 +340,13 @@ func (s *Service) Execute(ctx context.Context, opts ExecutionOptions) (*executeR
 
 	s.applyHostCookies(request)
 
-	finalAuthConfig := resolveAuthConfig(opts.Auth, resolutionContext{
+	finalResolutionCtx := resolutionContext{
 		sessionVars:    sessionVars,
 		envVars:        envVars,
 		collectionVars: collectionVars,
-	})
-	if err := s.injectAuthorization(ctx, request, finalAuthConfig); err != nil {
+	}
+	finalAuthConfig := resolveAuthConfig(opts.Auth, finalResolutionCtx)
+	if err := s.injectAuthorization(ctx, request, finalAuthConfig, finalResolutionCtx); err != nil {
 		return nil, err
 	}
 
@@ -392,7 +426,11 @@ func (s *Service) ExecuteRequest(ctx context.Context, opts ExecutionOptions) (*R
 		// We use the 'req' object returned by Execute which is the final one sent
 		reqHeaders := make(map[string]string, len(req.Header))
 		for k, v := range req.Header {
-			reqHeaders[k] = v[0]
+			if strings.EqualFold(k, "Authorization") {
+				reqHeaders[k] = "[REDACTED]"
+			} else {
+				reqHeaders[k] = v[0]
+			}
 		}
 
 		// Execute post-response script (read-only on request/response, can write session vars)
@@ -432,7 +470,11 @@ func (s *Service) ExecuteRequest(ctx context.Context, opts ExecutionOptions) (*R
 		if req != nil {
 			finalReqHeaders = make(map[string]any)
 			for k, v := range req.Header {
-				finalReqHeaders[k] = v[0]
+				if strings.EqualFold(k, "Authorization") {
+					finalReqHeaders[k] = "[REDACTED]"
+				} else {
+					finalReqHeaders[k] = v[0]
+				}
 			}
 		}
 
@@ -442,7 +484,6 @@ func (s *Service) ExecuteRequest(ctx context.Context, opts ExecutionOptions) (*R
 				"url":     opts.URL,
 				"body":    opts.Body,
 				"headers": finalReqHeaders,
-				"auth":    opts.Auth,
 			},
 			"response": responseData,
 			"duration": duration,

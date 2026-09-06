@@ -32,12 +32,13 @@ func (c *CurlImporter) ParseRequest(curlString string) (collection.Request, erro
 	}
 
 	var (
-		rawURL     string
-		verb       string
-		body       string
-		authHeader string
-		headers    = make(map[string]string)
-		cookies    = make(map[string]string)
+		rawURL      string
+		verb        string
+		body        string
+		authHeader  string
+		bearerToken string
+		headers     = make(map[string]string)
+		cookies     = make(map[string]string)
 	)
 
 	args := tokens[1:]
@@ -75,6 +76,11 @@ func (c *CurlImporter) ParseRequest(curlString string) (collection.Request, erro
 			if v, ok := next(); ok {
 				encoded := base64.StdEncoding.EncodeToString([]byte(v))
 				authHeader = "Basic " + encoded
+			}
+
+		case "--oauth2-bearer":
+			if v, ok := next(); ok {
+				bearerToken = v
 			}
 
 		case "-b", "--cookie":
@@ -121,8 +127,18 @@ func (c *CurlImporter) ParseRequest(curlString string) (collection.Request, erro
 
 	// Authorization from -u (only if -H didn't already set it)
 	if authHeader != "" {
-		if _, exists := headers["Authorization"]; !exists {
+		if _, _, exists := findHeaderCaseInsensitive(headers, "Authorization"); !exists {
 			headers["Authorization"] = authHeader
+		}
+	}
+
+	if headerKey, headerValue, exists := findHeaderCaseInsensitive(headers, "Authorization"); exists {
+		if token, ok := strings.CutPrefix(strings.TrimSpace(headerValue), "Bearer "); ok {
+			bearerToken = strings.TrimSpace(token)
+			delete(headers, headerKey)
+		} else if len(headerValue) >= len("Bearer ") && strings.EqualFold(headerValue[:len("Bearer ")], "Bearer ") {
+			bearerToken = strings.TrimSpace(headerValue[len("Bearer "):])
+			delete(headers, headerKey)
 		}
 	}
 
@@ -153,8 +169,23 @@ func (c *CurlImporter) ParseRequest(curlString string) (collection.Request, erro
 		CreationTimestamp:   now,
 		LastUpdateTimestamp: now,
 	}
+	if bearerToken != "" {
+		req.Auth = &collection.AuthConfiguration{
+			Mode:        collection.AuthModeBearer,
+			BearerToken: bearerToken,
+		}
+	}
 
 	return req, nil
+}
+
+func findHeaderCaseInsensitive(headers map[string]string, name string) (string, string, bool) {
+	for key, value := range headers {
+		if strings.EqualFold(key, name) {
+			return key, value, true
+		}
+	}
+	return "", "", false
 }
 
 // curlBoolFlag lists known cURL flags that take no argument.

@@ -192,7 +192,7 @@ func NewApp() *App {
 
 	return &App{
 		service:            service,
-		collectionManager:  collection.NewCollectionManager(),
+		collectionManager:  collection.NewCollectionManager(am),
 		environmentManager: em,
 		configManager:      cm,
 		hostManager:        hm,
@@ -202,6 +202,14 @@ func NewApp() *App {
 		gitManager:         git.NewManager(),
 		cancelFuncs:        make(map[string]context.CancelFunc),
 	}
+}
+
+// RevealBearerToken returns a locally stored bearer token after an explicit UI action.
+func (a *App) RevealBearerToken(tokenID string) (string, error) {
+	if a.authManager == nil {
+		return "", fmt.Errorf("auth manager not initialized")
+	}
+	return a.authManager.GetBearerToken(tokenID)
 }
 
 // startup is called when the app starts. The context is saved
