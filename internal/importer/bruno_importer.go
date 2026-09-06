@@ -114,6 +114,8 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 	var currentSection string
 	var isBodyBlock bool
 	isHTTPRequest := false
+	requestAuthMode := ""
+	authValues := make(map[string]string)
 
 	queryMap := make(map[string]interface{})
 	pathParamMap := make(map[string]string)
@@ -135,6 +137,14 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 			continue
 		} else if strings.HasPrefix(line, "headers {") {
 			currentSection = "headers"
+			isBodyBlock = false
+			continue
+		} else if strings.HasPrefix(line, "auth:bearer {") {
+			currentSection = "auth:bearer"
+			isBodyBlock = false
+			continue
+		} else if strings.HasPrefix(line, "auth:oauth2 {") {
+			currentSection = "auth:oauth2"
 			isBodyBlock = false
 			continue
 		} else if strings.HasPrefix(line, "query {") || strings.HasPrefix(line, "params:query {") {
@@ -205,6 +215,9 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 					req.BodyType = value
 				}
 			}
+			if key == "auth" {
+				requestAuthMode = strings.ToLower(value)
+			}
 		case "headers":
 			req.Headers[key] = value
 		case "query":
@@ -215,6 +228,8 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 			formUrlEncodedMap[key] = value
 		case "body:multipart-form":
 			multipartFormMap[key] = value
+		case "auth:bearer", "auth:oauth2":
+			authValues[key] = value
 		}
 	}
 
@@ -249,7 +264,154 @@ func parseBruFile(filePath string, basePath string) (*collection.Request, []stri
 		return nil, nil, nil
 	}
 
+	inheritedAuth, err := loadInheritedBrunoAuth(filePath, basePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Auth = buildBrunoAuth(requestAuthMode, authValues, inheritedAuth)
+
 	return &req, folderNames, nil
+}
+
+func loadInheritedBrunoAuth(filePath, basePath string) (*collection.AuthConfiguration, error) {
+	var effective *collection.AuthConfiguration
+	paths := []string{filepath.Join(basePath, "collection.bru")}
+
+	parentDir := filepath.Dir(filePath)
+	relParent, err := filepath.Rel(basePath, parentDir)
+	if err != nil {
+		return nil, err
+	}
+	if relParent != "." {
+		current := basePath
+		for _, segment := range strings.Split(filepath.ToSlash(relParent), "/") {
+			current = filepath.Join(current, segment)
+			paths = append(paths, filepath.Join(current, "folder.bru"))
+		}
+	}
+
+	for _, path := range paths {
+		definition, err := parseBrunoAuthDefinition(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		if definition.mode == "" || definition.mode == "inherit" {
+			continue
+		}
+		effective = buildBrunoAuth(definition.mode, definition.values, effective)
+	}
+	return effective, nil
+}
+
+type brunoAuthDefinition struct {
+	mode   string
+	values map[string]string
+}
+
+func parseBrunoAuthDefinition(path string) (brunoAuthDefinition, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return brunoAuthDefinition{}, err
+	}
+	defer file.Close()
+
+	definition := brunoAuthDefinition{values: make(map[string]string)}
+	currentSection := ""
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		switch {
+		case strings.HasPrefix(line, "auth {"):
+			currentSection = "auth"
+			continue
+		case strings.HasPrefix(line, "auth:bearer {"):
+			currentSection = "auth:bearer"
+			continue
+		case strings.HasPrefix(line, "auth:oauth2 {"):
+			currentSection = "auth:oauth2"
+			continue
+		case line == "}":
+			currentSection = ""
+			continue
+		}
+
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if currentSection == "auth" && key == "mode" {
+			definition.mode = strings.ToLower(value)
+		} else if currentSection == "auth:bearer" || currentSection == "auth:oauth2" {
+			definition.values[key] = value
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return brunoAuthDefinition{}, err
+	}
+	return definition, nil
+}
+
+func buildBrunoAuth(mode string, values map[string]string, inherited *collection.AuthConfiguration) *collection.AuthConfiguration {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", "inherit":
+		return cloneAuthConfiguration(inherited)
+	case "none", "noauth":
+		return nil
+	case "bearer":
+		return &collection.AuthConfiguration{
+			Mode:        collection.AuthModeBearer,
+			BearerToken: values["token"],
+		}
+	case "oauth2":
+		tokenURL := firstNonEmpty(values["access_token_url"], values["token_url"])
+		if tokenURL == "" {
+			return nil
+		}
+		template := make(map[string]string)
+		for key, value := range values {
+			switch key {
+			case "grant_type", "client_id", "client_secret", "scope", "username", "password":
+				if value != "" {
+					template[key] = value
+				}
+			}
+		}
+		return &collection.AuthConfiguration{
+			Enabled:   true,
+			Mode:      collection.AuthModeOAuth2,
+			TokenURL:  tokenURL,
+			Template:  template,
+			TokenPath: "access_token",
+		}
+	default:
+		return nil
+	}
+}
+
+func cloneAuthConfiguration(source *collection.AuthConfiguration) *collection.AuthConfiguration {
+	if source == nil {
+		return nil
+	}
+	clone := *source
+	clone.Template = make(map[string]string, len(source.Template))
+	for key, value := range source.Template {
+		clone.Template[key] = value
+	}
+	return &clone
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func addRequestToCollectionTree(coll *collection.Collection, folderNames []string, req collection.Request) {

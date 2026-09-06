@@ -11,12 +11,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"solo/internal/collection"
 	"solo/internal/tools"
 
+	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -30,13 +33,15 @@ type Token struct {
 
 // AuthStore is the structure of the encrypted JSON file.
 type AuthStore struct {
-	Tokens map[string]Token `json:"tokens"`
+	Tokens       map[string]Token  `json:"tokens"`
+	BearerTokens map[string]string `json:"bearerTokens,omitempty"`
 }
 
 type AuthManager struct {
 	configDir string
 	fileName  string
 	ctx       context.Context
+	mu        sync.Mutex
 }
 
 func NewAuthManager(configDir string) *AuthManager {
@@ -53,12 +58,18 @@ func (m *AuthManager) SetContext(ctx context.Context) {
 // GetOrRefreshToken returns a valid token, refreshing it if necessary.
 // Returns (token, refreshed, error)
 func (m *AuthManager) GetOrRefreshToken(ctx context.Context, config collection.AuthConfiguration) (string, bool, error) {
-	if !config.Enabled {
+	if config.EffectiveMode() != collection.AuthModeOAuth2 {
 		return "", false, nil
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	hash := config.Hash()
-	store, _ := m.loadStore()
+	store, err := m.loadStore()
+	if err != nil {
+		return "", false, err
+	}
 
 	token, exists := store.Tokens[hash]
 	// Proactive refresh: if token expires in less than 30 seconds
@@ -82,6 +93,66 @@ func (m *AuthManager) GetOrRefreshToken(ctx context.Context, config collection.A
 	}
 
 	return newToken.AccessToken, true, nil
+}
+
+// StoreBearerToken encrypts and persists a bearer token, returning its stable identifier.
+func (m *AuthManager) StoreBearerToken(tokenID, token string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	store, err := m.loadStore()
+	if err != nil {
+		return "", err
+	}
+	if tokenID == "" {
+		tokenID = uuid.NewString()
+	}
+	if store.BearerTokens == nil {
+		store.BearerTokens = make(map[string]string)
+	}
+	store.BearerTokens[tokenID] = token
+	if err := m.saveStore(store); err != nil {
+		return "", fmt.Errorf("failed to save bearer token: %w", err)
+	}
+	return tokenID, nil
+}
+
+// GetBearerToken decrypts and returns a bearer token by identifier.
+func (m *AuthManager) GetBearerToken(tokenID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if strings.TrimSpace(tokenID) == "" {
+		return "", fmt.Errorf("bearer token is not configured")
+	}
+	store, err := m.loadStore()
+	if err != nil {
+		return "", err
+	}
+	token, ok := store.BearerTokens[tokenID]
+	if !ok {
+		return "", fmt.Errorf("bearer token %q was not found on this machine", tokenID)
+	}
+	return token, nil
+}
+
+// DeleteBearerToken removes a bearer token from the encrypted store.
+func (m *AuthManager) DeleteBearerToken(tokenID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if strings.TrimSpace(tokenID) == "" {
+		return nil
+	}
+	store, err := m.loadStore()
+	if err != nil {
+		return err
+	}
+	if _, ok := store.BearerTokens[tokenID]; !ok {
+		return nil
+	}
+	delete(store.BearerTokens, tokenID)
+	return m.saveStore(store)
 }
 
 func (m *AuthManager) fetchToken(ctx context.Context, config collection.AuthConfiguration) (*Token, error) {
@@ -129,21 +200,20 @@ func (m *AuthManager) fetchToken(ctx context.Context, config collection.AuthConf
 			"method": "POST",
 			"params": templateCopy,
 			"status": resp.StatusCode,
-			"body":   string(body),
+			"body":   "[REDACTED]",
 		}
 	}
 
 	if resp.StatusCode >= 400 {
 		slog.Error("OAuth2 provider returned error",
-			"status", resp.StatusCode,
-			"body", string(body))
+			"status", resp.StatusCode)
 
 		if m.ctx != nil {
 			eventData["error"] = true
 			runtime.EventsEmit(m.ctx, "auth:token-refreshed", eventData)
 		}
 
-		return nil, fmt.Errorf("auth request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("auth request failed with status %d", resp.StatusCode)
 	}
 
 	if m.ctx != nil {
@@ -176,20 +246,36 @@ func (m *AuthManager) fetchToken(ctx context.Context, config collection.AuthConf
 func (m *AuthManager) loadStore() (*AuthStore, error) {
 	data, err := tools.ReadConfigFile(m.configDir, m.fileName)
 	if err != nil {
-		return &AuthStore{Tokens: make(map[string]Token)}, nil
+		if os.IsNotExist(err) {
+			return newAuthStore(), nil
+		}
+		return nil, fmt.Errorf("failed to read auth store: %w", err)
 	}
 
 	decrypted, err := Decrypt(data)
 	if err != nil {
-		return &AuthStore{Tokens: make(map[string]Token)}, nil
+		return nil, fmt.Errorf("failed to decrypt auth store: %w", err)
 	}
 
 	var store AuthStore
 	if err := json.Unmarshal(decrypted, &store); err != nil {
-		return &AuthStore{Tokens: make(map[string]Token)}, nil
+		return nil, fmt.Errorf("failed to parse auth store: %w", err)
+	}
+	if store.Tokens == nil {
+		store.Tokens = make(map[string]Token)
+	}
+	if store.BearerTokens == nil {
+		store.BearerTokens = make(map[string]string)
 	}
 
 	return &store, nil
+}
+
+func newAuthStore() *AuthStore {
+	return &AuthStore{
+		Tokens:       make(map[string]Token),
+		BearerTokens: make(map[string]string),
+	}
 }
 
 func (m *AuthManager) saveStore(store *AuthStore) error {

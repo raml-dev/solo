@@ -33,6 +33,58 @@ type requestSummary struct {
 	headers  map[string]string
 }
 
+func TestOpenAPIImporter_ImportsBearerSecurityAndOperationOverride(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "auth.yaml")
+	document := `openapi: 3.0.3
+info:
+  title: Auth API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+security:
+  - bearerAuth: []
+paths:
+  /secured:
+    get:
+      operationId: secured
+      responses:
+        "200": {description: OK}
+  /public:
+    get:
+      operationId: public
+      security: []
+      responses:
+        "200": {description: OK}
+`
+	if err := os.WriteFile(path, []byte(document), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	result, err := NewOpenAPIImporter().Import(path)
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+	requests := make(map[string]collection.Request, len(result.Collection.Requests))
+	for _, request := range result.Collection.Requests {
+		requests[request.Name] = request
+	}
+	secured := requests["secured"]
+	if secured.Auth == nil || secured.Auth.EffectiveMode() != collection.AuthModeBearer {
+		t.Fatalf("secured auth = %+v, want bearer", secured.Auth)
+	}
+	if secured.Auth.BearerToken != "" {
+		t.Fatal("OpenAPI import must not invent a bearer credential")
+	}
+	if requests["public"].Auth != nil {
+		t.Fatalf("public auth = %+v, want operation-level no auth", requests["public"].Auth)
+	}
+}
+
 func summarize(t *testing.T, path string) ([]requestSummary, []string) {
 	t.Helper()
 	imp := NewOpenAPIImporter()

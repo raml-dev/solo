@@ -117,8 +117,8 @@ func (o *OpenAPIImporter) Import(path string) (ImportResult, error) {
 	schemeNames := collectSecuritySchemeNames(doc, version)
 	if len(schemeNames) > 0 {
 		msg := fmt.Sprintf(
-			"Security schemes detected (%s) but not imported. "+
-				"Configure authentication manually via request headers or environment variables.",
+			"Security schemes detected (%s). Supported request requirements were imported without credentials. "+
+				"Configure missing credentials or unsupported schemes through Auth, request headers, or environment variables.",
 			strings.Join(schemeNames, ", "),
 		)
 		slog.Warn("OpenAPI import: security schemes skipped", "schemes", schemeNames)
@@ -415,7 +415,100 @@ func (o *OpenAPIImporter) buildRequest(method, path string, op *openAPIOperation
 		}
 	}
 
+	req.Auth = resolveOpenAPIAuth(op, doc, version)
+
 	return req
+}
+
+func resolveOpenAPIAuth(op *openAPIOperation, doc unifiedAPIDocument, version string) *collection.AuthConfiguration {
+	requirements := doc.Security
+	if op.Security != nil {
+		requirements = *op.Security
+	}
+	if len(requirements) == 0 {
+		return nil
+	}
+
+	for _, requirement := range requirements {
+		if len(requirement) == 0 {
+			return nil
+		}
+		if len(requirement) != 1 {
+			continue
+		}
+		for schemeName, scopes := range requirement {
+			rawScheme, ok := doc.Components.SecuritySchemes[schemeName]
+			if version != "3.x" {
+				rawScheme, ok = doc.SecurityDefinitions[schemeName]
+			}
+			if !ok {
+				continue
+			}
+			if authConfig := convertOpenAPISecurityScheme(rawScheme, scopes, version); authConfig != nil {
+				return authConfig
+			}
+		}
+	}
+
+	return nil
+}
+
+func convertOpenAPISecurityScheme(raw any, scopes []string, version string) *collection.AuthConfiguration {
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var scheme openAPISecurityScheme
+	if err := json.Unmarshal(data, &scheme); err != nil {
+		return nil
+	}
+
+	if version == "3.x" && strings.EqualFold(scheme.Type, "http") && strings.EqualFold(scheme.Scheme, "bearer") {
+		return &collection.AuthConfiguration{Mode: collection.AuthModeBearer}
+	}
+
+	if !strings.EqualFold(scheme.Type, "oauth2") {
+		return nil
+	}
+
+	tokenURL := scheme.TokenURL
+	grantType := ""
+	if version == "3.x" {
+		switch {
+		case scheme.Flows.ClientCredentials.TokenURL != "":
+			tokenURL = scheme.Flows.ClientCredentials.TokenURL
+			grantType = "client_credentials"
+		case scheme.Flows.Password.TokenURL != "":
+			tokenURL = scheme.Flows.Password.TokenURL
+			grantType = "password"
+		default:
+			return nil
+		}
+	} else {
+		switch strings.ToLower(scheme.Flow) {
+		case "application":
+			grantType = "client_credentials"
+		case "password":
+			grantType = "password"
+		default:
+			return nil
+		}
+	}
+	if strings.TrimSpace(tokenURL) == "" {
+		return nil
+	}
+
+	template := map[string]string{"grant_type": grantType}
+	if len(scopes) > 0 {
+		template["scope"] = strings.Join(scopes, " ")
+	}
+	return &collection.AuthConfiguration{
+		Enabled:   true,
+		Mode:      collection.AuthModeOAuth2,
+		TokenURL:  tokenURL,
+		Template:  template,
+		TokenPath: "access_token",
+	}
 }
 
 // collectSecuritySchemeNames returns the names of all declared security schemes.
@@ -462,7 +555,8 @@ type unifiedAPIDocument struct {
 	Schemes  []string `json:"schemes"  yaml:"schemes"`
 
 	// Swagger 2.x global consumes (fallback for operations without their own)
-	Consumes []string `json:"consumes" yaml:"consumes"`
+	Consumes []string              `json:"consumes" yaml:"consumes"`
+	Security []map[string][]string `json:"security" yaml:"security"`
 
 	// Swagger 2.x security schemes
 	SecurityDefinitions map[string]interface{} `json:"securityDefinitions" yaml:"securityDefinitions"`
@@ -490,12 +584,28 @@ type openAPIPathItem struct {
 }
 
 type openAPIOperation struct {
-	OperationId string              `json:"operationId" yaml:"operationId"`
-	Summary     string              `json:"summary"     yaml:"summary"`
-	Tags        []string            `json:"tags"        yaml:"tags"`
-	Parameters  []openAPIParameter  `json:"parameters"  yaml:"parameters"`
-	RequestBody *openAPIRequestBody `json:"requestBody" yaml:"requestBody"` // OpenAPI 3.x only
-	Consumes    []string            `json:"consumes"    yaml:"consumes"`    // Swagger 2.x only
+	OperationId string                 `json:"operationId" yaml:"operationId"`
+	Summary     string                 `json:"summary"     yaml:"summary"`
+	Tags        []string               `json:"tags"        yaml:"tags"`
+	Parameters  []openAPIParameter     `json:"parameters"  yaml:"parameters"`
+	RequestBody *openAPIRequestBody    `json:"requestBody" yaml:"requestBody"` // OpenAPI 3.x only
+	Consumes    []string               `json:"consumes"    yaml:"consumes"`    // Swagger 2.x only
+	Security    *[]map[string][]string `json:"security" yaml:"security"`
+}
+
+type openAPISecurityScheme struct {
+	Type     string `json:"type"`
+	Scheme   string `json:"scheme"`
+	Flow     string `json:"flow"`
+	TokenURL string `json:"tokenUrl"`
+	Flows    struct {
+		ClientCredentials struct {
+			TokenURL string `json:"tokenUrl"`
+		} `json:"clientCredentials"`
+		Password struct {
+			TokenURL string `json:"tokenUrl"`
+		} `json:"password"`
+	} `json:"flows"`
 }
 
 type openAPIParameter struct {

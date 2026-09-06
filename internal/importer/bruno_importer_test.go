@@ -130,6 +130,72 @@ func TestBrunoImporter_Import_DirNotFound(t *testing.T) {
 	}
 }
 
+func TestBrunoImporter_ImportsInheritedAndRequestAuth(t *testing.T) {
+	testDir := t.TempDir()
+	files := map[string]string{
+		"bruno.json": `{"name":"Auth collection","type":"collection","version":"1"}`,
+		"collection.bru": `auth {
+  mode: bearer
+}
+auth:bearer {
+  token: {{collectionToken}}
+}`,
+		"inherited.bru": `meta {
+  name: Inherited
+  type: http
+}
+get {
+  url: https://example.com/inherited
+  body: none
+  auth: inherit
+}`,
+		"none.bru": `meta {
+  name: None
+  type: http
+}
+get {
+  url: https://example.com/none
+  body: none
+  auth: none
+}`,
+		"own.bru": `meta {
+  name: Own
+  type: http
+}
+get {
+  url: https://example.com/own
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: request-token
+}`,
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(testDir, name), []byte(content), 0600); err != nil {
+			t.Fatalf("WriteFile(%q) error = %v", name, err)
+		}
+	}
+
+	coll, err := NewBrunoImporter().Import(testDir)
+	if err != nil {
+		t.Fatalf("Import() error = %v", err)
+	}
+	requests := make(map[string]collection.Request, len(coll.Requests))
+	for _, request := range coll.Requests {
+		requests[request.Name] = request
+	}
+	if got := requests["Inherited"].Auth.BearerToken; got != "{{collectionToken}}" {
+		t.Fatalf("inherited bearer token = %q", got)
+	}
+	if requests["None"].Auth != nil {
+		t.Fatalf("none auth = %+v, want nil", requests["None"].Auth)
+	}
+	if got := requests["Own"].Auth.BearerToken; got != "request-token" {
+		t.Fatalf("request bearer token = %q", got)
+	}
+}
+
 func TestBrunoImporter_Import_IgnoresEnvironmentBruFiles(t *testing.T) {
 	importer := NewBrunoImporter()
 	testDir := t.TempDir()

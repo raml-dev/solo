@@ -797,7 +797,7 @@
     </div>
   {/if}
 
-  <div class="h-full" class:pt-20={searchToolbarOpen}>
+  <div class="h-full">
     <div class="editor-container h-full" class:read-only={readOnly} bind:this={editorEl}></div>
   </div>
 

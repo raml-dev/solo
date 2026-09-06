@@ -6,8 +6,7 @@
 <script lang="ts">
   import ToastContainer from "$src/lib/components/base/ToastContainer.svelte";
   import CollectionList from "$src/lib/components/Collections/CollectionList.svelte";
-  import ContextMenu from "$src/lib/components/common/ContextMenu.svelte";
-  import ContextMenuItem from "$src/lib/components/common/ContextMenuItem.svelte";
+  import EnvironmentManager from "$src/lib/components/Environment/EnvironmentManager.svelte";
   import History from "$src/lib/components/History/History.svelte";
   import MainLayout from "$src/lib/components/MainLayout.svelte";
   import HTTPRequestBuilder from "$src/lib/components/RequestBuilder/HTTPRequestBuilder.svelte";
@@ -37,15 +36,22 @@
   import GlobeOutline from "flowbite-svelte-icons/GlobeOutline.svelte";
   import Badge from "flowbite-svelte/Badge.svelte";
   import Button from "flowbite-svelte/Button.svelte";
+  import Modal from "flowbite-svelte/Modal.svelte";
+  import Radio from "flowbite-svelte/Radio.svelte";
   import ThemeProvider from "flowbite-svelte/ThemeProvider.svelte";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
 
-  let isEnvDropdownOpen = $state(false);
+  const environmentSelectionModal = modalStack.createModal("app-environment-selection");
 
   let environments = $derived(environmentStoreState.environments);
   let selectedEnvironmentName = $derived(environmentStoreState.selectedEnvironmentName);
 
   const environmentManagerModal = modalStack.createModal("app-environments");
+
+  onDestroy(() => {
+    modalStack.destroyModal(environmentSelectionModal.id);
+    modalStack.destroyModal(environmentManagerModal.id);
+  });
 
   let historyOpen = $state(false);
   let historyPaneHeight = $state(260);
@@ -71,11 +77,8 @@
   }
 
   function toggleEnvironmentManager() {
-    environmentManagerModal.open = !environmentManagerModal.open;
-  }
-
-  function closeEnvDropdown() {
-    isEnvDropdownOpen = false;
+    environmentSelectionModal.open = false;
+    environmentManagerModal.open = true;
   }
 
   function startResize(e: MouseEvent) {
@@ -209,48 +212,6 @@
   });
 </script>
 
-{#snippet envDropdown(triggeredBy: string, isOpen: boolean | undefined, onClose: () => void)}
-  <ContextMenu {triggeredBy} {isOpen} menuClass="z-50 w-max max-w-72 min-w-40" {onClose}>
-    {#each environments as environment (environment.id)}
-      <ContextMenuItem
-        onclick={() => {
-          void environmentStore.selectEnvironment(environment.name);
-          onClose();
-        }}
-      >
-        <div class="flex items-center gap-2">
-          <div class="flex flex-1 items-center gap-2">
-            <input
-              type="radio"
-              name="active-environment"
-              checked={selectedEnvironmentName === environment.name}
-              onchange={() => {
-                void environmentStore.selectEnvironment(environment.name);
-                onClose();
-              }}
-              aria-label={`Set ${environment.name} as active environment`}
-              class="relative mr-2 flex h-4 w-4 shrink-0 items-center border-gray-300 bg-gray-100 text-primary-600 dark:border-gray-600 dark:bg-gray-700"
-            />
-            <span>{environment.name}</span>
-          </div>
-          <div class="flex">
-            <EditOutline
-              class="h-4 w-4 shrink-0 cursor-pointer"
-              onclick={toggleEnvironmentManager}
-            />
-          </div>
-        </div>
-      </ContextMenuItem>
-    {/each}
-    <!-- <ContextMenuItem
-      onclick={() => {
-        onClose();
-      }}
-    >
-      <div class="flex items-center gap-2">add env</div>
-    </ContextMenuItem> -->
-  </ContextMenu>
-{/snippet}
 <ThemeProvider theme={flowbiteTheme}>
   {#if !$hasOpenModals}
     <ToastContainer />
@@ -314,7 +275,8 @@
         <Button
           id="env-dropdown-button"
           size="xs"
-          onclick={() => (isEnvDropdownOpen = true)}
+          onclick={() => (environmentSelectionModal.open = true)}
+          aria-haspopup="dialog"
           class="items-center gap-1 border-0 bg-transparent shadow-none hover:bg-transparent focus:ring-0 active:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent {selectedEnvironmentName
             ? 'text-neutral-600 dark:text-neutral-400'
             : 'text-neutral-400 dark:text-neutral-600'}"
@@ -322,11 +284,55 @@
         >
           <GlobeOutline class="h-4" />
           Active env: {selectedEnvironmentName ?? "No environment"}
-          <!-- <AngleUpOutline class="w-3 shrink-0" /> -->
         </Button>
-
-        {@render envDropdown("#env-dropdown-button", isEnvDropdownOpen, closeEnvDropdown)}
       </div>
     {/snippet}
   </MainLayout>
+
+  {#if environmentSelectionModal.open}
+    <Modal title="Select environment" bind:open={environmentSelectionModal.open} size="sm">
+      <div
+        role="radiogroup"
+        aria-label="Active environment"
+        tabindex="-1"
+        data-autofocus
+        class="max-h-[60dvh] space-y-3 overflow-y-auto outline-none"
+      >
+        {#each environments as environment (environment.id)}
+          <Radio
+            name="active-environment"
+            value={environment.name}
+            group={selectedEnvironmentName}
+            classes={{ label: "min-w-0 break-all" }}
+            onchange={() => {
+              void environmentStore.selectEnvironment(environment.name);
+              environmentSelectionModal.open = false;
+            }}
+          >
+            {environment.name}
+          </Radio>
+        {:else}
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">No environments available.</p>
+        {/each}
+      </div>
+      {#snippet footer()}
+        <Button color="alternative" onclick={toggleEnvironmentManager}>
+          <EditOutline class="mr-2 h-4 w-4" />
+          Manage environments
+        </Button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if environmentManagerModal.open}
+    <Modal
+      title="Environments"
+      bind:open={environmentManagerModal.open}
+      size="xl"
+      classes={{ body: "h-[min(80dvh,44rem)] overflow-hidden p-0" }}
+    >
+      <ToastContainer />
+      <EnvironmentManager />
+    </Modal>
+  {/if}
 </ThemeProvider>
