@@ -52,7 +52,7 @@
     "@codemirror/view": "^6.43.9",
     "@replit/codemirror-indentation-markers": "^6.5.3",
     "codemirror": "^6.0.2",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.16",
     "marked": "^18.0.11"
   },
   "allowScripts": {
